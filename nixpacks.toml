@@ -1,5 +1,5 @@
 [phases.setup]
-providers = ["python"]
+nixPkgs = ["python310"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
