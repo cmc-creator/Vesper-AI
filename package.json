@@ -1,0 +1,15 @@
+{
+  "name": "vesper-app",
+  "version": "1.0.0",
+  "description": "Vesper - CC's Private AI Companion",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "express": "^4.18.2",
+    "dotenv": "^16.4.5"
+  }
+}

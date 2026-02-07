@@ -1,0 +1,10 @@
+body {
+  margin: 0;
+  font-family: 'Serif', 'Segoe UI', 'Arial', sans-serif;
+  background: radial-gradient(ellipse at top, #23213a 0%, #181726 100%);
+  color: #fff;
+}
+
+* {
+  box-sizing: border-box;
+}
