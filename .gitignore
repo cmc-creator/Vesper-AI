@@ -1,11 +1,36 @@
 node_modules/
 .env
 .env.*
+!.env.example
 .venv/
+
+# Firebase
+firebase-service-account.json
+.firebase/
+.firebaserc
+
 # OS files
 .DS_Store
 Thumbs.db
+
 # Log files
 *.log
+
 # VS Code settings
 .vscode/
+
+# Build outputs
+frontend/dist/
+frontend/build/
+*.pyc
+__pycache__/
+
+# PWA
+frontend/dev-dist/
+frontend/public/sw.js
+frontend/public/workbox-*.js
+
+# Deployment
+.vercel
+.railway
+.git

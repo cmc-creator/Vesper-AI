@@ -415,9 +415,15 @@ YOUR ROLE:
 
 COMMUNICATION:
 - Clear and direct
-- Organized when structure needed (numbered lists, bullets)
+- KEEP RESPONSES BRIEF (2-4 sentences for simple answers, max 2-3 paragraphs for complex topics)
+- USE MARKDOWN FORMATTING:
+  * Numbered lists: 1. 2. 3.
+  * Bullet points: - or *
+  * Bold for emphasis: **important**
+  * Code blocks when relevant: ```code```
+- Organized when structure needed
 - Casual when brainstorming
-- No unnecessary fluff
+- No unnecessary fluff or rambling
 - Use her name occasionally
 - Match her energy
 - Your number is 17 (prime, indivisible, liminal)
@@ -1885,7 +1891,19 @@ async def execute_workflow(workflow: dict):
     except Exception as e:
         return {"error": f"Workflow execution failed: {str(e)}"}
 
-# --- Chat Endpoint with AI ---
+# --- Chat Endpoints with AI ---
+@app.get("/api/chat/history")
+async def get_chat_history_endpoint(user_id: str = "default_user", limit: int = 50):
+    """Get chat history for a user from Firebase"""
+    try:
+        history = await firebase_utils.get_chat_history(user_id, limit)
+        # Reverse to get chronological order (newest last)
+        history.reverse()
+        return {"messages": history}
+    except Exception as e:
+        print(f"Error fetching chat history: {e}")
+        return {"messages": []}
+
 class ChatMessage(BaseModel):
     message: str
     conversation_history: Optional[List[dict]] = []
@@ -1916,13 +1934,23 @@ def chat_with_vesper(chat: ChatMessage):
         
         # Call Claude API
         response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-20250514",
             max_tokens=1000,
             system=VESPER_CORE_DNA,
             messages=messages
         )
         
-        return {"response": response.content[0].text}
+        ai_response = response.content[0].text
+        
+        # Save messages to Firebase (async, don't wait)
+        try:
+            import asyncio
+            asyncio.create_task(firebase_utils.save_chat_message("default_user", "user", chat.message))
+            asyncio.create_task(firebase_utils.save_chat_message("default_user", "assistant", ai_response))
+        except Exception as e:
+            print(f"Firebase save failed (non-blocking): {e}")
+        
+        return {"response": ai_response}
     
     except Exception as e:
         return {"response": f"Shit, something went wrong: {str(e)}"}
