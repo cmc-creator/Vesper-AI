@@ -13,10 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the backend code
 COPY backend/ ./backend/
-COPY firebase-service-account.json* ./ 2>/dev/null || true
-
-# Copy .env if it exists
-COPY .env* ./ 2>/dev/null || true
 
 # Expose port (Railway will override with $PORT)
 EXPOSE 8000
