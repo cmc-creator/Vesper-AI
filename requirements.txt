@@ -13,7 +13,7 @@ python-docx
 openpyxl
 Pillow
 pytesseract
-python-magic-bin
+python-magic
 chardet
 firebase-admin
 pandas
