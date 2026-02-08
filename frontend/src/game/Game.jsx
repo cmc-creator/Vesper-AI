@@ -147,13 +147,14 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           {/* Lazy loaded RPG Systems and Features */}
           <Suspense fallback={null}>
             <SeasonalSystem position={[0, 0, 0]} currentSeason={currentSeason} />
-            <CombatSystem position={playerPosition} playerHealth={playerHealth} setPlayerHealth={setPlayerHealth} />
-            <NightModeSystem position={[0, 0, 0]} currentHour={12} />
-            <NPCVillage position={[20, 0, 20]} />
-            <GatheringSystem position={[0, 0, 0]} playerTool={playerTool} />
-            <FishingSystem active={isFishing} position={[0, 0, 50]} />
-            <CraftingSystem active={showCrafting} recipes={unlockedRecipes} />
-            <WorldEventsSystem position={[0, 0, 0]} />
+            {/* Temporarily disabled - need to separate HTML from THREE.js */}
+            {/* <CombatSystem position={playerPosition} playerHealth={playerHealth} setPlayerHealth={setPlayerHealth} /> */}
+            {/* <NightModeSystem position={[0, 0, 0]} currentHour={12} /> */}
+            {/* <NPCVillage position={[20, 0, 20]} /> */}
+            {/* <GatheringSystem position={[0, 0, 0]} playerTool={playerTool} /> */}
+            {/* <FishingSystem active={isFishing} position={[0, 0, 50]} /> */}
+            {/* <CraftingSystem active={showCrafting} recipes={unlockedRecipes} /> */}
+            {/* <WorldEventsSystem position={[0, 0, 0]} /> */}
             <AmbientSounds season={currentSeason} />
             <TreasureChests position={[0, 0, 0]} />
             <TeleportationPortals position={[0, 0, 0]} onTeleport={handlePlayerTeleport} />
