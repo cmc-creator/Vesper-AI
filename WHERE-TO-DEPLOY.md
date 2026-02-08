@@ -143,6 +143,7 @@ Should load the Vesper AI interface.
 
 ## 📚 More Documentation
 
+- **Step-by-step Checklist**: [DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md) ← Print this!
 - **Quick Commands**: [QUICKSTART-DEPLOY.md](./QUICKSTART-DEPLOY.md)
 - **Detailed Guide**: [DEPLOY.md](./DEPLOY.md)
 - **Architecture**: [ARCHITECTURE.md](./ARCHITECTURE.md)
