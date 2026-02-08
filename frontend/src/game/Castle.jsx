@@ -5,10 +5,16 @@ import * as THREE from 'three';
 export default function Castle({ position = [0, 0, -20] }) {
   return (
     <group position={position}>
-      {/* Main castle base */}
+      {/* Main castle base - PBR stone */}
       <mesh castShadow position={[0, 5, 0]}>
         <boxGeometry args={[12, 10, 12]} />
-        <meshStandardMaterial color="#424242" roughness={0.9} />
+        <meshPhysicalMaterial 
+          color="#424242" 
+          roughness={0.95} 
+          metalness={0.0}
+          clearcoat={0.05}
+          clearcoatRoughness={0.9}
+        />
       </mesh>
 
       {/* Corner towers */}
@@ -21,12 +27,23 @@ export default function Castle({ position = [0, 0, -20] }) {
         <group key={`tower-${i}`} position={pos}>
           <mesh castShadow>
             <cylinderGeometry args={[1.5, 1.8, 8, 8]} />
-            <meshStandardMaterial color="#616161" />
+            <meshPhysicalMaterial 
+              color="#616161" 
+              roughness={0.92}
+              metalness={0.0}
+              clearcoat={0.05}
+            />
           </mesh>
           {/* Tower roof */}
           <mesh castShadow position={[0, 5, 0]}>
             <coneGeometry args={[2.2, 3, 8]} />
-            <meshStandardMaterial color="#1a237e" />
+            <meshPhysicalMaterial 
+              color="#1a237e" 
+              roughness={0.8}
+              metalness={0.1}
+              clearcoat={0.2}
+              clearcoatRoughness={0.3}
+            />
           </mesh>
           {/* Tower windows */}
           <mesh position={[0, 2, 2]}>

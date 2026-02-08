@@ -30,17 +30,21 @@ export default function Terrain() {
 
   return (
     <group>
-      {/* Main terrain with enhanced materials */}
+      {/* Main terrain with enhanced PBR materials */}
       <mesh 
         geometry={terrain} 
         rotation={[-Math.PI / 2, 0, 0]} 
         receiveShadow
       >
-        <meshStandardMaterial 
+        <meshPhysicalMaterial 
           color="#2d5016"
-          roughness={0.95}
-          metalness={0.05}
-          envMapIntensity={0.5}
+          roughness={0.98}
+          metalness={0.0}
+          envMapIntensity={0.3}
+          clearcoat={0.1}
+          clearcoatRoughness={0.8}
+          reflectivity={0.2}
+          flatShading={false}
         />
       </mesh>
 

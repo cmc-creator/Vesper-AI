@@ -1,5 +1,6 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
+import * as THREE from 'three';
 import { 
   Sky, 
   Stars, 
@@ -10,7 +11,9 @@ import {
   Cloud,
   Sparkles,
   Float,
-  MeshReflectorMaterial
+  MeshReflectorMaterial,
+  PerformanceMonitor,
+  Adaptive
 } from '@react-three/drei';
 import { 
   EffectComposer, 
@@ -19,7 +22,12 @@ import {
   SSAO,
   Vignette,
   ChromaticAberration,
-  ToneMapping
+  ToneMapping,
+  GodRays,
+  MotionBlur,
+  SMAA,
+  Noise,
+  LUT
 } from '@react-three/postprocessing';
 import { BlendFunction, ToneMappingMode } from 'postprocessing';
 import Character from './Character';
@@ -29,8 +37,11 @@ import Weather from './Weather';
 import GameUI from './GameUI';
 import VesperNPC from './VesperNPC';
 import Horses from './Horses';
+import Grass from './Grass';
 
 export default function Game({ onExitGame, onChatWithNPC }) {
+  const sunRef = useRef();
+  const [dpr, setDpr] = useState(1.5);
   const [weather, setWeather] = useState('clear');
   const [timeOfDay, setTimeOfDay] = useState('day');
   const [questsCompleted, setQuestsCompleted] = useState(0);
@@ -101,33 +112,69 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       {/* 3D Canvas */}
       <Canvas
-        shadows
+        shadows={{type: THREE.PCFSoftShadowMap}}
+        dpr={dpr}
         camera={{ position: [0, 5, 10], fov: 60 }}
         style={{ background: '#000' }}
         gl={{ 
           antialias: true,
           alpha: false,
-          powerPreference: 'high-performance'
+          powerPreference: 'high-performance',
+          stencil: false,
+          depth: true
         }}
       >
-        {/* Lighting */}
-        <ambientLight intensity={weather === 'night' ? 0.2 : 0.5} />
+        {/* Performance optimization - adaptive quality */}
+        <PerformanceMonitor 
+          onIncline={() => setDpr(2)} 
+          onDecline={() => setDpr(1)}
+        />
+        <Adaptive />
+        
+        {/* Enhanced Lighting System */}
+        <ambientLight intensity={weather === 'night' ? 0.3 : 0.6} color={weather === 'night' ? '#4a5f8f' : '#ffffff'} />
+        
+        {/* Main directional light (sun) with high-quality shadows */}
         <directionalLight
           position={[50, 50, 25]}
-          intensity={weather === 'night' ? 0.3 : 1.5}
+          intensity={weather === 'night' ? 0.4 : 2.0}
           castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
-          shadow-camera-far={100}
-          shadow-camera-left={-50}
-          shadow-camera-right={50}
-          shadow-camera-top={50}
-          shadow-camera-bottom={-50}
+          shadow-mapSize-width={4096}
+          shadow-mapSize-height={4096}
+          shadow-camera-far={150}
+          shadow-camera-left={-60}
+          shadow-camera-right={60}
+          shadow-camera-top={60}
+          shadow-camera-bottom={-60}
+          shadow-bias={-0.0001}
+          shadow-normalBias={0.02}
+        />
+        
+        {/* Fill light for softer shadows */}
+        <directionalLight
+          position={[-30, 20, -30]}
+          intensity={weather === 'night' ? 0.2 : 0.8}
+          color={weather === 'night' ? '#6a7faf' : '#e3f2ff'}
+        />
+        
+        {/* Ground bounce light simulation */}
+        <hemisphereLight
+          skyColor="#87ceeb"
+          groundColor="#3a5a1a"
+          intensity={weather === 'night' ? 0.1 : 0.4}
         />
 
         {/* Sky */}
         {weather === 'clear' && <Sky sunPosition={[100, 20, 100]} />}
         {weather === 'night' && <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />}
+
+        {/* Sun mesh for god rays effect */}
+        {weather === 'clear' && (
+          <mesh ref={sunRef} position={[100, 20, 100]}>
+            <sphereGeometry args={[5, 32, 32]} />
+            <meshBasicMaterial color="#FDB813" toneMapped={false} />
+          </mesh>
+        )}
 
         {/* Environment */}
         <Environment preset={weather === 'night' ? 'night' : 'sunset'} />
@@ -137,6 +184,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
 
         {/* Game world */}
         <Terrain />
+        <Grass count={50000} spread={80} />
         <Castle position={[0, 0, -25]} />
         <Horses />
 
@@ -171,12 +219,35 @@ export default function Game({ onExitGame, onChatWithNPC }) {
 
         {/* AAA Post-Processing Effects */}
         <EffectComposer multisampling={8}>
+          {/* SMAA - Superior anti-aliasing */}
+          <SMAA />
+          
+          {/* God Rays - Volumetric light shafts from sun */}
+          {sunRef.current && weather === 'clear' && (
+            <GodRays
+              sun={sunRef.current}
+              samples={60}
+              density={0.97}
+              decay={0.95}
+              weight={0.6}
+              exposure={0.3}
+              clampMax={1}
+              blur={true}
+            />
+          )}
+          
           {/* Bloom - Makes magical elements glow beautifully */}
           <Bloom 
             luminanceThreshold={0.2}
             intensity={1.5}
             levels={9}
             mipmapBlur
+          />
+          
+          {/* Motion Blur - Smooth cinematic movement */}
+          <MotionBlur 
+            intensity={0.5}
+            samples={16}
           />
           
           {/* Depth of Field - Cinematic focus blur */}
@@ -207,6 +278,12 @@ export default function Game({ onExitGame, onChatWithNPC }) {
             offset={[0.0015, 0.0015]}
             radialModulation={true}
             modulationOffset={0.3}
+          />
+          
+          {/* Film Grain - Cinematic texture */}
+          <Noise 
+            opacity={0.03}
+            premultiply={false}
           />
           
           {/* ACES Filmic Tone Mapping - Hollywood-grade color */}
