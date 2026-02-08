@@ -49,6 +49,17 @@ except Exception as e:
     import traceback
     traceback.print_exc()
     raise
+
+# Health check endpoint
+@app.get("/health")
+def health_check():
+    """Health check endpoint for deployment monitoring"""
+    return {
+        "status": "healthy",
+        "service": "vesper-ai-backend",
+        "timestamp": datetime.datetime.now().isoformat()
+    }
+
 KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), '../vesper-ai/knowledge')
 RESEARCH_PATH = os.path.join(KNOWLEDGE_DIR, 'research.json')
 
