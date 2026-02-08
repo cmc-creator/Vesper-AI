@@ -157,10 +157,8 @@ export default function Game({ onExitGame, onChatWithNPC }) {
             <AmbientSounds season={currentSeason} />
             <TreasureChests position={[0, 0, 0]} />
             <TeleportationPortals position={[0, 0, 0]} onTeleport={handlePlayerTeleport} />
-            <AchievementSystem />
             <MagicAbilities position={playerPosition} />
             <SwimmingSystem position={playerPosition} />
-            <PhotoMode active={photoModeActive} />
           </Suspense>
         </Suspense>
       </Canvas>
@@ -176,6 +174,9 @@ export default function Game({ onExitGame, onChatWithNPC }) {
             showInventory={showInventory}
             showQuests={showQuestJournal}
           />
+          
+          <AchievementSystem />
+          <PhotoMode active={photoModeActive} />
           
           {showInventory && <InventorySystem onClose={() => setShowInventory(false)} />}
           {showQuestJournal && <QuestJournal onClose={() => setShowQuestJournal(false)} />}
