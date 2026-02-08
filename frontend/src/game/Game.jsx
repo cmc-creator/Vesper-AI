@@ -28,6 +28,7 @@ import Castle from './Castle';
 import Weather from './Weather';
 import GameUI from './GameUI';
 import VesperNPC from './VesperNPC';
+import Horses from './Horses';
 
 export default function Game({ onExitGame, onChatWithNPC }) {
   const [weather, setWeather] = useState('clear');
@@ -137,8 +138,9 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         {/* Game world */}
         <Terrain />
         <Castle position={[0, 0, -25]} />
+        <Horses />
 
-        {/* Player character */}
+        {/* Player character */
         <Character position={playerPosition} keyboard={keyboard} />
 
         {/* Vesper NPC near castle */}
