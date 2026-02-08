@@ -29,11 +29,11 @@ import {
 import { signInAnonymously } from 'firebase/auth';
 
 // Components
-import AIAvatar from './src/components/AIAvatar';
-import CommandPalette from './src/components/CommandPalette';
-import VoiceInput from './src/components/VoiceInput';
-import CodeBlock from './src/components/CodeBlock';
-import FloatingActionButton from './src/components/FloatingActionButton';
+// import AIAvatar from './src/components/AIAvatar';
+// import CommandPalette from './src/components/CommandPalette';
+// import VoiceInput from './src/components/VoiceInput';
+// import CodeBlock from './src/components/CodeBlock';
+// import FloatingActionButton from './src/components/FloatingActionButton';
 import Game from './src/game/Game';
 
 // Styles
@@ -286,7 +286,7 @@ function App() {
         >
           {!isUser && (
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <AIAvatar thinking={false} mood="neutral" />
+              {/* <AIAvatar thinking={false} mood="neutral" /> */}
               <Typography
                 variant="caption"
                 sx={{ ml: 2, color: '#00ffff', fontWeight: 600 }}
@@ -303,7 +303,20 @@ function App() {
                 const codeString = String(children).replace(/\n$/, '');
                 
                 return !inline && match ? (
-                  <CodeBlock code={codeString} language={match[1]} />
+                  <code
+                    className={className}
+                    style={{
+                      display: 'block',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      padding: '12px',
+                      borderRadius: '4px',
+                      fontFamily: 'monospace',
+                      color: '#00ffff',
+                      whiteSpace: 'pre-wrap'
+                    }}
+                  >
+                    {codeString}
+                  </code>
                 ) : (
                   <code
                     className={className}
@@ -435,7 +448,7 @@ function App() {
             {/* Loading indicator */}
             {loading && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
-                <AIAvatar thinking={true} mood="thinking" />
+                {/* <AIAvatar thinking={true} mood="thinking" /> */}
                 <Box className="typing-indicator">
                   <span></span>
                   <span></span>
@@ -485,7 +498,7 @@ function App() {
               }}
             />
             
-            <VoiceInput onTranscript={handleVoiceTranscript} />
+            {/* <VoiceInput onTranscript={handleVoiceTranscript} /> */}
 
             <IconButton
               onClick={sendMessage}
@@ -521,14 +534,14 @@ function App() {
         </Container>
 
         {/* Command Palette */}
-        <CommandPalette
+        {/* <CommandPalette
           isOpen={commandPaletteOpen}
           onClose={() => setCommandPaletteOpen(false)}
           onCommand={handleCommand}
-        />
+        /> */}
 
         {/* Floating Action Button */}
-        <FloatingActionButton onAction={handleCommand} />
+        {/* <FloatingActionButton onAction={handleCommand} /> */}
       
         {/* Explore World Button */}
         <IconButton
