@@ -12,8 +12,7 @@ import {
   Sparkles,
   Float,
   MeshReflectorMaterial,
-  PerformanceMonitor,
-  Adaptive
+  PerformanceMonitor
 } from '@react-three/drei';
 import { 
   EffectComposer, 
@@ -24,7 +23,6 @@ import {
   ChromaticAberration,
   ToneMapping,
   GodRays,
-  MotionBlur,
   SMAA,
   Noise,
   LUT
@@ -129,7 +127,6 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           onIncline={() => setDpr(2)} 
           onDecline={() => setDpr(1)}
         />
-        <Adaptive />
         
         {/* Enhanced Lighting System */}
         <ambientLight intensity={weather === 'night' ? 0.3 : 0.6} color={weather === 'night' ? '#4a5f8f' : '#ffffff'} />
@@ -188,10 +185,12 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <Castle position={[0, 0, -25]} />
         <Horses />
 
-        {/* Player character */
+        {/* Player character */}
+
         <Character position={playerPosition} keyboard={keyboard} />
 
         {/* Vesper NPC near castle */}
+
         <VesperNPC 
           position={[-8, 1.5, -15]} 
           onInteract={() => {
@@ -242,12 +241,6 @@ export default function Game({ onExitGame, onChatWithNPC }) {
             intensity={1.5}
             levels={9}
             mipmapBlur
-          />
-          
-          {/* Motion Blur - Smooth cinematic movement */}
-          <MotionBlur 
-            intensity={0.5}
-            samples={16}
           />
           
           {/* Depth of Field - Cinematic focus blur */}
