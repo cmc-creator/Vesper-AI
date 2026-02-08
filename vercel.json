@@ -1,10 +1,11 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm install --legacy-peer-deps && npm run build",
-  "outputDirectory": "frontend/dist",
+  "buildCommand": "npm install --legacy-peer-deps && npm run build",
+  "outputDirectory": "dist",
   "framework": "vite",
-  "installCommand": "cd frontend && npm install --legacy-peer-deps",
-  "devCommand": "cd frontend && npm run dev",
+  "installCommand": "npm install --legacy-peer-deps",
+  "devCommand": "npm run dev",
+  "rootDirectory": "frontend",
   "env": {
     "VITE_API_URL": "https://vesper-backend-production-b486.up.railway.app"
   }
