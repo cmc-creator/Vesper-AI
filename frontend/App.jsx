@@ -156,29 +156,21 @@ function App() {
     addLocalMessage('user', userMessage);
 
     try {
-      // Call OpenAI API directly (no backend needed)
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      // Call local Vesper backend with Anthropic Claude
+      const response = await fetch('http://localhost:3000/chat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            { role: 'system', content: 'You are Vesper, a mystical AI assistant who lives in a magical 3D fantasy world. You are friendly, wise, and love to help users explore the game world with its 10 RPG systems.' },
-            ...messages.map(m => ({ role: m.role, content: m.content })),
-            { role: 'user', content: userMessage }
-          ],
-          max_tokens: 500,
-          temperature: 0.9
+          message: userMessage
         })
       });
 
-      if (!response.ok) throw new Error('API call failed');
+      if (!response.ok) throw new Error('Backend call failed');
 
       const data = await response.json();
-      const aiResponse = data.choices[0].message.content;
+      const aiResponse = data.response;
 
       addLocalMessage('assistant', aiResponse);
     } catch (error) {
