@@ -323,6 +323,16 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       
+      {/* Command Palette */}
+      <CommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onCommand={handleCommand}
+      />
+      
+      {/* Floating Action Buttons */}
+      <FloatingActionButton onAction={handleCommand} />
+      
       {/* Split Layout: Chat + Game */}
       <Box
         sx={{
@@ -435,6 +445,7 @@ function App() {
               }}
               size="small"
             />
+            <VoiceInput onTranscript={handleVoiceTranscript} />
             <IconButton
               onClick={sendMessage}
               disabled={loading || !input.trim()}
