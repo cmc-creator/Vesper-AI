@@ -113,55 +113,22 @@ export default function Game({ onExitGame, onChatWithNPC }) {
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <Canvas camera={{ position: [0, 5, 10], fov: 60 }} gl={{ antialias: true }}>
-        <Suspense fallback={null}>
-          {/* Lighting */}
-          <ambientLight intensity={0.8} />
-          <pointLight position={[20, 20, 20]} intensity={1} />
-          <directionalLight position={[100, 100, 100]} intensity={0.5} castShadow />
-          
-          {/* Environment */}
-          <Sky sunPosition={[100, 20, 100]} turbidity={10} rayleigh={2} mieCoefficient={0.005} mieDirectionalG={0.7} />
-          <Stars radius={100} depth={20} count={1000} factor={4} saturation={0} fade speed={1} />
-          <Environment preset="sunset" />
-          
-          {/* World Components */}
-          <Terrain position={[0, -1, 0]} />
-          <Castle position={[0, 0, -30]} />
-          <Grass position={[0, 0, 0]} />
-          <Butterflies count={30} />
-          <Weather season={currentSeason} />
-          <VesperNPC position={[5, 0, 5]} onChat={onChatWithNPC} />
-          <Horses position={[10, 0, -20]} onMount={() => {}} />
-          <ContactShadows position={[0, 0, 0]} opacity={0.4} scale={100} blur={2.5} far={40} resolution={256} color="#000000" />
-          
-          {/* Player */}
-          <Character 
-            position={playerPosition} 
-            keyboard={keyboard} 
-            onChatWithNPC={onChatWithNPC}
-            health={playerHealth}
-            maxHealth={playerMaxHealth}
-          />
-
-          {/* Lazy loaded RPG Systems and Features */}
-          <Suspense fallback={null}>
-            <SeasonalSystem position={[0, 0, 0]} currentSeason={currentSeason} />
-            {/* Temporarily disabled - need to separate HTML from THREE.js */}
-            {/* <CombatSystem position={playerPosition} playerHealth={playerHealth} setPlayerHealth={setPlayerHealth} /> */}
-            {/* <NightModeSystem position={[0, 0, 0]} currentHour={12} /> */}
-            {/* <NPCVillage position={[20, 0, 20]} /> */}
-            {/* <GatheringSystem position={[0, 0, 0]} playerTool={playerTool} /> */}
-            {/* <FishingSystem active={isFishing} position={[0, 0, 50]} /> */}
-            {/* <CraftingSystem active={showCrafting} recipes={unlockedRecipes} /> */}
-            {/* <WorldEventsSystem position={[0, 0, 0]} /> */}
-            <AmbientSounds season={currentSeason} />
-            <TreasureChests position={[0, 0, 0]} />
-            <TeleportationPortals position={[0, 0, 0]} onTeleport={handlePlayerTeleport} />
-            <MagicAbilities position={playerPosition} />
-            <SwimmingSystem position={playerPosition} />
-          </Suspense>
-        </Suspense>
+      <Canvas camera={{ position: [0, 2, 5], fov: 60 }} gl={{ antialias: true }}>
+        {/* Basic lighting */}
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[10, 10, 5]} intensity={1} />
+        
+        {/* Simple test cube to verify Canvas works */}
+        <mesh position={[0, 0, 0]}>
+          <boxGeometry args={[2, 2, 2]} />
+          <meshStandardMaterial color="hotpink" />
+        </mesh>
+        
+        {/* Ground plane */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]}>
+          <planeGeometry args={[20, 20]} />
+          <meshStandardMaterial color="#2d5016" />
+        </mesh>
       </Canvas>
 
       {/* UI Overlays */}
