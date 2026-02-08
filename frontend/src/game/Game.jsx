@@ -42,6 +42,7 @@ import Butterflies from './Butterflies';
 import AmbientSounds from './AmbientSounds';
 import TreasureChests from './TreasureChests';
 import TeleportationPortals from './TeleportationPortals';
+import AchievementSystem from './AchievementSystem';
 
 export default function Game({ onExitGame, onChatWithNPC }) {
   const sunRef = useRef();
@@ -52,6 +53,9 @@ export default function Game({ onExitGame, onChatWithNPC }) {
   const [dayTime, setDayTime] = useState(0.5); // 0 = midnight, 0.5 = noon, 1 = midnight
   const [questsCompleted, setQuestsCompleted] = useState(0);
   const [crystalsCollected, setCrystalsCollected] = useState(0);
+  const [treasuresFound, setTreasuresFound] = useState(0);
+  const [portalsTraveled, setPortalsTraveled] = useState(0);
+  const [horsesRidden, setHorsesRidden] = useState(0);
   const [playerPosition, setPlayerPosition] = useState([0, 2, 5]);
   const [showingChat, setShowingChat] = useState(false);
   const [keyboard, setKeyboard] = useState({
@@ -60,6 +64,10 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     left: false,
     right: false,
   });
+  const [ridingHorseId, setRidingHorseId] = useState(null);
+  const [ridingPosition, setRidingPosition] = useState(null);
+  const [isRidingUnicorn, setIsRidingUnicorn] = useState(false);
+  const [isFlying, setIsFlying] = useState(false);
 
   // Keyboard controls
   useEffect(() => {
@@ -71,6 +79,21 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       if (key === 'd') setKeyboard(k => ({ ...k, right: true }));
       if (key === 'escape') onExitGame();
       if (key === 'c') setShowingChat(!showingChat);
+      
+      // Space key for dismount or unicorn flying
+      if (key === ' ') {
+        if (ridingHorseId) {
+          if (isRidingUnicorn) {
+            setIsFlying(true);
+          } else {
+            // Dismount
+            setRidingHorseId(null);
+            setRidingPosition(null);
+            setIsRidingUnicorn(false);
+            setIsFlying(false);
+          }
+        }
+      }
     };
 
     const handleKeyUp = (e) => {
@@ -79,6 +102,11 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       if (key === 's') setKeyboard(k => ({ ...k, backward: false }));
       if (key === 'a') setKeyboard(k => ({ ...k, left: false }));
       if (key === 'd') setKeyboard(k => ({ ...k, right: false }));
+      
+      // Release flying
+      if (key === ' ' && isRidingUnicorn) {
+        setIsFlying(false);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -93,6 +121,25 @@ export default function Game({ onExitGame, onChatWithNPC }) {
   // Handle player teleportation
   const handlePlayerTeleport = (newPosition) => {
     setPlayerPosition(newPosition);
+    setPortalsTraveled(prev => prev + 1);
+  };
+  
+  // Handle horse mounting
+  const handleMount = (horseId, position, isUnicorn) => {
+    if (ridingHorseId === horseId) {
+      // Dismount
+      setRidingHorseId(null);
+      setRidingPosition(null);
+      setIsRidingUnicorn(false);
+      setIsFlying(false);
+    } else {
+      // Mount
+      setRidingHorseId(horseId);
+      setRidingPosition(position);
+      setIsRidingUnicorn(isUnicorn);
+      setPlayerPosition([position[0], position[1] + 2, position[2]]);
+      setHorsesRidden(prev => prev + 1);
+    }
   };
 
   // Cycle weather every 60 seconds
@@ -247,7 +294,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <Terrain />
         <Grass count={50000} spread={80} />
         <Castle position={[0, 0, -25]} />
-        <Horses />
+        <Horses onMount={handleMount} ridingHorseId={ridingHorseId} />
         <Butterflies />
         <TreasureChests />
         <TeleportationPortals onPlayerMove={handlePlayerTeleport} />
@@ -374,6 +421,15 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         showingChat={showingChat}
         onToggleChat={() => setShowingChat(!showingChat)}
         playerPosition={playerPosition}
+      />
+      
+      {/* Achievement System */}
+      <AchievementSystem
+        crystalsCollected={crystalsCollected}
+        questsCompleted={questsCompleted}
+        treasuresFound={treasuresFound}
+        portalsTraveled={portalsTraveled}
+        horsesRidden={horsesRidden}
       />
 
       {/* Instructions overlay */}

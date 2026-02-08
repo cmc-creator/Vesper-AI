@@ -1,11 +1,13 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Sparkles } from '@react-three/drei';
+import { Sparkles, Text } from '@react-three/drei';
 import * as THREE from 'three';
 
-function Horse({ position, color = "#8b4513", isUnicorn = false }) {
+function Horse({ position, color = "#8b4513", isUnicorn = false, onMount, isRiding, id }) {
   const horseRef = useRef();
+  const groupRef = useRef();
   const bobOffset = useRef(Math.random() * Math.PI * 2);
+  const [isPlayerNear, setIsPlayerNear] = useState(false);
 
   // Gentle head bobbing animation
   useFrame((state) => {
@@ -15,10 +17,40 @@ function Horse({ position, color = "#8b4513", isUnicorn = false }) {
     // Head nods gently
     const headRotation = Math.sin(bobOffset.current) * 0.1;
     horseRef.current.rotation.x = headRotation;
+    
+    // Scale up slightly when riding for visibility
+    if (isRiding) {
+      groupRef.current.scale.setScalar(1.2);
+    } else {
+      groupRef.current.scale.setScalar(1);
+    }
   });
+  
+  const handleClick = () => {
+    if (onMount) {
+      onMount(id, position, isUnicorn);
+      
+      // Play mount sound
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.value = isUnicorn ? 600 : 400;
+      osc.frequency.exponentialRampToValueAtTime(isUnicorn ? 800 : 500, audioContext.currentTime + 0.2);
+      
+      gain.gain.value = 0.15;
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.start();
+      osc.stop(audioContext.currentTime + 0.3);
+    }
+  };
 
   return (
-    <group position={position}>
+    <group position={position} ref={groupRef} onClick={handleClick}>
       <group ref={horseRef}>
         {/* Horse body */}
         <mesh castShadow position={[0, 1.2, 0]}>
@@ -186,11 +218,41 @@ function Horse({ position, color = "#8b4513", isUnicorn = false }) {
         distance={5} 
         decay={2}
       />
+      
+      {/* Interaction hint */}
+      {!isRiding && (
+        <Text
+          position={[0, 3, 0]}
+          fontSize={0.4}
+          color={isUnicorn ? "#ffd700" : "#00ffff"}
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.05}
+          outlineColor="#000000"
+        >
+          {isUnicorn ? "🦄 Click to Ride Unicorn!" : "🐴 Click to Ride"}
+        </Text>
+      )}
+      
+      {/* Riding indicator */}
+      {isRiding && (
+        <Text
+          position={[0, 3.5, 0]}
+          fontSize={0.5}
+          color="#00ff00"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.05}
+          outlineColor="#000000"
+        >
+          {isUnicorn ? "🦄 RIDING! (Space to fly)" : "🐴 RIDING!"}
+        </Text>
+      )}
     </group>
   );
 }
 
-export default function Horses() {
+export default function Horses({ onMount, ridingHorseId }) {
   // Horse colors for variety
   const horseColors = [
     "#8b4513", // Brown
@@ -225,16 +287,25 @@ export default function Horses() {
       {/* Regular horses */}
       {horsePositions.map((horse, i) => (
         <group key={`horse-${i}`} rotation={[0, horse.rotation, 0]}>
-          <Horse position={horse.position} color={horse.color} />
+          <Horse 
+            id={`horse-${i}`}
+            position={horse.position} 
+            color={horse.color}
+            onMount={onMount}
+            isRiding={ridingHorseId === `horse-${i}`}
+          />
         </group>
       ))}
 
       {/* ONE RARE UNICORN! */}
       <group rotation={[0, unicornRotation, 0]}>
         <Horse 
+          id="unicorn"
           position={unicornPosition} 
           color="#f0f0f0" 
-          isUnicorn={true} 
+          isUnicorn={true}
+          onMount={onMount}
+          isRiding={ridingHorseId === 'unicorn'}
         />
       </group>
     </group>
