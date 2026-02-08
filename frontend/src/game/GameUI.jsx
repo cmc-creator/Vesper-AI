@@ -25,6 +25,7 @@ export default function GameUI({
   playerPosition = [0, 2, 5],
   onCustomize,
   onOpenVesperHome,
+  onOpenPlayerHome,
 }) {
   const [showCustomization, setShowCustomization] = useState(false);
   
@@ -289,6 +290,29 @@ export default function GameUI({
             background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
             transform: 'scale(1.1)',
             boxShadow: '0 0 40px rgba(167, 139, 250, 0.7)',
+          },
+          transition: 'all 0.3s ease',
+        }}
+      >
+        <Home sx={{ color: '#fff', fontSize: 28 }} />
+      </IconButton>
+      
+      {/* YOUR Home button */}
+      <IconButton
+        onClick={onOpenPlayerHome}
+        sx={{
+          position: 'absolute',
+          bottom: 340,
+          right: 20,
+          width: 60,
+          height: 60,
+          background: 'linear-gradient(135deg, #10b981, #059669)',
+          border: '2px solid rgba(16, 185, 129, 0.5)',
+          boxShadow: '0 0 30px rgba(16, 185, 129, 0.5)',
+          '&:hover': {
+            background: 'linear-gradient(135deg, #059669, #047857)',
+            transform: 'scale(1.1)',
+            boxShadow: '0 0 40px rgba(16, 185, 129, 0.7)',
           },
           transition: 'all 0.3s ease',
         }}

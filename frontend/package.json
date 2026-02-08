@@ -17,6 +17,7 @@
     "firebase": "^12.9.0",
     "framer-motion": "^12.33.0",
     "howler": "^2.2.4",
+    "html2canvas": "^1.4.1",
     "lamina": "^1.2.2",
     "leva": "^0.10.1",
     "maath": "^0.10.8",

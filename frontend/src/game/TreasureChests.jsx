@@ -116,7 +116,7 @@ function TreasureChest({ position, onOpen, isOpened = false }) {
       {!isOpened && (
         <>
           <pointLight 
-            position={[0, 0.5, 0)} 
+            position={[0, 0.5, 0]} 
             color="#ffd700" 
             intensity={2} 
             distance={5} 

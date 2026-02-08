@@ -46,6 +46,11 @@ import AchievementSystem from './AchievementSystem';
 import CastleInterior from './CastleInterior';
 import VesperHome from './VesperHome';
 import MagicAbilities from './MagicAbilities';
+import SwimmingSystem from './SwimmingSystem';
+import PhotoMode from './PhotoMode';
+import PlayerHome from './PlayerHome';
+import PlayerHomeExterior from './PlayerHomeExterior';
+import PlayerHomeInterior from './PlayerHomeInterior';
 
 export default function Game({ onExitGame, onChatWithNPC }) {
   const sunRef = useRef();
@@ -78,6 +83,11 @@ export default function Game({ onExitGame, onChatWithNPC }) {
   const [isInsideCastle, setIsInsideCastle] = useState(false);
   const [showVesperHome, setShowVesperHome] = useState(false);
   const [vesperHomeConfig, setVesperHomeConfig] = useState(null);
+  const [isSwimming, setIsSwimming] = useState(false);
+  const [photoModeActive, setPhotoModeActive] = useState(false);
+  const [isInsidePlayerHome, setIsInsidePlayerHome] = useState(false);
+  const [showPlayerHome, setShowPlayerHome] = useState(false);
+  const [playerHomeConfig, setPlayerHomeConfig] = useState(null);
 
   // Keyboard controls
   useEffect(() => {
@@ -93,6 +103,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       if (key === '4') setKeyboard(k => ({ ...k, '4': true }));
       if (key === 'escape') onExitGame();
       if (key === 'c') setShowingChat(!showingChat);
+      if (key === 'f') setPhotoModeActive(!photoModeActive);
       
       // Space key for dismount or unicorn flying
       if (key === ' ') {
@@ -187,7 +198,34 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     setPlayerPosition([0, 2, -15]); // Move player outside
   };
   
-  // Load Vesper's home config
+  // Handle entering player home
+  const handleEnterPlayerHome = () => {
+    setIsInsidePlayerHome(true);
+    setPlayerPosition([0, 2, 0]); // Move player inside
+    
+    // Play enter sound
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.frequency.value = 500;
+    osc.frequency.exponentialRampToValueAtTime(900, audioContext.currentTime + 0.3);
+    gain.gain.value = 0.15;
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.3);
+  };
+  
+  // Handle exiting player home
+  const handleExitPlayerHome = () => {
+    setIsInsidePlayerHome(false);
+    setPlayerPosition([25, 2, 25]); // Move player outside
+  };
+  
+  // Load Vesper's home config and Player's home config
   useEffect(() => {
     const saved = localStorage.getItem('vesper_home_config');
     if (saved) {
@@ -195,6 +233,15 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         setVesperHomeConfig(JSON.parse(saved));
       } catch (e) {
         console.error('Failed to load home config:', e);
+      }
+    }
+    
+    const playerSaved = localStorage.getItem('player_home_config');
+    if (playerSaved) {
+      try {
+        setPlayerHomeConfig(JSON.parse(playerSaved));
+      } catch (e) {
+        console.error('Failed to load player home config:', e);
       }
     }
     
@@ -206,6 +253,14 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           setVesperHomeConfig(JSON.parse(updated));
         } catch (e) {
           console.error('Failed to load updated config:', e);
+        }
+      }
+      const playerUpdated = localStorage.getItem('player_home_config');
+      if (playerUpdated) {
+        try {
+          setPlayerHomeConfig(JSON.parse(playerUpdated));
+        } catch (e) {
+          console.error('Failed to load updated player config:', e);
         }
       }
     };
@@ -367,6 +422,16 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <Grass count={50000} spread={80} />
         <Castle position={[0, 0, -25]} onEnter={handleEnterCastle} />
         
+        {/* Player's Home - positioned in different location */}
+        {playerHomeConfig && (
+          <PlayerHomeExterior 
+            position={[25, 0, 25]}
+            homeType={playerHomeConfig.homeType || 'cabin'}
+            exteriorColor={playerHomeConfig.exteriorColor || '#8b4513'}
+            onEnter={handleEnterPlayerHome}
+          />
+        )}
+        
         {/* Castle Interior - only render when inside */}
         {isInsideCastle && (
           <CastleInterior 
@@ -376,8 +441,26 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           />
         )}
         
+        {/* Player Home Interior - only render when inside */}
+        {isInsidePlayerHome && playerHomeConfig && (
+          <PlayerHomeInterior 
+            isInside={isInsidePlayerHome}
+            homeConfig={playerHomeConfig}
+            onExit={handleExitPlayerHome}
+          />
+        )}
+        
+        {/* Swimming System (water, fish, underwater treasures) */}
+        {!isInsideCastle && !isInsidePlayerHome && (
+          <SwimmingSystem 
+            playerPosition={playerPosition}
+            isSwimming={isSwimming}
+            onSwimmingChange={setIsSwimming}
+          />
+        )}
+        
         {/* Only render outdoor elements when outside */}
-        {!isInsideCastle && (
+        {!isInsideCastle && !isInsidePlayerHome && (
           <>
             <Horses onMount={handleMount} ridingHorseId={ridingHorseId} />
             <Butterflies />
@@ -514,6 +597,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         onToggleChat={() => setShowingChat(!showingChat)}
         playerPosition={playerPosition}
         onOpenVesperHome={() => setShowVesperHome(true)}
+        onOpenPlayerHome={() => setShowPlayerHome(true)}
       />
       
       {/* Achievement System */}
@@ -529,6 +613,18 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       <VesperHome
         isOpen={showVesperHome}
         onClose={() => setShowVesperHome(false)}
+      />
+      
+      {/* Player's Home Customization UI */}
+      <PlayerHome
+        isOpen={showPlayerHome}
+        onClose={() => setShowPlayerHome(false)}
+      />
+      
+      {/* Photo Mode */}
+      <PhotoMode
+        isActive={photoModeActive}
+        onToggle={() => setPhotoModeActive(!photoModeActive)}
       />
 
       {/* Instructions overlay */}
@@ -553,6 +649,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <div>Mouse - Look around</div>
         <div>C - Chat with Vesper</div>
         <div>ESC - Exit to menu</div>
+        <div>F - 📸 Photo Mode</div>
         <div style={{ marginTop: '8px', color: '#a78bfa' }}>
           <strong>✨ Magic Abilities:</strong>
         </div>
@@ -560,8 +657,15 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <div>2 - ⚡ Speed Boost</div>
         <div>3 - 🌀 Levitation</div>
         <div>4 - 💡 Light Orb</div>
+        <div style={{ marginTop: '8px', color: '#00bfff' }}>
+          <strong>🏊 Swimming:</strong>
+        </div>
+        <div>Walk into water to swim!</div>
         <div style={{ marginTop: '10px', color: '#ffd700' }}>
           💎 Collect glowing crystals to complete quests!
+        </div>
+        <div style={{ marginTop: '8px', color: '#10b981' }}>
+          🏡 Visit YOUR custom home at [25, 25]!
         </div>
       </div>
     </div>
