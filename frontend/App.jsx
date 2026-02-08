@@ -409,15 +409,15 @@ function App() {
           {/* Input */}
           <Paper
             sx={{
-              p: 1.5,
-              borderRadius: '12px',
+              p: '2px 4px',
               display: 'flex',
-              gap: 1,
-              alignItems: 'flex-end',
+              alignItems: 'center',
+              borderRadius: '12px',
               background: 'rgba(20, 20, 40, 0.7)',
               border: '1px solid rgba(0, 255, 255, 0.2)',
             }}
           >
+            <VoiceInput onTranscript={handleVoiceTranscript} />
             <TextField
               fullWidth
               multiline
@@ -445,7 +445,6 @@ function App() {
               }}
               size="small"
             />
-            <VoiceInput onTranscript={handleVoiceTranscript} />
             <IconButton
               onClick={sendMessage}
               disabled={loading || !input.trim()}
