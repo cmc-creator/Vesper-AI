@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 
 export default function VesperNPC({ position = [0, 0, 0], onInteract }) {
@@ -55,31 +54,11 @@ export default function VesperNPC({ position = [0, 0, 0], onInteract }) {
         />
       </mesh>
 
-      {/* Name tag */}
-      <Text
-        position={[0, 1.5, 0]}
-        fontSize={0.3}
-        color="#00ffff"
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#000000"
-      >
-        Vesper
-      </Text>
-
-      {/* Interaction prompt */}
-      <Text
-        position={[0, -0.8, 0]}
-        fontSize={0.15}
-        color="#ffd700"
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.01}
-        outlineColor="#000000"
-      >
-        Press C to chat
-      </Text>
+      {/* Name indicator - glowing orb above */}
+      <mesh position={[0, 2, 0]}>
+        <sphereGeometry args={[0.15, 16, 16]} />
+        <meshBasicMaterial color="#00ffff" />
+      </mesh>
 
       {/* Floating particles around NPC */}
       {Array.from({ length: 12 }).map((_, i) => {
