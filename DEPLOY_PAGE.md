@@ -65,7 +65,7 @@ The Deploy Page displays information from these environment variables:
 3. View deployment status for all services
 4. Click "Refresh Status" to update health checks
 5. Click "View Docs" to access detailed deployment instructions
-6. Click "Close" or press `Escape` to return to chat
+6. Click "Close" to return to chat
 
 ## Future Enhancements
 
