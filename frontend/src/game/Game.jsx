@@ -27,7 +27,7 @@ import {
   Noise,
   LUT
 } from '@react-three/postprocessing';
-import { BlendFunction, ToneMappingMode } from 'postprocessing';
+import { BlendFunction } from 'postprocessing';
 import Character from './Character';
 import Terrain from './Terrain';
 import Castle from './Castle';
@@ -787,9 +787,8 @@ export default function Game({ onExitGame, onChatWithNPC }) {
             premultiply={false}
           />
           
-          {/* ACES Filmic Tone Mapping - Hollywood-grade color */}
+          {/* Tone Mapping */}
           <ToneMapping 
-            mode={ToneMappingMode.ACES_FILMIC}
             resolution={256}
             whitePoint={4}
             middleGrey={0.6}
