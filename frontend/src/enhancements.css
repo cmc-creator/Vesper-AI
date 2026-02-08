@@ -1,0 +1,398 @@
+/* Glassmorphism & Advanced Animations */
+
+/* Animated Gradient Background */
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.gradient-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    45deg,
+    #0a0a0a 0%,
+    #1a0a2e 25%,
+    #0f2027 50%,
+    #162447 75%,
+    #0a0a0a 100%
+  );
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+  z-index: -2;
+}
+
+/* Glassmorphism Styles */
+.glass-panel {
+  background: rgba(10, 10, 30, 0.7) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 255, 255, 0.15),
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-card {
+  background: rgba(20, 20, 40, 0.6) !important;
+  backdrop-filter: blur(15px) saturate(150%);
+  -webkit-backdrop-filter: blur(15px) saturate(150%);
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  border-radius: 16px !important;
+  box-shadow: 0 4px 24px rgba(0, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 255, 255, 0.2);
+  border-color: rgba(0, 255, 255, 0.4);
+}
+
+/* Message Bubble Animations */
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes messageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.message-bubble {
+  animation: messageSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.message-bubble-assistant {
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.1) 0%, rgba(0, 200, 255, 0.1) 100%);
+  border-left: 3px solid #00ffff;
+}
+
+.message-bubble-user {
+  background: linear-gradient(135deg, rgba(191, 0, 255, 0.1) 0%, rgba(153, 0, 204, 0.1) 100%);
+  border-right: 3px solid #bf00ff;
+}
+
+/* Typing Indicator */
+@keyframes typingDot {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 12px;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00ffff;
+  animation: typingDot 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* AI Avatar Animations */
+@keyframes avatarPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 40px rgba(0, 255, 255, 0.8);
+  }
+}
+
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.ai-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #00ffff, #0088ff);
+  animation: avatarPulse 2s ease-in-out infinite;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(0, 255, 255, 0.5);
+}
+
+.ai-avatar.thinking::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid #00ffff;
+  animation: avatarPulse 1s linear infinite;
+}
+
+.avatar-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #00ffff;
+  border-radius: 50%;
+  animation: particleFloat 3s linear infinite;
+}
+
+/* Command Palette */
+.command-palette {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  max-width: 90vw;
+  background: rgba(10, 10, 30, 0.95);
+  backdrop-filter: blur(30px);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.command-palette-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 9998;
+}
+
+.command-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.command-item:hover,
+.command-item.selected {
+  background: rgba(0, 255, 255, 0.1);
+  border-left-color: #00ffff;
+}
+
+/* Code Block Enhancements */
+.code-block-container {
+  position: relative;
+  margin: 12px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.copy-code-button {
+  padding: 4px 12px;
+  background: rgba(0, 255, 255, 0.2);
+  border: 1px solid rgba(0, 255, 255, 0.4);
+  border-radius: 4px;
+  color: #00ffff;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px;
+}
+
+.copy-code-button:hover {
+  background: rgba(0, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.copy-code-button.copied {
+  background: rgba(0, 255, 0, 0.3);
+  border-color: rgba(0, 255, 0, 0.5);
+  color: #00ff00;
+}
+
+/* Voice Input */
+@keyframes recordingPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+  }
+}
+
+.voice-button {
+  position: relative;
+}
+
+.voice-button.recording {
+  background: rgba(255, 0, 0, 0.3) !important;
+  animation: recordingPulse 1.5s infinite;
+}
+
+/* Floating Action Button */
+@keyframes fabPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.floating-action-button {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00ffff, #0088ff);
+  box-shadow: 0 4px 20px rgba(0, 255, 255, 0.4);
+  z-index: 1000;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.floating-action-button:hover {
+  animation: fabPulse 0.6s ease-in-out;
+  box-shadow: 0 6px 30px rgba(0, 255, 255, 0.6);
+}
+
+/* Smooth Transitions */
+.smooth-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Loading Skeleton */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.05) 75%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Neumorphism for buttons */
+.neuro-button {
+  background: linear-gradient(145deg, #0a0a2e, #0c0c35);
+  box-shadow: 5px 5px 10px #050510, -5px -5px 10px #0f0f40;
+  border: none;
+  transition: all 0.3s;
+}
+
+.neuro-button:hover {
+  box-shadow: 3px 3px 8px #050510, -3px -3px 8px #0f0f40;
+}
+
+.neuro-button:active {
+  box-shadow: inset 3px 3px 6px #050510, inset -3px -3px 6px #0f0f40;
+}
+
+/* Message Reactions */
+.message-reactions {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.reaction-emoji {
+  padding: 4px 8px;
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.reaction-emoji:hover {
+  background: rgba(0, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+/* Scroll Improvements */
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 255, 0.5);
+}
