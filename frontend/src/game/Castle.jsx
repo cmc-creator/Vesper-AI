@@ -1,4 +1,5 @@
 import React from 'react';
+import { Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 
 export default function Castle({ position = [0, 0, -20] }) {
@@ -51,17 +52,20 @@ export default function Castle({ position = [0, 0, -20] }) {
         <meshStandardMaterial color="#3e2723" />
       </mesh>
 
-      {/* Door glow (magical entrance) */}
+      {/* Door glow (magical entrance with bloom) */}
       <mesh position={[0, 3, 8]}>
         <planeGeometry args={[2.5, 4.5]} />
-        <meshBasicMaterial 
+        <meshStandardMaterial 
           color="#a78bfa" 
+          emissive="#a78bfa"
+          emissiveIntensity={2.0}
           transparent 
-          opacity={0.3}
+          opacity={0.5}
+          toneMapped={false}
           blending={THREE.AdditiveBlending}
         />
       </mesh>
-      <pointLight position={[0, 3, 8]} color="#a78bfa" intensity={5} distance={15} />
+      <pointLight position={[0, 3, 9]} color="#a78bfa" intensity={8} distance={20} decay={2} />
 
       {/* Castle walls */}
       {[
@@ -90,7 +94,7 @@ export default function Castle({ position = [0, 0, -20] }) {
         );
       })}
 
-      {/* Mystical floating orbs around castle */}
+      {/* Mystical floating orbs around castle with bloom */}
       {Array.from({ length: 6 }).map((_, i) => {
         const angle = (i / 6) * Math.PI * 2 + Date.now() * 0.0001;
         const radius = 10;
@@ -102,12 +106,28 @@ export default function Castle({ position = [0, 0, -20] }) {
           <group key={`orb-${i}`} position={[x, y, z]}>
             <mesh>
               <sphereGeometry args={[0.3, 16, 16]} />
-              <meshBasicMaterial color="#00ffff" />
+              <meshStandardMaterial 
+                color="#00ffff"
+                emissive="#00ffff"
+                emissiveIntensity={3.0}
+                toneMapped={false}
+              />
             </mesh>
-            <pointLight color="#00ffff" intensity={2} distance={8} />
+            <pointLight color="#00ffff" intensity={4} distance={12} decay={2} />
           </group>
         );
       })}
+      
+      {/* Magical sparkles around castle */}
+      <Sparkles
+        count={150}
+        scale={[25, 15, 25]}
+        position={[0, 8, 0]}
+        size={1.8}
+        speed={0.2}
+        opacity={0.7}
+        color="#00ffff"
+      />
 
       {/* Ground foundation */}
       <mesh receiveShadow position={[0, 0.1, 0]}>

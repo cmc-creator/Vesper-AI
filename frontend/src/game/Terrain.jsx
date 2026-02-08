@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
+import { MeshReflectorMaterial, Sparkles } from '@react-three/drei';
 
 export default function Terrain() {
   // Create procedural terrain with hills
@@ -29,7 +30,7 @@ export default function Terrain() {
 
   return (
     <group>
-      {/* Main terrain */}
+      {/* Main terrain with enhanced materials */}
       <mesh 
         geometry={terrain} 
         rotation={[-Math.PI / 2, 0, 0]} 
@@ -37,26 +38,46 @@ export default function Terrain() {
       >
         <meshStandardMaterial 
           color="#2d5016"
-          roughness={0.9}
-          metalness={0.1}
+          roughness={0.95}
+          metalness={0.05}
+          envMapIntensity={0.5}
         />
       </mesh>
 
-      {/* Water plane */}
-      <mesh 
-        rotation={[-Math.PI / 2, 0, 0]} 
-        position={[0, -0.5, 0]}
-        receiveShadow
-      >
-        <planeGeometry args={[200, 200]} />
-        <meshStandardMaterial 
-          color="#0ea5e9"
-          transparent
+      {/* Reflective water plane with sparkles */}
+      <group>
+        <mesh 
+          rotation={[-Math.PI / 2, 0, 0]} 
+          position={[0, -0.5, 0]}
+          receiveShadow
+        >
+          <planeGeometry args={[200, 200]} />
+          <MeshReflectorMaterial
+            blur={[400, 100]}
+            resolution={1024}
+            mixBlur={1}
+            mixStrength={50}
+            roughness={0.8}
+            depthScale={1.2}
+            minDepthThreshold={0.4}
+            maxDepthThreshold={1.4}
+            color="#0369a1"
+            metalness={0.8}
+            mirror={0.5}
+          />
+        </mesh>
+        
+        {/* Magical sparkles over water */}
+        <Sparkles
+          count={100}
+          scale={[200, 5, 200]}
+          position={[0, 0.5, 0]}
+          size={2}
+          speed={0.3}
           opacity={0.6}
-          roughness={0.1}
-          metalness={0.9}
+          color="#60a5fa"
         />
-      </mesh>
+      </group>
 
       {/* Trees scattered around */}
       {Array.from({ length: 30 }).map((_, i) => {
@@ -100,7 +121,7 @@ export default function Terrain() {
         );
       })}
 
-      {/* Glowing crystals (quest items) */}
+      {/* Glowing crystals (quest items) with enhanced bloom */}
       {Array.from({ length: 8 }).map((_, i) => {
         const angle = (i / 8) * Math.PI * 2;
         const radius = 20 + Math.random() * 15;
@@ -114,12 +135,23 @@ export default function Terrain() {
               <meshStandardMaterial 
                 color="#00ffff"
                 emissive="#00ffff"
-                emissiveIntensity={0.5}
+                emissiveIntensity={2.0}
                 metalness={0.9}
                 roughness={0.1}
+                toneMapped={false}
               />
             </mesh>
-            <pointLight color="#00ffff" intensity={3} distance={10} />
+            <pointLight color="#00ffff" intensity={5} distance={15} decay={2} />
+            
+            {/* Crystal sparkles */}
+            <Sparkles
+              count={20}
+              scale={2}
+              size={1.5}
+              speed={0.2}
+              opacity={0.8}
+              color="#00ffff"
+            />
           </group>
         );
       })}

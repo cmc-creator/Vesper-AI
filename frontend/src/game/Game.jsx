@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { 
   Sky, 
@@ -6,8 +6,22 @@ import {
   OrbitControls, 
   PerspectiveCamera,
   Environment,
-  ContactShadows
+  ContactShadows,
+  Cloud,
+  Sparkles,
+  Float,
+  MeshReflectorMaterial
 } from '@react-three/drei';
+import { 
+  EffectComposer, 
+  Bloom, 
+  DepthOfField, 
+  SSAO,
+  Vignette,
+  ChromaticAberration,
+  ToneMapping
+} from '@react-three/postprocessing';
+import { BlendFunction, ToneMappingMode } from 'postprocessing';
 import Character from './Character';
 import Terrain from './Terrain';
 import Castle from './Castle';
@@ -152,6 +166,58 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           enableRotate={false}
           target={[0, 1, 0]}
         />
+
+        {/* AAA Post-Processing Effects */}
+        <EffectComposer multisampling={8}>
+          {/* Bloom - Makes magical elements glow beautifully */}
+          <Bloom 
+            luminanceThreshold={0.2}
+            intensity={1.5}
+            levels={9}
+            mipmapBlur
+          />
+          
+          {/* Depth of Field - Cinematic focus blur */}
+          <DepthOfField 
+            focusDistance={0.02}
+            focalLength={0.05}
+            bokehScale={3}
+            height={480}
+          />
+          
+          {/* SSAO - Realistic ambient shadows */}
+          <SSAO 
+            radius={0.01}
+            intensity={30}
+            luminanceInfluence={0.6}
+            color="black"
+          />
+          
+          {/* Vignette - Dramatic edge darkening */}
+          <Vignette 
+            offset={0.3}
+            darkness={0.5}
+            eskil={false}
+          />
+          
+          {/* Chromatic Aberration - Subtle lens distortion */}
+          <ChromaticAberration 
+            offset={[0.0015, 0.0015]}
+            radialModulation={true}
+            modulationOffset={0.3}
+          />
+          
+          {/* ACES Filmic Tone Mapping - Hollywood-grade color */}
+          <ToneMapping 
+            mode={ToneMappingMode.ACES_FILMIC}
+            resolution={256}
+            whitePoint={4}
+            middleGrey={0.6}
+            minLuminance={0.01}
+            averageLuminance={1.0}
+            adaptationRate={2.0}
+          />
+        </EffectComposer>
       </Canvas>
 
       {/* Game UI Overlay */}

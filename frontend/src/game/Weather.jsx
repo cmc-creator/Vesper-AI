@@ -1,5 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Cloud, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 
 export default function Weather({ type = 'clear' }) {
@@ -73,11 +74,31 @@ export default function Weather({ type = 'clear' }) {
         </>
       )}
 
-      {/* Clear sunny sky */}
+      {/* Clear sunny sky with clouds */}
       {type === 'clear' && (
         <>
           <fog attach="fog" args={['#87ceeb', 50, 150]} />
           <color attach="background" args={['#87ceeb']} />
+          
+          {/* Volumetric clouds */}
+          {Array.from({ length: 8 }).map((_, i) => {
+            const x = (Math.random() - 0.5) * 100;
+            const y = 20 + Math.random() * 15;
+            const z = (Math.random() - 0.5) * 100;
+            
+            return (
+              <Cloud
+                key={`cloud-${i}`}
+                position={[x, y, z]}
+                speed={0.1}
+                opacity={0.5}
+                segments={20}
+                bounds={[6, 2, 4]}
+                volume={6}
+                color="#ffffff"
+              />
+            );
+          })}
         </>
       )}
 
@@ -125,27 +146,26 @@ export default function Weather({ type = 'clear' }) {
         </>
       )}
 
-      {/* Magical sparkles (always present) */}
-      {Array.from({ length: 20 }).map((_, i) => {
-        const x = (Math.random() - 0.5) * 60;
-        const y = Math.random() * 15 + 2;
-        const z = (Math.random() - 0.5) * 60;
-        const delay = Math.random() * 5;
-        
-        return (
-          <mesh 
-            key={`sparkle-${i}`} 
-            position={[x, y, z]}
-          >
-            <sphereGeometry args={[0.05, 8, 8]} />
-            <meshBasicMaterial 
-              color={i % 3 === 0 ? "#ffd700" : i % 3 === 1 ? "#a78bfa" : "#00ffff"}
-              transparent
-              opacity={0.8}
-            />
-          </mesh>
-        );
-      })}
+      {/* Magical atmosphere sparkles (always present) */}
+      <Sparkles
+        count={100}
+        scale={[60, 15, 60]}
+        position={[0, 8, 0]}
+        size={1.5}
+        speed={0.2}
+        opacity={0.6}
+        color="#ffd700"
+      />
+      
+      <Sparkles
+        count={80}
+        scale={[50, 12, 50]}
+        position={[0, 6, 0]}
+        size={1.2}
+        speed={0.25}
+        opacity={0.5}
+        color="#a78bfa"
+      />
     </group>
   );
 }
