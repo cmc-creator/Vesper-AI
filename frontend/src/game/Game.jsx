@@ -50,7 +50,7 @@ const PlayerHomeExterior = lazy(() => import('./PlayerHomeExterior'));
 const PlayerHomeInterior = lazy(() => import('./PlayerHomeInterior'));
 
 export default function Game({ onExitGame, onChatWithNPC }) {
-  const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
+  const [playerPosition, setPlayerPosition] = useState([0, 1.2, 2]);
   const [keyboard, setKeyboard] = useState({ forward: false, backward: false, left: false, right: false });
   const [showInventory, setShowInventory] = useState(false);
   const [showQuestJournal, setShowQuestJournal] = useState(false);
@@ -117,16 +117,23 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <Suspense fallback={null}>
           {/* Lighting */}
           <ambientLight intensity={0.8} />
+          <pointLight position={[20, 20, 20]} intensity={0.8} />
           <directionalLight position={[100, 100, 100]} intensity={0.5} castShadow />
 
           {/* Environment */}
           <Sky sunPosition={[100, 20, 100]} turbidity={10} rayleigh={2} mieCoefficient={0.005} mieDirectionalG={0.7} />
-          <Stars radius={100} depth={20} count={1000} factor={4} saturation={0} fade speed={1} />
+          <Stars radius={100} depth={20} count={800} factor={4} saturation={0} fade speed={1} />
           <Environment preset="sunset" />
           
           {/* World Components */}
           <Terrain position={[0, -1, 0]} />
-          
+          <Castle position={[0, 0, -8]} />
+          <Grass position={[0, 0, 0]} />
+          <Butterflies count={30} />
+          <Weather season={currentSeason} />
+          <VesperNPC position={[5, 0, 5]} onChat={onChatWithNPC} />
+          <Horses position={[8, 0, 2]} onMount={() => {}} />
+
           {/* Player */}
           <Character 
             position={playerPosition} 
@@ -135,6 +142,9 @@ export default function Game({ onExitGame, onChatWithNPC }) {
             health={playerHealth}
             maxHealth={playerMaxHealth}
           />
+
+          {/* Shadows */}
+          <ContactShadows position={[0, 0, 0]} opacity={0.35} scale={100} blur={2.5} far={40} resolution={256} color="#000000" />
         </Suspense>
       </Canvas>
 
@@ -197,7 +207,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <div>WASD - Move | ESC - Exit | I - Inventory | J - Quests</div>
         <div>P - Pets | R - Fishing | G - Crafting</div>
         <div style={{ marginTop: '10px', color: '#00ffff' }}>
-          ✨ All 10 RPG Systems Active ✨
+          ✨ Core world loaded. Systems coming back step-by-step. ✨
         </div>
       </div>
     </div>
