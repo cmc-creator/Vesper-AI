@@ -155,23 +155,39 @@ function App() {
     // Add user message
     addLocalMessage('user', userMessage);
 
-    // Simulate AI response (no backend needed)
-    setTimeout(() => {
-      const responses = [
-        "I'm here to help! What would you like to know?",
-        "That's interesting! Tell me more.",
-        "I understand. How can I assist you further?",
-        "Great question! Let me think about that.",
-        "I'm processing your request. One moment please.",
-        "Thanks for sharing that with me!",
-        "I'm Vesper, your AI companion. Ready to explore the 3D world? Press C to toggle the game!",
-        "The game world is waiting for you! Press C to enter and explore all 10 RPG systems.",
-      ];
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      addLocalMessage('assistant', randomResponse);
+    try {
+      // Call OpenAI API directly (no backend needed)
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            { role: 'system', content: 'You are Vesper, a mystical AI assistant who lives in a magical 3D fantasy world. You are friendly, wise, and love to help users explore the game world with its 10 RPG systems.' },
+            ...messages.map(m => ({ role: m.role, content: m.content })),
+            { role: 'user', content: userMessage }
+          ],
+          max_tokens: 500,
+          temperature: 0.9
+        })
+      });
+
+      if (!response.ok) throw new Error('API call failed');
+
+      const data = await response.json();
+      const aiResponse = data.choices[0].message.content;
+
+      addLocalMessage('assistant', aiResponse);
+    } catch (error) {
+      console.error('Error:', error);
+      addLocalMessage('assistant', "I'm having trouble connecting right now, but I'm still here! Want to explore the game world? Press C to enter! 🎮✨");
+    } finally {
       setLoading(false);
       setThinking(false);
-    }, 1000);
+    }
   };
 
   const clearHistory = async () => {

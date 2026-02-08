@@ -15,17 +15,23 @@ import Minimap from './Minimap';
 import CharacterCustomization from './CharacterCustomization';
 
 export default function GameUI({
-  weather,
-  onWeatherChange,
-  crystalsCollected,
-  questsCompleted,
-  onExitGame,
-  showingChat,
-  onToggleChat,
+  weather = 'clear',
+  onWeatherChange = () => {},
+  crystalsCollected = 0,
+  questsCompleted = 0,
+  onExitGame = () => {},
+  showingChat = false,
+  onToggleChat = () => {},
   playerPosition = [0, 2, 5],
-  onCustomize,
-  onOpenVesperHome,
-  onOpenPlayerHome,
+  onCustomize = () => {},
+  onOpenVesperHome = () => {},
+  onOpenPlayerHome = () => {},
+  health = 100,
+  maxHealth = 100,
+  gold = 0,
+  season = 'spring',
+  showInventory = false,
+  showQuests = false,
 }) {
   const [showCustomization, setShowCustomization] = useState(false);
   
