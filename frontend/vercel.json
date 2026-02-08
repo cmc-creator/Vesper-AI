@@ -1,7 +1,0 @@
-{
-  "installCommand": "npm install --legacy-peer-deps",
-  "buildCommand": "npx vite build",
-  "env": {
-    "VITE_API_URL": "https://vesper-backend-production-b486.up.railway.app"
-  }
-}
