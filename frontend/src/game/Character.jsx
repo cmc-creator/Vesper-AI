@@ -1,9 +1,8 @@
 import React, { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useKeyboardControls } from '@react-three/drei';
 import * as THREE from 'three';
 
-export default function Character({ position = [0, 2, 5] }) {
+export default function Character({ position = [0, 2, 5], keyboard = {} }) {
   const characterRef = useRef();
   const { camera } = useThree();
   
@@ -19,11 +18,11 @@ export default function Character({ position = [0, 2, 5] }) {
 
     const character = characterRef.current;
     
-    // Get keyboard input
-    const moveForward = state.keyboard?.forward || false;
-    const moveBackward = state.keyboard?.backward || false;
-    const moveLeft = state.keyboard?.left || false;
-    const moveRight = state.keyboard?.right || false;
+    // Get keyboard input from props
+    const moveForward = keyboard?.forward || false;
+    const moveBackward = keyboard?.backward || false;
+    const moveLeft = keyboard?.left || false;
+    const moveRight = keyboard?.right || false;
 
     // Calculate movement direction
     direction.current.set(0, 0, 0);
