@@ -1,0 +1,60 @@
+name: Deployment Configuration Check
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate-deployment:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Validate deployment configuration
+      run: |
+        python3 validate-deployment.py
+    
+    - name: Check deployment files
+      run: |
+        echo "Checking deployment documentation..."
+        test -f DEPLOY.md || (echo "❌ DEPLOY.md missing" && exit 1)
+        test -f QUICKSTART-DEPLOY.md || (echo "❌ QUICKSTART-DEPLOY.md missing" && exit 1)
+        echo "✅ Deployment documentation found"
+    
+    - name: Validate Railway config
+      run: |
+        echo "Validating railway.json..."
+        python3 -m json.tool railway.json > /dev/null
+        echo "✅ railway.json is valid JSON"
+    
+    - name: Validate Vercel config
+      run: |
+        echo "Validating vercel.json..."
+        python3 -m json.tool vercel.json > /dev/null
+        echo "✅ vercel.json is valid JSON"
+    
+    - name: Check Python requirements
+      run: |
+        echo "Checking requirements.txt..."
+        test -f requirements.txt || (echo "❌ requirements.txt missing" && exit 1)
+        grep -q "fastapi" requirements.txt || (echo "❌ fastapi not in requirements.txt" && exit 1)
+        grep -q "uvicorn" requirements.txt || (echo "❌ uvicorn not in requirements.txt" && exit 1)
+        echo "✅ Backend requirements OK"
+    
+    - name: Summary
+      if: success()
+      run: |
+        echo ""
+        echo "======================================"
+        echo "✅ All deployment checks passed!"
+        echo "🚀 Ready for deployment"
+        echo "======================================"
