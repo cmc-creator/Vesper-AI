@@ -408,6 +408,11 @@ function App() {
 
           {/* Input */}
           <Paper
+            component="form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendMessage();
+            }}
             sx={{
               p: '2px 4px',
               display: 'flex',
