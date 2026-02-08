@@ -18,6 +18,7 @@ import {
   Memory as MemoryIcon,
   Lightbulb as LightbulbIcon,
   Castle as CastleIcon,
+  CloudUpload as DeployIcon,
 } from '@mui/icons-material';
 
 const CommandPalette = ({ isOpen, onClose, onCommand }) => {
@@ -71,6 +72,13 @@ const CommandPalette = ({ isOpen, onClose, onCommand }) => {
       icon: <CastleIcon />,
       action: () => onCommand('enterWorld'),
       shortcut: 'Ctrl+G',
+    },
+    {
+      id: 'deploy',
+      label: 'Deployment Manager',
+      icon: <DeployIcon />,
+      action: () => onCommand('deploy'),
+      shortcut: 'Ctrl+D',
     },
     {
       id: 'settings',

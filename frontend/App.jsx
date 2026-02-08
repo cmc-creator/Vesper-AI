@@ -34,6 +34,7 @@ import CommandPalette from './src/components/CommandPalette';
 import VoiceInput from './src/components/VoiceInput';
 import CodeBlock from './src/components/CodeBlock';
 import FloatingActionButton from './src/components/FloatingActionButton';
+import DeployPage from './src/components/DeployPage';
 import Game from './src/game/Game';
 
 // Styles
@@ -63,6 +64,7 @@ function App() {
   const [thinking, setThinking] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [gameMode, setGameMode] = useState(false);
+  const [deployPageOpen, setDeployPageOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 
@@ -76,6 +78,12 @@ function App() {
   useHotkeys('ctrl+g, cmd+g', (e) => {
     e.preventDefault();
     setGameMode(true);
+  });
+
+  // Open deploy page hotkey (Cmd/Ctrl+D)
+  useHotkeys('ctrl+d, cmd+d', (e) => {
+    e.preventDefault();
+    setDeployPageOpen(true);
   });
 
   // Initialize Firebase Auth
@@ -209,6 +217,9 @@ function App() {
       case 'enterWorld':
         setGameMode(true);
         break;
+      case 'deploy':
+        setDeployPageOpen(true);
+        break;
       default:
         console.log('Unknown command:', command);
     }
@@ -296,8 +307,11 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       
-      {/* Game Mode */}
-      {gameMode ? (
+      {/* Deploy Page */}
+      {deployPageOpen ? (
+        <DeployPage onClose={() => setDeployPageOpen(false)} />
+      ) : /* Game Mode */
+      gameMode ? (
         <Game 
           onExitGame={() => setGameMode(false)}
           onChatWithNPC={() => {

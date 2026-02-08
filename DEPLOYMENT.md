@@ -8,10 +8,25 @@
 - **Research Tools** - Web scraping, database queries, file processing
 - **Task Management** - Organize and track your work
 - **Memory System** - Persistent context and knowledge base
+- **Deployment Manager** - Built-in page to monitor and manage deployments (Access via Ctrl+D)
 - **PWA Support** - Install on any device (Desktop, iOS, Android)
 - **Real-time Sync** - Firebase Firestore integration
 - **Offline Mode** - Works without internet connection
 - **5 Color Themes** - Customizable futuristic UI
+
+## 🚀 Deployment Manager
+
+Vesper now includes a built-in Deployment Manager page that helps you:
+- Monitor backend API health status
+- Check frontend deployment status
+- View Firebase connection status
+- Access deployment documentation
+- Quick actions for common deployment tasks
+
+**Access the Deployment Manager:**
+- Press **Ctrl+D** (or Cmd+D on Mac)
+- Open Command Palette (Ctrl+K) and select "Deployment Manager"
+- Click the Floating Action Button and select "Deploy"
 
 ## 📱 Progressive Web App
 

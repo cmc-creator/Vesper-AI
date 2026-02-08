@@ -7,6 +7,7 @@ import {
   Settings,
   DeleteOutline,
   Castle,
+  CloudUpload,
 } from '@mui/icons-material';
 
 const FloatingActionButton = ({ onAction }) => {
@@ -19,6 +20,15 @@ const FloatingActionButton = ({ onAction }) => {
       color: '#a78bfa',
       action: () => {
         onAction('enterWorld');
+        setIsOpen(false);
+      },
+    },
+    {
+      icon: <CloudUpload />,
+      label: 'Deploy',
+      color: '#00ccff',
+      action: () => {
+        onAction('deploy');
         setIsOpen(false);
       },
     },
