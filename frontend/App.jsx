@@ -152,60 +152,26 @@ function App() {
     setLoading(true);
     setThinking(true);
 
-    const usingFirebase = isFirebaseConfigured && db && userId && userId !== 'local';
+    // Add user message
+    addLocalMessage('user', userMessage);
 
-    try {
-      // Save user message to Firebase
-      if (usingFirebase) {
-        await addDoc(collection(db, 'chat_messages'), {
-          userId,
-          role: 'user',
-          content: userMessage,
-          timestamp: new Date(),
-        });
-      } else {
-        addLocalMessage('user', userMessage);
-      }
-
-      // Send to backend
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
-      const response = await fetch(`${API_URL}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage }),
-      });
-
-      if (!response.ok) throw new Error('Network response was not ok');
-
-      const data = await response.json();
-
-      // Save AI response to Firebase
-      if (usingFirebase) {
-        await addDoc(collection(db, 'chat_messages'), {
-          userId,
-          role: 'assistant',
-          content: data.response,
-          timestamp: new Date(),
-        });
-      } else {
-        addLocalMessage('assistant', data.response);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      if (usingFirebase) {
-        await addDoc(collection(db, 'chat_messages'), {
-          userId,
-          role: 'assistant',
-          content: 'Sorry, I encountered an error. Please try again.',
-          timestamp: new Date(),
-        });
-      } else {
-        addLocalMessage('assistant', 'Sorry, I encountered an error. Please try again.');
-      }
-    } finally {
+    // Simulate AI response (no backend needed)
+    setTimeout(() => {
+      const responses = [
+        "I'm here to help! What would you like to know?",
+        "That's interesting! Tell me more.",
+        "I understand. How can I assist you further?",
+        "Great question! Let me think about that.",
+        "I'm processing your request. One moment please.",
+        "Thanks for sharing that with me!",
+        "I'm Vesper, your AI companion. Ready to explore the 3D world? Press C to toggle the game!",
+        "The game world is waiting for you! Press C to enter and explore all 10 RPG systems.",
+      ];
+      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+      addLocalMessage('assistant', randomResponse);
       setLoading(false);
       setThinking(false);
-    }
+    }, 1000);
   };
 
   const clearHistory = async () => {
