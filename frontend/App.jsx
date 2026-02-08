@@ -5,8 +5,9 @@ import {
   IconButton,
   Typography,
   CircularProgress,
-  Container,
   Paper,
+  Chip,
+  Stack,
 } from '@mui/material';
 import { Send as SendIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -375,10 +376,31 @@ function App() {
             >
               VESPER
             </Typography>
-            <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-              Press C to toggle game • New chat UI active
+            <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+              High-tech chat online • Press C to toggle game
             </Typography>
           </Box>
+
+          {/* Quick prompts */}
+          <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap' }}>
+            {['Summarize this scene', 'Generate a quest', 'Give me a hint', 'Explain controls'].map((label) => (
+              <Chip
+                key={label}
+                label={label}
+                onClick={() => setInput(label)}
+                sx={{
+                  background: 'rgba(0,255,255,0.08)',
+                  color: '#a6e9ff',
+                  borderColor: 'rgba(0,255,255,0.2)',
+                  borderWidth: 1,
+                  borderStyle: 'solid',
+                  '&:hover': {
+                    background: 'rgba(0,255,255,0.16)'
+                  }
+                }}
+              />
+            ))}
+          </Stack>
 
           {/* Messages */}
           <Paper
