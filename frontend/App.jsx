@@ -156,8 +156,14 @@ function App() {
     addLocalMessage('user', userMessage);
 
     try {
-      // Call local Vesper backend with Anthropic Claude
-      const response = await fetch('http://localhost:3000/chat', {
+      // Resolve chat endpoint: env override -> same-origin /api/chat -> localhost fallback
+      const apiBase =
+        import.meta.env.VITE_CHAT_API_URL ||
+        (typeof window !== 'undefined' && window.location.origin.includes('localhost')
+          ? 'http://localhost:3000'
+          : '');
+
+      const response = await fetch(`${apiBase}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -370,7 +376,7 @@ function App() {
               VESPER
             </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-              Press C to toggle game
+              Press C to toggle game • New chat UI active
             </Typography>
           </Box>
 
