@@ -18,4 +18,4 @@ COPY backend/ ./backend/
 EXPOSE 8000
 
 # Start the server
-CMD uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
