@@ -65,6 +65,11 @@ def save_research(data):
     with open(RESEARCH_PATH, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+# Health check endpoint for deployment platforms
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "service": "vesper-ai-backend"}
+
 @app.get("/api/research")
 def get_research():
     return load_research()

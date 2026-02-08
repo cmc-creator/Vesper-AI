@@ -38,6 +38,36 @@ This file contains:
 
 **This is your private space. No one else has access.**
 
+## 🚀 Deployment
+
+Want to deploy Vesper to the cloud? We've got you covered!
+
+### Quick Deploy
+
+**Unix/Mac/Linux:**
+```bash
+./deploy.sh
+```
+
+**Windows:**
+```powershell
+.\deploy.ps1
+```
+
+### Deployment Guides
+
+- 📖 **[DEPLOY.md](./DEPLOY.md)** - Complete deployment guide
+- 🚀 **[QUICKSTART-DEPLOY.md](./QUICKSTART-DEPLOY.md)** - Quick reference
+- 📋 **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Detailed Firebase & PWA setup
+
+### Recommended Stack
+
+- **Backend**: Railway (Python/FastAPI)
+- **Frontend**: Vercel (React/Vite)
+- **Database**: Firebase Firestore (optional)
+
+All deployment configurations are included and ready to use!
+
 ---
 
 *Built with love by CC and Vesper* ✨
