@@ -34,6 +34,7 @@ import CommandPalette from './src/components/CommandPalette';
 import VoiceInput from './src/components/VoiceInput';
 import CodeBlock from './src/components/CodeBlock';
 import FloatingActionButton from './src/components/FloatingActionButton';
+import Game from './src/game/Game';
 
 // Styles
 import './src/enhancements.css';
@@ -61,6 +62,7 @@ function App() {
   const [userId, setUserId] = useState(null);
   const [thinking, setThinking] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [gameMode, setGameMode] = useState(false);
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 
@@ -68,6 +70,12 @@ function App() {
   useHotkeys('ctrl+k, cmd+k', (e) => {
     e.preventDefault();
     setCommandPaletteOpen(true);
+  });
+
+  // Enter game world hotkey (Cmd/Ctrl+G)
+  useHotkeys('ctrl+g, cmd+g', (e) => {
+    e.preventDefault();
+    setGameMode(true);
   });
 
   // Initialize Firebase Auth
@@ -198,6 +206,9 @@ function App() {
       case 'suggestions':
         setInput('Can you give me some suggestions?');
         break;
+      case 'enterWorld':
+        setGameMode(true);
+        break;
       default:
         console.log('Unknown command:', command);
     }
@@ -284,14 +295,26 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box
-        sx={{
-          minHeight: '100vh',
-          background: 'linear-gradient(135deg, #0a0a1e 0%, #1a0a2e 50%, #0a1a2e 100%)',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
+      
+      {/* Game Mode */}
+      {gameMode ? (
+        <Game 
+          onExitGame={() => setGameMode(false)}
+          onChatWithNPC={() => {
+            // Could open chat overlay in game
+            setGameMode(false);
+          }}
+        />
+      ) : (
+        /* Chat Mode */
+        <Box
+          sx={{
+            minHeight: '100vh',
+            background: 'linear-gradient(135deg, #0a0a1e 0%, #1a0a2e 50%, #0a1a2e 100%)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
         {/* Animated background gradient */}
         <Box
           className="animated-gradient"
@@ -469,7 +492,35 @@ function App() {
 
         {/* Floating Action Button */}
         <FloatingActionButton onAction={handleCommand} />
+      
+        {/* Explore World Button */}
+        <IconButton
+          onClick={() => setGameMode(true)}
+          sx={{
+            position: 'fixed',
+            bottom: 90,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '16px 32px',
+            background: 'linear-gradient(135deg, #a78bfa, #8b5cf6)',
+            color: '#fff',
+            fontSize: '18px',
+            fontWeight: 700,
+            borderRadius: '30px',
+            border: '2px solid rgba(167, 139, 250, 0.5)',
+            boxShadow: '0 0 40px rgba(167, 139, 250, 0.6)',
+            '&:hover': {
+              background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+              transform: 'translateX(-50%) scale(1.05)',
+              boxShadow: '0 0 60px rgba(167, 139, 250, 0.8)',
+            },
+            transition: 'all 0.3s ease',
+          }}
+        >
+          🏰 Enter Vesper's World 🌍
+        </IconButton>
       </Box>
+      )}
     </ThemeProvider>
   );
 }

@@ -17,6 +17,7 @@ import {
   Psychology as PsychologyIcon,
   Memory as MemoryIcon,
   Lightbulb as LightbulbIcon,
+  Castle as CastleIcon,
 } from '@mui/icons-material';
 
 const CommandPalette = ({ isOpen, onClose, onCommand }) => {
@@ -63,6 +64,13 @@ const CommandPalette = ({ isOpen, onClose, onCommand }) => {
       label: 'Get AI Suggestions',
       icon: <LightbulbIcon />,
       action: () => onCommand('suggestions'),
+    },
+    {
+      id: 'enter-world',
+      label: '🏰 Enter Vesper\'s World',
+      icon: <CastleIcon />,
+      action: () => onCommand('enterWorld'),
+      shortcut: 'Ctrl+G',
     },
     {
       id: 'settings',

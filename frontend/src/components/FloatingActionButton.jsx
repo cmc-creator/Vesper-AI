@@ -6,12 +6,22 @@ import {
   Psychology,
   Settings,
   DeleteOutline,
+  Castle,
 } from '@mui/icons-material';
 
 const FloatingActionButton = ({ onAction }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const actions = [
+    {
+      icon: <Castle />,
+      label: 'Enter World',
+      color: '#a78bfa',
+      action: () => {
+        onAction('enterWorld');
+        setIsOpen(false);
+      },
+    },
     {
       icon: <Chat />,
       label: 'New Chat',
