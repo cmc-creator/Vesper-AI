@@ -12,8 +12,7 @@ import {
   Sparkles,
   Float,
   MeshReflectorMaterial,
-  PerformanceMonitor,
-  Adaptive
+  PerformanceMonitor
 } from '@react-three/drei';
 import { 
   EffectComposer, 
@@ -24,7 +23,6 @@ import {
   ChromaticAberration,
   ToneMapping,
   GodRays,
-  MotionBlur,
   SMAA,
   Noise,
   LUT
@@ -470,7 +468,6 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           onIncline={() => setDpr(2)} 
           onDecline={() => setDpr(1)}
         />
-        <Adaptive />
         
         {/* Enhanced Lighting System - Dynamic based on time of day */}
         <ambientLight 
@@ -584,22 +581,25 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           </>
         )}
 
-        {/* Player character */
-        <Character position={playerPosition} keyboard={keyboard} />        
+        {/* Player character */}
+        <Character position={playerPosition} keyboard={keyboard} />
+        
         {/* Magic Abilities System */}
         <MagicAbilities
           playerPosition={playerPosition}
           playerRotation={0}
           keyboard={keyboard}
         />
+        
         {/* Vesper NPC near castle */}
         <VesperNPC 
           position={[-8, 1.5, -15]} 
           crystalsCollected={crystalsCollected}
           onInteract={() => {
             setShowingChat(true);
-            onChatWithNPC?();
+            if (onChatWithNPC) onChatWithNPC();
           }}
+          onCrystalCollect={handleCrystalCollect}
         />
         
         {/* NEW RPG SYSTEMS - Only when outside */}
@@ -751,13 +751,6 @@ export default function Game({ onExitGame, onChatWithNPC }) {
             levels={9}
             mipmapBlur
           />
-          
-          {/* Motion Blur - Smooth cinematic movement */}
-          <MotionBlur 
-            intensity={0.5}
-            samples={16}
-          />
-          
           {/* Depth of Field - Cinematic focus blur */}
           <DepthOfField 
             focusDistance={0.02}

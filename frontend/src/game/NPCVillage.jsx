@@ -376,7 +376,7 @@ export default function NPCVillage({ playerPosition, dayTime, playerGold, onTrad
           },
         }}
       >
-        {current NPC && (
+        {currentNPC && (
           <>
             <DialogTitle sx={{ borderBottom: '1px solid #fbbf24', pb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
