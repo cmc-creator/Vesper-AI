@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Typography, Chip, IconButton, Paper } from '@mui/material';
 import {
   WbSunny,
@@ -8,7 +8,10 @@ import {
   AcUnit,
   Close,
   Chat,
+  Palette,
 } from '@mui/icons-material';
+import Minimap from './Minimap';
+import CharacterCustomization from './CharacterCustomization';
 
 export default function GameUI({
   weather,
@@ -18,7 +21,11 @@ export default function GameUI({
   onExitGame,
   showingChat,
   onToggleChat,
+  playerPosition = [0, 2, 5],
+  onCustomize,
 }) {
+  const [showCustomization, setShowCustomization] = useState(false);
+  
   const weatherIcons = {
     clear: <WbSunny />,
     rain: <Grain />,
@@ -240,6 +247,29 @@ export default function GameUI({
       >
         <Chat sx={{ color: '#fff', fontSize: 28 }} />
       </IconButton>
+      
+      {/* Customization button */}
+      <IconButton
+        onClick={() => setShowCustomization(true)}
+        sx={{
+          position: 'absolute',
+          bottom: 180,
+          right: 20,
+          width: 60,
+          height: 60,
+          background: 'linear-gradient(135deg, #00ffff, #0099cc)',
+          border: '2px solid rgba(0, 255, 255, 0.5)',
+          boxShadow: '0 0 30px rgba(0, 255, 255, 0.5)',
+          '&:hover': {
+            background: 'linear-gradient(135deg, #0099cc, #0077aa)',
+            transform: 'scale(1.1)',
+            boxShadow: '0 0 40px rgba(0, 255, 255, 0.7)',
+          },
+          transition: 'all 0.3s ease',
+        }}
+      >
+        <Palette sx={{ color: '#fff', fontSize: 28 }} />
+      </IconButton>
 
       {/* Exit button */}
       <IconButton
@@ -258,6 +288,19 @@ export default function GameUI({
       >
         <Close />
       </IconButton>
+
+      {/* Minimap */}
+      <Minimap 
+        playerPosition={playerPosition} 
+        crystalsCollected={crystalsCollected}
+      />
+      
+      {/* Character Customization Panel */}
+      <CharacterCustomization
+        isOpen={showCustomization}
+        onClose={() => setShowCustomization(false)}
+        onCustomize={onCustomize}
+      />
     </>
   );
 }

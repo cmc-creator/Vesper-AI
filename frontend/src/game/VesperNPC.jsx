@@ -1,11 +1,51 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Sparkles } from '@react-three/drei';
+import { Sparkles, Text, Html } from '@react-three/drei';
 import * as THREE from 'three';
 
-export default function VesperNPC({ position = [0, 0, 0], onInteract }) {
+export default function VesperNPC({ position = [0, 0, 0], onInteract, crystalsCollected = 0 }) {
   const npcRef = useRef();
   const floatOffset = useRef(0);
+  const [isPlayerNear, setIsPlayerNear] = useState(false);
+  const [showSpeechBubble, setShowSpeechBubble] = useState(false);
+  const [currentDialogue, setCurrentDialogue] = useState(0);
+  
+  // Dialogue system based on progress
+  const dialogues = [
+    {
+      text: "Greetings, traveler! I am Vesper, guardian of this realm.",
+      condition: () => true
+    },
+    {
+      text: "Collect the 8 mystical crystals to unlock the unicorn's power!",
+      condition: () => crystalsCollected < 8
+    },
+    {
+      text: "You've found " + crystalsCollected + " crystals so far. Keep searching!",
+      condition: () => crystalsCollected > 0 && crystalsCollected < 8
+    },
+    {
+      text: "Amazing! You've collected all 8 crystals! The unicorn awaits you!",
+      condition: () => crystalsCollected >= 8
+    },
+    {
+      text: "Try finding the treasure chests scattered across the land!",
+      condition: () => crystalsCollected < 4
+    },
+    {
+      text: "Use the teleportation portals to travel quickly!",
+      condition: () => true
+    }
+  ];
+  
+  const getRandomDialogue = () => {
+    const availableDialogues = dialogues.filter(d => d.condition());
+    if (availableDialogues.length > 0) {
+      const randomIndex = Math.floor(Math.random() * availableDialogues.length);
+      return availableDialogues[randomIndex].text;
+    }
+    return "Welcome to the magical realm!";
+  };
 
   // Float animation
   useFrame((state) => {
@@ -17,9 +57,33 @@ export default function VesperNPC({ position = [0, 0, 0], onInteract }) {
     // Rotate slowly
     npcRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.3;
   });
+  
+  const handleClick = () => {
+    setShowSpeechBubble(!showSpeechBubble);
+    setCurrentDialogue(Date.now()); // Trigger new dialogue
+    
+    // Play voice sound
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.value = 300;
+    osc.frequency.linearRampToValueAtTime(400, audioContext.currentTime + 0.1);
+    
+    gain.gain.value = 0.1;
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.2);
+    
+    if (onInteract) onInteract();
+  };
 
   return (
-    <group ref={npcRef} position={position}>
+    <group ref={npcRef} position={position} onClick={handleClick}>
       {/* Main body - ethereal form with enhanced glow */}
       <mesh castShadow>
         <sphereGeometry args={[0.6, 32, 32]} />
@@ -117,6 +181,66 @@ export default function VesperNPC({ position = [0, 0, 0], onInteract }) {
         distance={20}
         decay={2}
       />
+      
+      {/* Quest indicator */}
+      <Text
+        position={[0, 3, 0]}
+        fontSize={0.8}
+        color={crystalsCollected >= 8 ? "#00ff00" : "#ffff00"}
+        anchorX="center"
+        anchorY="middle"
+      >
+        {crystalsCollected >= 8 ? "!" : "?"}
+      </Text>
+      
+      {/* Speech bubble */}
+      {showSpeechBubble && (
+        <Html position={[0, 3.5, 0]} center>
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(10px)',
+            color: '#a78bfa',
+            padding: '15px 20px',
+            borderRadius: '15px',
+            border: '2px solid #a78bfa',
+            maxWidth: '300px',
+            fontSize: '14px',
+            fontFamily: 'Arial, sans-serif',
+            boxShadow: '0 0 20px rgba(167, 139, 250, 0.5)',
+            animation: 'fadeIn 0.3s ease-in',
+            position: 'relative'
+          }}>
+            <div style={{
+              content: '""',
+              position: 'absolute',
+              bottom: '-10px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '0',
+              height: '0',
+              borderLeft: '10px solid transparent',
+              borderRight: '10px solid transparent',
+              borderTop: '10px solid rgba(0, 0, 0, 0.8)'
+            }} />
+            {getRandomDialogue()}
+          </div>
+        </Html>
+      )}
+      
+      {/* Interaction hint */}
+      {isPlayerNear && !showSpeechBubble && (
+        <Text
+          position={[0, 2.5, 0]}
+          fontSize={0.3}
+          color="#00ffff"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.05}
+          outlineColor="#000000"
+        >
+          Click to Talk
+        </Text>
+      )}
     </group>
   );
 }

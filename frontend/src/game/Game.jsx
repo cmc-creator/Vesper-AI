@@ -40,6 +40,8 @@ import Horses from './Horses';
 import Grass from './Grass';
 import Butterflies from './Butterflies';
 import AmbientSounds from './AmbientSounds';
+import TreasureChests from './TreasureChests';
+import TeleportationPortals from './TeleportationPortals';
 
 export default function Game({ onExitGame, onChatWithNPC }) {
   const sunRef = useRef();
@@ -87,6 +89,11 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [onExitGame, showingChat]);
+
+  // Handle player teleportation
+  const handlePlayerTeleport = (newPosition) => {
+    setPlayerPosition(newPosition);
+  };
 
   // Cycle weather every 60 seconds
   useEffect(() => {
@@ -242,6 +249,8 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <Castle position={[0, 0, -25]} />
         <Horses />
         <Butterflies />
+        <TreasureChests />
+        <TeleportationPortals onPlayerMove={handlePlayerTeleport} />
 
         {/* Player character */
         <Character position={playerPosition} keyboard={keyboard} />
@@ -249,6 +258,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         {/* Vesper NPC near castle */}
         <VesperNPC 
           position={[-8, 1.5, -15]} 
+          crystalsCollected={crystalsCollected}
           onInteract={() => {
             setShowingChat(true);
             onChatWithNPC?.();
@@ -363,6 +373,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         onExitGame={onExitGame}
         showingChat={showingChat}
         onToggleChat={() => setShowingChat(!showingChat)}
+        playerPosition={playerPosition}
       />
 
       {/* Instructions overlay */}
