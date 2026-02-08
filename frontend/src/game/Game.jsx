@@ -45,6 +45,7 @@ import TeleportationPortals from './TeleportationPortals';
 import AchievementSystem from './AchievementSystem';
 import CastleInterior from './CastleInterior';
 import VesperHome from './VesperHome';
+import MagicAbilities from './MagicAbilities';
 
 export default function Game({ onExitGame, onChatWithNPC }) {
   const sunRef = useRef();
@@ -65,6 +66,10 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     backward: false,
     left: false,
     right: false,
+    '1': false,
+    '2': false,
+    '3': false,
+    '4': false,
   });
   const [ridingHorseId, setRidingHorseId] = useState(null);
   const [ridingPosition, setRidingPosition] = useState(null);
@@ -82,6 +87,10 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       if (key === 's') setKeyboard(k => ({ ...k, backward: true }));
       if (key === 'a') setKeyboard(k => ({ ...k, left: true }));
       if (key === 'd') setKeyboard(k => ({ ...k, right: true }));
+      if (key === '1') setKeyboard(k => ({ ...k, '1': true }));
+      if (key === '2') setKeyboard(k => ({ ...k, '2': true }));
+      if (key === '3') setKeyboard(k => ({ ...k, '3': true }));
+      if (key === '4') setKeyboard(k => ({ ...k, '4': true }));
       if (key === 'escape') onExitGame();
       if (key === 'c') setShowingChat(!showingChat);
       
@@ -107,6 +116,10 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       if (key === 's') setKeyboard(k => ({ ...k, backward: false }));
       if (key === 'a') setKeyboard(k => ({ ...k, left: false }));
       if (key === 'd') setKeyboard(k => ({ ...k, right: false }));
+      if (key === '1') setKeyboard(k => ({ ...k, '1': false }));
+      if (key === '2') setKeyboard(k => ({ ...k, '2': false }));
+      if (key === '3') setKeyboard(k => ({ ...k, '3': false }));
+      if (key === '4') setKeyboard(k => ({ ...k, '4': false }));
       
       // Release flying
       if (key === ' ' && isRidingUnicorn) {
@@ -374,8 +387,13 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         )}
 
         {/* Player character */
-        <Character position={playerPosition} keyboard={keyboard} />
-
+        <Character position={playerPosition} keyboard={keyboard} />        
+        {/* Magic Abilities System */}
+        <MagicAbilities
+          playerPosition={playerPosition}
+          playerRotation={0}
+          keyboard={keyboard}
+        />
         {/* Vesper NPC near castle */}
         <VesperNPC 
           position={[-8, 1.5, -15]} 
@@ -535,6 +553,13 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <div>Mouse - Look around</div>
         <div>C - Chat with Vesper</div>
         <div>ESC - Exit to menu</div>
+        <div style={{ marginTop: '8px', color: '#a78bfa' }}>
+          <strong>✨ Magic Abilities:</strong>
+        </div>
+        <div>1 - 🔥 Fireball</div>
+        <div>2 - ⚡ Speed Boost</div>
+        <div>3 - 🌀 Levitation</div>
+        <div>4 - 💡 Light Orb</div>
         <div style={{ marginTop: '10px', color: '#ffd700' }}>
           💎 Collect glowing crystals to complete quests!
         </div>
