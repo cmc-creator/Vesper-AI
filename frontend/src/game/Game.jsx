@@ -117,23 +117,10 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <Suspense fallback={null}>
           {/* Lighting */}
           <ambientLight intensity={0.8} />
-          <pointLight position={[20, 20, 20]} intensity={1} />
           <directionalLight position={[100, 100, 100]} intensity={0.5} castShadow />
-          
-          {/* Environment */}
-          <Sky sunPosition={[100, 20, 100]} turbidity={10} rayleigh={2} mieCoefficient={0.005} mieDirectionalG={0.7} />
-          <Stars radius={100} depth={20} count={1000} factor={4} saturation={0} fade speed={1} />
-          <Environment preset="sunset" />
           
           {/* World Components */}
           <Terrain position={[0, -1, 0]} />
-          <Castle position={[0, 0, -30]} />
-          <Grass position={[0, 0, 0]} />
-          <Butterflies count={30} />
-          <Weather season={currentSeason} />
-          <VesperNPC position={[5, 0, 5]} onChat={onChatWithNPC} />
-          <Horses position={[10, 0, -20]} onMount={() => {}} />
-          <ContactShadows position={[0, 0, 0]} opacity={0.4} scale={100} blur={2.5} far={40} resolution={256} color="#000000" />
           
           {/* Player */}
           <Character 
@@ -143,16 +130,6 @@ export default function Game({ onExitGame, onChatWithNPC }) {
             health={playerHealth}
             maxHealth={playerMaxHealth}
           />
-
-          {/* Lazy loaded RPG Systems - only 3D components */}
-          <Suspense fallback={null}>
-            <SeasonalSystem position={[0, 0, 0]} currentSeason={currentSeason} />
-            <AmbientSounds season={currentSeason} />
-            <TreasureChests position={[0, 0, 0]} />
-            <TeleportationPortals position={[0, 0, 0]} onTeleport={handlePlayerTeleport} />
-            <MagicAbilities position={playerPosition} />
-            <SwimmingSystem position={playerPosition} />
-          </Suspense>
         </Suspense>
       </Canvas>
 
