@@ -51,6 +51,17 @@ import PhotoMode from './PhotoMode';
 import PlayerHome from './PlayerHome';
 import PlayerHomeExterior from './PlayerHomeExterior';
 import PlayerHomeInterior from './PlayerHomeInterior';
+import InventorySystem from './InventorySystem';
+import QuestJournal from './QuestJournal';
+import PetCompanion, { PetSelector } from './PetCompanion';
+import FishingSystem from './FishingSystem';
+import SeasonalSystem, { SEASONS } from './SeasonalSystem';
+import CombatSystem from './CombatSystem';
+import NightModeSystem, { Torch, NightTreasure } from './NightModeSystem';
+import NPCVillage from './NPCVillage';
+import CraftingSystem from './CraftingSystem';
+import GatheringSystem from './GatheringSystem';
+import WorldEventsSystem from './WorldEventsSystem';
 
 export default function Game({ onExitGame, onChatWithNPC }) {
   const sunRef = useRef();
@@ -88,6 +99,28 @@ export default function Game({ onExitGame, onChatWithNPC }) {
   const [isInsidePlayerHome, setIsInsidePlayerHome] = useState(false);
   const [showPlayerHome, setShowPlayerHome] = useState(false);
   const [playerHomeConfig, setPlayerHomeConfig] = useState(null);
+  
+  // New RPG Systems State
+  const [inventory, setInventory] = useState(() => Array(20).fill(null));
+  const [showInventory, setShowInventory] = useState(false);
+  const [showQuestJournal, setShowQuestJournal] = useState(false);
+  const [questProgress, setQuestProgress] = useState(() => {
+    const saved = localStorage.getItem('quest_progress');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [activePet, setActivePet] = useState(null);
+  const [showPetSelector, setShowPetSelector] = useState(false);
+  const [isFishing, setIsFishing] = useState(false);
+  const [currentSeason, setCurrentSeason] = useState('spring');
+  const [playerHealth, setPlayerHealth] = useState(100);
+  const [playerMaxHealth] = useState(100);
+  const [playerGold, setPlayerGold] = useState(1000);
+  const [showCrafting, setShowCrafting] = useState(false);
+  const [unlockedRecipes, setUnlockedRecipes] = useState(() => {
+    const saved = localStorage.getItem('unlocked_recipes');
+    return saved ? JSON.parse(saved) : ['iron_sword', 'health_potion', 'torch', 'wooden_chair', 'leather_armor'];
+  });
+  const [playerTool, setPlayerTool] = useState(null);
 
   // Keyboard controls
   useEffect(() => {
@@ -104,6 +137,11 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       if (key === 'escape') onExitGame();
       if (key === 'c') setShowingChat(!showingChat);
       if (key === 'f') setPhotoModeActive(!photoModeActive);
+      if (key === 'i') setShowInventory(!showInventory);
+      if (key === 'j') setShowQuestJournal(!showQuestJournal);
+      if (key === 'p') setShowPetSelector(!showPetSelector);
+      if (key === 'r') setIsFishing(!isFishing);
+      if (key === 'g') setShowCrafting(!showCrafting);
       
       // Space key for dismount or unicorn flying
       if (key === ' ') {
@@ -145,7 +183,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [onExitGame, showingChat]);
+  }, [onExitGame, showingChat, showInventory, showQuestJournal, showPetSelector, isFishing, photoModeActive, showCrafting]);
 
   // Handle player teleportation
   const handlePlayerTeleport = (newPosition) => {
@@ -224,6 +262,83 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     setIsInsidePlayerHome(false);
     setPlayerPosition([25, 2, 25]); // Move player outside
   };
+  
+  // New RPG System Handlers
+  const handleAddToInventory = (item) => {
+    setInventory(prev => {
+      const firstEmpty = prev.findIndex(slot => slot === null);
+      if (firstEmpty === -1) {
+        alert('Inventory full!');
+        return prev;
+      }
+      const newInventory = [...prev];
+      newInventory[firstEmpty] = { ...item, quantity: item.quantity || 1 };
+      return newInventory;
+    });
+  };
+  
+  const handleUpdateInventory = (newInventory) => {
+    setInventory(newInventory);
+  };
+  
+  const handleUseItem = (item) => {
+    if (item.type === 'potion' && item.healing) {
+      setPlayerHealth(prev => Math.min(playerMaxHealth, prev + item.healing));
+      alert(`Used ${item.name}! +${item.healing} HP`);
+    } else if (item.type === 'tool') {
+      setPlayerTool(item.name);
+      alert(`Equipped ${item.name}!`);
+    }
+  };
+  
+  const handlePlayerDamage = (damage) => {
+    setPlayerHealth(prev => Math.max(0, prev - damage));
+  };
+  
+  const handleEnemyKilled = (enemyData) => {
+    setPlayerGold(prev => prev + enemyData.xp);
+    // Random loot drop
+    const drop = enemyData.drops[Math.floor(Math.random() * enemyData.drops.length)];
+    handleAddToInventory({ name: drop, type: 'material', rarity: 'uncommon' });
+  };
+  
+  const handleCraft = (recipe, quality) => {
+    const resultItem = {
+      ...recipe.result,
+      name: quality !== 'common' ? `${quality} ${recipe.result.name}` : recipe.result.name,
+      rarity: quality,
+    };
+    handleAddToInventory(resultItem);
+  };
+  
+  const handleGatherResources = (resources) => {
+    Object.entries(resources).forEach(([name, amount]) => {
+      for (let i = 0; i < amount; i++) {
+        handleAddToInventory({ name, type: 'material', rarity: 'common' });
+      }
+    });
+  };
+  
+  const handleWorldEventReward = (rewards) => {
+    Object.entries(rewards).forEach(([name, amount]) => {
+      if (name === 'Gold') {
+        setPlayerGold(prev => prev + amount);
+      } else if (amount > 0) {
+        for (let i = 0; i < amount; i++) {
+          handleAddToInventory({ name, type: 'treasure', rarity: 'rare' });
+        }
+      }
+    });
+  };
+  
+  // Save quest progress and recipes
+  useEffect(() => {
+    localStorage.setItem('quest_progress', JSON.stringify(questProgress));
+  }, [questProgress]);
+  
+  useEffect(() => {
+    localStorage.setItem('unlocked_recipes', JSON.stringify(unlockedRecipes));
+  }, [unlockedRecipes]);
   
   // Load Vesper's home config and Player's home config
   useEffect(() => {
@@ -483,9 +598,115 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           crystalsCollected={crystalsCollected}
           onInteract={() => {
             setShowingChat(true);
-            onChatWithNPC?.();
+            onChatWithNPC?();
           }}
         />
+        
+        {/* NEW RPG SYSTEMS - Only when outside */}
+        {!isInsideCastle && !isInsidePlayerHome && (
+          <>
+            {/* Seasonal System - Changes environment */}
+            <SeasonalSystem 
+              currentSeason={currentSeason}
+              onSeasonChange={setCurrentSeason}
+            />
+            
+            {/* Night Mode System - Dangerous nights */}
+            <NightModeSystem
+              dayTime={dayTime}
+              isNightActive={timeOfDay === 'night'}
+              onSpawnEnemy={(type, position) => {
+                // Enemy spawning handled by CombatSystem
+              }}
+              playerPosition={playerPosition}
+              safeZones={[
+                { position: [0, 0, -25], radius: 15 }, // Castle area
+                { position: [25, 0, 25], radius: 10 }, // Player home
+                { position: [47, 0, 47], radius: 12 }, // Village plaza
+              ]}
+            />
+            
+            {/* Torch for player (equippable from inventory) */}
+            {playerTool && playerTool.includes('Torch') && (
+              <Torch
+                position={[playerPosition[0] + 1, playerPosition[1] + 1, playerPosition[2]]}
+                isActive={true}
+              />
+            )}
+            
+            {/* NPC Village with 6 characters */}
+            <NPCVillage
+              playerPosition={playerPosition}
+              dayTime={dayTime}
+              playerGold={playerGold}
+              onTrade={(action, item) => {
+                if (action === 'buy') {
+                  setPlayerGold(prev => prev - item.price);
+                  handleAddToInventory(item);
+                }
+              }}
+              onGift={(npcId, gift) => {
+                // Remove gift from inventory
+                setInventory(prev => {
+                  const index = prev.findIndex(item => item && item.name === gift);
+                  if (index !== -1) {
+                    const newInv = [...prev];
+                    newInv[index] = null;
+                    return newInv;
+                  }
+                  return prev;
+                });
+              }}
+            />
+            
+            {/* Gathering System - Resource nodes */}
+            <GatheringSystem
+              playerPosition={playerPosition}
+              playerTool={playerTool}
+              onGatherResources={handleGatherResources}
+              isActive={true}
+            />
+            
+            {/* Combat System - Enemies and fighting */}
+            <CombatSystem
+              playerPosition={playerPosition}
+              playerHealth={playerHealth}
+              playerMaxHealth={playerMaxHealth}
+              onPlayerDamage={handlePlayerDamage}
+              onEnemyKilled={handleEnemyKilled}
+              currentTime={dayTime}
+              isActive={true}
+            />
+            
+            {/* Fishing System */}
+            <FishingSystem
+              playerPosition={playerPosition}
+              isActive={isFishing}
+              onCatch={(fish) => {
+                handleAddToInventory({ ...fish, type: 'food' });
+              }}
+              onToggle={() => setIsFishing(!isFishing)}
+              inventory={inventory}
+              onAddToInventory={handleAddToInventory}
+            />
+            
+            {/* Pet Companion */}
+            {activePet && (
+              <PetCompanion
+                type={activePet}
+                playerPosition={playerPosition}
+                isActive={true}
+              />
+            )}
+            
+            {/* World Events System - Random exciting events */}
+            <WorldEventsSystem
+              playerPosition={playerPosition}
+              onReward={handleWorldEventReward}
+              isActive={true}
+            />
+          </>
+        )}
 
         {/* Ground shadows */}
         <ContactShadows 
@@ -626,6 +847,45 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         isActive={photoModeActive}
         onToggle={() => setPhotoModeActive(!photoModeActive)}
       />
+      
+      {/* NEW RPG SYSTEM UIs */}
+      
+      {/* Inventory System */}
+      <InventorySystem
+        isOpen={showInventory}
+        onClose={() => setShowInventory(false)}
+        inventory={inventory}
+        onUpdateInventory={handleUpdateInventory}
+        onUseItem={handleUseItem}
+      />
+      
+      {/* Quest Journal */}
+      <QuestJournal
+        isOpen={showQuestJournal}
+        onClose={() => setShowQuestJournal(false)}
+        questProgress={questProgress}
+        playerStats={{ gold: playerGold, level: 1 }}
+      />
+      
+      {/* Pet Selector */}
+      <PetSelector
+        isOpen={showPetSelector}
+        onClose={() => setShowPetSelector(false)}
+        onSelectPet={(petType) => {
+          setActivePet(petType);
+          setShowPetSelector(false);
+        }}
+        activePet={activePet}
+      />
+      
+      {/* Crafting System */}
+      <CraftingSystem
+        isOpen={showCrafting}
+        onClose={() => setShowCrafting(false)}
+        inventory={inventory}
+        onCraft={handleCraft}
+        unlockedRecipes={unlockedRecipes}
+      />
 
       {/* Instructions overlay */}
       <div
@@ -650,6 +910,14 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <div>C - Chat with Vesper</div>
         <div>ESC - Exit to menu</div>
         <div>F - 📸 Photo Mode</div>
+        <div style={{ marginTop: '8px', color: '#ec4899' }}>
+          <strong>🎮 RPG Systems:</strong>
+        </div>
+        <div>I - 🎒 Inventory (20 slots)</div>
+        <div>J - 📖 Quest Journal</div>
+        <div>P - 🐾 Pet Companion</div>
+        <div>R - 🎣 Fishing Mode</div>
+        <div>G - ⚒️ Crafting Station</div>
         <div style={{ marginTop: '8px', color: '#a78bfa' }}>
           <strong>✨ Magic Abilities:</strong>
         </div>
@@ -661,11 +929,14 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           <strong>🏊 Swimming:</strong>
         </div>
         <div>Walk into water to swim!</div>
-        <div style={{ marginTop: '10px', color: '#ffd700' }}>
-          💎 Collect glowing crystals to complete quests!
+        <div style={{ marginTop: '8px', color: '#ffd700' }}>
+          💎 Collect crystals • ⚔️ Fight enemies • 🌿 Gather resources
         </div>
-        <div style={{ marginTop: '8px', color: '#10b981' }}>
-          🏡 Visit YOUR custom home at [25, 25]!
+        <div style={{ marginTop: '4px', color: '#10b981' }}>
+          🏘️ NPC Village at [47, 47] • 🏡 Your home at [25, 25]
+        </div>
+        <div style={{ marginTop: '4px', color: '#8b5cf6' }}>
+          🌙 Beware the night! • ✨ Watch for world events!
         </div>
       </div>
     </div>
