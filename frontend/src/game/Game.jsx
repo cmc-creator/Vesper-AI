@@ -118,6 +118,11 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           {/* Lighting */}
           <ambientLight intensity={0.8} />
           <directionalLight position={[100, 100, 100]} intensity={0.5} castShadow />
+
+          {/* Environment */}
+          <Sky sunPosition={[100, 20, 100]} turbidity={10} rayleigh={2} mieCoefficient={0.005} mieDirectionalG={0.7} />
+          <Stars radius={100} depth={20} count={1000} factor={4} saturation={0} fade speed={1} />
+          <Environment preset="sunset" />
           
           {/* World Components */}
           <Terrain position={[0, -1, 0]} />
