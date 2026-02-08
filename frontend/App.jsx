@@ -32,11 +32,11 @@ const db = null;
 const auth = null;
 
 // Components
-// import AIAvatar from './src/components/AIAvatar';
-// import CommandPalette from './src/components/CommandPalette';
-// import VoiceInput from './src/components/VoiceInput';
-// import CodeBlock from './src/components/CodeBlock';
-// import FloatingActionButton from './src/components/FloatingActionButton';
+import AIAvatar from './src/components/AIAvatar';
+import CommandPalette from './src/components/CommandPalette';
+import VoiceInput from './src/components/VoiceInput';
+import CodeBlock from './src/components/CodeBlock';
+import FloatingActionButton from './src/components/FloatingActionButton';
 import Game from './src/game/Game';
 
 // Styles
@@ -88,10 +88,10 @@ function App() {
     setCommandPaletteOpen(true);
   });
 
-  // Enter game world hotkey (Cmd/Ctrl+G)
-  useHotkeys('ctrl+g, cmd+g', (e) => {
+  // Toggle game hotkey (C)
+  useHotkeys('c', (e) => {
     e.preventDefault();
-    setGameMode(true);
+    setGameMode(!gameMode);
   });
 
   // Initialize Firebase Auth
@@ -289,7 +289,7 @@ function App() {
         >
           {!isUser && (
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              {/* <AIAvatar thinking={false} mood="neutral" /> */}
+              <AIAvatar thinking={false} mood="neutral" />
               <Typography
                 variant="caption"
                 sx={{ ml: 2, color: '#00ffff', fontWeight: 600 }}
@@ -349,97 +349,58 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       
-      {/* Game Mode */}
-      {gameMode ? (
-        <Game 
-          onExitGame={() => setGameMode(false)}
-          onChatWithNPC={() => {
-            // Could open chat overlay in game
-            setGameMode(false);
-          }}
-        />
-      ) : (
-        /* Chat Mode */
+      {/* Split Layout: Chat + Game */}
+      <Box
+        sx={{
+          display: 'flex',
+          height: '100vh',
+          width: '100vw',
+          background: 'linear-gradient(135deg, #0a0a1e 0%, #1a0a2e 50%, #0a1a2e 100%)',
+        }}
+      >
+        {/* Chat Panel - Left Side */}
         <Box
           sx={{
-            minHeight: '100vh',
-            background: 'linear-gradient(135deg, #0a0a1e 0%, #1a0a2e 50%, #0a1a2e 100%)',
-            position: 'relative',
-            overflow: 'hidden',
+            flex: '0 0 45%',
+            height: '100vh',
+            overflowY: 'auto',
+            borderRight: '1px solid rgba(0, 255, 255, 0.1)',
+            background: 'rgba(10, 10, 30, 0.8)',
+            p: 2,
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-        {/* Animated background gradient */}
-        <Box
-          className="animated-gradient"
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background:
-              'radial-gradient(circle at 20% 50%, rgba(0, 255, 255, 0.05) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(138, 43, 226, 0.05) 0%, transparent 50%)',
-            animation: 'gradientShift 20s ease infinite',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* Hexagonal grid overlay */}
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundImage: `
-              repeating-linear-gradient(90deg, rgba(0, 255, 255, 0.03) 0px, transparent 1px, transparent 50px),
-              repeating-linear-gradient(0deg, rgba(0, 255, 255, 0.03) 0px, transparent 1px, transparent 50px)
-            `,
-            pointerEvents: 'none',
-          }}
-        />
-
-        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           {/* Header */}
-          <Box
-            className="glass-panel"
-            sx={{
-              textAlign: 'center',
-              py: 4,
-              my: 3,
-              borderRadius: '20px',
-            }}
-          >
+          <Box sx={{ textAlign: 'center', py: 2, mb: 2 }}>
             <Typography
-              variant="h3"
+              variant="h4"
               sx={{
-                background: 'linear-gradient(135deg, #00ffff, #a78bfa, #ec4899)',
+                background: 'linear-gradient(135deg, #00ffff, #a78bfa)',
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 fontWeight: 700,
-                letterSpacing: '3px',
-                mb: 1,
               }}
             >
               VESPER
             </Typography>
-            <Typography variant="subtitle1" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-              Your Intelligent AI Assistant
+            <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+              Press C to toggle game
             </Typography>
           </Box>
 
-          {/* Chat Container */}
+          {/* Messages */}
           <Paper
-            className="glass-panel"
             ref={chatContainerRef}
             sx={{
-              height: 'calc(100vh - 320px)',
+              flex: 1,
               overflowY: 'auto',
-              p: 3,
+              p: 2,
               mb: 2,
-              borderRadius: '20px',
+              borderRadius: '12px',
+              background: 'rgba(20, 20, 40, 0.5)',
+              border: '1px solid rgba(0, 255, 255, 0.1)',
             }}
           >
             <AnimatePresence>
@@ -448,10 +409,8 @@ function App() {
               ))}
             </AnimatePresence>
 
-            {/* Loading indicator */}
             {loading && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
-                {/* <AIAvatar thinking={true} mood="thinking" /> */}
                 <Box className="typing-indicator">
                   <span></span>
                   <span></span>
@@ -463,21 +422,22 @@ function App() {
             <div ref={messagesEndRef} />
           </Paper>
 
-          {/* Input Area */}
+          {/* Input */}
           <Paper
-            className="glass-panel"
             sx={{
-              p: 2,
-              borderRadius: '20px',
+              p: 1.5,
+              borderRadius: '12px',
               display: 'flex',
               gap: 1,
-              alignItems: 'center',
+              alignItems: 'flex-end',
+              background: 'rgba(20, 20, 40, 0.7)',
+              border: '1px solid rgba(0, 255, 255, 0.2)',
             }}
           >
             <TextField
               fullWidth
               multiline
-              maxRows={4}
+              maxRows={3}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => {
@@ -486,23 +446,21 @@ function App() {
                   sendMessage();
                 }
               }}
-              placeholder="Ask Vesper anything..."
+              placeholder="Ask Vesper..."
               disabled={loading}
               variant="standard"
               InputProps={{
                 disableUnderline: true,
                 sx: {
                   color: '#fff',
-                  fontSize: '16px',
+                  fontSize: '14px',
                   '& textarea::placeholder': {
-                    color: 'rgba(255, 255, 255, 0.4)',
+                    color: 'rgba(255, 255, 255, 0.3)',
                   },
                 },
               }}
+              size="small"
             />
-            
-            {/* <VoiceInput onTranscript={handleVoiceTranscript} /> */}
-
             <IconButton
               onClick={sendMessage}
               disabled={loading || !input.trim()}
@@ -510,72 +468,75 @@ function App() {
                 background: 'linear-gradient(135deg, #00ffff, #0088ff)',
                 color: '#fff',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #00cccc, #0066cc)',
                   boxShadow: '0 0 20px rgba(0, 255, 255, 0.5)',
                 },
                 '&:disabled': {
                   background: 'rgba(255, 255, 255, 0.1)',
-                  color: 'rgba(255, 255, 255, 0.3)',
                 },
               }}
+              size="small"
             >
-              {loading ? <CircularProgress size={24} /> : <SendIcon />}
+              {loading ? <CircularProgress size={20} /> : <SendIcon />}
             </IconButton>
-
             <IconButton
               onClick={clearHistory}
-              sx={{
-                color: '#ff4444',
-                '&:hover': {
-                  background: 'rgba(255, 68, 68, 0.1)',
-                },
-              }}
+              sx={{ color: '#ff4444' }}
+              size="small"
             >
-              <DeleteIcon />
+              <DeleteIcon fontSize="small" />
             </IconButton>
           </Paper>
-        </Container>
+        </Box>
 
-        {/* Command Palette */}
-        {/* <CommandPalette
-          isOpen={commandPaletteOpen}
-          onClose={() => setCommandPaletteOpen(false)}
-          onCommand={handleCommand}
-        /> */}
-
-        {/* Floating Action Button */}
-        {/* <FloatingActionButton onAction={handleCommand} /> */}
-      
-        {/* Explore World Button */}
-        <IconButton
-          onClick={() => setGameMode(true)}
+        {/* Game Panel - Right Side */}
+        <Box
           sx={{
-            position: 'fixed',
-            bottom: 90,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            padding: '16px 32px',
-            background: 'linear-gradient(135deg, #a78bfa, #8b5cf6)',
-            color: '#fff',
-            fontSize: '18px',
-            fontWeight: 700,
-            borderRadius: '30px',
-            border: '2px solid rgba(167, 139, 250, 0.5)',
-            boxShadow: '0 0 40px rgba(167, 139, 250, 0.6)',
-            '&:hover': {
-              background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-              transform: 'translateX(-50%) scale(1.05)',
-              boxShadow: '0 0 60px rgba(167, 139, 250, 0.8)',
-            },
-            transition: 'all 0.3s ease',
+            flex: '0 0 55%',
+            height: '100vh',
+            overflow: 'hidden',
+            position: 'relative',
           }}
         >
-          🏰 Enter Vesper's World 🌍
-        </IconButton>
+          {gameMode ? (
+            <Game 
+              onExitGame={() => setGameMode(false)}
+              onChatWithNPC={() => {}}
+            />
+          ) : (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                flexDirection: 'column',
+                color: '#fff',
+                gap: 2,
+              }}
+            >
+              <Typography variant="h6">Press C to toggle game</Typography>
+              <button
+                onClick={() => setGameMode(true)}
+                style={{
+                  padding: '12px 24px',
+                  background: 'linear-gradient(135deg, #a78bfa, #8b5cf6)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                }}
+              >
+                🏰 Enter World
+              </button>
+            </Box>
+          )}
+        </Box>
       </Box>
-      )}
     </ThemeProvider>
   );
 }
 
 export default App;
+
