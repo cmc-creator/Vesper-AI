@@ -15,16 +15,22 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const hasFirebaseConfig = Object.values(firebaseConfig).every(Boolean);
+
+// Initialize Firebase only when configuration is present
+const app = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;
+if (!hasFirebaseConfig) {
+  console.warn('Firebase config missing. Running in offline mode.');
+}
 
 // Initialize services
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+export const isFirebaseConfigured = hasFirebaseConfig;
+export const db = app ? getFirestore(app) : null;
+export const auth = app ? getAuth(app) : null;
 
 // Initialize Analytics (optional, only in production)
 let analytics = null;
-if (typeof window !== 'undefined' && import.meta.env.PROD) {
+if (app && typeof window !== 'undefined' && import.meta.env.PROD) {
   analytics = getAnalytics(app);
 }
 

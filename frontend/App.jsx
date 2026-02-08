@@ -16,7 +16,7 @@ import ReactMarkdown from 'react-markdown';
 import { useHotkeys } from 'react-hotkeys-hook';
 
 // Firebase
-import { db, auth } from './src/firebase';
+import { db, auth, isFirebaseConfigured } from './src/firebase';
 import {
   collection,
   addDoc,
@@ -66,6 +66,19 @@ function App() {
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 
+  const addLocalMessage = (role, content) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-${Math.random()}`,
+        userId: userId || 'local',
+        role,
+        content,
+        timestamp: new Date(),
+      },
+    ]);
+  };
+
   // Command Palette hotkey (Cmd/Ctrl+K)
   useHotkeys('ctrl+k, cmd+k', (e) => {
     e.preventDefault();
@@ -80,12 +93,18 @@ function App() {
 
   // Initialize Firebase Auth
   useEffect(() => {
+    if (!isFirebaseConfigured || !auth) {
+      setUserId('local');
+      return;
+    }
+
     const initAuth = async () => {
       try {
         const result = await signInAnonymously(auth);
         setUserId(result.user.uid);
       } catch (error) {
         console.error('Auth error:', error);
+        setUserId('local');
       }
     };
     initAuth();
@@ -93,7 +112,7 @@ function App() {
 
   // Load messages from Firebase
   useEffect(() => {
-    if (!userId) return;
+    if (!isFirebaseConfigured || !db || !userId || userId === 'local') return;
 
     const q = query(
       collection(db, 'chat_messages'),
@@ -123,21 +142,27 @@ function App() {
   }, [messages]);
 
   const sendMessage = async () => {
-    if (!input.trim() || loading || !userId) return;
+    if (!input.trim() || loading) return;
 
     const userMessage = input.trim();
     setInput('');
     setLoading(true);
     setThinking(true);
 
+    const usingFirebase = isFirebaseConfigured && db && userId && userId !== 'local';
+
     try {
       // Save user message to Firebase
-      await addDoc(collection(db, 'chat_messages'), {
-        userId,
-        role: 'user',
-        content: userMessage,
-        timestamp: new Date(),
-      });
+      if (usingFirebase) {
+        await addDoc(collection(db, 'chat_messages'), {
+          userId,
+          role: 'user',
+          content: userMessage,
+          timestamp: new Date(),
+        });
+      } else {
+        addLocalMessage('user', userMessage);
+      }
 
       // Send to backend
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
@@ -152,20 +177,28 @@ function App() {
       const data = await response.json();
 
       // Save AI response to Firebase
-      await addDoc(collection(db, 'chat_messages'), {
-        userId,
-        role: 'assistant',
-        content: data.response,
-        timestamp: new Date(),
-      });
+      if (usingFirebase) {
+        await addDoc(collection(db, 'chat_messages'), {
+          userId,
+          role: 'assistant',
+          content: data.response,
+          timestamp: new Date(),
+        });
+      } else {
+        addLocalMessage('assistant', data.response);
+      }
     } catch (error) {
       console.error('Error:', error);
-      await addDoc(collection(db, 'chat_messages'), {
-        userId,
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-        timestamp: new Date(),
-      });
+      if (usingFirebase) {
+        await addDoc(collection(db, 'chat_messages'), {
+          userId,
+          role: 'assistant',
+          content: 'Sorry, I encountered an error. Please try again.',
+          timestamp: new Date(),
+        });
+      } else {
+        addLocalMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+      }
     } finally {
       setLoading(false);
       setThinking(false);
@@ -174,6 +207,10 @@ function App() {
 
   const clearHistory = async () => {
     if (!userId) return;
+    if (!isFirebaseConfigured || !db || userId === 'local') {
+      setMessages([]);
+      return;
+    }
     
     const q = query(collection(db, 'chat_messages'));
     const snapshot = await getDocs(q);
