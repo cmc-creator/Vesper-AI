@@ -16,17 +16,20 @@ import ReactMarkdown from 'react-markdown';
 import { useHotkeys } from 'react-hotkeys-hook';
 
 // Firebase
-import { db, auth, isFirebaseConfigured } from './src/firebase';
-import {
-  collection,
-  addDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  deleteDoc,
-  getDocs,
-} from 'firebase/firestore';
-import { signInAnonymously } from 'firebase/auth';
+// import { db, auth, isFirebaseConfigured } from './src/firebase';
+// import {
+//   collection,
+//   addDoc,
+//   query,
+//   orderBy,
+//   onSnapshot,
+//   deleteDoc,
+//   getDocs,
+// } from 'firebase/firestore';
+// import { signInAnonymously } from 'firebase/auth';
+const isFirebaseConfigured = false;
+const db = null;
+const auth = null;
 
 // Components
 // import AIAvatar from './src/components/AIAvatar';
