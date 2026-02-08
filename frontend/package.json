@@ -16,6 +16,7 @@
     "@react-three/rapier": "^2.2.0",
     "firebase": "^12.9.0",
     "framer-motion": "^12.33.0",
+    "howler": "^2.2.4",
     "lamina": "^1.2.2",
     "leva": "^0.10.1",
     "maath": "^0.10.8",

@@ -38,12 +38,16 @@ import GameUI from './GameUI';
 import VesperNPC from './VesperNPC';
 import Horses from './Horses';
 import Grass from './Grass';
+import Butterflies from './Butterflies';
+import AmbientSounds from './AmbientSounds';
 
 export default function Game({ onExitGame, onChatWithNPC }) {
   const sunRef = useRef();
+  const directionalLightRef = useRef();
   const [dpr, setDpr] = useState(1.5);
   const [weather, setWeather] = useState('clear');
   const [timeOfDay, setTimeOfDay] = useState('day');
+  const [dayTime, setDayTime] = useState(0.5); // 0 = midnight, 0.5 = noon, 1 = midnight
   const [questsCompleted, setQuestsCompleted] = useState(0);
   const [crystalsCollected, setCrystalsCollected] = useState(0);
   const [playerPosition, setPlayerPosition] = useState([0, 2, 5]);
@@ -97,6 +101,44 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     return () => clearInterval(interval);
   }, []);
 
+  // Dynamic day/night cycle - full cycle every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDayTime(prev => {
+        const newTime = (prev + 0.001) % 1; // 0.1% per second = 1000 seconds = ~16.6 minutes full cycle
+        
+        // Update time of day based on dayTime
+        if (newTime >= 0.25 && newTime < 0.35) {
+          setTimeOfDay('sunrise');
+        } else if (newTime >= 0.35 && newTime < 0.65) {
+          setTimeOfDay('day');
+        } else if (newTime >= 0.65 && newTime < 0.75) {
+          setTimeOfDay('sunset');
+        } else {
+          setTimeOfDay('night');
+        }
+        
+        return newTime;
+      });
+    }, 100); // Update every 100ms for smooth transitions
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Update sun position based on time of day
+  useEffect(() => {
+    if (sunRef.current && directionalLightRef.current) {
+      // Calculate sun position (arc across sky)
+      const angle = dayTime * Math.PI * 2 - Math.PI / 2; // Start from horizon
+      const sunX = Math.cos(angle) * 100;
+      const sunY = Math.sin(angle) * 80 + 20; // Keep above horizon minimum
+      const sunZ = 50;
+      
+      sunRef.current.position.set(sunX, Math.max(sunY, -20), sunZ);
+      directionalLightRef.current.position.set(sunX, Math.max(sunY, 10), sunZ);
+    }
+  }, [dayTime]);
+
   const handleWeatherChange = (newWeather) => {
     setWeather(newWeather);
   };
@@ -124,6 +166,9 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           depth: true
         }}
       >
+        {/* Ambient sounds and music */}
+        <AmbientSounds weather={weather} isPlaying={true} />
+        
         {/* Performance optimization - adaptive quality */}
         <PerformanceMonitor 
           onIncline={() => setDpr(2)} 
@@ -131,13 +176,22 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         />
         <Adaptive />
         
-        {/* Enhanced Lighting System */}
-        <ambientLight intensity={weather === 'night' ? 0.3 : 0.6} color={weather === 'night' ? '#4a5f8f' : '#ffffff'} />
+        {/* Enhanced Lighting System - Dynamic based on time of day */}
+        <ambientLight 
+          intensity={Math.max(0.2, Math.sin(dayTime * Math.PI * 2) * 0.4 + 0.4)} 
+          color={dayTime < 0.25 || dayTime > 0.75 ? '#4a5f8f' : '#ffffff'} 
+        />
         
         {/* Main directional light (sun) with high-quality shadows */}
         <directionalLight
+          ref={directionalLightRef}
           position={[50, 50, 25]}
-          intensity={weather === 'night' ? 0.4 : 2.0}
+          intensity={Math.max(0.3, Math.sin(dayTime * Math.PI * 2) * 1.7 + 0.5)}
+          color={
+            dayTime < 0.3 ? '#ff8c69' : // Sunrise orange
+            dayTime < 0.7 ? '#ffffff' : // Daytime white  
+            '#ff6b35' // Sunset orange
+          }
           castShadow
           shadow-mapSize-width={4096}
           shadow-mapSize-height={4096}
@@ -187,6 +241,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         <Grass count={50000} spread={80} />
         <Castle position={[0, 0, -25]} />
         <Horses />
+        <Butterflies />
 
         {/* Player character */
         <Character position={playerPosition} keyboard={keyboard} />
