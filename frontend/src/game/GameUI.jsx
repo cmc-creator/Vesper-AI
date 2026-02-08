@@ -9,6 +9,7 @@ import {
   Close,
   Chat,
   Palette,
+  Home,
 } from '@mui/icons-material';
 import Minimap from './Minimap';
 import CharacterCustomization from './CharacterCustomization';
@@ -23,6 +24,7 @@ export default function GameUI({
   onToggleChat,
   playerPosition = [0, 2, 5],
   onCustomize,
+  onOpenVesperHome,
 }) {
   const [showCustomization, setShowCustomization] = useState(false);
   
@@ -269,6 +271,29 @@ export default function GameUI({
         }}
       >
         <Palette sx={{ color: '#fff', fontSize: 28 }} />
+      </IconButton>
+      
+      {/* Vesper's Home button */}
+      <IconButton
+        onClick={onOpenVesperHome}
+        sx={{
+          position: 'absolute',
+          bottom: 260,
+          right: 20,
+          width: 60,
+          height: 60,
+          background: 'linear-gradient(135deg, #a78bfa, #8b5cf6)',
+          border: '2px solid rgba(167, 139, 250, 0.5)',
+          boxShadow: '0 0 30px rgba(167, 139, 250, 0.5)',
+          '&:hover': {
+            background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+            transform: 'scale(1.1)',
+            boxShadow: '0 0 40px rgba(167, 139, 250, 0.7)',
+          },
+          transition: 'all 0.3s ease',
+        }}
+      >
+        <Home sx={{ color: '#fff', fontSize: 28 }} />
       </IconButton>
 
       {/* Exit button */}

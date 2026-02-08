@@ -43,6 +43,8 @@ import AmbientSounds from './AmbientSounds';
 import TreasureChests from './TreasureChests';
 import TeleportationPortals from './TeleportationPortals';
 import AchievementSystem from './AchievementSystem';
+import CastleInterior from './CastleInterior';
+import VesperHome from './VesperHome';
 
 export default function Game({ onExitGame, onChatWithNPC }) {
   const sunRef = useRef();
@@ -68,6 +70,9 @@ export default function Game({ onExitGame, onChatWithNPC }) {
   const [ridingPosition, setRidingPosition] = useState(null);
   const [isRidingUnicorn, setIsRidingUnicorn] = useState(false);
   const [isFlying, setIsFlying] = useState(false);
+  const [isInsideCastle, setIsInsideCastle] = useState(false);
+  const [showVesperHome, setShowVesperHome] = useState(false);
+  const [vesperHomeConfig, setVesperHomeConfig] = useState(null);
 
   // Keyboard controls
   useEffect(() => {
@@ -141,6 +146,60 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       setHorsesRidden(prev => prev + 1);
     }
   };
+  
+  // Handle entering castle
+  const handleEnterCastle = () => {
+    setIsInsideCastle(true);
+    setPlayerPosition([0, 2, -20]); // Move player inside
+    
+    // Play enter sound
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.frequency.value = 400;
+    osc.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.3);
+    gain.gain.value = 0.15;
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.3);
+  };
+  
+  // Handle exiting castle
+  const handleExitCastle = () => {
+    setIsInsideCastle(false);
+    setPlayerPosition([0, 2, -15]); // Move player outside
+  };
+  
+  // Load Vesper's home config
+  useEffect(() => {
+    const saved = localStorage.getItem('vesper_home_config');
+    if (saved) {
+      try {
+        setVesperHomeConfig(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to load home config:', e);
+      }
+    }
+    
+    // Listen for config updates
+    const handleStorageChange = () => {
+      const updated = localStorage.getItem('vesper_home_config');
+      if (updated) {
+        try {
+          setVesperHomeConfig(JSON.parse(updated));
+        } catch (e) {
+          console.error('Failed to load updated config:', e);
+        }
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Cycle weather every 60 seconds
   useEffect(() => {
@@ -293,11 +352,26 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         {/* Game world */}
         <Terrain />
         <Grass count={50000} spread={80} />
-        <Castle position={[0, 0, -25]} />
-        <Horses onMount={handleMount} ridingHorseId={ridingHorseId} />
-        <Butterflies />
-        <TreasureChests />
-        <TeleportationPortals onPlayerMove={handlePlayerTeleport} />
+        <Castle position={[0, 0, -25]} onEnter={handleEnterCastle} />
+        
+        {/* Castle Interior - only render when inside */}
+        {isInsideCastle && (
+          <CastleInterior 
+            isInside={isInsideCastle}
+            homeConfig={vesperHomeConfig}
+            onExit={handleExitCastle}
+          />
+        )}
+        
+        {/* Only render outdoor elements when outside */}
+        {!isInsideCastle && (
+          <>
+            <Horses onMount={handleMount} ridingHorseId={ridingHorseId} />
+            <Butterflies />
+            <TreasureChests />
+            <TeleportationPortals onPlayerMove={handlePlayerTeleport} />
+          </>
+        )}
 
         {/* Player character */
         <Character position={playerPosition} keyboard={keyboard} />
@@ -421,6 +495,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         showingChat={showingChat}
         onToggleChat={() => setShowingChat(!showingChat)}
         playerPosition={playerPosition}
+        onOpenVesperHome={() => setShowVesperHome(true)}
       />
       
       {/* Achievement System */}
@@ -430,6 +505,12 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         treasuresFound={treasuresFound}
         portalsTraveled={portalsTraveled}
         horsesRidden={horsesRidden}
+      />
+      
+      {/* Vesper's Home Customization UI */}
+      <VesperHome
+        isOpen={showVesperHome}
+        onClose={() => setShowVesperHome(false)}
       />
 
       {/* Instructions overlay */}

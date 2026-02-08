@@ -1,8 +1,8 @@
 import React from 'react';
-import { Sparkles } from '@react-three/drei';
+import { Sparkles, Text } from '@react-three/drei';
 import * as THREE from 'three';
 
-export default function Castle({ position = [0, 0, -20] }) {
+export default function Castle({ position = [0, 0, -20], onEnter }) {
   return (
     <group position={position}>
       {/* Main castle base - PBR stone */}
@@ -152,15 +152,71 @@ export default function Castle({ position = [0, 0, -20] }) {
         <meshStandardMaterial color="#1c1c1c" />
       </mesh>
 
-      {/* Castle nameplate (floating text would go here) */}
-      <mesh position={[0, 1, 10]}>
-        <planeGeometry args={[4, 1]} />
-        <meshBasicMaterial 
-          color="#000000" 
-          transparent 
-          opacity={0.7}
+      {/* Castle nameplate */}
+      <Text
+        position={[0, 12, 0]}
+        fontSize={1}
+        color="#ffd700"
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.1}
+        outlineColor="#000000"
+      >
+        💜 Vesper's Castle
+      </Text>
+      
+      {/* Entrance portal */}
+      <group position={[0, 3, 6]} onClick={onEnter}>
+        {/* Door frame */}
+        <mesh castShadow position={[0, 0, 0]}>
+          <boxGeometry args={[3, 5, 0.3]} />
+          <meshPhysicalMaterial 
+            color="#654321"
+            roughness={0.8}
+            metalness={0.1}
+          />
+        </mesh>
+        
+        {/* Magical portal effect */}
+        <mesh position={[0, 0, 0.2]}>
+          <planeGeometry args={[2.5, 4.5]} />
+          <meshStandardMaterial 
+            color="#a78bfa"
+            emissive="#8b5cf6"
+            emissiveIntensity={2}
+            transparent
+            opacity={0.7}
+            side={THREE.DoubleSide}
+            toneMapped={false}
+          />
+        </mesh>
+        
+        {/* Portal glow */}
+        <pointLight position={[0, 0, 1]} color="#a78bfa" intensity={5} distance={10} />
+        
+        {/* Portal sparkles */}
+        <Sparkles
+          count={40}
+          scale={[2.5, 4.5, 0.5]}
+          size={1.5}
+          speed={0.4}
+          opacity={0.8}
+          color="#a78bfa"
         />
-      </mesh>
+        
+        {/* Enter hint */}
+        <Text
+          position={[0, -3, 0]}
+          fontSize={0.4}
+          color="#00ffff"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.05}
+          outlineColor="#000000"
+        >
+          🏰 Click to Enter Vesper's Home
+        </Text>
+      </group>
     </group>
   );
 }
