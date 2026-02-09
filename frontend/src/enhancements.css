@@ -1,6 +1,6 @@
 /* Glassmorphism & Advanced Animations */
 
-/* Animated Gradient Background */
+/* Dramatic Animated Background */
 @keyframes gradientShift {
   0%, 100% {
     background-position: 0% 50%;
@@ -18,40 +18,303 @@
   height: 100%;
   background: linear-gradient(
     45deg,
-    #0a0a0a 0%,
-    #1a0a2e 25%,
-    #0f2027 50%,
-    #162447 75%,
-    #0a0a0a 100%
+    #000000 0%,
+    #0a0014 25%,
+    #000a0f 50%,
+    #001419 75%,
+    #000000 100%
   );
   background-size: 400% 400%;
-  animation: gradientShift 15s ease infinite;
+  animation: gradientShift 20s ease infinite;
   z-index: -2;
 }
 
-/* Glassmorphism Styles */
+/* Particle System */
+@keyframes particleRise {
+  0% {
+    transform: translateY(100vh) translateX(0) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(50px) scale(1);
+    opacity: 0;
+  }
+}
+
+.cyber-particle {
+  position: fixed;
+  width: 3px;
+  height: 3px;
+  background: #00ffff;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff;
+  animation: particleRise 15s linear infinite;
+  z-index: -1;
+}
+
+.cyber-particle:nth-child(2n) {
+  background: #00dd00;
+  box-shadow: 0 0 15px #00dd00, 0 0 30px #00dd00;
+  animation-duration: 18s;
+  animation-delay: -5s;
+}
+
+.cyber-particle:nth-child(3n) {
+  background: #00ff44;
+  box-shadow: 0 0 15px #00ff44, 0 0 30px #00ff44;
+  animation-duration: 22s;
+  animation-delay: -10s;
+}
+
+/* Circuit Line Effects */
+@keyframes circuitPulse {
+  0%, 100% {
+    opacity: 0.3;
+    stroke-dashoffset: 1000;
+  }
+  50% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Data Stream Effects */
+@keyframes dataFlowVertical {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10%, 90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(200vh);
+    opacity: 0;
+  }
+}
+
+.data-stream-line {
+  position: fixed;
+  width: 1px;
+  height: 100px;
+  background: linear-gradient(to bottom, 
+    transparent 0%, 
+    rgba(0, 255, 255, 0.8) 50%, 
+    transparent 100%);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  animation: dataFlowVertical 8s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Enhanced Glitch Effect */
+@keyframes glitchSkew {
+  0% {
+    transform: skew(0deg);
+    filter: hue-rotate(0deg);
+  }
+  10% {
+    transform: skew(2deg);
+    filter: hue-rotate(90deg);
+  }
+  20% {
+    transform: skew(-1deg);
+    filter: hue-rotate(0deg);
+  }
+  30% {
+    transform: skew(1deg);
+    filter: hue-rotate(45deg);
+  }
+  40% {
+    transform: skew(0deg);
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    transform: skew(0deg);
+    filter: hue-rotate(0deg);
+  }
+}
+
+.glitch-text {
+  position: relative;
+  animation: glitchSkew 5s infinite;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.glitch-text::before {
+  animation: glitchTop 2s infinite;
+  clip-path: polygon(0 0, 100% 0, 100% 33%, 0 33%);
+  transform: translateX(-2px);
+  text-shadow: 2px 0 #ff00ff;
+}
+
+.glitch-text::after {
+  animation: glitchBottom 3s infinite;
+  clip-path: polygon(0 67%, 100% 67%, 100% 100%, 0 100%);
+  transform: translateX(2px);
+  text-shadow: -2px 0 #00ffff;
+}
+
+@keyframes glitchTop {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px) skew(2deg);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+}
+
+@keyframes glitchBottom {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(3px);
+  }
+  40% {
+    transform: translateX(-3px) skew(-2deg);
+  }
+  60% {
+    transform: translateX(2px);
+  }
+}
+
+/* Holographic Shimmer */
+@keyframes holoShimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.holographic {
+  position: relative;
+  overflow: hidden;
+}
+
+.holographic::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 255, 255, 0.3) 25%,
+    rgba(255, 255, 255, 0.5) 50%,
+    rgba(0, 255, 255, 0.3) 75%,
+    transparent 100%
+  );
+  animation: holoShimmer 3s infinite;
+  pointer-events: none;
+}
+
+/* Neon Border Glow */
+@keyframes neonBorderPulse {
+  0%, 100% {
+    box-shadow: 
+      0 0 5px rgba(0, 255, 255, 0.5),
+      0 0 10px rgba(0, 255, 255, 0.3),
+      inset 0 0 10px rgba(0, 255, 255, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 0 20px rgba(0, 255, 255, 0.8),
+      0 0 40px rgba(0, 255, 255, 0.5),
+      0 0 60px rgba(0, 255, 255, 0.3),
+      inset 0 0 20px rgba(0, 255, 255, 0.2);
+  }
+}
+
+.neon-border-pulse {
+  animation: neonBorderPulse 3s ease-in-out infinite;
+}
+
+/* Scan Line Overlay */
+@keyframes scanlineMove {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+.scanline-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    rgba(0, 255, 255, 0.8) 50%,
+    transparent 100%);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+  animation: scanlineMove 4s linear infinite;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: screen;
+}
+
+/* Enhanced Glass Panels */
 .glass-panel {
-  background: rgba(10, 10, 30, 0.7) !important;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px 0 rgba(0, 255, 255, 0.15),
-              inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(0, 255, 255, 0.15),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05),
+    inset 0 0 60px rgba(0, 255, 255, 0.05);
 }
 
 .glass-card {
-  background: rgba(20, 20, 40, 0.6) !important;
-  backdrop-filter: blur(15px) saturate(150%);
-  -webkit-backdrop-filter: blur(15px) saturate(150%);
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   border-radius: 16px !important;
-  box-shadow: 0 4px 24px rgba(0, 255, 255, 0.1);
+  box-shadow: 
+    0 4px 24px rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(0, 255, 255, 0.12),
+    inset 0 0 40px rgba(0, 255, 255, 0.03);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 255, 255, 0.2);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.8),
+    0 0 50px rgba(0, 255, 255, 0.25),
+    inset 0 0 60px rgba(0, 255, 255, 0.08);
   border-color: rgba(0, 255, 255, 0.4);
 }
 
@@ -93,33 +356,45 @@
 /* Typing Indicator */
 @keyframes typingDot {
   0%, 60%, 100% {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 10px currentColor;
   }
   30% {
-    transform: translateY(-10px);
+    transform: translateY(-10px) scale(1.2);
+    box-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
   }
 }
 
 .typing-indicator {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   padding: 12px;
+  align-items: center;
 }
 
-.typing-dot {
-  width: 8px;
-  height: 8px;
+.typing-indicator span {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #00ffff;
   animation: typingDot 1.4s infinite;
+  box-shadow: 0 0 15px #00ffff;
 }
 
-.typing-dot:nth-child(2) {
+.typing-indicator span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-indicator span:nth-child(2) {
   animation-delay: 0.2s;
+  background: #00ff88;
+  box-shadow: 0 0 15px #00ff88;
 }
 
-.typing-dot:nth-child(3) {
+.typing-indicator span:nth-child(3) {
   animation-delay: 0.4s;
+  background: #88ffff;
+  box-shadow: 0 0 15px #88ffff;
 }
 
 /* AI Avatar Animations */
@@ -257,9 +532,9 @@
 }
 
 .copy-code-button.copied {
-  background: rgba(0, 255, 0, 0.3);
-  border-color: rgba(0, 255, 0, 0.5);
-  color: #00ff00;
+  background: rgba(0, 255, 255, 0.3);
+  border-color: rgba(0, 255, 255, 0.5);
+  color: #00ffff;
 }
 
 /* Voice Input */

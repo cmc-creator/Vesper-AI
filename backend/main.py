@@ -28,7 +28,12 @@ from docx import Document
 from openpyxl import load_workbook
 from PIL import Image
 import pytesseract
-import magic
+try:
+    import magic
+    MAGIC_AVAILABLE = True
+except ImportError:
+    MAGIC_AVAILABLE = False
+    print("Warning: python-magic not available (requires libmagic). File type detection will be limited.")
 import chardet
 import io
 import base64
@@ -497,6 +502,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Health check endpoint
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "Vesper AI Backend",
+        "version": "1.0.0",
+        "timestamp": datetime.datetime.now().isoformat()
+    }
+
+@app.get("/")
+def root():
+    return {
+        "message": "Vesper AI Backend API",
+        "docs": "/docs",
+        "health": "/health"
+    }
 
 MEMORY_DIR = os.path.join(os.path.dirname(__file__), '../vesper-ai/memory')
 

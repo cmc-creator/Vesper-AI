@@ -3,6 +3,7 @@ fastapi
 uvicorn[standard]
 pydantic
 python-dotenv
+python-multipart
 requests
 beautifulsoup4
 sqlalchemy
