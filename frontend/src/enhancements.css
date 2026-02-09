@@ -29,17 +29,17 @@
   z-index: -2;
 }
 
-/* Subtle Matrix Binary Rain - Gentle Background */
-@keyframes subtleBinaryDrift {
+/* Subtle Matrix Binary - Vertical Stacked Digits */
+@keyframes binaryDrift {
   0% {
     transform: translateY(-100vh);
     opacity: 0;
   }
-  10% {
-    opacity: 0.25;
+  8% {
+    opacity: 0.3;
   }
-  90% {
-    opacity: 0.25;
+  92% {
+    opacity: 0.3;
   }
   100% {
     transform: translateY(100vh);
@@ -47,24 +47,24 @@
   }
 }
 
-.subtle-binary {
+.binary-column-stack {
   position: fixed;
   font-family: 'Courier New', monospace;
   font-weight: 600;
   pointer-events: none;
-  animation: subtleBinaryDrift linear infinite;
+  animation: binaryDrift linear infinite;
   z-index: -1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  opacity: 0.25;
+  gap: 2px;
+  line-height: 1;
 }
 
-.binary-num {
-  font-size: 11px;
+.single-digit {
   color: #00ff41;
-  text-shadow: 0 0 3px #00ff41;
-  letter-spacing: 1px;
+  text-shadow: 0 0 2px #00ff41;
+  width: 1ch;
+  text-align: center;
 }
 
 /* Circuit Line Effects */
