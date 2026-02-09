@@ -37,6 +37,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { DndContext, useDraggable, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 
 // Firebase
 import { db, auth, isFirebaseConfigured } from './src/firebase';
@@ -130,10 +131,53 @@ function App() {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: '', status: 'inbox' });
   const [toast, setToast] = useState('');
+  
+  // Draggable board positions - load from localStorage
+  const [boardPositions, setBoardPositions] = useState(() => {
+    const saved = safeStorageGet('vesper_board_positions', null);
+    return saved ? JSON.parse(saved) : {
+      research: { x: 50, y: 50 },
+      memory: { x: 100, y: 100 },
+      tasks: { x: 150, y: 150 },
+      settings: { x: 200, y: 200 },
+    };
+  });
 
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // Drag-and-drop sensor setup
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required to start drag (prevents accidental drags)
+      },
+    })
+  );
+
+  // Handle drag end - save new position
+  const handleDragEnd = useCallback((event) => {
+    const { active, delta } = event;
+    if (!delta) return;
+    
+    setBoardPositions((prev) => {
+      const newPositions = {
+        ...prev,
+        [active.id]: {
+          x: (prev[active.id]?.x || 0) + delta.x,
+          y: (prev[active.id]?.y || 0) + delta.y,
+        },
+      };
+      // Save to localStorage
+      try {
+        localStorage.setItem('vesper_board_positions', JSON.stringify(newPositions));
+      } catch (e) {
+        console.warn('Failed to save board positions', e);
+      }
+      return newPositions;
+    });
+  }, []);
 
   const apiBase = useMemo(() => {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
@@ -592,20 +636,50 @@ function App() {
 
   const STATUS_ORDER = ['inbox', 'doing', 'done'];
 
+  // Draggable Board Wrapper Component
+  const DraggableBoard = ({ id, children }) => {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+      id,
+    });
+
+    const position = boardPositions[id] || { x: 0, y: 0 };
+
+    const style = {
+      position: 'fixed',
+      top: '80px',
+      left: '280px',
+      zIndex: isDragging ? 1000 : 10,
+      cursor: isDragging ? 'grabbing' : 'grab',
+      transform: `translate3d(${position.x + (transform?.x || 0)}px, ${position.y + (transform?.y || 0)}px, 0)`,
+      transition: isDragging ? 'none' : 'transform 0.2s ease',
+      width: 'calc(100vw - 320px)',
+      maxWidth: '1000px',
+      maxHeight: 'calc(100vh - 120px)',
+      overflow: 'auto',
+    };
+
+    return (
+      <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+        {children}
+      </div>
+    );
+  };
+
   const renderActiveBoard = () => {
     switch (activeSection) {
       case 'research':
         return (
-          <Paper className="intel-board glass-card">
-            <Box className="board-header">
-              <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Research Feed</Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Fetches from /api/research. Add notes, summaries, and citations.
-                </Typography>
+          <DraggableBoard id="research">
+            <Paper className="intel-board glass-card">
+              <Box className="board-header">
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Research Feed</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Fetches from /api/research. Add notes, summaries, and citations.
+                  </Typography>
+                </Box>
+                <Chip label={researchLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
               </Box>
-              <Chip label={researchLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
-            </Box>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <Stack spacing={1}>
@@ -660,15 +734,17 @@ function App() {
               </Grid>
             </Grid>
           </Paper>
+          </DraggableBoard>
         );
       case 'memory':
         return (
-          <Paper className="intel-board glass-card">
-            <Box className="board-header">
-              <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Memory Core</Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Uses /api/memory/{memoryCategory}. Fast, file-backed store.
+          <DraggableBoard id="memory">
+            <Paper className="intel-board glass-card">
+              <Box className="board-header">
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Memory Core</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Uses /api/memory/{memoryCategory}. Fast, file-backed store.
                 </Typography>
               </Box>
               <Chip label={memoryLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
@@ -725,15 +801,17 @@ function App() {
               </Grid>
             </Grid>
           </Paper>
+          </DraggableBoard>
         );
       case 'tasks':
         return (
-          <Paper className="intel-board glass-card">
-            <Box className="board-header">
-              <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Task Matrix</Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Connected to /api/tasks with quick status hops.
+          <DraggableBoard id="tasks">
+            <Paper className="intel-board glass-card">
+              <Box className="board-header">
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Task Matrix</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Connected to /api/tasks with quick status hops.
                 </Typography>
               </Box>
               <Chip label={tasksLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
@@ -803,15 +881,17 @@ function App() {
               </Grid>
             </Grid>
           </Paper>
+          </DraggableBoard>
         );
       case 'settings':
         return (
-          <Paper className="intel-board glass-card">
-            <Box className="board-header">
-              <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Settings</Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Control themes, interface density, AI models, and system preferences.
+          <DraggableBoard id="settings">
+            <Paper className="intel-board glass-card">
+              <Box className="board-header">
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Settings</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Control themes, interface density, AI models, and system preferences.
                 </Typography>
               </Box>
               <Chip label={isFirebaseConfigured ? 'Firebase ready' : 'Offline mode'} size="small" className="chip-soft" />
@@ -967,6 +1047,7 @@ function App() {
               </Box>
             </Stack>
           </Paper>
+          </DraggableBoard>
         );
       default:
         return null;
@@ -1239,7 +1320,9 @@ function App() {
               )}
             </Paper>
 
-            {renderActiveBoard()}
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+              {renderActiveBoard()}
+            </DndContext>
           </section>
         </main>
       </Box>
