@@ -14,6 +14,8 @@ import {
   Button,
   Grid,
   Snackbar,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -28,6 +30,7 @@ import {
   ChecklistRounded,
   SettingsRounded,
   PublicRounded,
+  Palette as PaletteIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -123,6 +126,7 @@ function App() {
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [memoryText, setMemoryText] = useState('');
   const [tasks, setTasks] = useState([]);
+  const [themeMenuAnchor, setThemeMenuAnchor] = useState(null);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: '', status: 'inbox' });
   const [toast, setToast] = useState('');
@@ -815,20 +819,68 @@ function App() {
             <Stack spacing={3}>
               {/* Theme Selection */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Theme Color</Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Theme Color</Typography>
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => setThemeMenuAnchor(e.currentTarget)}
+                    sx={{ color: 'var(--accent)' }}
+                  >
+                    <PaletteIcon fontSize="small" />
+                  </IconButton>
+                  <Chip 
+                    label={activeTheme.label} 
+                    size="small" 
+                    sx={{ 
+                      bgcolor: activeTheme.accent, 
+                      color: '#000', 
+                      fontWeight: 700,
+                      boxShadow: `0 0 15px ${activeTheme.accent}`
+                    }} 
+                  />
+                </Box>
+                <Menu
+                  anchorEl={themeMenuAnchor}
+                  open={Boolean(themeMenuAnchor)}
+                  onClose={() => setThemeMenuAnchor(null)}
+                  PaperProps={{
+                    sx: {
+                      bgcolor: 'rgba(10, 14, 30, 0.95)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      backdropFilter: 'blur(20px)',
+                      maxHeight: 400,
+                    }
+                  }}
+                >
                   {THEMES.map((t) => (
-                    <Paper
+                    <MenuItem
                       key={t.id}
-                      className={`theme-card glass-card ${activeTheme.id === t.id ? 'active' : ''}`}
-                      onClick={() => setActiveTheme(t)}
-                      sx={{ borderColor: activeTheme.id === t.id ? t.accent : 'rgba(255,255,255,0.1)' }}
+                      onClick={() => {
+                        setActiveTheme(t);
+                        setThemeMenuAnchor(null);
+                      }}
+                      selected={activeTheme.id === t.id}
+                      sx={{
+                        gap: 1.5,
+                        borderLeft: activeTheme.id === t.id ? `3px solid ${t.accent}` : '3px solid transparent',
+                        '&.Mui-selected': {
+                          bgcolor: `${t.accent}15`,
+                        }
+                      }}
                     >
-                      <Box className="theme-preview" sx={{ background: t.accent }} />
+                      <Box 
+                        sx={{ 
+                          width: 24, 
+                          height: 24, 
+                          borderRadius: '50%', 
+                          bgcolor: t.accent,
+                          boxShadow: `0 0 10px ${t.accent}`
+                        }} 
+                      />
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.label}</Typography>
-                    </Paper>
+                    </MenuItem>
                   ))}
-                </Stack>
+                </Menu>
               </Box>
               
               {/* Interface Density */}
