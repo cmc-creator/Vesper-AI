@@ -75,6 +75,13 @@ const THEMES = [
   { id: 'purple', label: 'Purple Haze', accent: '#c084fc', glow: '#a855f7', sub: '#7c3aed' },
   { id: 'blue', label: 'Electric Blue', accent: '#5ad7ff', glow: '#4ba3ff', sub: '#3b82f6' },
   { id: 'pink', label: 'Cyber Pink', accent: '#ff6ad5', glow: '#ff8bd7', sub: '#ff4db8' },
+  { id: 'orange', label: 'Solar Flare', accent: '#ff8800', glow: '#ff9933', sub: '#ff6600' },
+  { id: 'red', label: 'Blood Moon', accent: '#ff0044', glow: '#ff3366', sub: '#cc0033' },
+  { id: 'gold', label: 'Golden Hour', accent: '#ffd700', glow: '#ffed4e', sub: '#ffb700' },
+  { id: 'ice', label: 'Arctic Frost', accent: '#e0f7ff', glow: '#b3e5fc', sub: '#81d4fa' },
+  { id: 'teal', label: 'Deep Ocean', accent: '#00d9ff', glow: '#00bcd4', sub: '#0097a7' },
+  { id: 'violet', label: 'Midnight Violet', accent: '#9d00ff', glow: '#b24bf3', sub: '#7b00cc' },
+  { id: 'lime', label: 'Toxic Waste', accent: '#c0ff00', glow: '#d4ff33', sub: '#a8cc00' },
 ];
 
 const NAV = [
@@ -462,6 +469,8 @@ function App() {
       fileInputRef.current.value = '';
     }
   };
+
+  const formatTime = (d) => {
     try {
       return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch {
@@ -924,14 +933,14 @@ function App() {
       <div className="bg-layer scanlines" />
       
       {/* Animated particles - subtle tracers */}
-      {[...Array(15)].map((_, i) => (
+      {[...Array(50)].map((_, i) => (
         <div 
           key={i} 
           className="cyber-particle" 
           style={{
             left: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 15}s`,
-            animationDuration: `${15 + Math.random() * 10}s`
+            animationDelay: `${Math.random() * 20}s`,
+            animationDuration: `${10 + Math.random() * 15}s`
           }}
         />
       ))}
