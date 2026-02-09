@@ -1,0 +1,593 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Box,
+  TextField,
+  IconButton,
+  Typography,
+  CircularProgress,
+  Paper,
+  Chip,
+  Stack,
+  Tooltip,
+} from '@mui/material';
+import {
+  Send as SendIcon,
+  Delete as DeleteIcon,
+  HistoryRounded,
+  TipsAndUpdatesRounded,
+  BoltRounded,
+  RestartAltRounded,
+  ContentCopyRounded,
+} from '@mui/icons-material';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import { useHotkeys } from 'react-hotkeys-hook';
+
+// Firebase
+// import { db, auth, isFirebaseConfigured } from './src/firebase';
+// import {
+//   collection,
+//   addDoc,
+//   query,
+//   orderBy,
+//   onSnapshot,
+//   deleteDoc,
+//   getDocs,
+// } from 'firebase/firestore';
+// import { signInAnonymously } from 'firebase/auth';
+const isFirebaseConfigured = false;
+const db = null;
+const auth = null;
+
+// Components
+import AIAvatar from './src/components/AIAvatar';
+import CommandPalette from './src/components/CommandPalette';
+import VoiceInput from './src/components/VoiceInput';
+import CodeBlock from './src/components/CodeBlock';
+import FloatingActionButton from './src/components/FloatingActionButton';
+import Game from './src/game/Game';
+
+// Styles
+import './src/enhancements.css';
+
+const theme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary: {
+      main: '#00ffff',
+    },
+    background: {
+      default: '#0a0a1e',
+      paper: 'rgba(20, 20, 40, 0.6)',
+    },
+  },
+  typography: {
+    fontFamily: '"Inter", "Segoe UI", -apple-system, sans-serif',
+  },
+});
+
+function App() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState(null);
+  const [thinking, setThinking] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [gameMode, setGameMode] = useState(false);
+  const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+
+  const addLocalMessage = (role, content) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-${Math.random()}`,
+        userId: userId || 'local',
+        role,
+        content,
+        timestamp: new Date(),
+      },
+    ]);
+  };
+
+  // Command Palette hotkey (Cmd/Ctrl+K)
+  useHotkeys('ctrl+k, cmd+k', (e) => {
+    e.preventDefault();
+    setCommandPaletteOpen(true);
+  });
+
+  // Toggle game hotkey (C)
+  useHotkeys('c', (e) => {
+    e.preventDefault();
+    setGameMode(!gameMode);
+  });
+
+  // Initialize Firebase Auth
+  useEffect(() => {
+    if (!isFirebaseConfigured || !auth) {
+      setUserId('local');
+      return;
+    }
+
+    const initAuth = async () => {
+      try {
+        const result = await signInAnonymously(auth);
+        setUserId(result.user.uid);
+      } catch (error) {
+        console.error('Auth error:', error);
+        setUserId('local');
+      }
+    };
+    initAuth();
+  }, []);
+
+  // Load messages from Firebase
+  useEffect(() => {
+    if (!isFirebaseConfigured || !db || !userId || userId === 'local') return;
+
+    const q = query(
+      collection(db, 'chat_messages'),
+      orderBy('timestamp', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const loadedMessages = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.userId === userId) {
+          loadedMessages.push({
+            id: doc.id,
+            ...data,
+          });
+        }
+      });
+      setMessages(loadedMessages);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setLoading(true);
+    setThinking(true);
+
+    // Add user message
+    addLocalMessage('user', userMessage);
+
+    try {
+      // Resolve chat endpoint: env override -> same-origin /api/chat -> localhost fallback
+      const apiBase =
+        import.meta.env.VITE_CHAT_API_URL ||
+        (typeof window !== 'undefined' && window.location.origin.includes('localhost')
+          ? 'http://localhost:3000'
+          : '');
+
+      const response = await fetch(`${apiBase}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: userMessage
+        })
+      });
+
+      if (!response.ok) throw new Error('Backend call failed');
+
+      const data = await response.json();
+      const aiResponse = data.response;
+
+      addLocalMessage('assistant', aiResponse);
+    } catch (error) {
+      console.error('Error:', error);
+      addLocalMessage('assistant', "I'm having trouble connecting right now, but I'm still here! Want to explore the game world? Press C to enter! =Éƒ´G£ø");
+    } finally {
+      setLoading(false);
+      setThinking(false);
+    }
+  };
+
+  const clearHistory = async () => {
+    if (!userId) return;
+    if (!isFirebaseConfigured || !db || userId === 'local') {
+      setMessages([]);
+      return;
+    }
+    
+    const q = query(collection(db, 'chat_messages'));
+    const snapshot = await getDocs(q);
+    
+    const deletePromises = [];
+    snapshot.forEach((doc) => {
+      if (doc.data().userId === userId) {
+        deletePromises.push(deleteDoc(doc.ref));
+      }
+    });
+    
+    await Promise.all(deletePromises);
+    setMessages([]);
+  };
+
+  const handleCommand = (command) => {
+    switch (command) {
+      case 'newChat':
+        clearHistory();
+        break;
+      case 'clearHistory':
+        clearHistory();
+        break;
+      case 'settings':
+        alert('Settings coming soon!');
+        break;
+      case 'mindmap':
+        alert('Mind map generation coming soon!');
+        break;
+      case 'suggestions':
+        setInput('Can you give me some suggestions?');
+        break;
+      case 'enterWorld':
+        setGameMode(true);
+        break;
+      default:
+        console.log('Unknown command:', command);
+    }
+  };
+
+  const handleVoiceTranscript = (transcript) => {
+    setInput(transcript);
+  };
+
+  const formatTime = (d) => {
+    try {
+      return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
+  const renderMessage = (message) => {
+    const isUser = message.role === 'user';
+    const ts = formatTime(message.timestamp || Date.now());
+    
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: isUser ? 20 : -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3 }}
+        style={{
+          display: 'flex',
+          justifyContent: isUser ? 'flex-end' : 'flex-start',
+          marginBottom: '16px',
+        }}
+      >
+        <Box
+          className="message-bubble glass-card"
+          sx={{
+            maxWidth: '70%',
+            padding: '12px 16px',
+            borderRadius: '16px',
+            background: isUser
+              ? 'linear-gradient(135deg, rgba(0, 255, 255, 0.15), rgba(0, 136, 255, 0.15))'
+              : 'rgba(20, 20, 40, 0.7)',
+            border: `1px solid ${isUser ? 'rgba(0, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`,
+            boxShadow: isUser
+              ? '0 0 20px rgba(0, 255, 255, 0.2)'
+              : '0 4px 20px rgba(0, 0, 0, 0.3)',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+            {!isUser && <AIAvatar thinking={false} mood={thinking ? 'thinking' : 'neutral'} />}
+            <Typography
+              variant="caption"
+              sx={{ color: isUser ? 'rgba(255,255,255,0.7)' : '#00ffff', fontWeight: 700 }}
+            >
+              {isUser ? 'You' : 'Vesper' }
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+              {ts}
+            </Typography>
+            {!isUser && thinking && (
+              <Chip
+                label="thinking"
+                size="small"
+                sx={{ height: 20, color: '#0ff', borderColor: 'rgba(0,255,255,0.4)', borderStyle: 'solid', borderWidth: 1, background: 'rgba(0,255,255,0.08)' }}
+              />
+            )}
+          </Box>
+          
+          <ReactMarkdown
+            components={{
+              code: ({ node, inline, className, children, ...props }) => {
+                const match = /language-(\w+)/.exec(className || '');
+                const codeString = String(children).replace(/\n$/, '');
+                const copy = async () => {
+                  try { await navigator.clipboard.writeText(codeString); } catch (e) { console.error(e); }
+                };
+                
+                return !inline && match ? (
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      p: 2,
+                      borderRadius: '8px',
+                      fontFamily: 'monospace',
+                      color: '#00ffff',
+                      whiteSpace: 'pre-wrap'
+                    }}
+                  >
+                    <IconButton size="small" onClick={copy} sx={{ position: 'absolute', top: 4, right: 4, color: '#00ffff' }}>
+                      <ContentCopyRounded fontSize="small" />
+                    </IconButton>
+                    <code className={className}>{codeString}</code>
+                  </Box>
+                ) : (
+                  <code
+                    className={className}
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontFamily: 'monospace',
+                      color: '#00ffff',
+                    }}
+                    {...props}
+                  >
+                    {children}
+                  </code>
+                );
+              },
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
+        </Box>
+      </motion.div>
+    );
+  };
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      
+      {/* Command Palette */}
+      <CommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onCommand={handleCommand}
+      />
+      
+      {/* Floating Action Buttons */}
+      <FloatingActionButton onAction={handleCommand} />
+      
+      {/* Split Layout: Chat + Game */}
+      <Box
+        sx={{
+          display: 'flex',
+          height: '100vh',
+          width: '100vw',
+          background: 'linear-gradient(135deg, #0a0a1e 0%, #1a0a2e 50%, #0a1a2e 100%)',
+        }}
+      >
+        {/* Chat Panel - Left Side */}
+        <Box
+          sx={{
+            flex: '0 0 45%',
+            height: '100vh',
+            overflowY: 'auto',
+            borderRight: '1px solid rgba(0, 255, 255, 0.1)',
+            background: 'rgba(10, 10, 30, 0.8)',
+            p: 2,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Header */}
+          <Box sx={{ textAlign: 'center', py: 2, mb: 2 }}>
+            <Typography
+              variant="h4"
+              sx={{
+                background: 'linear-gradient(135deg, #00ffff, #a78bfa)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                fontWeight: 700,
+              }}
+            >
+              VESPER
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+              High-tech chat online G«Û Press C to toggle game
+            </Typography>
+          </Box>
+
+          {/* Quick prompts + hotkey hints */}
+          <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap' }}>
+            {['Summarize the scene', 'Generate a quest', 'Give me a hint', 'Explain controls'].map((label) => (
+              <Chip
+                key={label}
+                label={label}
+                onClick={() => setInput(label)}
+                sx={{
+                  background: 'rgba(0,255,255,0.08)',
+                  color: '#a6e9ff',
+                  borderColor: 'rgba(0,255,255,0.2)',
+                  borderWidth: 1,
+                  borderStyle: 'solid',
+                  '&:hover': {
+                    background: 'rgba(0,255,255,0.16)'
+                  }
+                }}
+              />
+            ))}
+            <Chip label="Cmd/Ctrl+K Palette" sx={{ background: 'rgba(167,139,250,0.15)', color: '#d7c8ff' }} />
+            <Chip label="Hold V to speak" sx={{ background: 'rgba(0,255,255,0.12)', color: '#9bf7ff' }} />
+          </Stack>
+
+          {/* Messages */}
+          <Paper
+            ref={chatContainerRef}
+            sx={{
+              flex: 1,
+              overflowY: 'auto',
+              p: 2,
+              mb: 2,
+              borderRadius: '12px',
+              background: 'rgba(20, 20, 40, 0.5)',
+              border: '1px solid rgba(0, 255, 255, 0.1)',
+            }}
+          >
+            <AnimatePresence>
+              {messages.map((message) => (
+                <div key={message.id}>{renderMessage(message)}</div>
+              ))}
+            </AnimatePresence>
+
+            {loading && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
+                <Box className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </Box>
+              </Box>
+            )}
+
+            <div ref={messagesEndRef} />
+          </Paper>
+
+          {/* Input */}
+          <Paper
+            component="form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendMessage();
+            }}
+            sx={{
+              p: '2px 4px',
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: '12px',
+              background: 'rgba(20, 20, 40, 0.7)',
+              border: '1px solid rgba(0, 255, 255, 0.2)',
+            }}
+          >
+            <VoiceInput onTranscript={handleVoiceTranscript} />
+            <TextField
+              fullWidth
+              multiline
+              maxRows={3}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              placeholder="Ask Vesper..."
+              disabled={loading}
+              variant="standard"
+              InputProps={{
+                disableUnderline: true,
+                sx: {
+                  color: '#fff',
+                  fontSize: '14px',
+                  '& textarea::placeholder': {
+                    color: 'rgba(255, 255, 255, 0.3)',
+                  },
+                },
+              }}
+              size="small"
+            />
+            <IconButton
+              onClick={sendMessage}
+              disabled={loading || !input.trim()}
+              sx={{
+                background: 'linear-gradient(135deg, #00ffff, #0088ff)',
+                color: '#fff',
+                '&:hover': {
+                  boxShadow: '0 0 20px rgba(0, 255, 255, 0.5)',
+                },
+                '&:disabled': {
+                  background: 'rgba(255, 255, 255, 0.1)',
+                },
+              }}
+              size="small"
+            >
+              {loading ? <CircularProgress size={20} /> : <SendIcon />}
+            </IconButton>
+            <IconButton
+              onClick={clearHistory}
+              sx={{ color: '#ff4444' }}
+              size="small"
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Paper>
+        </Box>
+
+        {/* Game Panel - Right Side */}
+        <Box
+          sx={{
+            flex: '0 0 55%',
+            height: '100vh',
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          {gameMode ? (
+            <Game 
+              onExitGame={() => setGameMode(false)}
+              onChatWithNPC={() => {}}
+            />
+          ) : (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                flexDirection: 'column',
+                color: '#fff',
+                gap: 2,
+              }}
+            >
+              <Typography variant="h6">Press C to toggle game</Typography>
+              <button
+                onClick={() => setGameMode(true)}
+                style={{
+                  padding: '12px 24px',
+                  background: 'linear-gradient(135deg, #a78bfa, #8b5cf6)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                }}
+              >
+                =É≈¶ Enter World
+              </button>
+            </Box>
+          )}
+        </Box>
+      </Box>
+    </ThemeProvider>
+  );
+}
+
+export default App;
+
+

@@ -1,915 +1,1345 @@
-import React, { useState, useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import { db } from './firebase';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Box,
-  Drawer,
-  Toolbar,
-  Typography,
-  Tabs,
-  Tab,
-  Paper,
   TextField,
-  Button,
-  Card,
-  CardContent,
-  List,
-  ListItem,
-  ListItemText,
   IconButton,
-  Divider,
-  Fade,
-  Slide,
-  Grid,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Alert,
-  LinearProgress,
+  Typography,
   CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  Paper,
+  Chip,
+  Stack,
+  Tooltip,
+  Divider,
+  Badge,
+  Button,
+  Grid,
+  Snackbar,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import {
-  Chat as ChatIcon,
-  Search as SearchIcon,
-  Memory as MemoryIcon,
-  BubbleChart as BubbleChartIcon,
-  Psychology as PsychologyIcon,
   Send as SendIcon,
-  DeleteOutline as DeleteIcon,
-  CheckCircle as CheckCircleIcon,
-  Code as CodeIcon,
-  Storage as DatabaseIcon,
-  Description as FileIcon,
-  Settings as SettingsIcon,
-  AttachFile as AttachFileIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  HistoryRounded,
+  BoltRounded,
+  ContentCopyRounded,
+  StorageRounded,
+  ScienceRounded,
+  HubRounded,
+  ChecklistRounded,
+  SettingsRounded,
+  PublicRounded,
+  Palette as PaletteIcon,
 } from '@mui/icons-material';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import { useHotkeys } from 'react-hotkeys-hook';
+import { DndContext, useDraggable, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+
+// Firebase
+import { db, auth, isFirebaseConfigured } from './src/firebase';
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  deleteDoc,
+  getDocs,
+  addDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { signInAnonymously } from 'firebase/auth';
+
+// Components
+import AIAvatar from './src/components/AIAvatar';
+import CommandPalette from './src/components/CommandPalette';
+import VoiceInput from './src/components/VoiceInput';
+import FloatingActionButton from './src/components/FloatingActionButton';
+import Game from './src/game/Game';
+
+// Styles
 import './App.css';
+import './src/enhancements.css';
 
-// API Configuration
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-console.log('API URL:', API);
-const drawerWidth = 260;
+const baseTheme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary: { main: '#00ffff' },
+    background: { default: '#000', paper: 'rgba(8, 10, 24, 0.8)' },
+  },
+  typography: { fontFamily: '"Inter", "Segoe UI", -apple-system, sans-serif' },
+});
 
-// Theme definitions
-const themes = {
-  cyan: { primary: '#00ffff', secondary: '#00ccff', name: 'Cyan Matrix' },
-  green: { primary: '#00ff00', secondary: '#00cc00', name: 'Neon Green' },
-  purple: { primary: '#bf00ff', secondary: '#9900cc', name: 'Purple Haze' },
-  blue: { primary: '#0088ff', secondary: '#0066cc', name: 'Electric Blue' },
-  pink: { primary: '#ff00ff', secondary: '#cc00cc', name: 'Cyber Pink' },
-};
+const THEMES = [
+  { id: 'cyan', label: 'Cyan Matrix', accent: '#00ffff', glow: '#00fff2', sub: '#00ff88' },
+  { id: 'green', label: 'Neon Green', accent: '#00ff00', glow: '#00ff00', sub: '#00dd00' },
+  { id: 'purple', label: 'Purple Haze', accent: '#c084fc', glow: '#a855f7', sub: '#7c3aed' },
+  { id: 'blue', label: 'Electric Blue', accent: '#5ad7ff', glow: '#4ba3ff', sub: '#3b82f6' },
+  { id: 'pink', label: 'Cyber Pink', accent: '#ff6ad5', glow: '#ff8bd7', sub: '#ff4db8' },
+  { id: 'orange', label: 'Solar Flare', accent: '#ff8800', glow: '#ff9933', sub: '#ff6600' },
+  { id: 'red', label: 'Blood Moon', accent: '#ff0044', glow: '#ff3366', sub: '#cc0033' },
+  { id: 'gold', label: 'Golden Hour', accent: '#ffd700', glow: '#ffed4e', sub: '#ffb700' },
+  { id: 'ice', label: 'Arctic Frost', accent: '#e0f7ff', glow: '#b3e5fc', sub: '#81d4fa' },
+  { id: 'teal', label: 'Deep Ocean', accent: '#00d9ff', glow: '#00bcd4', sub: '#0097a7' },
+  { id: 'violet', label: 'Midnight Violet', accent: '#9d00ff', glow: '#b24bf3', sub: '#7b00cc' },
+  { id: 'lime', label: 'Toxic Waste', accent: '#c0ff00', glow: '#d4ff33', sub: '#a8cc00' },
+];
 
-// Hexagonal Grid Background Component with 3D depth
-function HexagonalGrid({ theme = 'cyan' }) {
-  const currentTheme = themes[theme];
-  useEffect(() => {
-    const canvas = document.getElementById('hex-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+const NAV = [
+  { id: 'chat', label: 'Neural Chat', icon: HubRounded },
+  { id: 'research', label: 'Research Tools', icon: ScienceRounded },
+  { id: 'memory', label: 'Memory Core', icon: StorageRounded },
+  { id: 'tasks', label: 'Task Matrix', icon: ChecklistRounded },
+  { id: 'settings', label: 'Settings', icon: SettingsRounded },
+];
 
-    const hexSize = 40;
-    const hexHeight = hexSize * 2;
-    const hexWidth = Math.sqrt(3) * hexSize;
-    const cols = Math.ceil(canvas.width / hexWidth) + 2;
-    const rows = Math.ceil(canvas.height / hexHeight) + 2;
-    
-    const hexagons = [];
-    
-    for (let row = -1; row < rows; row++) {
-      for (let col = -1; col < cols; col++) {
-        const x = col * hexWidth + (row % 2) * (hexWidth / 2);
-        const y = row * hexHeight * 0.75;
-        hexagons.push({
-          x,
-          y,
-          opacity: Math.random() * 0.5,
-          pulseSpeed: 0.02 + Math.random() * 0.03,
-          glowIntensity: Math.random(),
-        });
-      }
-    }
-
-    function drawHexagon(x, y, opacity, glow) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const angle = (Math.PI / 3) * i;
-        const hx = hexSize * Math.cos(angle);
-        const hy = hexSize * Math.sin(angle);
-        if (i === 0) ctx.moveTo(hx, hy);
-        else ctx.lineTo(hx, hy);
-      }
-      ctx.closePath();
-      
-      // 3D depth effect - inner shadow
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 5;
-      
-      // Multi-layer gradient for 3D depth
-      const gradient = ctx.createRadialGradient(0, -hexSize * 0.3, 0, 0, 0, hexSize * 1.2);
-      const [r, g, b] = currentTheme.primary === '#00ffff' ? [0, 255, 255] 
-        : currentTheme.primary === '#00ff00' ? [0, 255, 0]
-        : currentTheme.primary === '#bf00ff' ? [191, 0, 255]
-        : currentTheme.primary === '#0088ff' ? [0, 136, 255]
-        : [255, 0, 255];
-      
-      gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${opacity * 0.25})`);
-      gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, ${opacity * 0.15})`);
-      gradient.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, ${opacity * 0.05})`);
-      gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-      ctx.fillStyle = gradient;
-      ctx.fill();
-      
-      // Bright glowing edges with 3D effect
-      ctx.shadowBlur = 20 + glow * 30;
-      ctx.shadowColor = currentTheme.primary;
-      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${opacity * 0.9})`;
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    let frame = 0;
-    function animate() {
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      hexagons.forEach(hex => {
-        hex.opacity = 0.1 + Math.sin(frame * hex.pulseSpeed + hex.glowIntensity * 10) * 0.4;
-        hex.glowIntensity = 0.3 + Math.sin(frame * 0.01 + hex.x * 0.01) * 0.7;
-        drawHexagon(hex.x, hex.y, hex.opacity, hex.glowIntensity);
-      });
-      
-      frame++;
-      requestAnimationFrame(animate);
-    }
-    
-    animate();
-
-    const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return (
-    <>
-      <canvas
-        id="hex-canvas"
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          zIndex: -1,
-          background: '#000000',
-        }}
-      />
-      <Box
-        sx={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '100vh',
-          background: `repeating-linear-gradient(0deg, transparent, transparent 2px, ${currentTheme.primary}05 2px, ${currentTheme.primary}05 4px)`,
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}
-      />
-    </>
-  );
-}
-
-// Glass Card Component
-function GlassCard({ children, theme = 'cyan', sx = {} }) {
-  const currentTheme = themes[theme];
-  return (
-    <Card
-      sx={{
-        background: 'rgba(0, 0, 0, 0.6)',
-        backdropFilter: 'blur(24px)',
-        border: `1px solid ${currentTheme.primary}20`,
-        borderRadius: '16px',
-        boxShadow: `0 8px 32px rgba(0, 0, 0, 0.8), 0 0 40px ${currentTheme.primary}15`,
-        color: '#ffffff',
-        ...sx,
-      }}
-    >
-      {children}
-    </Card>
-  );
-}
-
-// Chat Panel
-function ChatPanel({ theme = 'cyan' }) {
-  const currentTheme = themes[theme];
+function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
+  const [userId, setUserId] = useState(null);
+  const [thinking, setThinking] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const safeStorageGet = (key, fallback) => {
+    if (typeof window === 'undefined') return fallback;
+    try {
+      return window.localStorage.getItem(key) || fallback;
+    } catch (error) {
+      console.warn('Storage read failed', error);
+      return fallback;
+    }
+  };
 
-  // Load chat history from Firebase on mount
-  useEffect(() => {
-    const messagesRef = collection(db, 'chat_messages');
-    const q = query(
-      messagesRef,
-      orderBy('timestamp', 'asc'),
-      limit(100)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const loadedMessages = snapshot.docs.map(doc => ({
-        id: doc.id,
-        role: doc.data().role,
-        content: doc.data().content,
-        timestamp: doc.data().timestamp
-      }));
-      setMessages(loadedMessages);
-    }, (error) => {
-      console.error('Firebase listener error:', error);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const [gameMode, setGameMode] = useState(false);
+  const [activeSection, setActiveSection] = useState(() => safeStorageGet('vesper_active_section', 'chat'));
+  const [activeTheme, setActiveTheme] = useState(() => {
+    const storedId = safeStorageGet('vesper_theme', THEMES[0].id);
+    return THEMES.find((t) => t.id === storedId) || THEMES[0];
+  });
+  const [researchItems, setResearchItems] = useState([]);
+  const [researchLoading, setResearchLoading] = useState(false);
+  const [researchForm, setResearchForm] = useState({ title: '', summary: '' });
+  const [memoryItems, setMemoryItems] = useState([]);
+  const [memoryCategory, setMemoryCategory] = useState(() => safeStorageGet('vesper_memory_category', 'notes'));
+  const [memoryLoading, setMemoryLoading] = useState(false);
+  const [memoryText, setMemoryText] = useState('');
+  const [tasks, setTasks] = useState([]);
+  const [themeMenuAnchor, setThemeMenuAnchor] = useState(null);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [taskForm, setTaskForm] = useState({ title: '', status: 'inbox' });
+  const [toast, setToast] = useState('');
   
-  // Auto-scroll to latest message
+  // Draggable board positions - load from localStorage
+  const [boardPositions, setBoardPositions] = useState(() => {
+    const saved = safeStorageGet('vesper_board_positions', null);
+    return saved ? JSON.parse(saved) : {
+      research: { x: 50, y: 50 },
+      memory: { x: 100, y: 100 },
+      tasks: { x: 150, y: 150 },
+      settings: { x: 200, y: 200 },
+    };
+  });
+
+  const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // Drag-and-drop sensor setup
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required to start drag (prevents accidental drags)
+      },
+    })
+  );
+
+  // Handle drag end - save new position
+  const handleDragEnd = useCallback((event) => {
+    const { active, delta } = event;
+    if (!delta) return;
+    
+    setBoardPositions((prev) => {
+      const newPositions = {
+        ...prev,
+        [active.id]: {
+          x: (prev[active.id]?.x || 0) + delta.x,
+          y: (prev[active.id]?.y || 0) + delta.y,
+        },
+      };
+      // Save to localStorage
+      try {
+        localStorage.setItem('vesper_board_positions', JSON.stringify(newPositions));
+      } catch (e) {
+        console.warn('Failed to save board positions', e);
+      }
+      return newPositions;
+    });
+  }, []);
+
+  const apiBase = useMemo(() => {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
+    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:8000';
+    return '';
+  }, []);
+
+  const chatBase = useMemo(() => {
+    if (import.meta.env.VITE_CHAT_API_URL) return import.meta.env.VITE_CHAT_API_URL.replace(/\/$/, '');
+    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:3000';
+    return '';
+  }, []);
+
+  const addLocalMessage = async (role, content) => {
+    const message = {
+      id: `${Date.now()}-${Math.random()}`,
+      userId: userId || 'local',
+      role,
+      content,
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, message]);
+
+    if (
+      isFirebaseConfigured &&
+      db &&
+      userId &&
+      userId !== 'local' &&
+      typeof addDoc === 'function' &&
+      typeof collection === 'function'
+    ) {
+      try {
+        await addDoc(collection(db, 'chat_messages'), {
+          ...message,
+          timestamp: serverTimestamp(),
+        });
+      } catch (error) {
+        console.error('Failed to persist message:', error);
+      }
+    }
+  };
+
+  useHotkeys('ctrl+k, cmd+k', (e) => {
+    e.preventDefault();
+    setCommandPaletteOpen(true);
+  });
+
+  useHotkeys('c', (e) => {
+    e.preventDefault();
+    setGameMode((prev) => !prev);
+  });
+
+  useEffect(() => {
+    if (!isFirebaseConfigured || !auth || typeof signInAnonymously !== 'function') {
+      setUserId('local');
+      return;
+    }
+    const initAuth = async () => {
+      try {
+        const result = await signInAnonymously(auth);
+        setUserId(result.user.uid);
+      } catch (error) {
+        console.error('Auth error:', error);
+        setUserId('local');
+      }
+    };
+    initAuth();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('vesper_theme', activeTheme.id);
+      window.localStorage.setItem('vesper_active_section', activeSection);
+      window.localStorage.setItem('vesper_memory_category', memoryCategory);
+    } catch (error) {
+      console.warn('Storage write failed', error);
+    }
+  }, [activeTheme, activeSection, memoryCategory]);
+
+  useEffect(() => {
+    if (
+      !isFirebaseConfigured ||
+      !db ||
+      !userId ||
+      userId === 'local' ||
+      typeof query !== 'function' ||
+      typeof collection !== 'function' ||
+      typeof orderBy !== 'function' ||
+      typeof onSnapshot !== 'function'
+    )
+      return;
+
+    const q = query(collection(db, 'chat_messages'), orderBy('timestamp', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const loadedMessages = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.userId === userId) {
+          loadedMessages.push({
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : data.timestamp,
+          });
+        }
+      });
+      setMessages(loadedMessages);
+    });
+    return () => unsubscribe();
+  }, [userId]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-  
+
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
-    
-    const messageText = input;
+    const userMessage = input.trim();
     setInput('');
     setLoading(true);
-
+    setThinking(true);
+    addLocalMessage('user', userMessage);
     try {
-      const response = await fetch(`${API}/api/chat`, {
+      const response = await fetch(`${chatBase}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: messageText })
+        body: JSON.stringify({ message: userMessage }),
       });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (!response.ok) throw new Error('Backend call failed');
+      const data = await response.json();
+      addLocalMessage('assistant', data.response);
+    } catch (error) {
+      console.error('Error:', error);
+      addLocalMessage(
+        'assistant',
+        "I'm having trouble connecting right now, but I'm still here! Press C to jump into the world and I'll keep watch."
+      );
+    } finally {
+      setLoading(false);
+      setThinking(false);
+    }
+  };
+
+  const clearHistory = async () => {
+    if (!userId) return;
+    if (
+      !isFirebaseConfigured ||
+      !db ||
+      userId === 'local' ||
+      typeof query !== 'function' ||
+      typeof collection !== 'function' ||
+      typeof getDocs !== 'function' ||
+      typeof deleteDoc !== 'function'
+    ) {
+      setMessages([]);
+      return;
+    }
+    const q = query(collection(db, 'chat_messages'));
+    const snapshot = await getDocs(q);
+    const deletePromises = [];
+    snapshot.forEach((doc) => {
+      if (doc.data().userId === userId) deletePromises.push(deleteDoc(doc.ref));
+    });
+    await Promise.all(deletePromises);
+    setMessages([]);
+  };
+
+  const fetchResearch = useCallback(async () => {
+    if (!apiBase) return;
+    setResearchLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/api/research`);
+      const data = await res.json();
+      setResearchItems(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Research fetch failed:', error);
+    } finally {
+      setResearchLoading(false);
+    }
+  }, [apiBase]);
+
+  const addResearchEntry = async () => {
+    if (!researchForm.title.trim() || !apiBase) return;
+    try {
+      await fetch(`${apiBase}/api/research`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: researchForm.title,
+          summary: researchForm.summary,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      setResearchForm({ title: '', summary: '' });
+      fetchResearch();
+      setToast('Research saved');
+    } catch (error) {
+      console.error('Research save failed:', error);
+    }
+  };
+
+  const fetchMemory = useCallback(
+    async (category) => {
+      if (!apiBase || !category) return;
+      setMemoryLoading(true);
+      try {
+        const res = await fetch(`${apiBase}/api/memory/${category}`);
+        const data = await res.json();
+        setMemoryItems(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Memory fetch failed:', error);
+      } finally {
+        setMemoryLoading(false);
       }
-      
-      const data = await response.json();
-      console.log('Chat response:', data);
-      // Messages are saved to Firebase by backend and will appear via listener
-      
-    } catch (err) {
-      console.error('Chat error:', err);
-      // Show error in UI
-      alert(`Error: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <GlassCard theme={theme} sx={{ height: '600px', maxWidth: '900px', display: 'flex', flexDirection: 'column' }}>
-      <CardContent sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-        {messages.map((msg, idx) => (
-          <Box
-            key={idx}
-            sx={{
-              mb: 2,
-              p: 2,
-              background: msg.role === 'user' 
-                ? `${currentTheme.primary}08` 
-                : 'rgba(255, 255, 255, 0.03)',
-              borderRadius: '12px',
-              borderLeft: msg.role === 'user' 
-                ? `3px solid ${currentTheme.primary}` 
-                : '3px solid rgba(255, 255, 255, 0.2)',
-            }}
-          >
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                color: msg.role === 'user' ? currentTheme.primary : 'rgba(255, 255, 255, 0.6)',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                fontWeight: 600,
-                mb: 0.5,
-              }}
-            >
-              {msg.role === 'user' ? 'You' : 'Vesper'}
-            </Typography>
-            <Box 
-              sx={{ 
-                color: '#ffffff',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                '& p': { margin: '0.5em 0' },
-                '& ul, & ol': { margin: '0.5em 0', paddingLeft: '1.5em' },
-                '& li': { margin: '0.25em 0' },
-                '& code': { 
-                  background: 'rgba(0, 255, 255, 0.1)',
-                  padding: '0.2em 0.4em',
-                  borderRadius: '4px',
-                  fontFamily: 'monospace',
-                },
-                '& pre': {
-                  background: 'rgba(0, 255, 255, 0.05)',
-                  padding: '1em',
-                  borderRadius: '8px',
-                  overflow: 'auto',
-                },
-                '& strong': { color: currentTheme.primary },
-              }}
-            >
-              <ReactMarkdown>{msg.content}</ReactMarkdown>
-            </Box>
-          </Box>
-        ))}
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-            <CircularProgress size={24} sx={{ color: currentTheme.primary }} />
-          </Box>
-        )}
-        <div ref={messagesEndRef} />
-      </CardContent>
-      <Box sx={{ p: 3, pt: 0, display: 'flex', gap: 1.5, alignItems: 'flex-end' }}>
-        <IconButton
-          sx={{
-            color: currentTheme.primary,
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: `1px solid ${currentTheme.primary}20`,
-            borderRadius: '12px',
-            '&:hover': {
-              background: 'rgba(255, 255, 255, 0.08)',
-              borderColor: `${currentTheme.primary}40`,
-            },
-          }}
-        >
-          <AttachFileIcon />
-        </IconButton>
-        <TextField
-          fullWidth
-          multiline
-          minRows={2}
-          maxRows={3}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              sendMessage();
-            }
-          }}
-          placeholder="Message Vesper... (Shift+Enter for new line)"
-          disabled={loading}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: `1px solid ${currentTheme.primary}20`,
-              borderRadius: '12px',
-              color: '#ffffff',
-              fontFamily: 'system-ui, -apple-system, sans-serif',
-              '& fieldset': { border: 'none' },
-              '&:hover': {
-                background: 'rgba(255, 255, 255, 0.05)',
-                borderColor: `${currentTheme.primary}40`,
-              },
-              '&.Mui-focused': {
-                background: 'rgba(255, 255, 255, 0.05)',
-                boxShadow: `0 0 0 2px ${currentTheme.primary}66`,
-              },
-            },
-          }}
-        />
-        <Button
-          variant="contained"
-          onClick={sendMessage}
-          disabled={loading || !input.trim()}
-          sx={{
-            background: `linear-gradient(135deg, ${currentTheme.primary} 0%, ${currentTheme.secondary} 100%)`,
-            color: '#000000',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            fontWeight: 600,
-            borderRadius: '12px',
-            px: 4,
-            '&:hover': {
-              background: `linear-gradient(135deg, ${currentTheme.primary} 0%, ${currentTheme.primary}dd 100%)`,
-              transform: 'scale(0.98)',
-            },
-            '&:disabled': {
-              background: 'rgba(255, 255, 255, 0.1)',
-              color: 'rgba(255, 255, 255, 0.3)',
-            },
-          }}
-        >
-          <SendIcon />
-        </Button>
-      </Box>
-    </GlassCard>
+    },
+    [apiBase]
   );
-}
 
-// Research Panel with Tools
-function ResearchPanel({ theme = 'cyan' }) {
-  const currentTheme = themes[theme];
-  const [tab, setTab] = useState(0);
-  
-  return (
-    <GlassCard theme={theme} sx={{ height: '600px', maxWidth: '900px' }}>
-      <Tabs
-        value={tab}
-        onChange={(e, v) => setTab(v)}
-        sx={{
-          borderBottom: `1px solid ${currentTheme.primary}20`,
-          '& .MuiTab-root': {
-            color: 'rgba(255, 255, 255, 0.6)',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            textTransform: 'none',
-            fontWeight: 500,
-            '&.Mui-selected': {
-              color: currentTheme.primary,
-            },
-          },
-          '& .MuiTabs-indicator': {
-            background: currentTheme.primary,
-          },
-        }}
-      >
-        <Tab label="Web Scraper" />
-        <Tab label="Database" />
-        <Tab label="Files" />
-        <Tab label="Code" />
-        <Tab label="Synthesis" />
-      </Tabs>
-      <Box sx={{ p: 3 }}>
-        {tab === 0 && <WebScraperTool theme={theme} />}
-        {tab === 1 && <DatabaseTool />}
-        {tab === 2 && <FileProcessorTool />}
-        {tab === 3 && <CodeExecutorTool />}
-        {tab === 4 && <SynthesizerTool />}
-      </Box>
-    </GlassCard>
-  );
-}
-
-// Web Scraper Tool
-function WebScraperTool({ theme = 'cyan' }) {
-  const currentTheme = themes[theme];
-  const [url, setUrl] = useState('');
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const scrape = async () => {
-    if (!url.trim()) return;
-    setLoading(true);
+  const addMemoryEntry = async () => {
+    if (!memoryText.trim() || !apiBase) return;
     try {
-      const response = await fetch(`${API}/api/scrape`, {
+      await fetch(`${apiBase}/api/memory/${memoryCategory}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim(), deep: true })
+        body: JSON.stringify({ content: memoryText, meta: { category: memoryCategory } }),
       });
-      const data = await response.json();
-      setResult(data);
-    } catch (err) {
-      setResult({ error: err.message });
-    } finally {
-      setLoading(false);
+      setMemoryText('');
+      fetchMemory(memoryCategory);
+      setToast('Memory stored');
+    } catch (error) {
+      console.error('Memory save failed:', error);
     }
   };
 
-  return (
-    <Box>
-      <Typography variant="h6" sx={{ mb: 2, color: '#ffffff', fontFamily: 'system-ui' }}>
-        Web Scraper
-      </Typography>
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <TextField
-          fullWidth
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          placeholder="Enter URL..."
-          disabled={loading}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              background: 'rgba(255, 255, 255, 0.03)',
-              color: '#ffffff',
-              '& fieldset': { borderColor: `${currentTheme.primary}30` },
-              '&:hover fieldset': { borderColor: `${currentTheme.primary}50` },
-              '&.Mui-focused fieldset': { borderColor: currentTheme.primary },
-            },
-          }}
-        />
-        <Button
-          variant="contained"
-          onClick={scrape}
-          disabled={loading}
-          sx={{
-            background: currentTheme.primary,
-            color: '#000000',
-            '&:hover': { background: currentTheme.secondary },
-          }}
-        >
-          Scrape
-        </Button>
-      </Box>
-      {loading && <CircularProgress sx={{ color: currentTheme.primary }} />}
-      {result && (
-        <Box sx={{ 
-          mt: 2, 
-          p: 2, 
-          background: 'rgba(255, 255, 255, 0.03)', 
-          borderRadius: '8px',
-          maxHeight: '400px',
-          overflow: 'auto',
-        }}>
-          <pre style={{ color: '#ffffff', fontFamily: 'monospace', fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        </Box>
-      )}
-    </Box>
-  );
-}
+  const fetchTasks = useCallback(async () => {
+    if (!apiBase) return;
+    setTasksLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/api/tasks`);
+      const data = await res.json();
+      setTasks(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Tasks fetch failed:', error);
+    } finally {
+      setTasksLoading(false);
+    }
+  }, [apiBase]);
 
-// Database Tool
-function DatabaseTool() {
-  return (
-    <Box>
-      <Typography variant="h6" sx={{ mb: 2, color: '#ffffff' }}>
-        Database Manager
-      </Typography>
-      <Typography sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-        Database tools coming soon...
-      </Typography>
-    </Box>
-  );
-}
+  const addTask = async () => {
+    if (!taskForm.title.trim() || !apiBase) return;
+    try {
+      await fetch(`${apiBase}/api/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...taskForm, createdAt: new Date().toISOString() }),
+      });
+      setTaskForm({ title: '', status: 'inbox' });
+      fetchTasks();
+      setToast('Task added');
+    } catch (error) {
+      console.error('Add task failed:', error);
+    }
+  };
 
-// File Processor Tool
-function FileProcessorTool() {
-  return (
-    <Box>
-      <Typography variant="h6" sx={{ mb: 2, color: '#ffffff' }}>
-        File Processor
-      </Typography>
-      <Typography sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-        File processing tools coming soon...
-      </Typography>
-    </Box>
-  );
-}
+  const updateTaskStatus = async (idx, status) => {
+    if (!apiBase) return;
+    try {
+      await fetch(`${apiBase}/api/tasks/${idx}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      fetchTasks();
+    } catch (error) {
+      console.error('Update task failed:', error);
+    }
+  };
 
-// Code Executor Tool
-function CodeExecutorTool() {
-  return (
-    <Box>
-      <Typography variant="h6" sx={{ mb: 2, color: '#ffffff' }}>
-        Code Executor
-      </Typography>
-      <Typography sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-        Code execution tools coming soon...
-      </Typography>
-    </Box>
-  );
-}
-
-// Synthesizer Tool
-function SynthesizerTool() {
-  return (
-    <Box>
-      <Typography variant="h6" sx={{ mb: 2, color: '#ffffff' }}>
-        Research Synthesizer
-      </Typography>
-      <Typography sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-        Multi-source synthesis coming soon...
-      </Typography>
-    </Box>
-  );
-}
-
-// Settings Panel
-function SettingsPanel({ theme = 'cyan', onThemeChange }) {
-  const currentTheme = themes[theme];
-  
-  return (
-    <GlassCard sx={{ height: '600px', maxWidth: '900px', p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 3, color: '#ffffff', fontFamily: 'system-ui' }}>
-        Settings
-      </Typography>
-      
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" sx={{ mb: 2, color: '#ffffff', fontFamily: 'system-ui', fontSize: '1rem' }}>
-          Theme Selection
-        </Typography>
-        <Typography variant="body2" sx={{ mb: 3, color: 'rgba(255, 255, 255, 0.6)', fontFamily: 'system-ui' }}>
-          Choose your color theme. This will update the entire interface including background, buttons, and accents.
-        </Typography>
-        <Grid container spacing={2}>
-          {Object.entries(themes).map(([key, themeOption]) => (
-            <Grid item xs={12} sm={6} md={4} key={key}>
-              <Button
-                fullWidth
-                onClick={() => onThemeChange(key)}
-                sx={{
-                  p: 2,
-                  borderRadius: '12px',
-                  background: theme === key 
-                    ? `linear-gradient(135deg, ${themeOption.primary}20, ${themeOption.secondary}10)`
-                    : 'rgba(255, 255, 255, 0.03)',
-                  border: theme === key 
-                    ? `2px solid ${themeOption.primary}`
-                    : `2px solid ${themeOption.primary}15`,
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 1,
-                  '&:hover': {
-                    background: `linear-gradient(135deg, ${themeOption.primary}15, ${themeOption.secondary}08)`,
-                    transform: 'translateY(-2px)',
-                  },
-                }}
-              >
-                <Box sx={{
-                  width: '100%',
-                  height: 60,
-                  borderRadius: '8px',
-                  background: `linear-gradient(135deg, ${themeOption.primary}, ${themeOption.secondary})`,
-                  boxShadow: `0 4px 20px ${themeOption.primary}40`,
-                }} />
-                <Typography sx={{ 
-                  color: '#ffffff', 
-                  fontFamily: 'system-ui',
-                  fontWeight: theme === key ? 600 : 400,
-                  textTransform: 'none',
-                }}>
-                  {themeOption.name}
-                </Typography>
-              </Button>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
-      
-      <Divider sx={{ my: 3, borderColor: `${currentTheme.primary}20` }} />
-      
-      <Box>
-        <Typography variant="h6" sx={{ mb: 2, color: '#ffffff', fontFamily: 'system-ui', fontSize: '1rem' }}>
-          About
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)', fontFamily: 'system-ui' }}>
-          Vesper AI Assistant - Version 1.0
-        </Typography>
-      </Box>
-    </GlassCard>
-  );
-}
-
-// Memory Panel
-function MemoryPanel({ theme = 'cyan' }) {
-  const currentTheme = themes[theme];
-  return (
-    <GlassCard theme={theme} sx={{ height: '600px', maxWidth: '900px', p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 3, color: '#ffffff' }}>
-        Memory Bank
-      </Typography>
-      <Typography sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-        Memory storage coming soon...
-      </Typography>
-    </GlassCard>
-  );
-}
-
-// Tasks Panel
-function TasksPanel({ theme = 'cyan' }) {
-  const currentTheme = themes[theme];
-  const [tasks, setTasks] = useState([]);
+  const deleteTask = async (idx) => {
+    if (!apiBase) return;
+    try {
+      await fetch(`${apiBase}/api/tasks/${idx}`, { method: 'DELETE' });
+      fetchTasks();
+    } catch (error) {
+      console.error('Delete task failed:', error);
+    }
+  };
 
   useEffect(() => {
-    fetch(`${API}/api/tasks`)
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setTasks(data))
-      .catch(() => setTasks([]));
-  }, []);
+    fetchResearch();
+    fetchTasks();
+  }, [fetchResearch, fetchTasks]);
 
-  return (
-    <GlassCard sx={{ height: '600px', maxWidth: '900px', p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 3, color: '#ffffff' }}>
-        Task Manager
-      </Typography>
-      <List>
-        {tasks.map((task, idx) => (
-          <ListItem
-            key={idx}
-            sx={{
-              mb: 1,
-              background: 'rgba(255, 255, 255, 0.03)',
-              borderRadius: '8px',
-              borderLeft: `3px solid ${currentTheme.primary}`,
+  useEffect(() => {
+    fetchMemory(memoryCategory);
+  }, [fetchMemory, memoryCategory]);
+
+  const handleCommand = (command) => {
+    switch (command) {
+      case 'newChat':
+      case 'clearHistory':
+        clearHistory();
+        break;
+      case 'settings':
+        setActiveSection('settings');
+        break;
+      case 'mindmap':
+        setActiveSection('research');
+        break;
+      case 'suggestions':
+        setInput('Can you give me some suggestions?');
+        break;
+      case 'enterWorld':
+        setGameMode(true);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleVoiceTranscript = (transcript) => setInput(transcript);
+
+  const handleFileShare = (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const isImage = file.type.startsWith('image/');
+    const fileName = file.name;
+
+    // Add file reference to input
+    const fileRef = isImage ? `📎 [Image: ${fileName}]` : `📎 [File: ${fileName}]`;
+    setInput((prev) => (prev ? prev + ' ' + fileRef : fileRef));
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const formatTime = (d) => {
+    try {
+      return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
+  const renderMessage = (message) => {
+    const isUser = message.role === 'user';
+    const ts = formatTime(message.timestamp || Date.now());
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: isUser ? 20 : -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.25 }}
+        style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', marginBottom: '16px' }}
+      >
+        <Box
+          className="message-bubble glass-card"
+          sx={{
+            maxWidth: '70%',
+            padding: '12px 16px',
+            borderRadius: '16px',
+            background: isUser
+              ? 'linear-gradient(135deg, rgba(0, 255, 255, 0.18), rgba(0, 136, 255, 0.12))'
+              : 'rgba(10, 14, 30, 0.8)',
+            border: `1px solid ${isUser ? 'rgba(0, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.12)'}`,
+            boxShadow: isUser
+              ? '0 0 24px rgba(0, 255, 255, 0.35)'
+              : '0 8px 32px rgba(0, 0, 0, 0.35)',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+            {!isUser && <AIAvatar thinking={thinking} mood={thinking ? 'thinking' : 'neutral'} />}
+            <Typography variant="caption" sx={{ color: isUser ? 'rgba(255,255,255,0.8)' : 'var(--accent)', fontWeight: 700 }}>
+              {isUser ? 'You' : 'Vesper'}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+              {ts}
+            </Typography>
+            {!isUser && thinking && (
+              <Chip
+                label="thinking"
+                size="small"
+                sx={{
+                  height: 20,
+                  color: 'var(--accent)',
+                  borderColor: 'rgba(0,255,255,0.4)',
+                  borderStyle: 'solid',
+                  borderWidth: 1,
+                  background: 'rgba(0,255,255,0.08)',
+                }}
+              />
+            )}
+          </Box>
+          <ReactMarkdown
+            components={{
+              code: ({ inline, className, children, ...props }) => {
+                const match = /language-(\w+)/.exec(className || '');
+                const codeString = String(children).replace(/\n$/, '');
+                const copy = async () => {
+                  try {
+                    await navigator.clipboard.writeText(codeString);
+                  } catch (e) {
+                    console.error(e);
+                  }
+                };
+                return !inline && match ? (
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      background: 'rgba(0, 0, 0, 0.35)',
+                      p: 2,
+                      borderRadius: '10px',
+                      fontFamily: 'monospace',
+                      color: 'var(--accent)',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    <IconButton size="small" onClick={copy} sx={{ position: 'absolute', top: 4, right: 4, color: 'var(--accent)' }}>
+                      <ContentCopyRounded fontSize="small" />
+                    </IconButton>
+                    <code className={className}>{codeString}</code>
+                  </Box>
+                ) : (
+                  <code
+                    className={className}
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.35)',
+                      padding: '2px 6px',
+                      borderRadius: '6px',
+                      fontFamily: 'monospace',
+                      color: 'var(--accent)',
+                    }}
+                    {...props}
+                  >
+                    {children}
+                  </code>
+                );
+              },
             }}
           >
-            <ListItemText
-              primary={task.task}
-              secondary={task.status}
-              primaryTypographyProps={{ color: '#ffffff' }}
-              secondaryTypographyProps={{ color: 'rgba(255, 255, 255, 0.6)' }}
-            />
-          </ListItem>
-        ))}
-      </List>
-    </GlassCard>
-  );
-}
+            {message.content}
+          </ReactMarkdown>
+        </Box>
+      </motion.div>
+    );
+  };
 
-// Main App
-export default function App() {
-  const [currentView, setCurrentView] = useState('chat');
-  const [currentTheme, setCurrentTheme] = useState('cyan');
-  const theme = themes[currentTheme];
+  const themeVars = {
+    '--accent': activeTheme.accent,
+    '--accent-2': activeTheme.sub,
+    '--glow': activeTheme.glow,
+  };
 
-  const menuItems = [
-    { id: 'chat', label: 'Chat', icon: <ChatIcon /> },
-    { id: 'research', label: 'Research', icon: <SearchIcon /> },
-    { id: 'memory', label: 'Memory', icon: <MemoryIcon /> },
-    { id: 'tasks', label: 'Tasks', icon: <CheckCircleIcon /> },
-    { id: 'settings', label: 'Settings', icon: <SettingsIcon /> },
-  ];
+  const STATUS_ORDER = ['inbox', 'doing', 'done'];
+
+  // Draggable Board Wrapper Component
+  const DraggableBoard = ({ id, children }) => {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+      id,
+    });
+
+    const position = boardPositions[id] || { x: 0, y: 0 };
+
+    const style = {
+      position: 'fixed',
+      top: '80px',
+      left: '280px',
+      zIndex: isDragging ? 1000 : 10,
+      cursor: 'grab',
+      transform: `translate3d(${position.x + (transform?.x || 0)}px, ${position.y + (transform?.y || 0)}px, 0)`,
+      transition: isDragging ? 'none' : 'transform 0.2s ease',
+      width: 'calc(100vw - 320px)',
+      maxWidth: '1000px',
+      maxHeight: 'calc(100vh - 120px)',
+      overflow: 'auto',
+      touchAction: 'none',
+    };
+
+    return (
+      <div 
+        ref={setNodeRef} 
+        style={style} 
+        {...listeners} 
+        {...attributes}
+        data-draggable={id}
+      >
+        {children}
+      </div>
+    );
+  };
+
+  const renderActiveBoard = () => {
+    switch (activeSection) {
+      case 'research':
+        return (
+          <DraggableBoard id="research">
+            <Paper className="intel-board glass-card">
+              <Box className="board-header">
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Research Feed</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Fetches from /api/research. Add notes, summaries, and citations.
+                  </Typography>
+                </Box>
+                <Chip label={researchLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
+              </Box>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Stack spacing={1}>
+                  <TextField
+                    label="Title"
+                    value={researchForm.title}
+                    onChange={(e) => setResearchForm((f) => ({ ...f, title: e.target.value }))}
+                    fullWidth
+                    variant="filled"
+                    size="small"
+                    InputProps={{ sx: { color: '#fff' } }}
+                  />
+                  <TextField
+                    label="Summary / findings"
+                    multiline
+                    minRows={3}
+                    value={researchForm.summary}
+                    onChange={(e) => setResearchForm((f) => ({ ...f, summary: e.target.value }))}
+                    fullWidth
+                    variant="filled"
+                    size="small"
+                    InputProps={{ sx: { color: '#fff' } }}
+                  />
+                  <Button variant="contained" onClick={addResearchEntry} disabled={!researchForm.title.trim()}>
+                    Save Research
+                  </Button>
+                </Stack>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Box className="board-list">
+                  {(researchItems || []).slice().reverse().map((item, idx) => (
+                    <Box key={`${item.title}-${idx}`} className="board-row">
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                          {item.title || 'Untitled entry'}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                          {item.summary || item.content || 'No summary yet.'}
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                        {formatTime(item.timestamp || Date.now())}
+                      </Typography>
+                    </Box>
+                  ))}
+                  {!researchItems?.length && !researchLoading && (
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                      No research logged yet.
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+          </DraggableBoard>
+        );
+      case 'memory':
+        return (
+          <DraggableBoard id="memory">
+            <Paper className="intel-board glass-card">
+              <Box className="board-header">
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Memory Core</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Uses /api/memory/{memoryCategory}. Fast, file-backed store.
+                </Typography>
+              </Box>
+              <Chip label={memoryLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
+            </Box>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
+              {['notes', 'conversations', 'sensory_experiences', 'creative_moments', 'emotional_bonds'].map((cat) => (
+                <Chip
+                  key={cat}
+                  label={cat.replace(/_/g, ' ')}
+                  onClick={() => setMemoryCategory(cat)}
+                  color={memoryCategory === cat ? 'primary' : 'default'}
+                  variant={memoryCategory === cat ? 'filled' : 'outlined'}
+                  size="small"
+                />
+              ))}
+            </Stack>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Stack spacing={1}>
+                  <TextField
+                    label="New memory"
+                    multiline
+                    minRows={3}
+                    value={memoryText}
+                    onChange={(e) => setMemoryText(e.target.value)}
+                    fullWidth
+                    variant="filled"
+                    size="small"
+                    InputProps={{ sx: { color: '#fff' } }}
+                  />
+                  <Button variant="contained" onClick={addMemoryEntry} disabled={!memoryText.trim()}>
+                    Save Memory
+                  </Button>
+                </Stack>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Box className="board-list">
+                  {(memoryItems || []).slice().reverse().map((item, idx) => (
+                    <Box key={`${item.timestamp}-${idx}`} className="board-row">
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                        {item.content}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                        {formatTime(item.timestamp || Date.now())}
+                      </Typography>
+                    </Box>
+                  ))}
+                  {!memoryItems?.length && !memoryLoading && (
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                      Nothing stored for this category yet.
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+          </DraggableBoard>
+        );
+      case 'tasks':
+        return (
+          <DraggableBoard id="tasks">
+            <Paper className="intel-board glass-card">
+              <Box className="board-header">
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Task Matrix</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Connected to /api/tasks with quick status hops.
+                </Typography>
+              </Box>
+              <Chip label={tasksLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
+            </Box>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <Stack spacing={1}>
+                  <TextField
+                    label="Task title"
+                    value={taskForm.title}
+                    onChange={(e) => setTaskForm((f) => ({ ...f, title: e.target.value }))}
+                    fullWidth
+                    variant="filled"
+                    size="small"
+                    InputProps={{ sx: { color: '#fff' } }}
+                  />
+                  <Button variant="contained" onClick={addTask} disabled={!taskForm.title.trim()}>
+                    Add Task
+                  </Button>
+                </Stack>
+              </Grid>
+              <Grid item xs={12} md={8}>
+                <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                  {STATUS_ORDER.map((status) => (
+                    <Box key={status} className="task-column glass-card">
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: 'capitalize' }}>
+                        {status}
+                      </Typography>
+                      <Stack spacing={1}>
+                        {(tasks || []).map((task, idx) => {
+                          if ((task.status || 'inbox') !== status) return null;
+                          return (
+                            <Box key={`${task.title}-${idx}`} className="task-row">
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {task.title || 'Untitled task'}
+                              </Typography>
+                              <Stack direction="row" spacing={1}>
+                                <Tooltip title="Advance status">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                      const nextIndex = Math.min(STATUS_ORDER.length - 1, STATUS_ORDER.indexOf(status) + 1);
+                                      updateTaskStatus(idx, STATUS_ORDER[nextIndex]);
+                                    }}
+                                  >
+                                    <BoltRounded fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete task">
+                                  <IconButton size="small" onClick={() => deleteTask(idx)}>
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </Stack>
+                            </Box>
+                          );
+                        })}
+                        {!tasks?.some((t) => (t.status || 'inbox') === status) && (
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                            Empty
+                          </Typography>
+                        )}
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
+              </Grid>
+            </Grid>
+          </Paper>
+          </DraggableBoard>
+        );
+      case 'settings':
+        return (
+          <DraggableBoard id="settings">
+            <Paper className="intel-board glass-card">
+              <Box className="board-header">
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Settings</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Control themes, interface density, AI models, and system preferences.
+                </Typography>
+              </Box>
+              <Chip label={isFirebaseConfigured ? 'Firebase ready' : 'Offline mode'} size="small" className="chip-soft" />
+            </Box>
+            <Stack spacing={3}>
+              {/* Theme Selection */}
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Theme Color</Typography>
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => setThemeMenuAnchor(e.currentTarget)}
+                    sx={{ color: 'var(--accent)' }}
+                  >
+                    <PaletteIcon fontSize="small" />
+                  </IconButton>
+                  <Chip 
+                    label={activeTheme.label} 
+                    size="small" 
+                    sx={{ 
+                      bgcolor: activeTheme.accent, 
+                      color: '#000', 
+                      fontWeight: 700,
+                      boxShadow: `0 0 15px ${activeTheme.accent}`
+                    }} 
+                  />
+                </Box>
+                <Menu
+                  anchorEl={themeMenuAnchor}
+                  open={Boolean(themeMenuAnchor)}
+                  onClose={() => setThemeMenuAnchor(null)}
+                  PaperProps={{
+                    sx: {
+                      bgcolor: 'rgba(10, 14, 30, 0.95)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      backdropFilter: 'blur(20px)',
+                      maxHeight: 400,
+                    }
+                  }}
+                >
+                  {THEMES.map((t) => (
+                    <MenuItem
+                      key={t.id}
+                      onClick={() => {
+                        setActiveTheme(t);
+                        setThemeMenuAnchor(null);
+                      }}
+                      selected={activeTheme.id === t.id}
+                      sx={{
+                        gap: 1.5,
+                        borderLeft: activeTheme.id === t.id ? `3px solid ${t.accent}` : '3px solid transparent',
+                        '&.Mui-selected': {
+                          bgcolor: `${t.accent}15`,
+                        }
+                      }}
+                    >
+                      <Box 
+                        sx={{ 
+                          width: 24, 
+                          height: 24, 
+                          borderRadius: '50%', 
+                          bgcolor: t.accent,
+                          boxShadow: `0 0 10px ${t.accent}`
+                        }} 
+                      />
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.label}</Typography>
+                    </MenuItem>
+                  ))}
+                </Menu>
+              </Box>
+              
+              {/* Interface Density */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Interface Density</Typography>
+                <Stack direction="row" spacing={1.5}>
+                  <Button variant="outlined" size="small" sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>Compact</Button>
+                  <Button variant="contained" size="small">Normal</Button>
+                  <Button variant="outlined" size="small" sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>Spacious</Button>
+                </Stack>
+              </Box>
+
+              {/* AI Model Selection */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>AI Model</Typography>
+                <Stack spacing={1}>
+                  <Paper className="glass-card" sx={{ p: 1.5, border: '2px solid var(--accent)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>Claude 3.5 Sonnet</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Fast, balanced reasoning • Current</Typography>
+                  </Paper>
+                  <Paper className="glass-card" sx={{ p: 1.5, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>GPT-4 Turbo</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>OpenAI flagship model</Typography>
+                  </Paper>
+                  <Paper className="glass-card" sx={{ p: 1.5, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>Claude 3 Opus</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Maximum intelligence</Typography>
+                  </Paper>
+                </Stack>
+              </Box>
+
+              {/* Animation & Effects */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Visual Effects</Typography>
+                <Stack spacing={1.5}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2">Hex Grid Animation</Typography>
+                    <Chip label="ON" size="small" sx={{ bgcolor: 'var(--accent)', color: '#000' }} />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2">Scanline Effect</Typography>
+                    <Chip label="ON" size="small" sx={{ bgcolor: 'var(--accent)', color: '#000' }} />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2">Particle System</Typography>
+                    <Chip label="ON" size="small" sx={{ bgcolor: 'var(--accent)', color: '#000' }} />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2">Hologram Flicker</Typography>
+                    <Chip label="ON" size="small" sx={{ bgcolor: 'var(--accent)', color: '#000' }} />
+                  </Box>
+                </Stack>
+              </Box>
+
+              {/* Voice & Audio */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Voice & Audio</Typography>
+                <Stack spacing={1.5}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2">Voice Input (Hold V)</Typography>
+                    <Chip label="Enabled" size="small" className="chip-soft" />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2">UI Sound Effects</Typography>
+                    <Chip label="OFF" size="small" className="chip-soft" />
+                  </Box>
+                </Stack>
+              </Box>
+
+              {/* Data & Storage */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Data & Storage</Typography>
+                <Stack spacing={1}>
+                  <Button variant="outlined" fullWidth sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+                    Export All Data (JSON)
+                  </Button>
+                  <Button variant="outlined" fullWidth sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+                    Clear Chat History
+                  </Button>
+                  <Button variant="outlined" fullWidth color="error">
+                    Reset All Settings
+                  </Button>
+                </Stack>
+              </Box>
+            </Stack>
+          </Paper>
+          </DraggableBoard>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <HexagonalGrid theme={currentTheme} />
+    <ThemeProvider theme={baseTheme}>
+      <CssBaseline />
+      <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} onCommand={handleCommand} />
+      <FloatingActionButton onAction={handleCommand} />
+
+      {/* Background layers */}
+      <div className="bg-layer gradient-background" />
+      <div className="bg-layer hex-grid" />
+      <div className="bg-layer scanlines" />
       
-      {/* Modern Sidebar */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-            background: '#000000',
-            backdropFilter: 'blur(10px)',
-            borderRight: `1px solid ${theme.primary}15`,
-            boxShadow: `2px 0 30px ${theme.primary}10`,
-          },
-        }}
-      >
-        <Toolbar sx={{ 
-          borderBottom: `1px solid ${theme.primary}15`,
-          background: 'transparent',
-          paddingY: 3,
-        }}>
-          <Box sx={{
-            width: 36,
-            height: 36,
-            borderRadius: '8px',
-            background: `linear-gradient(135deg, ${theme.primary}26, ${theme.secondary}1a)`,
-            border: `1px solid ${theme.primary}33`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            mr: 2,
-          }}>
-            <BubbleChartIcon sx={{ 
-              color: theme.primary, 
-              fontSize: 22,
-            }} />
-          </Box>
-          <Box>
-            <Typography variant="h6" sx={{ 
-              color: '#ffffff', 
-              fontFamily: 'system-ui, -apple-system, sans-serif', 
-              fontWeight: 600,
-              fontSize: '1.1rem',
-              lineHeight: 1.2,
-            }}>
-              Vesper
-            </Typography>
-            <Typography variant="caption" sx={{ 
-              color: 'rgba(255, 255, 255, 0.5)', 
-              fontFamily: 'system-ui, -apple-system, sans-serif',
-              fontSize: '0.75rem',
-            }}>
-              AI Assistant
-            </Typography>
-          </Box>
-        </Toolbar>
-        <List sx={{ mt: 2 }}>
-          {menuItems.map((item) => (
-            <ListItem
-              button
-              key={item.id}
-              onClick={() => setCurrentView(item.id)}
+      {/* Subtle Matrix binary - vertical stacked digits, each column different speed */}
+      {[...Array(8)].map((_, i) => {
+        const digits = Array.from({ length: 60 }, () => Math.random() > 0.5 ? '1' : '0');
+        return (
+          <div 
+            key={i} 
+            className="binary-column-stack" 
+            style={{
+              left: `${15 + (i * 10)}%`,
+              animationDuration: `${12 + Math.random() * 12}s`,
+              animationDelay: `${Math.random() * 5}s`,
+              fontSize: `${9 + Math.random() * 6}px`,
+            }}
+          >
+            {digits.map((digit, idx) => (
+              <div key={idx} className="single-digit">{digit}</div>
+            ))}
+          </div>
+        );
+      })}
+
+      <Box className="app-shell" style={themeVars}>
+        <aside className="sidebar glass-panel">
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <Box>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 2 }}>
+                VESPER AI
+              </Typography>
+              <Typography variant="h6" sx={{ color: 'var(--accent)', fontWeight: 800 }}>
+                Ops Console
+              </Typography>
+            </Box>
+            <Badge
+              overlap="circular"
+              variant="dot"
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               sx={{
-                mb: 0.5,
-                mx: 1.5,
-                borderRadius: '8px',
-                background: currentView === item.id 
-                  ? 'rgba(255, 255, 255, 0.03)'
-                  : 'transparent',
-                borderLeft: currentView === item.id 
-                  ? `3px solid ${theme.primary}`
-                  : '3px solid transparent',
-                paddingLeft: currentView === item.id ? 1 : 1.375,
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  borderLeft: `3px solid ${theme.primary}80`,
+                '& .MuiBadge-dot': {
+                  backgroundColor: 'var(--accent)',
+                  boxShadow: '0 0 12px var(--accent)',
                 },
               }}
             >
-              <Box sx={{ 
-                color: currentView === item.id ? theme.primary : 'rgba(255, 255, 255, 0.4)', 
-                mr: 2,
-                display: 'flex',
-                alignItems: 'center',
-              }}>
-                {item.icon}
-              </Box>
-              <ListItemText 
-                primary={item.label} 
-                primaryTypographyProps={{
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  fontWeight: currentView === item.id ? 600 : 400,
-                  color: currentView === item.id ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
-                  fontSize: '0.9rem',
-                }}
-              />
-            </ListItem>
-          ))}
-        </List>
-        
-        {/* Status Indicator */}
-        <Box sx={{ 
-          position: 'absolute', 
-          bottom: 0, 
-          left: 0, 
-          right: 0, 
-          p: 2,
-          borderTop: `1px solid ${theme.primary}15`,
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: theme.primary,
-              boxShadow: `0 0 8px ${theme.primary}`,
-            }} />
-            <Box>
-              <Typography sx={{ 
-                color: '#ffffff', 
-                fontSize: '0.85rem',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                fontWeight: 500,
-              }}>
-                System Online
-              </Typography>
-              <Typography sx={{ 
-                color: 'rgba(255, 255, 255, 0.4)', 
-                fontSize: '0.7rem',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-              }}>
-                All systems operational
-              </Typography>
-            </Box>
+              <Box className="status-pill">LIVE</Box>
+            </Badge>
           </Box>
-        </Box>
-      </Drawer>
 
-      {/* Main Content */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          ml: 0,
-          width: `calc(100% - ${drawerWidth}px)`,
-        }}
-      >
-        <Fade in={true} timeout={500}>
-          <Box>
-            {currentView === 'chat' && <ChatPanel theme={currentTheme} />}
-            {currentView === 'research' && <ResearchPanel theme={currentTheme} />}
-            {currentView === 'memory' && <MemoryPanel theme={currentTheme} />}
-            {currentView === 'tasks' && <TasksPanel theme={currentTheme} />}
-            {currentView === 'settings' && <SettingsPanel theme={currentTheme} onThemeChange={setCurrentTheme} />}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
+            {NAV.map(({ id, label, icon: Icon }) => (
+              <Box
+                key={id}
+                className={`nav-item ${activeSection === id ? 'active' : ''}`}
+                onClick={() => setActiveSection(id)}
+              >
+                <Icon fontSize="small" />
+                <span>{label}</span>
+              </Box>
+            ))}
           </Box>
-        </Fade>
+
+
+        </aside>
+
+        <main className="content-grid">
+          <section className="chat-panel glass-panel">
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--accent)' }}>
+                Neural Chat
+              </Typography>
+              <Box className="status-dot" />
+            </Box>
+
+            <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+              {['Summarize the scene', 'Generate a quest', 'Give me a hint', 'Explain controls'].map((label) => (
+                <Chip key={label} label={label} onClick={() => setInput(label)} className="chip-ghost" />
+              ))}
+              <Chip label="Cmd/Ctrl+K" className="chip-ghost" />
+              <Chip label="Hold V to speak" className="chip-ghost" />
+            </Stack>
+
+            <Paper ref={chatContainerRef} className="chat-window glass-card" sx={{ mb: 2 }}>
+              <AnimatePresence>
+                {messages.map((message) => (
+                  <div key={message.id}>{renderMessage(message)}</div>
+                ))}
+              </AnimatePresence>
+              {loading && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
+                  <Box className="typing-indicator">
+                    <span />
+                    <span />
+                    <span />
+                  </Box>
+                </Box>
+              )}
+              <div ref={messagesEndRef} />
+            </Paper>
+
+            <Paper
+              component="form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMessage();
+              }}
+              className="input-bar glass-card"
+              sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileShare}
+                style={{ display: 'none' }}
+                accept="image/*,.pdf,.doc,.docx,.txt,.json,.csv"
+              />
+              <Tooltip title="Share file or image" placement="top">
+                <IconButton
+                  onClick={() => fileInputRef.current?.click()}
+                  className="ghost-button"
+                  size="small"
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <VoiceInput onTranscript={handleVoiceTranscript} />
+              <TextField
+                fullWidth
+                multiline
+                maxRows={3}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                placeholder="Ask Vesper…"
+                disabled={loading}
+                variant="standard"
+                InputProps={{
+                  disableUnderline: true,
+                  sx: {
+                    color: '#fff',
+                    fontSize: '14px',
+                    '& textarea::placeholder': {
+                      color: 'rgba(255, 255, 255, 0.35)',
+                    },
+                  },
+                }}
+                size="small"
+              />
+              <Tooltip title="Send (Enter)" placement="top">
+                <span>
+                  <IconButton onClick={sendMessage} disabled={loading || !input.trim()} className="cta-button" size="small">
+                    {loading ? <CircularProgress size={20} /> : <SendIcon />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Clear chat" placement="top">
+                <IconButton onClick={clearHistory} className="ghost-button" size="small">
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Paper>
+          </section>
+
+          <section className="ops-panel">
+            <Box className="panel-grid">
+              <Paper className="ops-card glass-card">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Research Tools</Typography>
+                  <Chip icon={<ScienceRounded />} label="Ready" size="small" className="chip-soft" />
+                </Box>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
+                  Web scraping, DB access, file processing, code execution, multi-source synthesis.
+                </Typography>
+                <Stack spacing={0.8}>
+                  <div className="list-row">Web Scraper · Deep + shallow crawl</div>
+                  <div className="list-row">Database Manager · SQLite / Postgres / MySQL / Mongo</div>
+                  <div className="list-row">File Processor · PDFs, docs, images</div>
+                  <div className="list-row">Code Executor · Python / JS / SQL sandbox</div>
+                  <div className="list-row">Synthesizer · Blend sources with AI</div>
+                </Stack>
+              </Paper>
+
+              <Paper className="ops-card glass-card">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Memory Core</Typography>
+                  <Chip icon={<HistoryRounded />} label="Sync" size="small" className="chip-soft" />
+                </Box>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
+                  Long-term context, vectors, and recall-ready notes.
+                </Typography>
+                <Stack spacing={0.8}>
+                  <div className="list-row">Pinned facts · Rapid recall</div>
+                  <div className="list-row">Context stitching · Auto-augment prompts</div>
+                  <div className="list-row">Exportable knowledge graph</div>
+                </Stack>
+              </Paper>
+
+              <Paper className="ops-card glass-card">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Task Matrix</Typography>
+                  <Chip icon={<ChecklistRounded />} label="Tracked" size="small" className="chip-soft" />
+                </Box>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
+                  Multi-panel tasks, status chips, and action history.
+                </Typography>
+                <Stack spacing={0.8}>
+                  <div className="list-row">Inbox · capture quick asks</div>
+                  <div className="list-row">Doing · current focus</div>
+                  <div className="list-row">Done · audit log</div>
+                </Stack>
+              </Paper>
+
+              <Paper className="ops-card glass-card">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Settings</Typography>
+                  <Chip icon={<SettingsRounded />} label="Theming" size="small" className="chip-soft" />
+                </Box>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
+                  Themes, layout density, AI models, and system preferences configured in full settings.
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                  📋 Click the gear in the Settings section for all options
+                </Typography>
+              </Paper>
+            </Box>
+
+            <Paper className="world-panel glass-card">
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Vesper World</Typography>
+                <Stack direction="row" spacing={1}>
+                  <Chip label="Press C" size="small" className="chip-soft" />
+                  <Chip label="Right rail" size="small" className="chip-soft" />
+                </Stack>
+              </Box>
+              {gameMode ? (
+                <Game onExitGame={() => setGameMode(false)} onChatWithNPC={() => {}} />
+              ) : (
+                <Box className="world-placeholder">
+                  <Typography variant="body1" sx={{ fontWeight: 700 }}>World viewport is ready.</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Chat stays slim on the left. Toggle the world to explore and keep talking.
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                    <button className="primary-btn" onClick={() => setGameMode(true)}>Enter World</button>
+                    <button className="ghost-btn" onClick={() => setActiveSection('research')}>Open Research</button>
+                  </Box>
+                </Box>
+              )}
+            </Paper>
+
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+              {renderActiveBoard()}
+            </DndContext>
+          </section>
+        </main>
       </Box>
-    </Box>
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={2200}
+        onClose={() => setToast('')}
+        message={toast}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      />
+    </ThemeProvider>
   );
 }
+
+export default App;

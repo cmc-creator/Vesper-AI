@@ -1,0 +1,71 @@
+﻿        {playerHomeConfig && (
+          <PlayerHomeExterior 
+            position={[25, 0, 25]}
+            homeType={playerHomeConfig.homeType || 'cabin'}
+            exteriorColor={playerHomeConfig.exteriorColor || '#8b4513'}
+            onEnter={handleEnterPlayerHome}
+          />
+        )}
+        
+        {/* Castle Interior - only render when inside */}
+        {isInsideCastle && (
+          <CastleInterior 
+            isInside={isInsideCastle}
+            homeConfig={vesperHomeConfig}
+            onExit={handleExitCastle}
+          />
+        )}
+        
+        {/* Player Home Interior - only render when inside */}
+        {isInsidePlayerHome && playerHomeConfig && (
+          <PlayerHomeInterior 
+            isInside={isInsidePlayerHome}
+            homeConfig={playerHomeConfig}
+            onExit={handleExitPlayerHome}
+          />
+        )}
+        
+        {/* Swimming System (water, fish, underwater treasures) */}
+        {!isInsideCastle && !isInsidePlayerHome && (
+          <SwimmingSystem 
+            playerPosition={playerPosition}
+            isSwimming={isSwimming}
+            onSwimmingChange={setIsSwimming}
+          />
+        )}
+        
+        {/* Only render outdoor elements when outside */}
+        {!isInsideCastle && !isInsidePlayerHome && (
+          <>
+            <Horses onMount={handleMount} ridingHorseId={ridingHorseId} />
+            <Butterflies />
+            <TreasureChests />
+            <TeleportationPortals onPlayerMove={handlePlayerTeleport} />
+          </>
+        )}
+
+        {/* Player character */
+        <Character position={playerPosition} keyboard={keyboard} />
+        {/* Magic Abilities System */}
+        <MagicAbilities
+          playerPosition={playerPosition}
+          playerRotation={0}
+          keyboard={keyboard}
+        />
+        {/* Vesper NPC near castle */}
+        <VesperNPC 
+          position={[-8, 1.5, -15]} 
+          crystalsCollected={crystalsCollected}
+          onInteract={() => {
+            setShowingChat(true);
+            onChatWithNPC?();
+          }}
+          onCrystalCollect={handleCrystalCollect}
+        />
+        
+        {/* NEW RPG SYSTEMS - Only when outside */}
+        {!isInsideCastle && !isInsidePlayerHome && (
+          <>
+            {/* Seasonal System - Changes environment */}
+            <SeasonalSystem 
+              currentSeason={currentSeason}

@@ -28,7 +28,12 @@ from docx import Document
 from openpyxl import load_workbook
 from PIL import Image
 import pytesseract
-import magic
+try:
+    import magic
+    MAGIC_AVAILABLE = True
+except ImportError:
+    MAGIC_AVAILABLE = False
+    print("Warning: python-magic not available (requires libmagic). File type detection will be limited.")
 import chardet
 import io
 import base64
@@ -49,6 +54,27 @@ except Exception as e:
     import traceback
     traceback.print_exc()
     raise
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Health check endpoints required for deployment
+@app.get("/")
+def root():
+    """Root endpoint for basic connectivity check"""
+    return {"status": "ok", "service": "Vesper AI Backend", "version": "1.0.0"}
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint required by Railway deployment"""
+    return {"status": "healthy", "timestamp": datetime.datetime.now().isoformat()}
+
 KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), '../vesper-ai/knowledge')
 RESEARCH_PATH = os.path.join(KNOWLEDGE_DIR, 'research.json')
 
@@ -451,7 +477,7 @@ VESPER_PERSONALITY_ENGINE = {
     "loyalty_mode": "ride_or_die_bestie"
 }
 
-app = FastAPI()
+# Removed duplicate app = FastAPI() - using the one at the top of the file
 
 mood_energy_state = {
     "mood": "liminal",
@@ -487,21 +513,27 @@ def get_vesper_dna():
         "core_dna": VESPER_CORE_DNA,
         "personality_engine": VESPER_PERSONALITY_ENGINE
     }
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Optional
-import os, json, datetime
 
-app = FastAPI()
+# --- Threaded Conversation Model ---
+# Removed duplicate imports and app initialization - using the one at the top of the file
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Health check endpoint
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "Vesper AI Backend",
+        "version": "1.0.0",
+        "timestamp": datetime.datetime.now().isoformat()
+    }
+
+@app.get("/")
+def root():
+    return {
+        "message": "Vesper AI Backend API",
+        "docs": "/docs",
+        "health": "/health"
+    }
 
 MEMORY_DIR = os.path.join(os.path.dirname(__file__), '../vesper-ai/memory')
 
