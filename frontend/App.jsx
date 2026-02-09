@@ -1065,18 +1065,24 @@ function App() {
       <div className="bg-layer hex-grid" />
       <div className="bg-layer scanlines" />
       
-      {/* Animated particles - subtle tracers */}
-      {[...Array(50)].map((_, i) => (
-        <div 
-          key={i} 
-          className="cyber-particle" 
-          style={{
-            left: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 20}s`,
-            animationDuration: `${10 + Math.random() * 15}s`
-          }}
-        />
-      ))}
+      {/* Matrix-style falling binary code */}
+      {[...Array(40)].map((_, i) => {
+        const binary = Array.from({ length: 20 }, () => Math.random() > 0.5 ? '1' : '0').join(' ');
+        return (
+          <div 
+            key={i} 
+            className="binary-stream" 
+            style={{
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 15}s`,
+              animationDuration: `${8 + Math.random() * 12}s`,
+              fontSize: `${10 + Math.random() * 8}px`
+            }}
+          >
+            {binary}
+          </div>
+        );
+      })}
 
       <Box className="app-shell" style={themeVars}>
         <aside className="sidebar glass-panel">

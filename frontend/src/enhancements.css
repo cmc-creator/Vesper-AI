@@ -29,70 +29,80 @@
   z-index: -2;
 }
 
-/* Particle System */
-@keyframes particleRise {
+/* Matrix Binary Rain */
+@keyframes binaryFall {
   0% {
-    transform: translateY(-100vh) translateX(0) scale(0);
+    transform: translateY(-100vh) translateX(0);
     opacity: 0;
   }
-  10% {
-    opacity: 1;
+  5% {
+    opacity: 0.8;
   }
-  90% {
-    opacity: 1;
+  95% {
+    opacity: 0.8;
   }
   100% {
-    transform: translateY(100vh) translateX(50px) scale(1.5);
+    transform: translateY(100vh) translateX(10px);
     opacity: 0;
   }
 }
 
-.cyber-particle {
+.binary-stream {
   position: fixed;
-  width: 5px;
-  height: 5px;
-  background: #00ffff;
-  border-radius: 50%;
+  color: #00ff41;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
   pointer-events: none;
-  box-shadow: 0 0 25px #00ffff, 0 0 50px #00ffff, 0 0 75px rgba(0, 255, 255, 0.5);
-  animation: particleRise 12s linear infinite;
+  white-space: nowrap;
+  line-height: 1.2;
+  letter-spacing: 2px;
+  text-shadow: 
+    0 0 5px #00ff41,
+    0 0 10px #00ff41,
+    0 0 20px rgba(0, 255, 65, 0.6),
+    0 0 30px rgba(0, 255, 65, 0.4);
+  animation: binaryFall 12s linear infinite;
   z-index: -1;
+  filter: blur(0.3px);
 }
 
-.cyber-particle:nth-child(2n) {
-  background: #00ff00;
-  box-shadow: 0 0 25px #00ff00, 0 0 50px #00ff00, 0 0 75px rgba(0, 255, 0, 0.5);
-  animation-duration: 14s;
-  animation-delay: -3s;
-  width: 4px;
-  height: 4px;
-}
-
-.cyber-particle:nth-child(3n) {
-  background: #00ff88;
-  box-shadow: 0 0 25px #00ff88, 0 0 50px #00ff88, 0 0 75px rgba(0, 255, 136, 0.5);
-  animation-duration: 16s;
-  animation-delay: -7s;
-  width: 6px;
-  height: 6px;
-}
-
-.cyber-particle:nth-child(4n) {
-  background: var(--accent);
-  box-shadow: 0 0 30px var(--accent), 0 0 60px var(--accent);
+.binary-stream:nth-child(2n) {
+  color: #00ff88;
+  text-shadow: 
+    0 0 5px #00ff88,
+    0 0 10px #00ff88,
+    0 0 20px rgba(0, 255, 136, 0.5);
   animation-duration: 10s;
-  animation-delay: -2s;
-  width: 7px;
-  height: 7px;
+  filter: blur(0.2px);
 }
 
-.cyber-particle:nth-child(5n) {
-  background: var(--glow);
-  box-shadow: 0 0 35px var(--glow), 0 0 70px var(--glow);
-  animation-duration: 18s;
-  animation-delay: -9s;
-  width: 4px;
-  height: 4px;
+.binary-stream:nth-child(3n) {
+  color: #00cc33;
+  text-shadow: 
+    0 0 8px #00cc33,
+    0 0 15px #00cc33,
+    0 0 25px rgba(0, 204, 51, 0.4);
+  animation-duration: 15s;
+  filter: blur(0.4px);
+}
+
+.binary-stream:nth-child(4n) {
+  color: #33ff66;
+  text-shadow: 
+    0 0 6px #33ff66,
+    0 0 12px #33ff66;
+  animation-duration: 9s;
+  opacity: 0.7;
+}
+
+.binary-stream:nth-child(5n) {
+  color: #00ff00;
+  text-shadow: 
+    0 0 10px #00ff00,
+    0 0 20px #00ff00,
+    0 0 30px rgba(0, 255, 0, 0.5);
+  animation-duration: 14s;
+  filter: blur(0.5px);
 }
 
 /* Circuit Line Effects */
