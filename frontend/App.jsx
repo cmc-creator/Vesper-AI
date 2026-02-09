@@ -1065,22 +1065,24 @@ function App() {
       <div className="bg-layer hex-grid" />
       <div className="bg-layer scanlines" />
       
-      {/* Matrix-style falling binary code - vertical lines */}
-      {[...Array(25)].map((_, i) => {
-        // Generate a column of random binary digits
-        const binaryColumn = Array.from({ length: 140 }, () => Math.random() > 0.5 ? '1' : '0').join('\n');
+      {/* Matrix-style falling binary code - vertical columns at different speeds */}
+      {[...Array(30)].map((_, i) => {
+        const binaryStrings = Array.from({ length: 50 }, () => 
+          Array.from({ length: 8 }, () => Math.random() > 0.5 ? '1' : '0').join('')
+        );
         return (
           <div 
             key={i} 
-            className="binary-line" 
+            className="binary-column" 
             style={{
-              left: `${(i / 25) * 100}%`,
-              animationDelay: `${Math.random() * 8}s`,
-              animationDuration: `${12 + Math.random() * 8}s`,
-              fontSize: `${12 + Math.random() * 6}px`
+              left: `${(i / 30) * 100}%`,
+              animationDuration: `${8 + (i % 5) * 4}s`,
+              animationDelay: `${Math.random() * 3}s`,
             }}
           >
-            {binaryColumn}
+            {binaryStrings.map((binary, idx) => (
+              <div key={idx} className="binary-digit">{binary}</div>
+            ))}
           </div>
         );
       })}
