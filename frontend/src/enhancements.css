@@ -29,17 +29,17 @@
   z-index: -2;
 }
 
-/* Matrix Binary Rain - Vertical Columns */
-@keyframes binaryDrop {
+/* Subtle Matrix Binary Rain - Gentle Background */
+@keyframes subtleBinaryDrift {
   0% {
     transform: translateY(-100vh);
     opacity: 0;
   }
-  5% {
-    opacity: 0.9;
+  10% {
+    opacity: 0.25;
   }
-  95% {
-    opacity: 0.9;
+  90% {
+    opacity: 0.25;
   }
   100% {
     transform: translateY(100vh);
@@ -47,57 +47,24 @@
   }
 }
 
-.binary-column {
+.subtle-binary {
   position: fixed;
   font-family: 'Courier New', monospace;
-  font-weight: bold;
+  font-weight: 600;
   pointer-events: none;
-  animation: binaryDrop linear infinite;
+  animation: subtleBinaryDrift linear infinite;
   z-index: -1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  opacity: 0.25;
 }
 
-.binary-digit {
-  font-size: 13px;
+.binary-num {
+  font-size: 11px;
   color: #00ff41;
-  text-shadow: 
-    0 0 5px #00ff41,
-    0 0 10px #00ff41,
-    0 0 15px rgba(0, 255, 65, 0.5);
+  text-shadow: 0 0 3px #00ff41;
   letter-spacing: 1px;
-}
-
-.binary-column:nth-child(2n) .binary-digit {
-  color: #00ff88;
-  text-shadow: 
-    0 0 5px #00ff88,
-    0 0 10px #00ff88,
-    0 0 15px rgba(0, 255, 136, 0.5);
-}
-
-.binary-column:nth-child(3n) .binary-digit {
-  color: #00cc33;
-  text-shadow: 
-    0 0 8px #00cc33,
-    0 0 15px #00cc33,
-    0 0 20px rgba(0, 204, 51, 0.4);
-}
-
-.binary-column:nth-child(4n) .binary-digit {
-  color: #33ff66;
-  text-shadow: 
-    0 0 6px #33ff66,
-    0 0 12px #33ff66;
-}
-
-.binary-column:nth-child(5n) .binary-digit {
-  color: #00ff00;
-  text-shadow: 
-    0 0 10px #00ff00,
-    0 0 20px #00ff00,
-    0 0 25px rgba(0, 255, 0, 0.4);
 }
 
 /* Circuit Line Effects */

@@ -1065,23 +1065,23 @@ function App() {
       <div className="bg-layer hex-grid" />
       <div className="bg-layer scanlines" />
       
-      {/* Matrix-style falling binary code - vertical columns at different speeds */}
-      {[...Array(30)].map((_, i) => {
-        const binaryStrings = Array.from({ length: 50 }, () => 
-          Array.from({ length: 8 }, () => Math.random() > 0.5 ? '1' : '0').join('')
+      {/* Subtle Matrix-style binary - gentle background effect */}
+      {[...Array(5)].map((_, i) => {
+        const binaryStrings = Array.from({ length: 40 }, () => 
+          Array.from({ length: 6 }, () => Math.random() > 0.5 ? '1' : '0').join('')
         );
         return (
           <div 
             key={i} 
-            className="binary-column" 
+            className="subtle-binary" 
             style={{
-              left: `${(i / 30) * 100}%`,
-              animationDuration: `${8 + (i % 5) * 4}s`,
-              animationDelay: `${Math.random() * 3}s`,
+              left: `${20 + (i * 15)}%`,
+              animationDuration: `${15 + (i * 2)}s`,
+              animationDelay: `${i * 1.5}s`,
             }}
           >
             {binaryStrings.map((binary, idx) => (
-              <div key={idx} className="binary-digit">{binary}</div>
+              <div key={idx} className="binary-num">{binary}</div>
             ))}
           </div>
         );
