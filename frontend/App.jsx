@@ -1065,21 +1065,22 @@ function App() {
       <div className="bg-layer hex-grid" />
       <div className="bg-layer scanlines" />
       
-      {/* Matrix-style falling binary code */}
-      {[...Array(40)].map((_, i) => {
-        const binary = Array.from({ length: 20 }, () => Math.random() > 0.5 ? '1' : '0').join(' ');
+      {/* Matrix-style falling binary code - vertical lines */}
+      {[...Array(25)].map((_, i) => {
+        // Generate a column of random binary digits
+        const binaryColumn = Array.from({ length: 140 }, () => Math.random() > 0.5 ? '1' : '0').join('\n');
         return (
           <div 
             key={i} 
-            className="binary-stream" 
+            className="binary-line" 
             style={{
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 15}s`,
-              animationDuration: `${8 + Math.random() * 12}s`,
-              fontSize: `${10 + Math.random() * 8}px`
+              left: `${(i / 25) * 100}%`,
+              animationDelay: `${Math.random() * 8}s`,
+              animationDuration: `${12 + Math.random() * 8}s`,
+              fontSize: `${12 + Math.random() * 6}px`
             }}
           >
-            {binary}
+            {binaryColumn}
           </div>
         );
       })}
@@ -1284,21 +1285,11 @@ function App() {
                   <Chip icon={<SettingsRounded />} label="Theming" size="small" className="chip-soft" />
                 </Box>
                 <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
-                  Toggle themes and layout density. Everything is color-synced.
+                  Themes, layout density, AI models, and system preferences configured in full settings.
                 </Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {THEMES.map((t) => (
-                    <Paper
-                      key={t.id}
-                      className={`theme-card glass-card ${activeTheme.id === t.id ? 'active' : ''}`}
-                      onClick={() => setActiveTheme(t)}
-                      sx={{ borderColor: activeTheme.id === t.id ? t.accent : 'rgba(255,255,255,0.1)' }}
-                    >
-                      <Box className="theme-preview" sx={{ background: t.accent }} />
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.label}</Typography>
-                    </Paper>
-                  ))}
-                </Stack>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                  📋 Click the gear in the Settings section for all options
+                </Typography>
               </Paper>
             </Box>
 
