@@ -8,8 +8,17 @@ import {
   Paper,
   Chip,
   Stack,
+  Tooltip,
 } from '@mui/material';
-import { Send as SendIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import {
+  Send as SendIcon,
+  Delete as DeleteIcon,
+  HistoryRounded,
+  TipsAndUpdatesRounded,
+  BoltRounded,
+  RestartAltRounded,
+  ContentCopyRounded,
+} from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -239,8 +248,17 @@ function App() {
     setInput(transcript);
   };
 
+  const formatTime = (d) => {
+    try {
+      return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
   const renderMessage = (message) => {
     const isUser = message.role === 'user';
+    const ts = formatTime(message.timestamp || Date.now());
     
     return (
       <motion.div
@@ -268,39 +286,52 @@ function App() {
               : '0 4px 20px rgba(0, 0, 0, 0.3)',
           }}
         >
-          {!isUser && (
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <AIAvatar thinking={false} mood="neutral" />
-              <Typography
-                variant="caption"
-                sx={{ ml: 2, color: '#00ffff', fontWeight: 600 }}
-              >
-                Vesper AI
-              </Typography>
-            </Box>
-          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+            {!isUser && <AIAvatar thinking={false} mood={thinking ? 'thinking' : 'neutral'} />}
+            <Typography
+              variant="caption"
+              sx={{ color: isUser ? 'rgba(255,255,255,0.7)' : '#00ffff', fontWeight: 700 }}
+            >
+              {isUser ? 'You' : 'Vesper' }
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+              {ts}
+            </Typography>
+            {!isUser && thinking && (
+              <Chip
+                label="thinking"
+                size="small"
+                sx={{ height: 20, color: '#0ff', borderColor: 'rgba(0,255,255,0.4)', borderStyle: 'solid', borderWidth: 1, background: 'rgba(0,255,255,0.08)' }}
+              />
+            )}
+          </Box>
           
           <ReactMarkdown
             components={{
               code: ({ node, inline, className, children, ...props }) => {
                 const match = /language-(\w+)/.exec(className || '');
                 const codeString = String(children).replace(/\n$/, '');
+                const copy = async () => {
+                  try { await navigator.clipboard.writeText(codeString); } catch (e) { console.error(e); }
+                };
                 
                 return !inline && match ? (
-                  <code
-                    className={className}
-                    style={{
-                      display: 'block',
+                  <Box
+                    sx={{
+                      position: 'relative',
                       background: 'rgba(0, 0, 0, 0.3)',
-                      padding: '12px',
-                      borderRadius: '4px',
+                      p: 2,
+                      borderRadius: '8px',
                       fontFamily: 'monospace',
                       color: '#00ffff',
                       whiteSpace: 'pre-wrap'
                     }}
                   >
-                    {codeString}
-                  </code>
+                    <IconButton size="small" onClick={copy} sx={{ position: 'absolute', top: 4, right: 4, color: '#00ffff' }}>
+                      <ContentCopyRounded fontSize="small" />
+                    </IconButton>
+                    <code className={className}>{codeString}</code>
+                  </Box>
                 ) : (
                   <code
                     className={className}
@@ -381,9 +412,9 @@ function App() {
             </Typography>
           </Box>
 
-          {/* Quick prompts */}
+          {/* Quick prompts + hotkey hints */}
           <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap' }}>
-            {['Summarize this scene', 'Generate a quest', 'Give me a hint', 'Explain controls'].map((label) => (
+            {['Summarize the scene', 'Generate a quest', 'Give me a hint', 'Explain controls'].map((label) => (
               <Chip
                 key={label}
                 label={label}
@@ -400,6 +431,8 @@ function App() {
                 }}
               />
             ))}
+            <Chip label="Cmd/Ctrl+K Palette" sx={{ background: 'rgba(167,139,250,0.15)', color: '#d7c8ff' }} />
+            <Chip label="Hold V to speak" sx={{ background: 'rgba(0,255,255,0.12)', color: '#9bf7ff' }} />
           </Stack>
 
           {/* Messages */}
