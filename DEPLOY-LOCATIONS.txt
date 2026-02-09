@@ -1,0 +1,96 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║           🌐 VESPER AI - WHERE TO DEPLOY                         ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Question: "I do not know where to go to deploy...can you tell me?"
+
+Answer: YES! Here are the exact URLs:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📍 STEP 1: DEPLOY BACKEND
+
+  Go to: https://railway.app/
+  
+  What to do:
+  1. Click "Start a New Project"
+  2. Choose "Deploy from GitHub repo"
+  3. Select your Vesper-AI repository
+  4. Add environment variable:
+     - ANTHROPIC_API_KEY = your-key-here
+  5. Click "Deploy"
+  
+  Result: You'll get a URL like:
+  https://vesper-ai-production-xxxx.railway.app
+  
+  💡 Save this URL! You need it for step 2.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📍 STEP 2: DEPLOY FRONTEND
+
+  Go to: https://vercel.com/
+  
+  What to do:
+  1. Click "Add New..." → "Project"
+  2. Import your Vesper-AI repository
+  3. Set Root Directory to: frontend
+  4. Add environment variable:
+     - VITE_API_URL = your-railway-url-from-step-1
+  5. Click "Deploy"
+  
+  Result: You'll get a URL like:
+  https://vesper-ai.vercel.app
+  
+  🎉 This is your live app!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔑 GET API KEY
+
+  Go to: https://console.anthropic.com/
+  
+  What to do:
+  1. Sign up or log in
+  2. Click "API Keys"
+  3. Click "Create Key"
+  4. Copy the key (starts with sk-ant-...)
+  5. Use this in Railway as ANTHROPIC_API_KEY
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💰 COST
+
+  Railway:  $5 credit/month (enough for light use)
+  Vercel:   FREE forever
+  Total:    ~$0-10/month
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏱️ TIME
+
+  Total deployment time: ~10-15 minutes
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 MORE DETAILS
+
+  Full guide with screenshots: WHERE-TO-DEPLOY.md
+  Quick commands: QUICKSTART-DEPLOY.md
+  Architecture: ARCHITECTURE.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 SUMMARY
+
+  1. Railway (https://railway.app/) ← Deploy backend here
+  2. Vercel (https://vercel.com/) ← Deploy frontend here
+  3. Anthropic (https://console.anthropic.com/) ← Get API key
+
+That's it! You now know exactly where to go! 🚀
+
+╔══════════════════════════════════════════════════════════════════╗
+║                  Ready to deploy? Start at Step 1!               ║
+╚══════════════════════════════════════════════════════════════════╝

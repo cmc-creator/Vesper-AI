@@ -100,3 +100,7 @@ def add_feature(name: str):
 @app.get("/")
 def root():
     return {"message": "Vesper AI backend is running."}
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "service": "vesper-web-backend"}

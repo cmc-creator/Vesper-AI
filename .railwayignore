@@ -1,0 +1,73 @@
+# Vesper AI - Railway Ignore File
+
+# Frontend files (not needed for backend deployment)
+frontend/
+vesper-web/frontend/
+index.html
+*.html
+
+# Node modules
+node_modules/
+package.json
+package-lock.json
+
+# Environment files (set in Railway dashboard)
+.env
+.env.local
+*.env.backup
+
+# Build artifacts
+*.log
+backend.log
+backend_log.txt
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Scripts
+*.bat
+*.ps1
+setup.ps1
+start*.ps1
+generate-icons.ps1
+deploy.sh
+
+# Documentation
+*.md
+!requirements.txt
+
+# Vercel config (not needed for Railway)
+vercel.json
+.vercelignore
+
+# Git
+.git/
+.gitattributes
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/

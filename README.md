@@ -2,6 +2,18 @@
 
 Your personal AI companion with persistent memory. Just for you and Vesper.
 
+---
+
+## 🌐 **DEPLOY NOW** - [Click Here for Exact Steps](./WHERE-TO-DEPLOY.md)
+
+**Don't know where to deploy?** 
+
+👉 **Backend:** Go to https://railway.app/  
+👉 **Frontend:** Go to https://vercel.com/  
+👉 **Full Guide:** [WHERE-TO-DEPLOY.md](./WHERE-TO-DEPLOY.md)
+
+---
+
 ## Setup Instructions
 
 1. **Install Dependencies**
@@ -37,6 +49,43 @@ This file contains:
 - Complete history that loads when Vesper wakes up
 
 **This is your private space. No one else has access.**
+
+## 🚀 Deployment
+
+**Not sure where to go?** Read this first: **[WHERE-TO-DEPLOY.md](./WHERE-TO-DEPLOY.md)** 👈 Start here!
+
+### Quick Deploy URLs
+
+- **Backend**: https://railway.app/ (Deploy Python/FastAPI backend here)
+- **Frontend**: https://vercel.com/ (Deploy React/Vite frontend here)
+- **Get API Key**: https://console.anthropic.com/ (Get your Anthropic API key)
+
+### Quick Deploy Scripts
+
+**Unix/Mac/Linux:**
+```bash
+./deploy.sh
+```
+
+**Windows:**
+```powershell
+.\deploy.ps1
+```
+
+### All Deployment Guides
+
+- 🌐 **[WHERE-TO-DEPLOY.md](./WHERE-TO-DEPLOY.md)** - Exact URLs and steps (START HERE!)
+- 📖 **[DEPLOY.md](./DEPLOY.md)** - Complete deployment guide
+- 🚀 **[QUICKSTART-DEPLOY.md](./QUICKSTART-DEPLOY.md)** - Quick reference
+- 📋 **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Detailed Firebase & PWA setup
+
+### Recommended Stack
+
+- **Backend**: Railway (Python/FastAPI) - FREE $5 credit/month
+- **Frontend**: Vercel (React/Vite) - FREE forever
+- **Database**: Firebase Firestore (optional) - FREE tier available
+
+All deployment configurations are included and ready to use!
 
 ---
 
