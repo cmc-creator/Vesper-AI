@@ -649,17 +649,24 @@ function App() {
       top: '80px',
       left: '280px',
       zIndex: isDragging ? 1000 : 10,
-      cursor: isDragging ? 'grabbing' : 'grab',
+      cursor: 'grab',
       transform: `translate3d(${position.x + (transform?.x || 0)}px, ${position.y + (transform?.y || 0)}px, 0)`,
       transition: isDragging ? 'none' : 'transform 0.2s ease',
       width: 'calc(100vw - 320px)',
       maxWidth: '1000px',
       maxHeight: 'calc(100vh - 120px)',
       overflow: 'auto',
+      touchAction: 'none',
     };
 
     return (
-      <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      <div 
+        ref={setNodeRef} 
+        style={style} 
+        {...listeners} 
+        {...attributes}
+        data-draggable={id}
+      >
         {children}
       </div>
     );

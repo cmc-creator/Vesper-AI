@@ -532,33 +532,44 @@ canvas {
   position: relative;
 }
 
+/* Draggable board wrapper */
+[data-draggable] {
+  cursor: grab !important;
+}
+
+[data-draggable]:active {
+  cursor: grabbing !important;
+}
+
 /* Drag handle indicator */
 .board-header::before {
   content: '⋮⋮';
   position: absolute;
-  left: -8px;
+  left: -12px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 18px;
+  font-size: 16px;
   color: var(--accent);
-  opacity: 0.6;
+  opacity: 0.5;
   letter-spacing: 2px;
   cursor: grab;
-  transition: opacity 0.2s;
+  transition: all 0.2s;
+  user-select: none;
+  pointer-events: none;
 }
 
-.board-header:hover::before {
-  opacity: 1;
+[data-draggable] .board-header:hover::before {
+  opacity: 0.9;
   text-shadow: 0 0 10px var(--accent);
+  transform: translateY(-50%) scale(1.1);
 }
 
-/* Dragging state enhancements */
-.intel-board[draggable="true"] {
-  cursor: grab !important;
+/* Dragging visual feedback */
+[data-draggable] .intel-board {
+  transition: none !important;
 }
 
-.intel-board:active {
-  cursor: grabbing !important;
+[data-draggable]:active .intel-board {
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.9), 
               0 0 60px var(--accent), 
               inset 0 0 80px rgba(0, 255, 255, 0.08) !important;
