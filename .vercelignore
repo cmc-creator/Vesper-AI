@@ -5,4 +5,15 @@ node_modules
 .env.local
 backend/
 vesper-ai/
+vesper-web/
 *.log
+# Ignore root-level backend files (only deploy frontend)
+server.js
+package.json
+package-lock.json
+Dockerfile
+Procfile
+railway.json
+nixpacks.toml
+requirements.txt
+*.py
