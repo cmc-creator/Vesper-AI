@@ -185,9 +185,15 @@ function App() {
     return '';
   }, []);
 
+  const disableFirebaseAuth = useMemo(
+    () => String(import.meta.env.VITE_DISABLE_FIREBASE_AUTH).toLowerCase() === 'true',
+    []
+  );
+
   const chatBase = useMemo(() => {
     if (import.meta.env.VITE_CHAT_API_URL) return import.meta.env.VITE_CHAT_API_URL.replace(/\/$/, '');
-    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:3000';
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
+    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:8000';
     return '';
   }, []);
 
@@ -231,7 +237,7 @@ function App() {
   });
 
   useEffect(() => {
-    if (!isFirebaseConfigured || !auth || typeof signInAnonymously !== 'function') {
+    if (disableFirebaseAuth || !isFirebaseConfigured || !auth || typeof signInAnonymously !== 'function') {
       setUserId('local');
       return;
     }
@@ -301,7 +307,7 @@ function App() {
     setThinking(true);
     addLocalMessage('user', userMessage);
     try {
-      const response = await fetch(`${chatBase}/chat`, {
+      const response = await fetch(`${chatBase}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage }),
