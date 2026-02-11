@@ -24,7 +24,7 @@ class Thread(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     messages = Column(JSON, default=list)  # Store messages as JSON array
-    metadata = Column(JSON, default=dict)
+    meta_data = Column(JSON, default=dict)
 
 class Memory(Base):
     """Memory entries by category"""
@@ -37,7 +37,7 @@ class Memory(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     tags = Column(JSON, default=list)
-    metadata = Column(JSON, default=dict)
+    meta_data = Column(JSON, default=dict)
 
 class Task(Base):
     """Task management"""
@@ -52,7 +52,7 @@ class Task(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     tags = Column(JSON, default=list)
-    metadata = Column(JSON, default=dict)
+    meta_data = Column(JSON, default=dict)
 
 class ResearchItem(Base):
     """Research data"""
@@ -66,7 +66,7 @@ class ResearchItem(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     tags = Column(JSON, default=list)
-    metadata = Column(JSON, default=dict)
+    meta_data = Column(JSON, default=dict)
 
 class Pattern(Base):
     """Learned patterns from feedback"""
@@ -396,7 +396,7 @@ class PersistentMemoryDB:
             "created_at": thread.created_at.isoformat() if thread.created_at else None,
             "updated_at": thread.updated_at.isoformat() if thread.updated_at else None,
             "messages": thread.messages or [],
-            "metadata": thread.metadata or {}
+            "metadata": thread.meta_data or {}
         }
     
     def _memory_to_dict(self, memory: Memory) -> Dict:
@@ -409,7 +409,7 @@ class PersistentMemoryDB:
             "created_at": memory.created_at.isoformat() if memory.created_at else None,
             "updated_at": memory.updated_at.isoformat() if memory.updated_at else None,
             "tags": memory.tags or [],
-            "metadata": memory.metadata or {}
+            "metadata": memory.meta_data or {}
         }
     
     def _task_to_dict(self, task: Task) -> Dict:
@@ -424,7 +424,7 @@ class PersistentMemoryDB:
             "updated_at": task.updated_at.isoformat() if task.updated_at else None,
             "completed_at": task.completed_at.isoformat() if task.completed_at else None,
             "tags": task.tags or [],
-            "metadata": task.metadata or {}
+            "metadata": task.meta_data or {}
         }
     
     def _research_to_dict(self, research: ResearchItem) -> Dict:
@@ -438,7 +438,7 @@ class PersistentMemoryDB:
             "created_at": research.created_at.isoformat() if research.created_at else None,
             "updated_at": research.updated_at.isoformat() if research.updated_at else None,
             "tags": research.tags or [],
-            "metadata": research.metadata or {}
+            "metadata": research.meta_data or {}
         }
     
     def _pattern_to_dict(self, pattern: Pattern) -> Dict:
@@ -451,7 +451,7 @@ class PersistentMemoryDB:
             "occurrences": pattern.occurrences,
             "created_at": pattern.created_at.isoformat() if pattern.created_at else None,
             "last_seen": pattern.last_seen.isoformat() if pattern.last_seen else None,
-            "metadata": pattern.metadata or {}
+            "metadata": pattern.meta_data or {}
         }
 
 
