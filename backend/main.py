@@ -1947,7 +1947,7 @@ class ChatMessage(BaseModel):
 
 @app.post("/api/chat")
 def chat_with_vesper(chat: ChatMessage):
-    """Chat with Vesper using Anthropic Claude AI"""
+    """Chat with Vesper using Anthropic Claude AI with web search"""
     try:
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
@@ -1969,15 +1969,65 @@ def chat_with_vesper(chat: ChatMessage):
             "content": chat.message
         })
         
-        # Call Claude API
+        # Define web search tool
+        tools = [{
+            "name": "web_search",
+            "description": "Search the web using DuckDuckGo to find current information, facts, news, or any information not in your training data. Use this when you need real-time information or to answer questions about current events.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query to look up"
+                    }
+                },
+                "required": ["query"]
+            }
+        }]
+        
+        # Call Claude API with tools
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=1000,
+            max_tokens=2000,
             system=VESPER_CORE_DNA,
-            messages=messages
+            messages=messages,
+            tools=tools
         )
         
-        ai_response = response.content[0].text
+        # Handle tool use
+        while response.stop_reason == "tool_use":
+            tool_use = next(block for block in response.content if block.type == "tool_use")
+            
+            # Execute web search
+            if tool_use.name == "web_search":
+                search_query = tool_use.input["query"]
+                search_results = search_web(search_query)
+                
+                # Add tool result to messages
+                messages.append({"role": "assistant", "content": response.content})
+                messages.append({
+                    "role": "user",
+                    "content": [{
+                        "type": "tool_result",
+                        "tool_use_id": tool_use.id,
+                        "content": json.dumps(search_results)
+                    }]
+                })
+                
+                # Continue conversation
+                response = client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=2000,
+                    system=VESPER_CORE_DNA,
+                    messages=messages,
+                    tools=tools
+                )
+        
+        # Extract final text response
+        ai_response = next(
+            (block.text for block in response.content if hasattr(block, "text")),
+            "Sorry, I couldn't generate a response."
+        )
         
         # Save messages to Firebase (async, don't wait)
         try:
