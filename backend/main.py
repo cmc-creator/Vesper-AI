@@ -784,8 +784,8 @@ def delete_task(idx: int):
 
 # --- Web Search Endpoint ---
 @app.get("/api/search-web")
-def search_web(q: str):
-    """Web search using ddgs library (bypasses CAPTCHA)"""
+def search_web(q: str, use_browser: bool = False):
+    """Web search using DuckDuckGo ddgs library (browser mode removed due to CAPTCHAs)"""
     try:
         from ddgs import DDGS
         
@@ -802,10 +802,15 @@ def search_web(q: str):
         return {
             "query": q,
             "results": results,
-            "count": len(results)
+            "count": len(results),
+            "source": "duckduckgo"
         }
         
     except Exception as e:
+        # Log the actual error for debugging
+        error_msg = f"ddgs search failed: {type(e).__name__}: {str(e)}"
+        print(f"[SEARCH ERROR] {error_msg}")
+        
         # Fallback to Instant Answer API
         try:
             query = urllib.parse.quote(q)
@@ -818,10 +823,45 @@ def search_web(q: str):
                     "abstract": data.get("AbstractText", ""),
                     "abstract_source": data.get("AbstractSource", ""),
                     "abstract_url": data.get("AbstractURL", ""),
-                    "related_topics": [{"text": t.get("Text", ""), "url": t.get("FirstURL", "")} for t in data.get("RelatedTopics", [])[:5] if isinstance(t, dict)]
+                    "related_topics": [{"text": t.get("Text", ""), "url": t.get("FirstURL", "")} for t in data.get("RelatedTopics", [])[:5] if isinstance(t, dict)],
+                    "source": "duckduckgo_api",
+                    "ddgs_error": error_msg  # Include the error so we can see it
                 }
-        except:
-            return {"error": str(e), "query": q, "results": []}
+        except Exception as api_error:
+            return {"error": str(e), "api_error": str(api_error), "query": q, "results": [], "source": "error"}
+
+# --- Test DDGS Import (Debugging Endpoint) ---
+@app.get("/api/test-ddgs")
+async def test_ddgs():
+    """Test if ddgs library can be imported and used - helpful for debugging Railway deployment"""
+    try:
+        from ddgs import DDGS
+        
+        # Try a simple search
+        with DDGS() as ddgs:
+            results = list(ddgs.text("test", max_results=1))
+        
+        return {
+            "success": True,
+            "imported": True,
+            "results_count": len(results),
+            "sample_result": results[0] if results else None,
+            "message": "ddgs library working correctly!"
+        }
+    except ImportError as e:
+        return {
+            "success": False,
+            "imported": False,
+            "error": f"ImportError: {str(e)}",
+            "message": "ddgs library not installed or not importable"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "imported": True,
+            "error": f"{type(e).__name__}: {str(e)}",
+            "message": "ddgs imported but search failed"
+        }
 
 # --- Web Scraping Endpoint ---
 class ScrapeRequest(BaseModel):
@@ -2040,7 +2080,7 @@ def chat_with_vesper(chat: ChatMessage):
         tools = [
             {
                 "name": "web_search",
-                "description": "Search the web using DuckDuckGo to find current information, facts, news, or any information not in your training data. Use this when you need real-time information or to answer questions about current events.",
+                "description": "Search the web for current information, news, facts, or answers. Use when users ask about current events, weather, or need information from the internet.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
