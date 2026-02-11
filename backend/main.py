@@ -14,8 +14,6 @@ import urllib.parse
 import urllib.request
 import anthropic
 from dotenv import load_dotenv
-import requests
-from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import re
 from sqlalchemy import create_engine, text, inspect
@@ -787,35 +785,19 @@ def delete_task(idx: int):
 # --- Web Search Endpoint ---
 @app.get("/api/search-web")
 def search_web(q: str):
-    """Web search using DuckDuckGo HTML scraping for real results"""
+    """Web search using ddgs library (bypasses CAPTCHA)"""
     try:
-        query = urllib.parse.quote(q)
-        # Use DuckDuckGo HTML search instead of API for better results
-        url = f"https://html.duckduckgo.com/html/?q={query}"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
+        from ddgs import DDGS
         
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        
-        soup = BeautifulSoup(response.content, 'lxml')
-        
-        # Extract search results
         results = []
-        result_divs = soup.find_all('div', class_='result')
-        
-        for div in result_divs[:5]:  # Get top 5 results
-            title_elem = div.find('a', class_='result__a')
-            snippet_elem = div.find('a', class_='result__snippet')
-            
-            if title_elem:
-                result = {
-                    "title": title_elem.get_text(strip=True),
-                    "url": title_elem.get('href', ''),
-                    "snippet": snippet_elem.get_text(strip=True) if snippet_elem else ""
-                }
-                results.append(result)
+        with DDGS() as ddgs:
+            search_results = ddgs.text(q, max_results=5)
+            for result in search_results:
+                results.append({
+                    "title": result.get("title", ""),
+                    "url": result.get("href", ""),
+                    "snippet": result.get("body", "")
+                })
         
         return {
             "query": q,
@@ -826,6 +808,7 @@ def search_web(q: str):
     except Exception as e:
         # Fallback to Instant Answer API
         try:
+            query = urllib.parse.quote(q)
             url = f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1"
             req = urllib.request.Request(url, headers={'User-Agent': 'VesperAI/1.0'})
             with urllib.request.urlopen(req, timeout=5) as response:

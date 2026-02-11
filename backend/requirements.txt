@@ -2,3 +2,8 @@ fastapi
 uvicorn
 python-multipart
 pydantic
+anthropic
+python-dotenv
+ddgs
+sqlalchemy
+pandas
