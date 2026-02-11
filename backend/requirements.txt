@@ -3,7 +3,13 @@ uvicorn
 python-multipart
 pydantic
 anthropic
+openai
+google-generativeai
+ollama
 python-dotenv
 ddgs
 sqlalchemy
 pandas
+psycopg2-binary
+beautifulsoup4
+requests

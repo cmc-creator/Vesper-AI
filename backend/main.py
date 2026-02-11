@@ -17,6 +17,10 @@ from dotenv import load_dotenv
 from urllib.parse import urljoin, urlparse
 import re
 from sqlalchemy import create_engine, text, inspect
+
+# Import AI router and persistent memory
+from ai_router import router as ai_router, TaskType
+from memory_db import db as memory_db
 from sqlalchemy.pool import NullPool
 import pandas as pd
 import pymongo
@@ -49,6 +53,14 @@ import sys
 try:
     # Initialize FastAPI app immediately after imports
     app = FastAPI()
+    
+    # Log AI provider availability
+    print("\n=== Vesper AI Initialization ===")
+    stats = ai_router.get_stats()
+    print(f"AI Providers: {stats['providers']}")
+    print(f"Default Models: {stats['models']}")
+    print(f"Persistent Memory: {'PostgreSQL✅' if os.getenv('DATABASE_URL') else 'SQLite (dev)'}")
+    print("=== Ready to serve ===")
 except Exception as e:
     print('FATAL ERROR DURING FASTAPI STARTUP:', e, file=sys.stderr)
     import traceback
@@ -2021,56 +2033,38 @@ class ChatMessage(BaseModel):
     thread_id: Optional[str] = "default"
 
 @app.post("/api/chat")
-def chat_with_vesper(chat: ChatMessage):
-    """Chat with Vesper using Anthropic Claude AI with persistent memory and web search"""
+async def chat_with_vesper(chat: ChatMessage):
+    """Chat with Vesper using Multi-Model AI with persistent memory and web search"""
     try:
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            return {"response": "Hey babe, looks like my AI brain isn't connected yet. Need to add the ANTHROPIC_API_KEY to the .env file so I can actually think and respond properly!"}
+        # Check at least one AI provider is configured
+        if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+            return {"response": "Hey babe, looks like my AI brain isn't connected yet. Need to add at least one API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY) to the .env file so I can actually think and respond properly! Or install Ollama for free local AI."}
         
-        client = anthropic.Anthropic(api_key=api_key)
+        #Load thread history from DATABASE (persistent!)
+        thread = memory_db.get_thread(chat.thread_id)
+        if not thread:
+            # Create new thread
+            thread = memory_db.create_thread(
+                thread_id=chat.thread_id,
+                title=f"Conversation {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                metadata={"created_via": "chat_endpoint"}
+            )
         
-        # Load thread history for persistent context
-        threads = load_threads()
-        current_thread = next((t for t in threads if t['thread_id'] == chat.thread_id), None)
-        if not current_thread:
-            current_thread = {
-                'thread_id': chat.thread_id,
-                'messages': [],
-                'last_updated': datetime.datetime.now().isoformat()
-            }
-            threads.append(current_thread)
-        
-        # Load relevant memories from all categories
-        memory_context = []
-        for category in CATEGORIES:
-            cat_path = os.path.join(MEMORY_DIR, f"{category}.json")
-            if os.path.exists(cat_path):
-                with open(cat_path, 'r', encoding='utf-8') as f:
-                    try:
-                        memories = json.load(f)
-                        # Get last 3 memories from each category
-                        memory_context.extend(memories[-3:] if len(memories) > 3 else memories)
-                    except:
-                        pass
-        
-        # Build system prompt with memory context
+        # Load relevant memories from DATABASE (all categories)
+        all_memories = memory_db.get_memories(limit=30)
         memory_summary = "\n\n**RECENT MEMORIES:**\n"
-        for mem in memory_context[-10:]:  # Last 10 memories total
-            if isinstance(mem, dict):
-                content = mem.get('content', mem.get('text', str(mem)))
-                category = mem.get('category', 'general')
-                memory_summary += f"- [{category}] {content}\n"
+        for mem in all_memories[:10]:  # Last 10 memories
+            memory_summary += f"- [{mem['category']}] {mem['content']}\n"
         
         enhanced_system = VESPER_CORE_DNA + memory_summary
         
-        # Build conversation from thread history
-        messages = []
-        for msg in current_thread['messages'][-10:]:  # Last 10 messages
-            messages.append({
-                "role": "user" if msg.get("from") == "user" or msg.get("role") == "user" else "assistant",
-                "content": msg.get("text", msg.get("content", ""))
-            })
+        # Build conversation from thread history (from database!)
+        messages = [{"role": "system", "content": enhanced_system}]
+        for msg in thread['messages'][-10:]:  # Last 10 messages from database
+            role = msg.get("role", "user" if msg.get("from") == "user" else "assistant")
+            content = msg.get("content", msg.get("text", ""))
+            if role in ["user", "assistant"]:
+                messages.append({"role": role, "content": content})
         
         # Add current message
         messages.append({
@@ -2371,14 +2365,25 @@ def chat_with_vesper(chat: ChatMessage):
             }
         ]
         
-        # Call Claude API with tools
-        response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=2000,
-            system=enhanced_system,
+        # Call AI router (supports Claude, GPT, Gemini, Ollama)
+        # Determine task type from message
+        task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
+        
+        ai_response_obj = await ai_router.chat(
             messages=messages,
-            tools=tools
+            task_type=task_type,
+            tools=tools,
+            max_tokens=2000,
+            temperature=0.7
         )
+        
+        # Check for errors
+        if "error" in ai_response_obj:
+            return {"response": f"Oops, AI error: {ai_response_obj['error']}"}
+        
+        response = ai_response_obj.get("raw_response")
+        provider = ai_response_obj.get("provider", "unknown")
+        print(f"🤖 Using {provider} AI provider")
         
         # Handle tool use
         while response.stop_reason == "tool_use":
@@ -2492,37 +2497,33 @@ def chat_with_vesper(chat: ChatMessage):
                 tools=tools
             )
         
-        # Extract final text response
-        ai_response = next(
-            (block.text for block in response.content if hasattr(block, "text")),
-            "Sorry, I couldn't generate a response."
-        )
+        # Extract final text response (works for Claude, GPT, Gemini responses)
+        ai_response = ai_response_obj.get("content", "Sorry, I couldn't generate a response.")
         
-        # Save messages to thread
-        current_thread['messages'].append({
-            "from": "user",
-            "text": chat.message,
+        # Save messages to thread IN DATABASE (persistent!)
+        memory_db.add_message_to_thread(chat.thread_id, {
+            "role": "user",
+            "content": chat.message,
             "timestamp": datetime.datetime.now().isoformat()
         })
-        current_thread['messages'].append({
-            "from": "assistant",
-            "text": ai_response,
-            "timestamp": datetime.datetime.now().isoformat()
+        memory_db.add_message_to_thread(chat.thread_id, {
+            "role": "assistant",
+            "content": ai_response,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "provider": provider,  # Track which AI model responded
+            "usage": ai_response_obj.get("usage", {})
         })
-        current_thread['last_updated'] = datetime.datetime.now().isoformat()
-        save_threads(threads)
         
-        # Save messages to Firebase (async, don't wait)
-        try:
-            import asyncio
-            asyncio.create_task(firebase_utils.save_chat_message("default_user", "user", chat.message))
-            asyncio.create_task(firebase_utils.save_chat_message("default_user", "assistant", ai_response))
-        except Exception as e:
-            print(f"Firebase save failed (non-blocking): {e}")
+        # Log usage stats
+        usage = ai_response_obj.get("usage", {})
+        print(f"📊 Tokens: {usage.get('input_tokens', 0)} in, {usage.get('output_tokens', 0)} out")
         
         return {"response": ai_response}
     
     except Exception as e:
+        print(f"❌ Chat error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {"response": f"Shit, something went wrong: {str(e)}"}
 
 # ============================================================================
