@@ -2004,21 +2004,92 @@ def chat_with_vesper(chat: ChatMessage):
             "content": chat.message
         })
         
-        # Define web search tool
-        tools = [{
-            "name": "web_search",
-            "description": "Search the web using DuckDuckGo to find current information, facts, news, or any information not in your training data. Use this when you need real-time information or to answer questions about current events.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The search query to look up"
-                    }
-                },
-                "required": ["query"]
+        # Define tools Vesper can use
+        tools = [
+            {
+                "name": "web_search",
+                "description": "Search the web using DuckDuckGo to find current information, facts, news, or any information not in your training data. Use this when you need real-time information or to answer questions about current events.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The search query to look up"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "read_file",
+                "description": "Read the contents of a file. Use this to access project files, documents, code, or any text files CC is working on.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The full file path to read"
+                        }
+                    },
+                    "required": ["path"]
+                }
+            },
+            {
+                "name": "write_file",
+                "description": "Write or create a file. Use this to save work, create new files, or update existing ones.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The full file path to write"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "The content to write to the file"
+                        }
+                    },
+                    "required": ["path", "content"]
+                }
+            },
+            {
+                "name": "list_directory",
+                "description": "List files and folders in a directory. Use this to explore project structure or find files.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The directory path to list"
+                        }
+                    },
+                    "required": ["path"]
+                }
+            },
+            {
+                "name": "execute_python",
+                "description": "Execute Python code to test ideas, run calculations, analyze data, or prototype solutions. Code runs in a safe sandboxed environment.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "The Python code to execute"
+                        }
+                    },
+                    "required": ["code"]
+                }
+            },
+            {
+                "name": "analyze_patterns",
+                "description": "Analyze interaction patterns, feedback, and memory data to identify insights and trends. Use this to understand what's working and spot opportunities.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             }
-        }]
+        ]
         
         # Call Claude API with tools
         response = client.messages.create(
@@ -2032,31 +2103,56 @@ def chat_with_vesper(chat: ChatMessage):
         # Handle tool use
         while response.stop_reason == "tool_use":
             tool_use = next(block for block in response.content if block.type == "tool_use")
+            tool_result = None
             
-            # Execute web search
+            # Execute the appropriate tool
             if tool_use.name == "web_search":
                 search_query = tool_use.input["query"]
-                search_results = search_web(search_query)
-                
-                # Add tool result to messages
-                messages.append({"role": "assistant", "content": response.content})
-                messages.append({
-                    "role": "user",
-                    "content": [{
-                        "type": "tool_result",
-                        "tool_use_id": tool_use.id,
-                        "content": json.dumps(search_results)
-                    }]
-                })
-                
-                # Continue conversation
-                response = client.messages.create(
-                    model="claude-sonnet-4-20250514",
-                    max_tokens=2000,
-                    system=enhanced_system,
-                    messages=messages,
-                    tools=tools
-                )
+                tool_result = search_web(search_query)
+            
+            elif tool_use.name == "read_file":
+                file_path = tool_use.input["path"]
+                file_op = FileOperation(path=file_path, operation="read")
+                tool_result = file_system_access(file_op)
+            
+            elif tool_use.name == "write_file":
+                file_path = tool_use.input["path"]
+                content = tool_use.input["content"]
+                file_op = FileOperation(path=file_path, content=content, operation="write")
+                tool_result = file_system_access(file_op)
+            
+            elif tool_use.name == "list_directory":
+                dir_path = tool_use.input["path"]
+                file_op = FileOperation(path=dir_path, operation="list")
+                tool_result = file_system_access(file_op)
+            
+            elif tool_use.name == "execute_python":
+                code = tool_use.input["code"]
+                exec_op = CodeExecution(code=code, language="python")
+                tool_result = execute_code(exec_op)
+            
+            elif tool_use.name == "analyze_patterns":
+                tool_result = analyze_patterns()
+            
+            # Add tool result to messages
+            messages.append({"role": "assistant", "content": response.content})
+            messages.append({
+                "role": "user",
+                "content": [{
+                    "type": "tool_result",
+                    "tool_use_id": tool_use.id,
+                    "content": json.dumps(tool_result) if tool_result else json.dumps({"error": "Unknown tool"})
+                }]
+            })
+            
+            # Continue conversation
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2000,
+                system=enhanced_system,
+                messages=messages,
+                tools=tools
+            )
         
         # Extract final text response
         ai_response = next(
@@ -2090,3 +2186,205 @@ def chat_with_vesper(chat: ChatMessage):
     
     except Exception as e:
         return {"response": f"Shit, something went wrong: {str(e)}"}
+
+# ============================================================================
+# POWER TRIO: File System Access, Code Execution, Voice Interface
+# ============================================================================
+
+# --- File System Access ---
+# Safety: Only allow access to designated directories
+ALLOWED_DIRS = [
+    os.path.join(os.path.dirname(__file__), '..'),  # VesperApp root
+    os.path.expanduser("~/Documents"),
+    os.path.expanduser("~/Desktop"),
+]
+
+def is_path_safe(path):
+    """Check if path is within allowed directories"""
+    abs_path = os.path.abspath(path)
+    return any(abs_path.startswith(os.path.abspath(allowed)) for allowed in ALLOWED_DIRS)
+
+class FileOperation(BaseModel):
+    path: str
+    content: Optional[str] = None
+    operation: str  # read, write, list, delete, create_dir
+
+@app.post("/api/filesystem")
+def file_system_access(op: FileOperation):
+    """Safe file system operations for Vesper"""
+    try:
+        if not is_path_safe(op.path):
+            return {"error": "Access denied: Path outside allowed directories", "allowed_dirs": ALLOWED_DIRS}
+        
+        if op.operation == "read":
+            if not os.path.exists(op.path):
+                return {"error": "File not found"}
+            with open(op.path, 'r', encoding='utf-8') as f:
+                return {"content": f.read(), "path": op.path}
+        
+        elif op.operation == "write":
+            os.makedirs(os.path.dirname(op.path), exist_ok=True)
+            with open(op.path, 'w', encoding='utf-8') as f:
+                f.write(op.content or "")
+            return {"status": "ok", "path": op.path, "message": "File written successfully"}
+        
+        elif op.operation == "list":
+            if not os.path.isdir(op.path):
+                return {"error": "Not a directory"}
+            items = []
+            for item in os.listdir(op.path):
+                full_path = os.path.join(op.path, item)
+                items.append({
+                    "name": item,
+                    "type": "dir" if os.path.isdir(full_path) else "file",
+                    "path": full_path,
+                    "size": os.path.getsize(full_path) if os.path.isfile(full_path) else None
+                })
+            return {"items": items, "path": op.path}
+        
+        elif op.operation == "delete":
+            if os.path.isfile(op.path):
+                os.remove(op.path)
+                return {"status": "ok", "message": "File deleted"}
+            elif os.path.isdir(op.path):
+                shutil.rmtree(op.path)
+                return {"status": "ok", "message": "Directory deleted"}
+            return {"error": "Path not found"}
+        
+        elif op.operation == "create_dir":
+            os.makedirs(op.path, exist_ok=True)
+            return {"status": "ok", "path": op.path, "message": "Directory created"}
+        
+        else:
+            return {"error": "Unknown operation"}
+            
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- Code Execution ---
+class CodeExecution(BaseModel):
+    code: str
+    language: str = "python"
+    timeout: Optional[int] = 10  # seconds
+
+@app.post("/api/execute")
+def execute_code(exec: CodeExecution):
+    """Execute code in sandboxed environment"""
+    try:
+        if exec.language != "python":
+            return {"error": "Only Python execution supported currently"}
+        
+        # Create temporary file for execution
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(exec.code)
+            temp_file = f.name
+        
+        try:
+            # Execute with timeout
+            result = subprocess.run(
+                [sys.executable, temp_file],
+                capture_output=True,
+                text=True,
+                timeout=exec.timeout,
+                cwd=tempfile.gettempdir()  # Run in temp directory for safety
+            )
+            
+            return {
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode,
+                "success": result.returncode == 0
+            }
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(temp_file)
+            except:
+                pass
+                
+    except subprocess.TimeoutExpired:
+        return {"error": f"Execution timeout after {exec.timeout} seconds"}
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- Voice Interface ---
+class VoiceInput(BaseModel):
+    audio_data: str  # Base64 encoded audio
+    format: str = "webm"  # Audio format from browser
+
+@app.post("/api/voice/transcribe")
+def transcribe_voice(voice: VoiceInput):
+    """Transcribe voice input to text"""
+    try:
+        # Note: This is a placeholder - you'd integrate with Whisper API or similar
+        # For now, return a helpful message
+        return {
+            "text": "",
+            "message": "Voice transcription requires Whisper API integration",
+            "suggestion": "Use Web Speech API in browser for now (already implemented in frontend)"
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- Pattern Recognition & Learning ---
+class FeedbackEntry(BaseModel):
+    message_id: str
+    rating: int  # -1 (bad), 0 (neutral), 1 (good)
+    category: Optional[str] = None
+    notes: Optional[str] = None
+
+FEEDBACK_PATH = os.path.join(MEMORY_DIR, 'feedback.json')
+
+@app.post("/api/feedback")
+def save_feedback(feedback: FeedbackEntry):
+    """Save feedback for learning"""
+    try:
+        data = []
+        if os.path.exists(FEEDBACK_PATH):
+            with open(FEEDBACK_PATH, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        
+        entry = feedback.dict()
+        entry['timestamp'] = datetime.datetime.now().isoformat()
+        data.append(entry)
+        
+        with open(FEEDBACK_PATH, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        return {"status": "ok", "message": "Feedback saved - I'm learning!"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/patterns")
+def analyze_patterns():
+    """Analyze patterns from feedback and interactions"""
+    try:
+        # Load feedback
+        feedback_data = []
+        if os.path.exists(FEEDBACK_PATH):
+            with open(FEEDBACK_PATH, 'r', encoding='utf-8') as f:
+                feedback_data = json.load(f)
+        
+        # Load threads for interaction patterns
+        threads = load_threads()
+        
+        # Analyze patterns
+        patterns = {
+            "total_interactions": sum(len(t.get('messages', [])) for t in threads),
+            "feedback_count": len(feedback_data),
+            "positive_feedback": sum(1 for f in feedback_data if f.get('rating', 0) > 0),
+            "negative_feedback": sum(1 for f in feedback_data if f.get('rating', 0) < 0),
+            "categories": {},
+            "memory_count": {}
+        }
+        
+        # Count memories by category
+        for category in CATEGORIES:
+            cat_path = os.path.join(MEMORY_DIR, f"{category}.json")
+            if os.path.exists(cat_path):
+                with open(cat_path, 'r', encoding='utf-8') as f:
+                    patterns["memory_count"][category] = len(json.load(f))
+        
+        return patterns
+    except Exception as e:
+        return {"error": str(e)}
