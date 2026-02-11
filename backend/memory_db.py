@@ -133,7 +133,7 @@ class PersistentMemoryDB:
                 id=thread_id,
                 title=title,
                 messages=[],
-                metadata=metadata or {}
+                meta_data=metadata or {}
             )
             session.add(thread)
             session.commit()
@@ -202,7 +202,7 @@ class PersistentMemoryDB:
                 content=content,
                 importance=importance,
                 tags=tags or [],
-                metadata=metadata or {}
+                meta_data=metadata or {}
             )
             session.add(memory)
             session.commit()
