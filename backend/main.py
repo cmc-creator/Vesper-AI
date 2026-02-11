@@ -787,23 +787,58 @@ def delete_task(idx: int):
 # --- Web Search Endpoint ---
 @app.get("/api/search-web")
 def search_web(q: str):
-    """Simple web search using DuckDuckGo Instant Answer API"""
+    """Web search using DuckDuckGo HTML scraping for real results"""
     try:
         query = urllib.parse.quote(q)
-        url = f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1"
-        req = urllib.request.Request(url, headers={'User-Agent': 'VesperAI/1.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            results = {
-                "query": q,
-                "abstract": data.get("AbstractText", ""),
-                "abstract_source": data.get("AbstractSource", ""),
-                "abstract_url": data.get("AbstractURL", ""),
-                "related_topics": [{"text": t.get("Text", ""), "url": t.get("FirstURL", "")} for t in data.get("RelatedTopics", [])[:5] if isinstance(t, dict)]
-            }
-            return results
+        # Use DuckDuckGo HTML search instead of API for better results
+        url = f"https://html.duckduckgo.com/html/?q={query}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'lxml')
+        
+        # Extract search results
+        results = []
+        result_divs = soup.find_all('div', class_='result')
+        
+        for div in result_divs[:5]:  # Get top 5 results
+            title_elem = div.find('a', class_='result__a')
+            snippet_elem = div.find('a', class_='result__snippet')
+            
+            if title_elem:
+                result = {
+                    "title": title_elem.get_text(strip=True),
+                    "url": title_elem.get('href', ''),
+                    "snippet": snippet_elem.get_text(strip=True) if snippet_elem else ""
+                }
+                results.append(result)
+        
+        return {
+            "query": q,
+            "results": results,
+            "count": len(results)
+        }
+        
     except Exception as e:
-        return {"error": str(e), "query": q}
+        # Fallback to Instant Answer API
+        try:
+            url = f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1"
+            req = urllib.request.Request(url, headers={'User-Agent': 'VesperAI/1.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                return {
+                    "query": q,
+                    "abstract": data.get("AbstractText", ""),
+                    "abstract_source": data.get("AbstractSource", ""),
+                    "abstract_url": data.get("AbstractURL", ""),
+                    "related_topics": [{"text": t.get("Text", ""), "url": t.get("FirstURL", "")} for t in data.get("RelatedTopics", [])[:5] if isinstance(t, dict)]
+                }
+        except:
+            return {"error": str(e), "query": q, "results": []}
 
 # --- Web Scraping Endpoint ---
 class ScrapeRequest(BaseModel):
