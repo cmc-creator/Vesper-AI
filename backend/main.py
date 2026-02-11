@@ -545,6 +545,19 @@ CATEGORIES = [
     'notes'
 ]
 
+# Ensure all required directories exist
+def ensure_directories():
+    """Create all necessary directories on startup"""
+    os.makedirs(MEMORY_DIR, exist_ok=True)
+    for category in CATEGORIES:
+        cat_file = os.path.join(MEMORY_DIR, f"{category}.json")
+        if not os.path.exists(cat_file):
+            with open(cat_file, 'w', encoding='utf-8') as f:
+                json.dump([], f)
+
+# Create directories on startup
+ensure_directories()
+
 # --- Threaded Conversation Model ---
 class ThreadEntry(BaseModel):
     thread_id: str
@@ -563,6 +576,7 @@ def load_threads():
     return []
 
 def save_threads(threads):
+    os.makedirs(os.path.dirname(THREADS_PATH), exist_ok=True)
     with open(THREADS_PATH, 'w', encoding='utf-8') as f:
         json.dump(threads, f, ensure_ascii=False, indent=2)
 
