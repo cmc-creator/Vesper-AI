@@ -6,11 +6,40 @@ Routes tasks to the best model based on type and availability
 
 import os
 from typing import Dict, List, Optional, Any
-import anthropic
-from openai import OpenAI
-import google.generativeai as genai
-import ollama
 from enum import Enum
+
+# Import providers with graceful fallback
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    anthropic = None
+    ANTHROPIC_AVAILABLE = False
+    print("⚠️  anthropic not installed")
+
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OpenAI = None
+    OPENAI_AVAILABLE = False
+    print("⚠️  openai not installed")
+
+try:
+    import google.generativeai as genai
+    GOOGLE_AVAILABLE = True
+except ImportError:
+    genai = None
+    GOOGLE_AVAILABLE = False
+    print("⚠️  google-generativeai not installed")
+
+try:
+    import ollama
+    OLLAMA_AVAILABLE = True
+except ImportError:
+    ollama = None
+    OLLAMA_AVAILABLE = False
+    print("⚠️  ollama not installed")
 
 class TaskType(Enum):
     CODE = "code"
@@ -36,30 +65,36 @@ class AIRouter:
         self.ollama_available = False
         
         # Configure Anthropic (Claude)
-        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-        if anthropic_key:
-            self.anthropic_client = anthropic.Anthropic(api_key=anthropic_key)
-            print("✅ Anthropic Claude configured")
+        if ANTHROPIC_AVAILABLE:
+            anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+            if anthropic_key:
+                self.anthropic_client = anthropic.Anthropic(api_key=anthropic_key)
+                print("✅ Anthropic Claude configured")
         
         # Configure OpenAI
-        openai_key = os.getenv("OPENAI_API_KEY")
-        if openai_key:
-            self.openai_client = OpenAI(api_key=openai_key)
-            print("✅ OpenAI GPT configured")
+        if OPENAI_AVAILABLE:
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if openai_key:
+                self.openai_client = OpenAI(api_key=openai_key)
+                print("✅ OpenAI GPT configured")
         
         # Configure Google Gemini
-        google_key = os.getenv("GOOGLE_API_KEY")
-        if google_key:
-            genai.configure(api_key=google_key)
-            self.google_configured = True
-            print("✅ Google Gemini configured")
+        if GOOGLE_AVAILABLE:
+            google_key = os.getenv("GOOGLE_API_KEY")
+            if google_key:
+                genai.configure(api_key=google_key)
+                self.google_configured = True
+                print("✅ Google Gemini configured")
         
         # Check Ollama availability
-        try:
-            ollama.list()
-            self.ollama_available = True
-            print("✅ Ollama (local) available")
-        except Exception:
+        if OLLAMA_AVAILABLE:
+            try:
+                ollama.list()
+                self.ollama_available = True
+                print("✅ Ollama (local) available")
+            except Exception:
+                print("⚠️  Ollama not available (install: https://ollama.ai)")
+        else:
             print("⚠️  Ollama not available (install: https://ollama.ai)")
         
         # Routing strategy: which provider to use for each task
