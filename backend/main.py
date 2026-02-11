@@ -19,8 +19,8 @@ import re
 from sqlalchemy import create_engine, text, inspect
 
 # Import AI router and persistent memory
-from ai_router import router as ai_router, TaskType
-from memory_db import db as memory_db
+from backend.ai_router import router as ai_router, TaskType
+from backend.memory_db import db as memory_db
 from sqlalchemy.pool import NullPool
 import pandas as pd
 import pymongo
