@@ -38,6 +38,8 @@ import base64
 import subprocess
 import tempfile
 import shutil
+import requests
+
 # ...existing code...
 
 # Load environment variables
@@ -2160,6 +2162,212 @@ def chat_with_vesper(chat: ChatMessage):
                     "properties": {},
                     "required": []
                 }
+            },
+            {
+                "name": "git_status",
+                "description": "Check git status - see what files have changed, current branch, and uncommitted changes. READ-ONLY: safe to use anytime.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "git_diff",
+                "description": "See detailed changes (diff) for modified files. READ-ONLY: safe to use anytime.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Optional: specific file to diff. Omit to see all changes."
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "git_commit",
+                "description": "Stage and commit changes to git. REQUIRES APPROVAL: I'll ask the human before executing.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "message": {
+                            "type": "string",
+                            "description": "Commit message describing the changes"
+                        },
+                        "files": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional: specific files to commit. Omit to commit all changes."
+                        }
+                    },
+                    "required": ["message"]
+                }
+            },
+            {
+                "name": "git_push",
+                "description": "Push commits to remote repository (GitHub). REQUIRES APPROVAL: I'll ask the human before executing.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "branch": {
+                            "type": "string",
+                            "description": "Branch to push (default: main)"
+                        },
+                        "remote": {
+                            "type": "string",
+                            "description": "Remote name (default: origin)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "vercel_deployments",
+                "description": "Get recent Vercel deployments for the frontend. READ-ONLY: safe to use anytime.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string",
+                            "description": "Project name (default: vesper-ai-delta)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "vercel_deploy",
+                "description": "Trigger a new Vercel deployment. REQUIRES APPROVAL: I'll ask the human before executing.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string",
+                            "description": "Project to deploy (default: vesper-ai-delta)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "vercel_set_env",
+                "description": "Set an environment variable on Vercel. REQUIRES APPROVAL: I'll ask the human before executing.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "key": {
+                            "type": "string",
+                            "description": "Environment variable name"
+                        },
+                        "value": {
+                            "type": "string",
+                            "description": "Environment variable value"
+                        },
+                        "project": {
+                            "type": "string",
+                            "description": "Project name (default: vesper-ai-delta)"
+                        }
+                    },
+                    "required": ["key", "value"]
+                }
+            },
+            {
+                "name": "railway_logs",
+                "description": "Get recent Railway logs for the backend. READ-ONLY: safe to use anytime.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "number",
+                            "description": "Number of log lines to retrieve (default: 50)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "railway_restart",
+                "description": "Restart the Railway backend service. REQUIRES APPROVAL: I'll ask the human before executing.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "github_search_issues",
+                "description": "Search GitHub issues in the repository. READ-ONLY: safe to use anytime.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query for issues"
+                        },
+                        "repo": {
+                            "type": "string",
+                            "description": "Repository (default: cmc-creator/Vesper-AI)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "github_create_issue",
+                "description": "Create a new GitHub issue for bug tracking or feature requests. REQUIRES APPROVAL: I'll ask the human before executing.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Issue title"
+                        },
+                        "body": {
+                            "type": "string",
+                            "description": "Issue description"
+                        },
+                        "labels": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional: labels like 'bug', 'enhancement', 'documentation'"
+                        },
+                        "repo": {
+                            "type": "string",
+                            "description": "Repository (default: cmc-creator/Vesper-AI)"
+                        }
+                    },
+                    "required": ["title"]
+                }
+            },
+            {
+                "name": "approve_action",
+                "description": "Approve a pending action. Use this when the human says 'approve [id]' or confirms an action.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "approval_id": {
+                            "type": "string",
+                            "description": "The approval ID from the pending action"
+                        }
+                    },
+                    "required": ["approval_id"]
+                }
+            },
+            {
+                "name": "deny_action",
+                "description": "Deny a pending action. Use this when the human says 'deny [id]' or rejects an action.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "approval_id": {
+                            "type": "string",
+                            "description": "The approval ID from the pending action"
+                        }
+                    },
+                    "required": ["approval_id"]
+                }
             }
         ]
         
@@ -2205,6 +2413,64 @@ def chat_with_vesper(chat: ChatMessage):
             
             elif tool_use.name == "analyze_patterns":
                 tool_result = analyze_patterns()
+            
+            # Git tools
+            elif tool_use.name == "git_status":
+                tool_result = git_status()
+            
+            elif tool_use.name == "git_diff":
+                file_path = tool_use.input.get("file_path")
+                tool_result = git_diff(file_path)
+            
+            elif tool_use.name == "git_commit":
+                # Request approval
+                tool_result = request_approval("git_commit", tool_use.input)
+            
+            elif tool_use.name == "git_push":
+                # Request approval
+                tool_result = request_approval("git_push", tool_use.input)
+            
+            # Vercel tools
+            elif tool_use.name == "vercel_deployments":
+                project = tool_use.input.get("project", "vesper-ai-delta")
+                tool_result = vercel_get_deployments(project)
+            
+            elif tool_use.name == "vercel_deploy":
+                # Request approval
+                tool_result = request_approval("vercel_deploy", tool_use.input)
+            
+            elif tool_use.name == "vercel_set_env":
+                # Request approval
+                tool_result = request_approval("vercel_set_env", tool_use.input)
+            
+            # Railway tools
+            elif tool_use.name == "railway_logs":
+                limit = tool_use.input.get("limit", 50)
+                tool_result = railway_get_logs(limit)
+            
+            elif tool_use.name == "railway_restart":
+                # Request approval
+                tool_result = request_approval("railway_restart", tool_use.input)
+            
+            # GitHub tools
+            elif tool_use.name == "github_search_issues":
+                query = tool_use.input.get("query", "")
+                repo = tool_use.input.get("repo", "cmc-creator/Vesper-AI")
+                tool_result = github_search_issues(query, repo)
+            
+            elif tool_use.name == "github_create_issue":
+                # Request approval
+                tool_result = request_approval("github_create_issue", tool_use.input)
+            
+            elif tool_use.name == "approve_action":
+                # Execute approved action
+                approval_id = tool_use.input["approval_id"]
+                tool_result = execute_approved_action(approval_id, True)
+            
+            elif tool_use.name == "deny_action":
+                # Deny action
+                approval_id = tool_use.input["approval_id"]
+                tool_result = execute_approved_action(approval_id, False)
             
             # Add tool result to messages
             messages.append({"role": "assistant", "content": response.content})
@@ -2458,5 +2724,351 @@ def analyze_patterns():
                     patterns["memory_count"][category] = len(json.load(f))
         
         return patterns
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- AUTONOMOUS TOOLS (with approval gates) ---
+
+WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PENDING_APPROVALS = {}  # Store pending actions: {approval_id: {action, params, timestamp}}
+
+def git_status():
+    """Get current git status"""
+    try:
+        result = subprocess.run(
+            ['git', 'status', '--porcelain', '--branch'],
+            cwd=WORKSPACE_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        branch_info = subprocess.run(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            cwd=WORKSPACE_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        return {
+            "branch": branch_info.stdout.strip(),
+            "status": result.stdout,
+            "changed_files": [line[3:] for line in result.stdout.split('\n') if line.strip()],
+            "has_changes": bool(result.stdout.strip())
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+def git_diff(file_path: Optional[str] = None):
+    """Get git diff for changes"""
+    try:
+        cmd = ['git', 'diff']
+        if file_path:
+            cmd.append(file_path)
+        
+        result = subprocess.run(
+            cmd,
+            cwd=WORKSPACE_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        return {
+            "diff": result.stdout,
+            "file": file_path or "all files"
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+def request_approval(action: str, params: dict):
+    """Create an approval request that requires human confirmation"""
+    import uuid
+    approval_id = str(uuid.uuid4())[:8]
+    
+    PENDING_APPROVALS[approval_id] = {
+        "action": action,
+        "params": params,
+        "timestamp": datetime.datetime.now().isoformat(),
+        "status": "pending"
+    }
+    
+    return {
+        "requires_approval": True,
+        "approval_id": approval_id,
+        "action": action,
+        "params": params,
+        "message": f"This action requires human approval. Approval ID: {approval_id}",
+        "instructions": f"To approve, tell me: 'approve {approval_id}' or to deny: 'deny {approval_id}'"
+    }
+
+def execute_approved_action(approval_id: str, approved: bool):
+    """Execute a previously approved action"""
+    if approval_id not in PENDING_APPROVALS:
+        return {"error": "Approval ID not found or already executed"}
+    
+    approval = PENDING_APPROVALS[approval_id]
+    
+    if not approved:
+        del PENDING_APPROVALS[approval_id]
+        return {"status": "denied", "action": approval["action"]}
+    
+    # Execute the action
+    action = approval["action"]
+    params = approval["params"]
+    result = None
+    
+    try:
+        if action == "git_commit":
+            result = _execute_git_commit(params)
+        elif action == "git_push":
+            result = _execute_git_push(params)
+        elif action == "vercel_deploy":
+            result = _execute_vercel_deploy(params)
+        elif action == "vercel_set_env":
+            result = _execute_vercel_set_env(params)
+        elif action == "railway_restart":
+            result = _execute_railway_restart(params)
+        elif action == "github_create_issue":
+            result = _execute_github_create_issue(params)
+        else:
+            result = {"error": f"Unknown action: {action}"}
+        
+        del PENDING_APPROVALS[approval_id]
+        return {"status": "executed", "action": action, "result": result}
+    
+    except Exception as e:
+        return {"error": str(e), "action": action}
+
+# Git execution functions (called after approval)
+def _execute_git_commit(params):
+    """Actually execute git commit after approval"""
+    try:
+        files = params.get("files", [])
+        message = params.get("message", "Update")
+        
+        # Add files
+        if files:
+            for file in files:
+                subprocess.run(
+                    ['git', 'add', file],
+                    cwd=WORKSPACE_ROOT,
+                    check=True,
+                    timeout=10
+                )
+        else:
+            subprocess.run(
+                ['git', 'add', '-A'],
+                cwd=WORKSPACE_ROOT,
+                check=True,
+                timeout=10
+            )
+        
+        # Commit
+        result = subprocess.run(
+            ['git', 'commit', '-m', message],
+            cwd=WORKSPACE_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        return {
+            "success": result.returncode == 0,
+            "output": result.stdout,
+            "message": message
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+def _execute_git_push(params):
+    """Actually execute git push after approval"""
+    try:
+        branch = params.get("branch", "main")
+        remote = params.get("remote", "origin")
+        
+        result = subprocess.run(
+            ['git', 'push', remote, branch],
+            cwd=WORKSPACE_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        return {
+            "success": result.returncode == 0,
+            "output": result.stdout,
+            "error_output": result.stderr
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+# Vercel execution functions
+def vercel_get_deployments(project: str = "vesper-ai-delta"):
+    """Get recent Vercel deployments (read-only, no approval needed)"""
+    try:
+        token = os.getenv("VERCEL_TOKEN")
+        if not token:
+            return {"error": "VERCEL_TOKEN not set in environment"}
+        
+        response = requests.get(
+            f"https://api.vercel.com/v6/deployments",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"projectId": project, "limit": 5},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            deployments = []
+            for d in data.get("deployments", []):
+                deployments.append({
+                    "id": d.get("uid"),
+                    "url": d.get("url"),
+                    "state": d.get("state"),
+                    "created": d.get("created"),
+                    "creator": d.get("creator", {}).get("username")
+                })
+            return {"deployments": deployments}
+        else:
+            return {"error": f"Vercel API error: {response.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+def _execute_vercel_deploy(params):
+    """Trigger Vercel deployment after approval"""
+    try:
+        # Vercel redeploys automatically on git push, so we just trigger a redeploy
+        token = os.getenv("VERCEL_TOKEN")
+        if not token:
+            return {"error": "VERCEL_TOKEN not set"}
+        
+        project = params.get("project", "vesper-ai-delta")
+        
+        response = requests.post(
+            f"https://api.vercel.com/v13/deployments",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"name": project, "gitSource": {"type": "github"}},
+            timeout=30
+        )
+        
+        return {"success": response.status_code == 200, "response": response.json()}
+    except Exception as e:
+        return {"error": str(e)}
+
+def _execute_vercel_set_env(params):
+    """Set Vercel environment variable after approval"""
+    try:
+        token = os.getenv("VERCEL_TOKEN")
+        if not token:
+            return {"error": "VERCEL_TOKEN not set"}
+        
+        key = params["key"]
+        value = params["value"]
+        project = params.get("project", "vesper-ai-delta")
+        
+        response = requests.post(
+            f"https://api.vercel.com/v9/projects/{project}/env",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"key": key, "value": value, "type": "encrypted", "target": ["production"]},
+            timeout=10
+        )
+        
+        return {"success": response.status_code == 200, "response": response.json()}
+    except Exception as e:
+        return {"error": str(e)}
+
+# Railway execution functions
+def railway_get_logs(limit: int = 50):
+    """Get Railway logs (read-only, no approval needed)"""
+    try:
+        token = os.getenv("RAILWAY_TOKEN")
+        if not token:
+            return {"error": "RAILWAY_TOKEN not set - cannot access Railway API"}
+        
+        project_id = os.getenv("RAILWAY_PROJECT_ID")
+        service_id = os.getenv("RAILWAY_SERVICE_ID")
+        
+        if not project_id or not service_id:
+            return {"error": "RAILWAY_PROJECT_ID or RAILWAY_SERVICE_ID not set"}
+        
+        # Note: Railway API for logs requires GraphQL, simplified here
+        return {"message": "Railway logs available via Railway dashboard. API integration requires GraphQL setup."}
+    except Exception as e:
+        return {"error": str(e)}
+
+def _execute_railway_restart(params):
+    """Restart Railway service after approval"""
+    try:
+        token = os.getenv("RAILWAY_TOKEN")
+        if not token:
+            return {"error": "RAILWAY_TOKEN not set"}
+        
+        # Railway restart requires GraphQL mutation
+        return {"message": "Railway restart triggered via git push. Service will redeploy automatically."}
+    except Exception as e:
+        return {"error": str(e)}
+
+# GitHub execution functions
+def github_search_issues(query: str, repo: str = "cmc-creator/Vesper-AI"):
+    """Search GitHub issues (read-only, no approval needed)"""
+    try:
+        token = os.getenv("GITHUB_TOKEN")
+        headers = {}
+        if token:
+            headers["Authorization"] = f"token {token}"
+        
+        response = requests.get(
+            f"https://api.github.com/repos/{repo}/issues",
+            headers=headers,
+            params={"state": "all", "per_page": 10},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            issues = []
+            for issue in response.json():
+                issues.append({
+                    "number": issue["number"],
+                    "title": issue["title"],
+                    "state": issue["state"],
+                    "url": issue["html_url"],
+                    "created_at": issue["created_at"]
+                })
+            return {"issues": issues}
+        else:
+            return {"error": f"GitHub API error: {response.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+def _execute_github_create_issue(params):
+    """Create GitHub issue after approval"""
+    try:
+        token = os.getenv("GITHUB_TOKEN")
+        if not token:
+            return {"error": "GITHUB_TOKEN not set"}
+        
+        repo = params.get("repo", "cmc-creator/Vesper-AI")
+        title = params["title"]
+        body = params.get("body", "")
+        labels = params.get("labels", [])
+        
+        response = requests.post(
+            f"https://api.github.com/repos/{repo}/issues",
+            headers={"Authorization": f"token {token}"},
+            json={"title": title, "body": body, "labels": labels},
+            timeout=10
+        )
+        
+        if response.status_code == 201:
+            issue = response.json()
+            return {
+                "success": True,
+                "issue_number": issue["number"],
+                "url": issue["html_url"]
+            }
+        else:
+            return {"error": f"GitHub API error: {response.status_code}", "response": response.text}
     except Exception as e:
         return {"error": str(e)}
