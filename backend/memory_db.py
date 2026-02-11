@@ -79,7 +79,7 @@ class Pattern(Base):
     occurrences = Column(Integer, default=1)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     last_seen = Column(DateTime, default=datetime.datetime.utcnow)
-    metadata = Column(JSON, default=dict)
+    meta_data = Column(JSON, default=dict)
 
 
 class PersistentMemoryDB:
