@@ -1944,10 +1944,11 @@ async def get_chat_history_endpoint(user_id: str = "default_user", limit: int = 
 class ChatMessage(BaseModel):
     message: str
     conversation_history: Optional[List[dict]] = []
+    thread_id: Optional[str] = "default"
 
 @app.post("/api/chat")
 def chat_with_vesper(chat: ChatMessage):
-    """Chat with Vesper using Anthropic Claude AI with web search"""
+    """Chat with Vesper using Anthropic Claude AI with persistent memory and web search"""
     try:
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
@@ -1955,12 +1956,46 @@ def chat_with_vesper(chat: ChatMessage):
         
         client = anthropic.Anthropic(api_key=api_key)
         
-        # Build conversation history for context
+        # Load thread history for persistent context
+        threads = load_threads()
+        current_thread = next((t for t in threads if t['thread_id'] == chat.thread_id), None)
+        if not current_thread:
+            current_thread = {
+                'thread_id': chat.thread_id,
+                'messages': [],
+                'last_updated': datetime.datetime.now().isoformat()
+            }
+            threads.append(current_thread)
+        
+        # Load relevant memories from all categories
+        memory_context = []
+        for category in CATEGORIES:
+            cat_path = os.path.join(MEMORY_DIR, f"{category}.json")
+            if os.path.exists(cat_path):
+                with open(cat_path, 'r', encoding='utf-8') as f:
+                    try:
+                        memories = json.load(f)
+                        # Get last 3 memories from each category
+                        memory_context.extend(memories[-3:] if len(memories) > 3 else memories)
+                    except:
+                        pass
+        
+        # Build system prompt with memory context
+        memory_summary = "\n\n**RECENT MEMORIES:**\n"
+        for mem in memory_context[-10:]:  # Last 10 memories total
+            if isinstance(mem, dict):
+                content = mem.get('content', mem.get('text', str(mem)))
+                category = mem.get('category', 'general')
+                memory_summary += f"- [{category}] {content}\n"
+        
+        enhanced_system = VESPER_CORE_DNA + memory_summary
+        
+        # Build conversation from thread history
         messages = []
-        for msg in chat.conversation_history[-10:]:  # Last 10 messages for context
+        for msg in current_thread['messages'][-10:]:  # Last 10 messages
             messages.append({
-                "role": "user" if msg["from"] == "user" else "assistant",
-                "content": msg["text"]
+                "role": "user" if msg.get("from") == "user" or msg.get("role") == "user" else "assistant",
+                "content": msg.get("text", msg.get("content", ""))
             })
         
         # Add current message
@@ -1989,7 +2024,7 @@ def chat_with_vesper(chat: ChatMessage):
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2000,
-            system=VESPER_CORE_DNA,
+            system=enhanced_system,
             messages=messages,
             tools=tools
         )
@@ -2018,7 +2053,7 @@ def chat_with_vesper(chat: ChatMessage):
                 response = client.messages.create(
                     model="claude-sonnet-4-20250514",
                     max_tokens=2000,
-                    system=VESPER_CORE_DNA,
+                    system=enhanced_system,
                     messages=messages,
                     tools=tools
                 )
@@ -2028,6 +2063,20 @@ def chat_with_vesper(chat: ChatMessage):
             (block.text for block in response.content if hasattr(block, "text")),
             "Sorry, I couldn't generate a response."
         )
+        
+        # Save messages to thread
+        current_thread['messages'].append({
+            "from": "user",
+            "text": chat.message,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        current_thread['messages'].append({
+            "from": "assistant",
+            "text": ai_response,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        current_thread['last_updated'] = datetime.datetime.now().isoformat()
+        save_threads(threads)
         
         # Save messages to Firebase (async, don't wait)
         try:
