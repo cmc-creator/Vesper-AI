@@ -7,6 +7,7 @@ python-dotenv
 python-multipart
 requests
 beautifulsoup4
+ddgs
 sqlalchemy
 pymongo
 mysql-connector-python
