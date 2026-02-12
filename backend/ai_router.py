@@ -119,78 +119,47 @@ class AIRouter:
     
     def _setup_routing_strategy(self):
         """Setup routing strategy based on environment"""
-        # Routing strategy: which provider to use for each task
-        # Prioritize Ollama for local, Gemini for cloud
-        if self.is_local:
-            # LOCAL: Ollama first (free, private, fast)
-            self.routing_strategy = {
-                TaskType.CODE: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.ANTHROPIC,  # Claude fallback for code
-                    ModelProvider.OPENAI,
-                    ModelProvider.GOOGLE
-                ],
-                TaskType.CHAT: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.GOOGLE,     # Gemini fallback
-                    ModelProvider.OPENAI,
-                    ModelProvider.ANTHROPIC
-                ],
-                TaskType.SEARCH: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.GOOGLE,     # Gemini has grounding
-                    ModelProvider.OPENAI,
-                    ModelProvider.ANTHROPIC
-                ],
-                TaskType.ANALYSIS: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.OPENAI,     # GPT-4o for complex analysis
-                    ModelProvider.ANTHROPIC,
-                    ModelProvider.GOOGLE
-                ],
-                TaskType.CREATIVE: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.ANTHROPIC,  # Claude creative fallback
-                    ModelProvider.OPENAI,
-                    ModelProvider.GOOGLE
-                ]
-            }
-        else:
-            # PRODUCTION/CLOUD: Gemini first (free & fast), Ollama not available
-            self.routing_strategy = {
-                TaskType.CODE: [
-                    ModelProvider.ANTHROPIC,  # Claude best for code
-                    ModelProvider.GOOGLE,     # Gemini fallback
-                    ModelProvider.OPENAI
-                ],
-                TaskType.CHAT: [
-                    ModelProvider.GOOGLE,     # Gemini Flash free & fast
-                    ModelProvider.OPENAI,
-                    ModelProvider.ANTHROPIC
-                ],
-                TaskType.SEARCH: [
-                    ModelProvider.GOOGLE,     # Gemini has grounding
-                    ModelProvider.OPENAI,
-                    ModelProvider.ANTHROPIC
-                ],
-                TaskType.ANALYSIS: [
-                    ModelProvider.OPENAI,     # GPT-4o great for analysis
-                    ModelProvider.ANTHROPIC,
-                    ModelProvider.GOOGLE
-                ],
-                TaskType.CREATIVE: [
-                    ModelProvider.ANTHROPIC,  # Claude creative
-                    ModelProvider.OPENAI,
-                    ModelProvider.GOOGLE
-                ]
-            }
+        # Unified routing: prioritize cloud AI providers (Claude, Gemini, OpenAI)
+        # Ollama is fallback only
+        self.routing_strategy = {
+            TaskType.CODE: [
+                ModelProvider.ANTHROPIC,  # Claude best for code
+                ModelProvider.OPENAI,
+                ModelProvider.GOOGLE,
+                ModelProvider.OLLAMA      # Fallback
+            ],
+            TaskType.CHAT: [
+                ModelProvider.GOOGLE,     # Gemini Flash free & fast
+                ModelProvider.OPENAI,
+                ModelProvider.ANTHROPIC,
+                ModelProvider.OLLAMA      # Fallback
+            ],
+            TaskType.SEARCH: [
+                ModelProvider.GOOGLE,     # Gemini has grounding
+                ModelProvider.OPENAI,
+                ModelProvider.ANTHROPIC,
+                ModelProvider.OLLAMA      # Fallback
+            ],
+            TaskType.ANALYSIS: [
+                ModelProvider.OPENAI,     # GPT-4o great for analysis
+                ModelProvider.ANTHROPIC,
+                ModelProvider.GOOGLE,
+                ModelProvider.OLLAMA      # Fallback
+            ],
+            TaskType.CREATIVE: [
+                ModelProvider.ANTHROPIC,  # Claude creative
+                ModelProvider.OPENAI,
+                ModelProvider.GOOGLE,
+                ModelProvider.OLLAMA      # Fallback
+            ]
+        }
         
         # Model selection per provider
         self.models = {
             ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
             ModelProvider.OPENAI: "gpt-4o-mini",  # Fast & cheap
-            ModelProvider.GOOGLE: "gemini-1.5-flash",  # Stable free tier model!
-            ModelProvider.OLLAMA: "llama3.2:latest"  # Available local model
+            ModelProvider.GOOGLE: "gemini-2.0-flash-exp",  # Free tier
+            ModelProvider.OLLAMA: "llama3.1:70b"  # Local fallback
         }
     
     def get_available_provider(self, task_type: TaskType) -> Optional[ModelProvider]:
