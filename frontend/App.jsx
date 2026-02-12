@@ -23,6 +23,7 @@ import {
   Close as CloseIcon,
   Add as AddIcon,
   Edit as EditIcon,
+  Download as DownloadIcon,
   PushPin as PinIcon,
   PushPinOutlined as PinOutlinedIcon,
   HistoryRounded,
@@ -137,6 +138,9 @@ function App() {
   const [currentThreadTitle, setCurrentThreadTitle] = useState('');
   const [editingThreadId, setEditingThreadId] = useState(null);
   const [editingThreadTitle, setEditingThreadTitle] = useState('');
+  const [threadSearchQuery, setThreadSearchQuery] = useState('');
+  const [exportMenuAnchor, setExportMenuAnchor] = useState(null);
+  const [exportThreadData, setExportThreadData] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [themeMenuAnchor, setThemeMenuAnchor] = useState(null);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -608,6 +612,85 @@ function App() {
     }
   };
 
+  // Filter threads based on search query
+  const filteredThreads = useMemo(() => {
+    if (!threadSearchQuery.trim()) return threads;
+    const query = threadSearchQuery.toLowerCase();
+    return threads.filter(thread => 
+      thread.title.toLowerCase().includes(query) ||
+      (thread.message_count && thread.message_count.toString().includes(query))
+    );
+  }, [threads, threadSearchQuery]);
+
+  const downloadThreadMD = async (threadId, title) => {
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase}/api/threads/${threadId}`);
+      const data = await res.json();
+      if (!data || !data.messages) return;
+      
+      let markdown = `# ${title}\n\n`;
+      markdown += `*Exported: ${new Date().toLocaleString()}*\n\n`;
+      markdown += `---\n\n`;
+      
+      data.messages.forEach((msg, idx) => {
+        const role = msg.role === 'user' ? '**You**' : '**Vesper**';
+        const time = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : '';
+        markdown += `### ${role} ${time ? `_(${time})_` : ''}\n\n`;
+        markdown += `${msg.content}\n\n`;
+        if (idx < data.messages.length - 1) markdown += `---\n\n`;
+      });
+      
+      const blob = new Blob([markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setToast('Exported as Markdown');
+    } catch (error) {
+      console.error('Export failed:', error);
+      setToast('Export failed');
+    }
+  };
+
+  const downloadThreadJSON = async (threadId, title) => {
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase}/api/threads/${threadId}`);
+      const data = await res.json();
+      if (!data) return;
+      
+      const exportData = {
+        title: data.title,
+        id: data.id,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        pinned: data.pinned,
+        message_count: data.message_count,
+        messages: data.messages,
+        exported_at: new Date().toISOString()
+      };
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setTo ast('Exported as JSON');
+    } catch (error) {
+      console.error('Export failed:', error);
+      setToast('Export failed');
+    }
+  };
+
   const addTask = async () => {
     if (!taskForm.title.trim() || !apiBase) return;
     try {
@@ -998,12 +1081,31 @@ function App() {
                 ))}
               </Stack>
             )}
+            {memoryView === 'history' && (
+              <TextField
+                placeholder="Search conversations..."
+                value={threadSearchQuery}
+                onChange={(e) => setThreadSearchQuery(e.target.value)}
+                size="small"
+                fullWidth
+                variant="filled"
+                sx={{ mb: 2 }}
+                InputProps={{
+                  sx: { color: '#fff' },
+                  endAdornment: threadSearchQuery && (
+                    <IconButton size="small" onClick={() => setThreadSearchQuery('')} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  )
+                }}
+              />
+            )}
             {memoryView === 'history' ? (
               <Box className="board-list">
                 {threadsLoading ? (
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>Loading chat history...</Typography>
-                ) : threads.length > 0 ? (
-                  threads.map((thread) => (
+                ) : filteredThreads.length > 0 ? (
+                  filteredThreads.map((thread) => (
                     <Box 
                       key={thread.id} 
                       className="board-row" 
@@ -1060,6 +1162,17 @@ function App() {
                             </IconButton>
                             <IconButton
                               size="small"
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setExportThreadData({ id: thread.id, title: thread.title });
+                                setExportMenuAnchor(e.currentTarget);
+                              }}
+                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'var(--accent)' } }}
+                            >
+                              <DownloadIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
                               onClick={(e) => { e.stopPropagation(); deleteThread(thread.id); }}
                               sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#ff4444' } }}
                             >
@@ -1071,7 +1184,9 @@ function App() {
                     </Box>
                   ))
                 ) : (
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>No chat history yet.</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                    {threadSearchQuery ? `No conversations matching "${threadSearchQuery}"` : 'No chat history yet.'}
+                  </Typography>
                 )}
               </Box>
             ) : (
@@ -1693,6 +1808,26 @@ function App() {
         message={toast}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       />
+      <Menu
+        anchorEl={exportMenuAnchor}
+        open={Boolean(exportMenuAnchor)}
+        onClose={() => { setExportMenuAnchor(null); setExportThreadData(null); }}
+      >
+        <MenuItem onClick={() => {
+          if (exportThreadData) downloadThreadMD(exportThreadData.id, exportThreadData.title);
+          setExportMenuAnchor(null);
+          setExport ThreadData(null);
+        }}>
+          <DownloadIcon fontSize="small" sx={{ mr: 1 }} /> Export as Markdown
+        </MenuItem>
+        <MenuItem onClick={() => {
+          if (exportThreadData) downloadThreadJSON(exportThreadData.id, exportThreadData.title);
+          setExportMenuAnchor(null);
+          setExportThreadData(null);
+        }}>
+          <DownloadIcon fontSize="small" sx={{ mr: 1 }} /> Export as JSON
+        </MenuItem>
+      </Menu>
     </ThemeProvider>
   );
 }
