@@ -138,8 +138,11 @@ function App() {
   const [memoryView, setMemoryView] = useState('history'); // 'history' or 'notes'
   const [threads, setThreads] = useState([]);
   const [threadsLoading, setThreadsLoading] = useState(false);
-  const [currentThreadId, setCurrentThreadId] = useState(null);
-  const [currentThreadTitle, setCurrentThreadTitle] = useState('');
+  const [currentThreadId, setCurrentThreadId] = useState(() => {
+    // Initialize with a default thread ID on first load
+    return `thread_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  });
+  const [currentThreadTitle, setCurrentThreadTitle] = useState('New Conversation');
   const [editingThreadId, setEditingThreadId] = useState(null);
   const [editingThreadTitle, setEditingThreadTitle] = useState('');
   const [threadSearchQuery, setThreadSearchQuery] = useState('');
@@ -441,6 +444,11 @@ function App() {
       const data = await response.json();
       console.log('🤖 Received response:', data.response?.substring(0, 50));
       
+      if (!data.response) {
+        console.error('❌ Empty response from backend:', data);
+        throw new Error('Empty response from backend');
+      }
+      
       addLocalMessage('assistant', data.response);
       await saveMessageToThread('assistant', data.response);
       speak(data.response);
@@ -706,9 +714,16 @@ function App() {
 
   const loadThread = async (threadId) => {
     if (!apiBase) return;
+    console.log('📂 Loading thread:', threadId);
     try {
       const res = await fetch(`${apiBase}/api/threads/${threadId}`);
+      if (!res.ok) {
+        console.error('❌ Thread load failed with status:', res.status);
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
+      console.log('📄 Thread data received:', { title: data.title, messageCount: data.messages?.length });
+      
       if (data && data.messages) {
         // Convert backend message format to frontend format
         const formattedMessages = data.messages.map(msg => ({
@@ -720,10 +735,11 @@ function App() {
         setCurrentThreadId(threadId);
         setCurrentThreadTitle(data.title || 'Untitled Conversation');
         setActiveSection('chat');
+        playSound('click');
         setToast(`Loaded: ${data.title || 'Conversation'}`);
       }
     } catch (error) {
-      console.error('Thread load failed:', error);
+      console.error('❌ Thread load failed:', error);
       setToast('Failed to load conversation');
     }
   };
