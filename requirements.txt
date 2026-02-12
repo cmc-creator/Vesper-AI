@@ -1,4 +1,7 @@
 anthropic
+openai
+google-generativeai
+ollama
 fastapi
 uvicorn[standard]
 python-multipart
@@ -9,6 +12,7 @@ requests
 beautifulsoup4
 ddgs
 sqlalchemy
+psycopg2-binary
 pymongo
 mysql-connector-python
 PyPDF2
