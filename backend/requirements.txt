@@ -1,15 +1,31 @@
-fastapi
-uvicorn
-python-multipart
-pydantic
-anthropic
-openai
-google-generativeai
-ollama
-python-dotenv
-ddgs
-sqlalchemy
-pandas
-psycopg2-binary
-beautifulsoup4
-requests
+# Core Backend
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# AI Providers
+anthropic==0.18.0
+openai==1.12.0
+google-generativeai==0.3.2
+ollama==0.1.7
+
+# Web Scraping & Research
+requests==2.31.0
+beautifulsoup4==4.12.3
+lxml==5.1.0
+html5lib==1.1
+
+# Data Processing
+pandas==2.2.0
+numpy==1.26.3
+
+# Utilities
+python-dotenv==1.0.1
+chardet==5.2.0
