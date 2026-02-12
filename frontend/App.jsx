@@ -1836,59 +1836,15 @@ function App() {
             ))}
           </Box>
 
-          {/* Chat History Sidebar - ALWAYS VISIBLE */}
+          {/* Chat Sessions List - Gemini Style */}
           <Box sx={{ 
             flex: 1, 
             display: 'flex', 
             flexDirection: 'column',
             minHeight: 0,
             borderTop: '1px solid rgba(255,255,255,0.1)',
-            pt: 2
+            pt: 1.5
           }}>
-            <Typography 
-              variant="subtitle2" 
-              sx={{ 
-                fontWeight: 700, 
-                mb: 1.5,
-                color: 'var(--accent)',
-                fontSize: '0.85rem',
-                letterSpacing: 1
-              }}
-            >
-              💬 CHAT HISTORY
-            </Typography>
-            
-            {/* Search Box */}
-            <TextField
-              size="small"
-              placeholder="Search threads..."
-              value={threadSearchQuery}
-              onChange={(e) => setThreadSearchQuery(e.target.value)}
-              variant="outlined"
-              sx={{
-                mb: 1.5,
-                '& .MuiOutlinedInput-root': {
-                  color: '#fff',
-                  fontSize: '0.85rem',
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                  borderColor: 'rgba(255,255,255,0.1)',
-                  '&:hover': { borderColor: 'rgba(0,255,255,0.3)' },
-                  '&.Mui-focused': { borderColor: 'var(--accent)' }
-                }
-              }}
-              InputProps={{
-                endAdornment: threadSearchQuery && (
-                  <IconButton
-                    size="small"
-                    onClick={() => setThreadSearchQuery('')}
-                    sx={{ p: 0.5 }}
-                  >
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                )
-              }}
-            />
-
             {/* Thread List - Scrollable */}
             <Box sx={{ 
               flex: 1,
@@ -1896,9 +1852,10 @@ function App() {
               overflowX: 'hidden',
               display: 'flex',
               flexDirection: 'column',
-              gap: 0.8,
+              gap: 0.6,
+              pr: 0.5,
               '&::-webkit-scrollbar': {
-                width: '6px',
+                width: '5px',
               },
               '&::-webkit-scrollbar-track': {
                 background: 'transparent',
@@ -1913,113 +1870,124 @@ function App() {
             }}>
               {threadsLoading ? (
                 <Box sx={{ py: 2, textAlign: 'center' }}>
-                  <CircularProgress size={24} sx={{ color: 'var(--accent)' }} />
+                  <CircularProgress size={20} sx={{ color: 'var(--accent)' }} />
                 </Box>
-              ) : filteredThreads.length > 0 ? (
-                filteredThreads.map((thread) => (
+              ) : threads && threads.length > 0 ? (
+                threads.map((thread) => (
                   <Box
                     key={thread.id}
                     onClick={() => loadThread(thread.id)}
                     sx={{
-                      p: 1,
+                      p: '10px 12px',
                       borderRadius: '8px',
-                      bgcolor: currentThreadId === thread.id ? 'rgba(0,255,255,0.15)' : 'rgba(255,255,255,0.04)',
+                      bgcolor: currentThreadId === thread.id ? 'rgba(0,255,255,0.15)' : 'rgba(255,255,255,0.03)',
                       border: currentThreadId === thread.id ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.08)',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 1,
+                      group: 'hover',
                       '&:hover': {
                         bgcolor: 'rgba(0,255,255,0.1)',
                         borderColor: 'rgba(0,255,255,0.3)',
-                      },
-                      position: 'relative',
-                      overflow: 'hidden',
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: '3px',
-                        bgcolor: currentThreadId === thread.id ? 'var(--accent)' : 'transparent',
                       }
                     }}
                   >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            display: 'block',
-                            fontWeight: thread.pinned ? 700 : 500,
-                            color: thread.pinned ? 'var(--accent)' : '#fff',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            fontSize: '0.8rem'
-                          }}
-                        >
-                          {thread.pinned && '📌 '}{thread.title}
-                        </Typography>
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            display: 'block',
-                            color: 'rgba(255,255,255,0.5)',
-                            fontSize: '0.7rem',
-                            mt: 0.25
-                          }}
-                        >
-                          {thread.message_count || 0} msgs • {formatTime(thread.updated_at)}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', gap: 0.25 }}>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePinThread(thread.id);
-                          }}
-                          sx={{ 
-                            p: 0.25,
-                            color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.4)',
-                            '&:hover': { color: 'var(--accent)' }
-                          }}
-                        >
-                          {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteThread(thread.id);
-                          }}
-                          sx={{ 
-                            p: 0.25,
-                            color: 'rgba(255,255,255,0.4)',
-                            '&:hover': { color: '#ff4444' }
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        flex: 1,
+                        fontWeight: thread.pinned ? 600 : 400,
+                        color: thread.pinned ? 'var(--accent)' : '#fff',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      {thread.pinned && '📌 '}{thread.title}
+                    </Typography>
+                    <Box 
+                      sx={{ 
+                        display: 'flex', 
+                        gap: 0.3,
+                        opacity: 0,
+                        transition: 'opacity 0.2s',
+                        '&:has(> button:hover)': { opacity: 1 },
+                        '.MuiBox-root:hover &': { opacity: 1 }
+                      }}
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePinThread(thread.id);
+                        }}
+                        sx={{ 
+                          p: 0.25,
+                          color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.4)',
+                          '&:hover': { color: 'var(--accent)' }
+                        }}
+                      >
+                        {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteThread(thread.id);
+                        }}
+                        sx={{ 
+                          p: 0.25,
+                          color: 'rgba(255,255,255,0.4)',
+                          '&:hover': { color: '#ff4444' }
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
                     </Box>
                   </Box>
                 ))
-              ) : (
+              ) : !threadsLoading && (
                 <Typography 
                   variant="caption" 
                   sx={{ 
                     color: 'rgba(255,255,255,0.5)',
                     textAlign: 'center',
-                    py: 3,
+                    py: 2,
                     display: 'block'
                   }}
                 >
-                  {threadSearchQuery ? `No conversations matching "${threadSearchQuery}"` : 'No conversations yet'}
+                  No chats yet
                 </Typography>
               )}
             </Box>
           </Box>
+
+          {/* New Chat Button - Bottom */}
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={startNewChat}
+            startIcon={<AddIcon />}
+            sx={{
+              color: 'var(--accent)',
+              borderColor: 'var(--accent)',
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              py: 1,
+              mt: 1,
+              '&:hover': {
+                bgcolor: 'rgba(0,255,255,0.1)',
+                borderColor: 'var(--accent)',
+              }
+            }}
+          >
+            New Chat
+          </Button>
         </aside>
 
         <main className="content-grid">
