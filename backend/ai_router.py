@@ -99,6 +99,9 @@ class AIRouter:
                 print("[WARN] Ollama not available (install: https://ollama.ai)")
         else:
             print("[WARN] Ollama not available (install: https://ollama.ai)")
+        
+        # Setup routing strategy and models
+        self._setup_routing_strategy()
     
     def _detect_local_environment(self) -> bool:
         """Detect if running locally vs cloud production"""
@@ -113,7 +116,9 @@ class AIRouter:
         
         # Default to local (sqlite or localhost)
         return True
-        
+    
+    def _setup_routing_strategy(self):
+        """Setup routing strategy based on environment"""
         # Routing strategy: which provider to use for each task
         # Prioritize Ollama for local, Gemini for cloud
         if self.is_local:
@@ -185,7 +190,7 @@ class AIRouter:
             ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
             ModelProvider.OPENAI: "gpt-4o-mini",  # Fast & cheap
             ModelProvider.GOOGLE: "gemini-1.5-flash",  # Stable free tier model!
-            ModelProvider.OLLAMA: "llama3.1:70b"  # Best local model
+            ModelProvider.OLLAMA: "llama3.2:latest"  # Available local model
         }
     
     def get_available_provider(self, task_type: TaskType) -> Optional[ModelProvider]:
