@@ -150,6 +150,8 @@ function App() {
   const [toast, setToast] = useState('');
   const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'false') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState([]);
+  const [analyzingImage, setAnalyzingImage] = useState(false);
   
   // Draggable board positions - load from localStorage
   const [boardPositions, setBoardPositions] = useState(() => {
@@ -771,7 +773,7 @@ function App() {
 
   const handleVoiceTranscript = (transcript) => setInput(transcript);
 
-  const handleFileShare = (e) => {
+  const handleFileShare = async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -779,9 +781,61 @@ function App() {
     const isImage = file.type.startsWith('image/');
     const fileName = file.name;
 
-    // Add file reference to input
-    const fileRef = isImage ? `📎 [Image: ${fileName}]` : `📎 [File: ${fileName}]`;
-    setInput((prev) => (prev ? prev + ' ' + fileRef : fileRef));
+    if (isImage) {
+      setAnalyzingImage(true);
+      setToast('Analyzing image with AI vision...');
+      
+      try {
+        // Upload and analyze image
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('prompt', 'Describe this image in detail. What do you see? What stands out? Any text or important details?');
+        
+        const response = await fetch(`${apiBase}/api/image/analyze`, {
+          method: 'POST',
+          body: formData,
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+          setToast(`Vision error: ${data.error}`);
+          setInput((prev) => (prev ? prev + ` 📎 [Image: ${fileName} - Analysis failed]` : `📎 [Image: ${fileName} - Analysis failed]`));
+        } else {
+          // Add image analysis to uploaded images
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const imagePreview = {
+              name: fileName,
+              dataUrl: e.target.result,
+              analysis: data.analysis,
+              provider: data.provider,
+              metadata: data.metadata
+            };
+            setUploadedImages(prev => [...prev, imagePreview]);
+            
+            // Add image reference to input
+            setInput((prev) => {
+              const imageRef = `📸 [Analyzed: ${fileName}]\n${data.provider}: ${data.analysis}`;
+              return prev ? prev + '\n' + imageRef : imageRef;
+            });
+            
+            setToast(`Image analyzed by ${data.provider}!`);
+          };
+          reader.readAsDataURL(file);
+        }
+      } catch (error) {
+        console.error('Image analysis error:', error);
+        setToast('Failed to analyze image');
+        setInput((prev) => (prev ? prev + ` 📎 [Image: ${fileName}]` : `📎 [Image: ${fileName}]`));
+      } finally {
+        setAnalyzingImage(false);
+      }
+    } else {
+      // Non-image file - just add reference
+      const fileRef = `📎 [File: ${fileName}]`;
+      setInput((prev) => (prev ? prev + ' ' + fileRef : fileRef));
+    }
 
     // Reset file input
     if (fileInputRef.current) {
@@ -789,7 +843,7 @@ function App() {
     }
   };
 
-  const handlePaste = (e) => {
+  const handlePaste = async (e) => {
     const items = e.clipboardData?.items;
     if (!items) return;
 
@@ -800,9 +854,50 @@ function App() {
         const blob = item.getAsFile();
         if (blob) {
           const fileName = `pasted-image-${Date.now()}.png`;
-          const fileRef = `📎 [Image: ${fileName}]`;
-          setInput((prev) => (prev ? prev + '\n' + fileRef : fileRef));
-          setToast('Image pasted! Ready to send.');
+          
+          setAnalyzingImage(true);
+          setToast('Analyzing pasted image...');
+          
+          try {
+            const formData = new FormData();
+            formData.append('file', blob, fileName);
+            formData.append('prompt', 'Describe this image in detail. What do you see? What stands out? Any text or important details?');
+            
+            const response = await fetch(`${apiBase}/api/image/analyze`, {
+              method: 'POST',
+              body: formData,
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+              setToast(`Vision error: ${data.error}`);
+              setInput((prev) => (prev ? prev + `\n📎 [Pasted Image - Analysis failed]` : `📎 [Pasted Image - Analysis failed]`));
+            } else {
+              // Create preview from blob
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                const imagePreview = {
+                  name: fileName,
+                  dataUrl: e.target.result,
+                  analysis: data.analysis,
+                  provider: data.provider,
+                  metadata: data.metadata
+                };
+                setUploadedImages(prev => [...prev, imagePreview]);
+                
+                const imageRef = `📸 [Pasted Image]\n${data.provider}: ${data.analysis}`;
+                setInput((prev) => (prev ? prev + '\n' + imageRef : imageRef));
+                setToast(`Image analyzed by ${data.provider}!`);
+              };
+              reader.readAsDataURL(blob);
+            }
+          } catch (error) {
+            console.error('Paste image analysis error:', error);
+            setToast('Failed to analyze pasted image');
+          } finally {
+            setAnalyzingImage(false);
+          }
         }
         break;
       }
@@ -1822,8 +1917,9 @@ function App() {
                   onClick={() => fileInputRef.current?.click()}
                   className="ghost-button"
                   size="small"
+                  disabled={analyzingImage}
                 >
-                  <AddIcon fontSize="small" />
+                  {analyzingImage ? <CircularProgress size={20} sx={{ color: 'var(--accent)' }} /> : <AddIcon fontSize="small" />}
                 </IconButton>
               </Tooltip>
               <VoiceInput onTranscript={handleVoiceTranscript} />
