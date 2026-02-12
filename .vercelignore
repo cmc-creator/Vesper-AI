@@ -1,16 +1,13 @@
 .venv
 __pycache__
-node_modules
 .git
 .env.local
 backend/
 vesper-ai/
 vesper-web/
 *.log
-# Ignore root-level backend files (only deploy frontend)
+# Ignore backend files
 server.js
-package.json
-package-lock.json
 Dockerfile
 Procfile
 railway.json
