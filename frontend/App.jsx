@@ -36,6 +36,8 @@ import {
   SettingsRounded,
   PublicRounded,
   Palette as PaletteIcon,
+  VolumeUp as VolumeUpIcon,
+  VolumeOff as VolumeOffIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -146,6 +148,8 @@ function App() {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: '', status: 'inbox' });
   const [toast, setToast] = useState('');
+  const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'false') === 'true');
+  const [isSpeaking, setIsSpeaking] = useState(false);
   
   // Draggable board positions - load from localStorage
   const [boardPositions, setBoardPositions] = useState(() => {
@@ -373,11 +377,13 @@ function App() {
       const data = await response.json();
       addLocalMessage('assistant', data.response);
       await saveMessageToThread('assistant', data.response);
+      speak(data.response); // Speak Vesper's response
     } catch (error) {
       console.error('Error:', error);
       const errorMsg = "I'm having trouble connecting right now, but I'm still here! Press C to jump into the world and I'll keep watch.";
       addLocalMessage('assistant', errorMsg);
       await saveMessageToThread('assistant', errorMsg);
+      speak(errorMsg); // Speak error message
     } finally {
       setLoading(false);
       setThinking(false);
@@ -809,6 +815,51 @@ function App() {
     } catch {
       return '';
     }
+  };
+
+  // Text-to-Speech Functions
+  const speak = (text) => {
+    if (!ttsEnabled || !window.speechSynthesis) return;
+    
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.1;
+    utterance.volume = 0.9;
+    
+    // Try to find a good voice (prefer female voice if available)
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v => 
+      v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Victoria')
+    ) || voices.find(v => v.lang.startsWith('en'));
+    
+    if (preferredVoice) utterance.voice = preferredVoice;
+    
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopSpeaking = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  };
+
+  const toggleTTS = () => {
+    const newValue = !ttsEnabled;
+    setTtsEnabled(newValue);
+    try {
+      localStorage.setItem('vesper_tts_enabled', String(newValue));
+    } catch (e) {
+      console.warn('Failed to save TTS preference', e);
+    }
+    if (!newValue) stopSpeaking();
   };
 
   const renderMessage = (message) => {
@@ -1625,7 +1676,38 @@ function App() {
                   </Box>
                 )}
               </Box>
-              <Box className="status-dot" />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Tooltip title={ttsEnabled ? "Voice enabled" : "Voice disabled"} placement="left">
+                  <IconButton 
+                    size="small" 
+                    onClick={toggleTTS}
+                    sx={{ 
+                      color: ttsEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.4)',
+                      '&:hover': { color: 'var(--accent)' }
+                    }}
+                  >
+                    {ttsEnabled ? <VolumeUpIcon fontSize="small" /> : <VolumeOffIcon fontSize="small" />}
+                  </IconButton>
+                </Tooltip>
+                {isSpeaking && (
+                  <Chip 
+                    label="Speaking..." 
+                    size="small"
+                    onClick={stopSpeaking}
+                    sx={{ 
+                      height: 24,
+                      bgcolor: 'rgba(0,255,255,0.15)',
+                      color: 'var(--accent)',
+                      borderColor: 'var(--accent)',
+                      borderWidth: 1,
+                      borderStyle: 'solid',
+                      animation: 'pulse 1.5s ease-in-out infinite',
+                      cursor: 'pointer'
+                    }}
+                  />
+                )}
+                <Box className="status-dot" />
+              </Box>
             </Box>
 
             <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
