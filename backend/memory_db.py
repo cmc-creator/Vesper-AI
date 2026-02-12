@@ -209,6 +209,20 @@ class PersistentMemoryDB:
         finally:
             session.close()
     
+    def update_thread_title(self, thread_id: str, title: str) -> bool:
+        """Update thread title"""
+        session = self.get_session()
+        try:
+            thread = session.query(Thread).filter(Thread.id == thread_id).first()
+            if thread:
+                thread.title = title
+                thread.updated_at = datetime.datetime.utcnow()
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
+    
     # === MEMORY ===
     
     def add_memory(self, category: str, content: str, importance: int = 5, tags: Optional[List[str]] = None, metadata: Optional[Dict] = None) -> Dict:

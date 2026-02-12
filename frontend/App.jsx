@@ -22,6 +22,7 @@ import {
   Delete as DeleteIcon,
   Close as CloseIcon,
   Add as AddIcon,
+  Edit as EditIcon,
   PushPin as PinIcon,
   PushPinOutlined as PinOutlinedIcon,
   HistoryRounded,
@@ -134,6 +135,8 @@ function App() {
   const [threadsLoading, setThreadsLoading] = useState(false);
   const [currentThreadId, setCurrentThreadId] = useState(null);
   const [currentThreadTitle, setCurrentThreadTitle] = useState('');
+  const [editingThreadId, setEditingThreadId] = useState(null);
+  const [editingThreadTitle, setEditingThreadTitle] = useState('');
   const [tasks, setTasks] = useState([]);
   const [themeMenuAnchor, setThemeMenuAnchor] = useState(null);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -154,6 +157,7 @@ function App() {
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const inputRef = useRef(null);
 
   // Drag-and-drop sensor setup
   const sensors = useSensors(
@@ -307,6 +311,46 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Auto-focus input after sending message or loading thread
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [messages, currentThreadId]);
+
+  const saveMessageToThread = async (role, content) => {
+    if (!apiBase) return;
+    try {
+      let threadId = currentThreadId;
+      
+      // If no thread, create one
+      if (!threadId) {
+        const firstWords = content.slice(0, 50).trim();
+        const title = firstWords.length === 50 ? `${firstWords}...` : firstWords;
+        
+        const createRes = await fetch(`${apiBase}/api/threads`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            messages: [{ role, content, timestamp: Date.now() }],
+          }),
+        });
+        const createData = await createRes.json();
+        threadId = createData.id;
+        setCurrentThreadId(threadId);
+        setCurrentThreadTitle(title);
+      } else {
+        // Add message to existing thread
+        await fetch(`${apiBase}/api/threads/${threadId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role, content, timestamp: Date.now() }),
+        });
+      }
+    } catch (error) {
+      console.error('Failed to save message to thread:', error);
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
     const userMessage = input.trim();
@@ -314,6 +358,7 @@ function App() {
     setLoading(true);
     setThinking(true);
     addLocalMessage('user', userMessage);
+    await saveMessageToThread('user', userMessage);
     try {
       const response = await fetch(`${chatBase}/api/chat`, {
         method: 'POST',
@@ -323,12 +368,12 @@ function App() {
       if (!response.ok) throw new Error('Backend call failed');
       const data = await response.json();
       addLocalMessage('assistant', data.response);
+      await saveMessageToThread('assistant', data.response);
     } catch (error) {
       console.error('Error:', error);
-      addLocalMessage(
-        'assistant',
-        "I'm having trouble connecting right now, but I'm still here! Press C to jump into the world and I'll keep watch."
-      );
+      const errorMsg = "I'm having trouble connecting right now, but I'm still here! Press C to jump into the world and I'll keep watch.";
+      addLocalMessage('assistant', errorMsg);
+      await saveMessageToThread('assistant', errorMsg);
     } finally {
       setLoading(false);
       setThinking(false);
@@ -505,6 +550,62 @@ function App() {
     setCurrentThreadId(null);
     setCurrentThreadTitle('');
     setToast('New conversation started');
+  };
+
+  const deleteThread = async (threadId) => {
+    if (!apiBase) return;
+    if (!confirm('Delete this conversation? This cannot be undone.')) return;
+    try {
+      const res = await fetch(`${apiBase}/api/threads/${threadId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setThreads(prev => prev.filter(t => t.id !== threadId));
+        if (currentThreadId === threadId) {
+          startNewChat();
+        }
+        setToast('Conversation deleted');
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+      setToast('Failed to delete conversation');
+    }
+  };
+
+  const startRenameThread = (threadId, currentTitle) => {
+    setEditingThreadId(threadId);
+    setEditingThreadTitle(currentTitle);
+  };
+
+  const cancelRenameThread = () => {
+    setEditingThreadId(null);
+    setEditingThreadTitle('');
+  };
+
+  const renameThread = async (threadId) => {
+    if (!apiBase || !editingThreadTitle.trim()) return;
+    try {
+      const res = await fetch(`${apiBase}/api/threads/${threadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editingThreadTitle.trim() }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setThreads(prev => 
+          prev.map(t => t.id === threadId ? { ...t, title: data.title } : t)
+        );
+        if (currentThreadId === threadId) {
+          setCurrentThreadTitle(data.title);
+        }
+        setToast('Title updated');
+        cancelRenameThread();
+      }
+    } catch (error) {
+      console.error('Rename failed:', error);
+      setToast('Failed to rename conversation');
+    }
   };
 
   const addTask = async () => {
@@ -906,24 +1007,67 @@ function App() {
                     <Box 
                       key={thread.id} 
                       className="board-row" 
-                      onClick={() => loadThread(thread.id)}
-                      sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' } }}
+                      sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' } }}
                     >
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: thread.pinned ? 700 : 400 }}>
-                          {thread.pinned && '📌 '}{thread.title}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                          {thread.message_count || 0} messages • {formatTime(thread.updated_at)}
-                        </Typography>
+                      {editingThreadId === thread.id ? (
+                        <TextField
+                          value={editingThreadTitle}
+                          onChange={(e) => setEditingThreadTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') renameThread(thread.id);
+                            if (e.key === 'Escape') cancelRenameThread();
+                          }}
+                          autoFocus
+                          size="small"
+                          variant="standard"
+                          sx={{ flex: 1, input: { color: '#fff' } }}
+                        />
+                      ) : (
+                        <Box sx={{ flex: 1, cursor: 'pointer' }} onClick={() => loadThread(thread.id)}>
+                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: thread.pinned ? 700 : 400 }}>
+                            {thread.pinned && '📌 '}{thread.title}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                            {thread.message_count || 0} messages • {formatTime(thread.updated_at)}
+                          </Typography>
+                        </Box>
+                      )}
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        {editingThreadId === thread.id ? (
+                          <>
+                            <IconButton size="small" onClick={() => renameThread(thread.id)} sx={{ color: 'var(--accent)' }}>
+                              <ChecklistRounded fontSize="small" />
+                            </IconButton>
+                            <IconButton size="small" onClick={cancelRenameThread} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
+                          </>
+                        ) : (
+                          <>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => { e.stopPropagation(); startRenameThread(thread.id, thread.title); }}
+                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'var(--accent)' } }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => { e.stopPropagation(); togglePinThread(thread.id); }}
+                              sx={{ color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.5)' }}
+                            >
+                              {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => { e.stopPropagation(); deleteThread(thread.id); }}
+                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#ff4444' } }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
                       </Box>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => { e.stopPropagation(); togglePinThread(thread.id); }}
-                        sx={{ color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.5)' }}
-                      >
-                        {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
-                      </IconButton>
                     </Box>
                   ))
                 ) : (
@@ -1407,6 +1551,7 @@ function App() {
               </Tooltip>
               <VoiceInput onTranscript={handleVoiceTranscript} />
               <TextField
+                inputRef={inputRef}
                 fullWidth
                 multiline
                 maxRows={3}

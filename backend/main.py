@@ -650,32 +650,65 @@ def get_threads():
     return memory_db.get_all_threads()
 
 @app.post("/api/threads")
-def add_thread(entry: ThreadEntry):
-    threads = load_threads()
-    entry_dict = entry.dict()
-    entry_dict['last_updated'] = entry.last_updated or datetime.datetime.now().isoformat()
-    threads.append(entry_dict)
-    save_threads(threads)
-    return {"status": "ok"}
+async def create_thread(data: dict):
+    """Create a new conversation thread"""
+    try:
+        title = data.get("title", "Untitled Conversation")
+        messages = data.get("messages", [])
+        metadata = data.get("metadata", {})
+        
+        # Generate thread ID
+        thread_id = f"thread_{datetime.datetime.utcnow().timestamp()}_{os.urandom(4).hex()}"
+        
+        # Create thread
+        thread = memory_db.create_thread(thread_id, title, metadata)
+        
+        # Add initial messages if provided
+        for msg in messages:
+            memory_db.add_message_to_thread(thread_id, msg)
+        
+        return {"status": "success", "id": thread_id, "title": title}
+    except Exception as e:
+        print(f"❌ Error creating thread: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "error": str(e)}
 
 @app.get("/api/threads/{thread_id}")
-def get_thread(thread_id: str):
-    threads = load_threads()
-    for t in threads:
-        if t['thread_id'] == thread_id:
-            return t
-    return {}
+async def get_thread_by_id(thread_id: str):
+    """Get thread by ID"""
+    try:
+        thread = memory_db.get_thread(thread_id)
+        if thread:
+            return thread
+        return {"status": "not_found"}
+    except Exception as e:
+        print(f"❌ Error getting thread: {e}")
+        return {"status": "error", "error": str(e)}
 
 @app.post("/api/threads/{thread_id}")
-def add_message_to_thread(thread_id: str, message: dict):
-    threads = load_threads()
-    for t in threads:
-        if t['thread_id'] == thread_id:
-            t['messages'].append(message)
-            t['last_updated'] = datetime.datetime.now().isoformat()
-            save_threads(threads)
-            return {"status": "ok"}
-    return {"status": "not found"}
+async def add_message_to_thread_endpoint(thread_id: str, data: dict):
+    """Add message to existing thread"""
+    try:
+        role = data.get("role", "user")
+        content = data.get("content", "")
+        timestamp = data.get("timestamp", datetime.datetime.utcnow().timestamp() * 1000)
+        
+        message = {
+            "role": role,
+            "content": content,
+            "timestamp": timestamp
+        }
+        
+        result = memory_db.add_message_to_thread(thread_id, message)
+        if result:
+            return {"status": "success", "thread": result}
+        return {"status": "not_found"}
+    except Exception as e:
+        print(f"❌ Error adding message: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "error": str(e)}
 
 @app.post("/api/threads/{thread_id}/pin")
 async def pin_thread(thread_id: str):
@@ -698,6 +731,38 @@ async def pin_thread(thread_id: str):
         return {"status": "error", "message": "Failed to update pin status"}
     except Exception as e:
         print(f"❌ Error pinning thread: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "error": str(e)}
+
+@app.delete("/api/threads/{thread_id}")
+async def delete_thread_by_id(thread_id: str):
+    """Delete a conversation thread"""
+    try:
+        success = memory_db.delete_thread(thread_id)
+        if success:
+            return {"status": "success", "thread_id": thread_id}
+        return {"status": "not_found", "thread_id": thread_id}
+    except Exception as e:
+        print(f"❌ Error deleting thread: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "error": str(e)}
+
+@app.patch("/api/threads/{thread_id}")
+async def update_thread_title(thread_id: str, data: dict):
+    """Update thread title"""
+    try:
+        title = data.get("title", "").strip()
+        if not title:
+            return {"status": "error", "message": "Title cannot be empty"}
+        
+        success = memory_db.update_thread_title(thread_id, title)
+        if success:
+            return {"status": "success", "thread_id": thread_id, "title": title}
+        return {"status": "not_found", "thread_id": thread_id}
+    except Exception as e:
+        print(f"❌ Error updating thread title: {e}")
         import traceback
         traceback.print_exc()
         return {"status": "error", "error": str(e)}
