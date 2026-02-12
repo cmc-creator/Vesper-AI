@@ -420,6 +420,7 @@ function App() {
     setAbortController(controller);
     
     console.log('📤 Sending message:', userMessage.substring(0, 50));
+    console.log('🎯 Current thread ID:', currentThreadId || 'default');
     
     addLocalMessage('user', userMessage);
     await saveMessageToThread('user', userMessage);
@@ -428,7 +429,10 @@ function App() {
       const response = await fetch(`${chatBase}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({ 
+          message: userMessage,
+          thread_id: currentThreadId || 'default'
+        }),
         signal: controller.signal,
       });
       
@@ -441,6 +445,9 @@ function App() {
       await saveMessageToThread('assistant', data.response);
       speak(data.response);
       playSound('notification'); // Sound on response received
+      
+      // CRITICAL: Refetch threads to update sidebar with new messages
+      fetchThreads();
     } catch (error) {
       if (error.name === 'AbortError') {
         console.log('🛑 Generation stopped by user');
@@ -723,8 +730,11 @@ function App() {
 
   const startNewChat = () => {
     setMessages([]);
-    setCurrentThreadId(null);
-    setCurrentThreadTitle('');
+    // Generate new thread ID for new conversation
+    const newThreadId = `thread_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    setCurrentThreadId(newThreadId);
+    setCurrentThreadTitle('New Conversation');
+    playSound('click');
     setToast('New conversation started');
   };
 

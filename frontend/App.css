@@ -517,6 +517,8 @@ canvas {
   border: 1px solid rgba(0, 255, 255, 0.25);
   min-height: 180px;
   max-height: 300px;
+  max-width: 450px;
+  margin: 0 auto;
   background: 
     radial-gradient(circle at 20% 20%, rgba(0, 255, 255, 0.15), transparent 35%),
     radial-gradient(circle at 80% 30%, rgba(0, 255, 88, 0.12), transparent 32%),
@@ -532,7 +534,7 @@ canvas {
   background: rgba(0, 0, 0, 0.85);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 255, 255, 0.15), inset 0 0 60px rgba(0, 255, 255, 0.05);
   backdrop-filter: blur(20px);
-  max-width: 900px;
+  max-width: 500px;
   margin: 0 auto;
 }
 
