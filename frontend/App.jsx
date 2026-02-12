@@ -875,7 +875,7 @@ function App() {
         <Box
           className="message-bubble glass-card"
           sx={{
-            maxWidth: '70%',
+            maxWidth: '85%',
             padding: '12px 16px',
             borderRadius: '16px',
             background: isUser
