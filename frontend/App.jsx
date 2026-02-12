@@ -182,7 +182,7 @@ function App() {
   const apiBase = useMemo(() => {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
     if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:8000';
-    return '';
+    return 'https://vesper-backend-production-b486.up.railway.app';
   }, []);
 
   const disableFirebaseAuth = useMemo(
@@ -194,7 +194,7 @@ function App() {
     if (import.meta.env.VITE_CHAT_API_URL) return import.meta.env.VITE_CHAT_API_URL.replace(/\/$/, '');
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
     if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:8000';
-    return '';
+    return 'https://vesper-backend-production-b486.up.railway.app';
   }, []);
 
   const addLocalMessage = async (role, content) => {
@@ -521,6 +521,26 @@ function App() {
     // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        if (blob) {
+          const fileName = `pasted-image-${Date.now()}.png`;
+          const fileRef = `📎 [Image: ${fileName}]`;
+          setInput((prev) => (prev ? prev + '\n' + fileRef : fileRef));
+          setToast('Image pasted! Ready to send.');
+        }
+        break;
+      }
     }
   };
 
@@ -1208,13 +1228,14 @@ function App() {
                 maxRows={3}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onPaste={handlePaste}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
                   }
                 }}
-                placeholder="Ask Vesper…"
+                placeholder="Ask Vesper… (paste images supported)"
                 disabled={loading}
                 variant="standard"
                 InputProps={{
@@ -1246,63 +1267,62 @@ function App() {
 
           <section className="ops-panel">
             <Box className="panel-grid">
-              <Paper className="ops-card glass-card">
+              <Paper className="ops-card glass-card" onClick={() => setActiveSection('research')}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Research Tools</Typography>
                   <Chip icon={<ScienceRounded />} label="Ready" size="small" className="chip-soft" />
                 </Box>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
-                  Web scraping, DB access, file processing, code execution, multi-source synthesis.
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, fontSize: '12px' }}>
+                  Web scraping, DB access, file processing, code execution.
                 </Typography>
-                <Stack spacing={0.8}>
+                <Stack spacing={0.6}>
                   <div className="list-row">Web Scraper · Deep + shallow crawl</div>
-                  <div className="list-row">Database Manager · SQLite / Postgres / MySQL / Mongo</div>
-                  <div className="list-row">File Processor · PDFs, docs, images</div>
-                  <div className="list-row">Code Executor · Python / JS / SQL sandbox</div>
-                  <div className="list-row">Synthesizer · Blend sources with AI</div>
+                  <div className="list-row">Database Manager · SQL / NoSQL</div>
+                  <div className="list-row">File Processor · PDFs, docs</div>
+                  <div className="list-row">Synthesizer · Blend sources</div>
                 </Stack>
               </Paper>
 
-              <Paper className="ops-card glass-card">
+              <Paper className="ops-card glass-card" onClick={() => setActiveSection('memory')}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Memory Core</Typography>
                   <Chip icon={<HistoryRounded />} label="Sync" size="small" className="chip-soft" />
                 </Box>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, fontSize: '12px' }}>
                   Long-term context, vectors, and recall-ready notes.
                 </Typography>
-                <Stack spacing={0.8}>
+                <Stack spacing={0.6}>
                   <div className="list-row">Pinned facts · Rapid recall</div>
-                  <div className="list-row">Context stitching · Auto-augment prompts</div>
+                  <div className="list-row">Context stitching · Auto-augment</div>
                   <div className="list-row">Exportable knowledge graph</div>
                 </Stack>
               </Paper>
 
-              <Paper className="ops-card glass-card">
+              <Paper className="ops-card glass-card" onClick={() => setActiveSection('tasks')}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Task Matrix</Typography>
                   <Chip icon={<ChecklistRounded />} label="Tracked" size="small" className="chip-soft" />
                 </Box>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, fontSize: '12px' }}>
                   Multi-panel tasks, status chips, and action history.
                 </Typography>
-                <Stack spacing={0.8}>
+                <Stack spacing={0.6}>
                   <div className="list-row">Inbox · capture quick asks</div>
                   <div className="list-row">Doing · current focus</div>
                   <div className="list-row">Done · audit log</div>
                 </Stack>
               </Paper>
 
-              <Paper className="ops-card glass-card">
+              <Paper className="ops-card glass-card" onClick={() => setActiveSection('settings')}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Settings</Typography>
                   <Chip icon={<SettingsRounded />} label="Theming" size="small" className="chip-soft" />
                 </Box>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
-                  Themes, layout density, AI models, and system preferences configured in full settings.
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, fontSize: '12px' }}>
+                  Themes, layout, AI models, and system preferences.
                 </Typography>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                  📋 Click the gear in the Settings section for all options
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>
+                  Click to configure all options
                 </Typography>
               </Paper>
             </Box>

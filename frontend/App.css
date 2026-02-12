@@ -420,7 +420,7 @@ canvas {
 
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(380px, 450px) 1fr;
+  grid-template-columns: minmax(450px, 650px) 1fr;
   gap: 16px;
   align-items: start;
 }
@@ -481,17 +481,26 @@ canvas {
 
 .panel-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
 }
 
 .ops-card {
-  padding: 14px;
-  border-radius: 14px;
+  padding: 12px;
+  border-radius: 12px;
   background: rgba(0, 0, 0, 0.75);
   border: 1px solid rgba(0, 255, 255, 0.2);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 255, 255, 0.1), inset 0 0 40px rgba(0, 255, 255, 0.03);
   backdrop-filter: blur(15px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  max-height: 220px;
+}
+
+.ops-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.8), 0 0 35px rgba(0, 255, 255, 0.2), inset 0 0 50px rgba(0, 255, 255, 0.05);
+  transform: translateY(-2px);
 }
 
 .list-row {
@@ -503,10 +512,11 @@ canvas {
 }
 
 .world-panel {
-  padding: 16px;
-  border-radius: 16px;
+  padding: 14px;
+  border-radius: 14px;
   border: 1px solid rgba(0, 255, 255, 0.25);
-  min-height: 280px;
+  min-height: 180px;
+  max-height: 300px;
   background: 
     radial-gradient(circle at 20% 20%, rgba(0, 255, 255, 0.15), transparent 35%),
     radial-gradient(circle at 80% 30%, rgba(0, 255, 88, 0.12), transparent 32%),
