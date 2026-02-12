@@ -2388,9 +2388,14 @@ async def chat_with_vesper(chat: ChatMessage):
         provider = ai_response_obj.get("provider", "unknown")
         print(f"🤖 Using {provider} AI provider")
         
-        # Handle tool use
-        while response.stop_reason == "tool_use":
-            tool_use = next(block for block in response.content if block.type == "tool_use")
+        # Handle tool use (if provider supports it)
+        tool_calls = ai_response_obj.get("tool_calls", [])
+        max_iterations = 5
+        iteration = 0
+        
+        while tool_calls and iteration < max_iterations:
+            iteration += 1
+            tool_use = tool_calls[0]
             tool_result = None
             
             # Execute the appropriate tool
@@ -2481,7 +2486,9 @@ async def chat_with_vesper(chat: ChatMessage):
                 tool_result = execute_approved_action(approval_id, False)
             
             # Add tool result to messages
-            messages.append({"role": "assistant", "content": response.content})
+            raw_response = ai_response_obj.get("raw_response")
+            if hasattr(raw_response, 'content'):
+                messages.append({"role": "assistant", "content": raw_response.content})
             messages.append({
                 "role": "user",
                 "content": [{
@@ -2492,16 +2499,20 @@ async def chat_with_vesper(chat: ChatMessage):
             })
             
             # Continue conversation
-            response = (await ai_router.chat(
+            ai_response_obj = await ai_router.chat(
                 messages=messages,
                 task_type=TaskType.CHAT,
                 max_tokens=2000,
                 temperature=0.7,
                 tools=tools
-            )).get("raw_response")
+            )
+            
+            # Update tool_calls for next iteration
+            tool_calls = ai_response_obj.get("tool_calls", [])
         
         # Extract final text response (works for Claude, GPT, Gemini responses)
         ai_response = ai_response_obj.get("content", "Sorry, I couldn't generate a response.")
+        provider = ai_response_obj.get("provider", "unknown")  # Get updated provider after tool loop
         
         # Save messages to thread IN DATABASE (persistent!)
         memory_db.add_message_to_thread(chat.thread_id, {
