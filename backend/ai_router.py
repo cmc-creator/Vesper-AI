@@ -15,7 +15,7 @@ try:
 except ImportError:
     anthropic = None
     ANTHROPIC_AVAILABLE = False
-    print("⚠️  anthropic not installed")
+    print("[WARN] anthropic not installed")
 
 try:
     from openai import OpenAI
@@ -23,7 +23,7 @@ try:
 except ImportError:
     OpenAI = None
     OPENAI_AVAILABLE = False
-    print("⚠️  openai not installed")
+    print("[WARN] openai not installed")
 
 try:
     import google.generativeai as genai
@@ -31,7 +31,7 @@ try:
 except ImportError:
     genai = None
     GOOGLE_AVAILABLE = False
-    print("⚠️  google-generativeai not installed")
+    print("[WARN] google-generativeai not installed")
 
 try:
     import ollama
@@ -39,7 +39,7 @@ try:
 except ImportError:
     ollama = None
     OLLAMA_AVAILABLE = False
-    print("⚠️  ollama not installed")
+    print("[WARN] ollama not installed")
 
 class TaskType(Enum):
     CODE = "code"
@@ -69,14 +69,14 @@ class AIRouter:
             anthropic_key = os.getenv("ANTHROPIC_API_KEY")
             if anthropic_key:
                 self.anthropic_client = anthropic.Anthropic(api_key=anthropic_key)
-                print("✅ Anthropic Claude configured")
+                print("[OK] Anthropic Claude configured")
         
         # Configure OpenAI
         if OPENAI_AVAILABLE:
             openai_key = os.getenv("OPENAI_API_KEY")
             if openai_key:
                 self.openai_client = OpenAI(api_key=openai_key)
-                print("✅ OpenAI GPT configured")
+                print("[OK] OpenAI GPT configured")
         
         # Configure Google Gemini
         if GOOGLE_AVAILABLE:
@@ -84,18 +84,18 @@ class AIRouter:
             if google_key:
                 genai.configure(api_key=google_key)
                 self.google_configured = True
-                print("✅ Google Gemini configured")
+                print("[OK] Google Gemini configured")
         
         # Check Ollama availability
         if OLLAMA_AVAILABLE:
             try:
                 ollama.list()
                 self.ollama_available = True
-                print("✅ Ollama (local) available")
+                print("[OK] Ollama (local) available")
             except Exception:
-                print("⚠️  Ollama not available (install: https://ollama.ai)")
+                print("[WARN] Ollama not available (install: https://ollama.ai)")
         else:
-            print("⚠️  Ollama not available (install: https://ollama.ai)")
+            print("[WARN] Ollama not available (install: https://ollama.ai)")
         
         # Routing strategy: which provider to use for each task
         self.routing_strategy = {
@@ -204,10 +204,10 @@ class AIRouter:
                 return await self._chat_ollama(messages, model, max_tokens, temperature)
         except Exception as e:
             # Fallback to next provider
-            print(f"❌ {provider.value} failed: {e}")
+            print(f"[ERR] {provider.value} failed: {e}")
             fallback_providers = [p for p in self.routing_strategy[task_type] if p != provider and self.is_provider_available(p)]
             if fallback_providers:
-                print(f"🔄 Falling back to {fallback_providers[0].value}")
+                print(f"[FALLBACK] Falling back to {fallback_providers[0].value}")
                 return await self.chat(messages, task_type, tools, max_tokens, temperature, fallback_providers[0])
             return {"error": str(e), "provider": provider.value, "model": model}
     

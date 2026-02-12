@@ -16,26 +16,61 @@ import anthropic
 from dotenv import load_dotenv
 from urllib.parse import urljoin, urlparse
 import re
-from sqlalchemy import create_engine, text, inspect
-
-# Import AI router and persistent memory
+from sqlalchemy import create_engine, text, inspect# Import AI router and persistent memory
 from backend.ai_router import router as ai_router, TaskType
 from backend.memory_db import db as memory_db
 from sqlalchemy.pool import NullPool
 import pandas as pd
-import pymongo
-import mysql.connector
-import PyPDF2
-from docx import Document
-from openpyxl import load_workbook
-from PIL import Image
-import pytesseract
+
+# Optional imports for database drivers and file handling
+try:
+    import pymongo
+except ImportError:
+    pymongo = None
+    print("⚠️  pymongo not installed (optional for MongoDB support)")
+
+try:
+    import mysql.connector
+except ImportError:
+    mysql = None
+    print("⚠️  mysql.connector not installed (optional for MySQL support)")
+
+try:
+    import PyPDF2
+except ImportError:
+    PyPDF2 = None
+    print("⚠️  PyPDF2 not installed (optional for PDF support)")
+
+try:
+    from docx import Document
+except ImportError:
+    Document = None
+    print("⚠️  python-docx not installed (optional for Word support)")
+
+try:
+    from openpyxl import load_workbook
+except ImportError:
+    load_workbook = None
+    print("⚠️  openpyxl not installed (optional for Excel support)")
+
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
+    print("⚠️  Pillow (PIL) not installed (optional for image support)")
+
+try:
+    import pytesseract
+except ImportError:
+    pytesseract = None
+    print("⚠️  pytesseract not installed (optional for OCR support)")
+
 try:
     import magic
     MAGIC_AVAILABLE = True
 except ImportError:
     MAGIC_AVAILABLE = False
-    print("Warning: python-magic not available (requires libmagic). File type detection will be limited.")
+    print("⚠️  python-magic not available (optional for file type detection)")
 import chardet
 import io
 import base64
@@ -59,7 +94,7 @@ try:
     stats = ai_router.get_stats()
     print(f"AI Providers: {stats['providers']}")
     print(f"Default Models: {stats['models']}")
-    print(f"Persistent Memory: {'PostgreSQL✅' if os.getenv('DATABASE_URL') else 'SQLite (dev)'}")
+    print(f"Persistent Memory: {'PostgreSQL [OK]' if os.getenv('DATABASE_URL') else 'SQLite (dev)'}")
     print("=== Ready to serve ===")
 except Exception as e:
     print('FATAL ERROR DURING FASTAPI STARTUP:', e, file=sys.stderr)
@@ -3332,3 +3367,10 @@ def _execute_github_create_issue(params):
             return {"error": f"GitHub API error: {response.status_code}", "response": response.text}
     except Exception as e:
         return {"error": str(e)}
+
+
+# --- STARTUP ---
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
