@@ -20,6 +20,7 @@ import {
 import {
   Send as SendIcon,
   Delete as DeleteIcon,
+  Close as CloseIcon,
   Add as AddIcon,
   HistoryRounded,
   BoltRounded,
@@ -711,7 +712,12 @@ function App() {
                     Fetches from /api/research. Add notes, summaries, and citations.
                   </Typography>
                 </Box>
-                <Chip label={researchLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <Chip label={researchLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
+                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Box>
               </Box>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
@@ -780,7 +786,12 @@ function App() {
                     Uses /api/memory/{memoryCategory}. Fast, file-backed store.
                 </Typography>
               </Box>
-              <Chip label={memoryLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Chip label={memoryLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
+                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Box>
             </Box>
             <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
               {['notes', 'conversations', 'sensory_experiences', 'creative_moments', 'emotional_bonds'].map((cat) => (
@@ -847,7 +858,12 @@ function App() {
                     Connected to /api/tasks with quick status hops.
                 </Typography>
               </Box>
-              <Chip label={tasksLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Chip label={tasksLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
+                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Box>
             </Box>
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
@@ -927,7 +943,12 @@ function App() {
                     Control themes, interface density, AI models, and system preferences.
                 </Typography>
               </Box>
-              <Chip label={isFirebaseConfigured ? 'Firebase ready' : 'Offline mode'} size="small" className="chip-soft" />
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Chip label={isFirebaseConfigured ? 'Firebase ready' : 'Offline mode'} size="small" className="chip-soft" />
+                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Box>
             </Box>
             <Stack spacing={3}>
               {/* Theme Selection */}
