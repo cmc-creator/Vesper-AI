@@ -1000,29 +1000,50 @@ function App() {
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Interface Density</Typography>
                 <Stack direction="row" spacing={1.5}>
-                  <Button variant="outlined" size="small" sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>Compact</Button>
-                  <Button variant="contained" size="small">Normal</Button>
-                  <Button variant="outlined" size="small" sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>Spacious</Button>
+                  <Button variant="outlined" size="small" sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} disabled>Compact</Button>
+                  <Button variant="contained" size="small">Normal (Active)</Button>
+                  <Button variant="outlined" size="small" sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} disabled>Spacious</Button>
                 </Stack>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
+                  Layout adjustments coming soon!
+                </Typography>
               </Box>
 
               {/* AI Model Selection */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>AI Model</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>AI Model (Backend Auto-Routes)</Typography>
                 <Stack spacing={1}>
-                  <Paper className="glass-card" sx={{ p: 1.5, border: '2px solid var(--accent)' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>Claude 3.5 Sonnet</Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Fast, balanced reasoning • Current</Typography>
+                  <Paper className="glass-card" sx={{ p: 1.5, border: '2px solid #4ade80' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>Gemini 1.5 Flash</Typography>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Google • FREE tier (60 req/min)</Typography>
+                      </Box>
+                      <Chip label="PRIMARY" size="small" sx={{ bgcolor: '#4ade80', color: '#000', fontWeight: 700 }} />
+                    </Box>
                   </Paper>
-                  <Paper className="glass-card" sx={{ p: 1.5, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>GPT-4 Turbo</Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>OpenAI flagship model</Typography>
+                  <Paper className="glass-card" sx={{ p: 1.5, border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>Claude 3.5 Sonnet</Typography>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Anthropic • Complex tasks & code</Typography>
+                      </Box>
+                      <Chip label="FALLBACK" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }} />
+                    </Box>
                   </Paper>
-                  <Paper className="glass-card" sx={{ p: 1.5, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>Claude 3 Opus</Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Maximum intelligence</Typography>
+                  <Paper className="glass-card" sx={{ p: 1.5, border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>GPT-4 Turbo</Typography>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>OpenAI • If configured</Typography>
+                      </Box>
+                      <Chip label="OPTIONAL" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }} />
+                    </Box>
                   </Paper>
                 </Stack>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
+                  Backend automatically routes to best available AI based on task type and provider availability.
+                </Typography>
               </Box>
 
               {/* Animation & Effects */}
@@ -1130,19 +1151,7 @@ function App() {
                 Ops Console
               </Typography>
             </Box>
-            <Badge
-              overlap="circular"
-              variant="dot"
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              sx={{
-                '& .MuiBadge-dot': {
-                  backgroundColor: 'var(--accent)',
-                  boxShadow: '0 0 12px var(--accent)',
-                },
-              }}
-            >
-              <Box className="status-pill">LIVE</Box>
-            </Badge>
+            {/* Removed fake LIVE indicator */}
           </Box>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>

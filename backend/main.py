@@ -2511,7 +2511,20 @@ async def chat_with_vesper(chat: ChatMessage):
             tool_calls = ai_response_obj.get("tool_calls", [])
         
         # Extract final text response (works for Claude, GPT, Gemini responses)
-        ai_response = ai_response_obj.get("content", "Sorry, I couldn't generate a response.")
+        ai_response = ai_response_obj.get("content", "")
+        
+        # Better error handling with diagnostics
+        if not ai_response:
+            print(f"⚠️ Warning: Empty response from AI router")
+            print(f"📦 ai_response_obj keys: {list(ai_response_obj.keys())}")
+            print(f"📦 ai_response_obj content: {ai_response_obj}")
+            
+            # Try to extract error message
+            if "error" in ai_response_obj:
+                ai_response = f"Error: {ai_response_obj['error']}"
+            else:
+                ai_response = "I'm having trouble generating a response right now. The AI returned an empty response. Please try again!"
+        
         provider = ai_response_obj.get("provider", "unknown")  # Get updated provider after tool loop
         
         # Save messages to thread IN DATABASE (persistent!)
