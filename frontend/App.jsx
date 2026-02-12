@@ -1403,6 +1403,71 @@ function App() {
               </Box>
             </Box>
             <Stack spacing={3}>
+              {/* System Status Dashboard */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>System Status</Typography>
+                <Paper 
+                  className="glass-card" 
+                  sx={{ 
+                    p: 2, 
+                    background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.08), rgba(0, 136, 255, 0.05))',
+                    border: '1px solid rgba(0, 255, 255, 0.2)'
+                  }}
+                >
+                  <Stack spacing={1.5}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                        Persistent Memory
+                      </Typography>
+                      <Chip 
+                        label="ACTIVE" 
+                        size="small" 
+                        sx={{ 
+                          bgcolor: '#4ade80', 
+                          color: '#000', 
+                          fontWeight: 700,
+                          animation: 'pulse 2s ease-in-out infinite'
+                        }} 
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                        Voice Output
+                      </Typography>
+                      <Chip 
+                        label={ttsEnabled ? "ENABLED" : "DISABLED"} 
+                        size="small" 
+                        sx={{ 
+                          bgcolor: ttsEnabled ? '#4ade80' : 'rgba(255,255,255,0.1)', 
+                          color: ttsEnabled ? '#000' : '#fff',
+                          fontWeight: 700
+                        }} 
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                        Conversations Saved
+                      </Typography>
+                      <Chip 
+                        label={`${threads.length} threads`} 
+                        size="small" 
+                        sx={{ 
+                          bgcolor: 'rgba(0, 255, 255, 0.15)', 
+                          color: 'var(--accent)',
+                          fontWeight: 700,
+                          borderColor: 'var(--accent)',
+                          borderWidth: 1,
+                          borderStyle: 'solid'
+                        }} 
+                      />
+                    </Box>
+                    <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 1 }} />
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                      ✨ Every conversation is automatically saved to PostgreSQL. Vesper remembers everything!
+                    </Typography>
+                  </Stack>
+                </Paper>
+              </Box>
               {/* Theme Selection */}
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
