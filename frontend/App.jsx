@@ -16,6 +16,8 @@ import {
   Snackbar,
   Menu,
   MenuItem,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -1542,251 +1544,189 @@ function App() {
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Settings</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                    Control themes, interface density, AI models, and system preferences.
+                    Customize your Vesper AI experience
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <Chip label={isFirebaseConfigured ? 'Firebase ready' : 'Offline mode'} size="small" className="chip-soft" />
-                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              </Box>
+              <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
             </Box>
-            <Stack spacing={3}>
-              {/* System Status Dashboard */}
+            <Stack spacing={2.5}>
+              {/* Appearance */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>System Status</Typography>
-                <Paper 
-                  className="glass-card" 
-                  sx={{ 
-                    p: 2, 
-                    background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.08), rgba(0, 136, 255, 0.05))',
-                    border: '1px solid rgba(0, 255, 255, 0.2)'
-                  }}
-                >
-                  <Stack spacing={1.5}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                        Persistent Memory
-                      </Typography>
-                      <Chip 
-                        label="ACTIVE" 
-                        size="small" 
-                        sx={{ 
-                          bgcolor: '#4ade80', 
-                          color: '#000', 
-                          fontWeight: 700,
-                          animation: 'pulse 2s ease-in-out infinite'
-                        }} 
-                      />
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Appearance</Typography>
+                <Stack spacing={1.5}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Theme Color</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>{activeTheme.label}</Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                        Voice Output
-                      </Typography>
-                      <Chip 
-                        label={ttsEnabled ? "ENABLED" : "DISABLED"} 
-                        size="small" 
-                        sx={{ 
-                          bgcolor: ttsEnabled ? '#4ade80' : 'rgba(255,255,255,0.1)', 
-                          color: ttsEnabled ? '#000' : '#fff',
-                          fontWeight: 700
-                        }} 
-                      />
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                        Conversations Saved
-                      </Typography>
-                      <Chip 
-                        label={`${threads.length} threads`} 
-                        size="small" 
-                        sx={{ 
-                          bgcolor: 'rgba(0, 255, 255, 0.15)', 
-                          color: 'var(--accent)',
-                          fontWeight: 700,
-                          borderColor: 'var(--accent)',
-                          borderWidth: 1,
-                          borderStyle: 'solid'
-                        }} 
-                      />
-                    </Box>
-                    <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 1 }} />
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
-                      ✨ Every conversation is automatically saved to PostgreSQL. Vesper remembers everything!
-                    </Typography>
-                  </Stack>
-                </Paper>
-              </Box>
-              {/* Theme Selection */}
-              <Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Theme Color</Typography>
-                  <IconButton 
-                    size="small" 
-                    onClick={(e) => setThemeMenuAnchor(e.currentTarget)}
-                    sx={{ color: 'var(--accent)' }}
-                  >
-                    <PaletteIcon fontSize="small" />
-                  </IconButton>
-                  <Chip 
-                    label={activeTheme.label} 
-                    size="small" 
-                    sx={{ 
-                      bgcolor: activeTheme.accent, 
-                      color: '#000', 
-                      fontWeight: 700,
-                      boxShadow: `0 0 15px ${activeTheme.accent}`
-                    }} 
-                  />
-                </Box>
-                <Menu
-                  anchorEl={themeMenuAnchor}
-                  open={Boolean(themeMenuAnchor)}
-                  onClose={() => setThemeMenuAnchor(null)}
-                  PaperProps={{
-                    sx: {
-                      bgcolor: 'rgba(10, 14, 30, 0.95)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      backdropFilter: 'blur(20px)',
-                      maxHeight: 400,
-                    }
-                  }}
-                >
-                  {THEMES.map((t) => (
-                    <MenuItem
-                      key={t.id}
-                      onClick={() => {
-                        setActiveTheme(t);
-                        setThemeMenuAnchor(null);
-                      }}
-                      selected={activeTheme.id === t.id}
-                      sx={{
-                        gap: 1.5,
-                        borderLeft: activeTheme.id === t.id ? `3px solid ${t.accent}` : '3px solid transparent',
-                        '&.Mui-selected': {
-                          bgcolor: `${t.accent}15`,
-                        }
+                    <IconButton 
+                      onClick={(e) => setThemeMenuAnchor(e.currentTarget)}
+                      sx={{ 
+                        bgcolor: activeTheme.accent, 
+                        color: '#000',
+                        boxShadow: `0 0 15px ${activeTheme.accent}`,
+                        '&:hover': { bgcolor: activeTheme.accent, transform: 'scale(1.1)' }
                       }}
                     >
-                      <Box 
-                        sx={{ 
-                          width: 24, 
-                          height: 24, 
-                          borderRadius: '50%', 
-                          bgcolor: t.accent,
-                          boxShadow: `0 0 10px ${t.accent}`
-                        }} 
-                      />
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.label}</Typography>
-                    </MenuItem>
-                  ))}
-                </Menu>
+                      <PaletteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  <Menu
+                    anchorEl={themeMenuAnchor}
+                    open={Boolean(themeMenuAnchor)}
+                    onClose={() => setThemeMenuAnchor(null)}
+                    PaperProps={{
+                      sx: {
+                        bgcolor: 'rgba(10, 14, 30, 0.95)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        backdropFilter: 'blur(20px)',
+                        maxHeight: 400,
+                      }
+                    }}
+                  >
+                    {THEMES.map((t) => (
+                      <MenuItem
+                        key={t.id}
+                        onClick={() => {
+                          setActiveTheme(t);
+                          setThemeMenuAnchor(null);
+                        }}
+                        selected={activeTheme.id === t.id}
+                        sx={{
+                          gap: 1.5,
+                          borderLeft: activeTheme.id === t.id ? `3px solid ${t.accent}` : '3px solid transparent',
+                          '&.Mui-selected': {
+                            bgcolor: `${t.accent}15`,
+                          }
+                        }}
+                      >
+                        <Box 
+                          sx={{ 
+                            width: 24, 
+                            height: 24, 
+                            borderRadius: '50%', 
+                            bgcolor: t.accent,
+                            boxShadow: `0 0 10px ${t.accent}`
+                          }} 
+                        />
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.label}</Typography>
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                </Stack>
               </Box>
               
-              {/* Interface Density */}
+              {/* Audio & Voice */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Interface Density</Typography>
-                <Stack direction="row" spacing={1.5}>
-                  <Button variant="outlined" size="small" sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} disabled>Compact</Button>
-                  <Button variant="contained" size="small">Normal (Active)</Button>
-                  <Button variant="outlined" size="small" sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} disabled>Spacious</Button>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Audio & Voice</Typography>
+                <Stack spacing={1.5}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Text-to-Speech</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>AI responses read aloud</Typography>
+                    </Box>
+                    <Switch 
+                      checked={ttsEnabled} 
+                      onChange={(e) => setTtsEnabled(e.target.checked)}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': {
+                          color: 'var(--accent)',
+                        },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                          backgroundColor: 'var(--accent)',
+                        },
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Voice Input</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Hold V to speak</Typography>
+                    </Box>
+                    <Chip label="Always On" size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)' }} />
+                  </Box>
                 </Stack>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
-                  Layout adjustments coming soon!
-                </Typography>
               </Box>
 
-              {/* AI Model Selection */}
+              {/* AI Models */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>AI Model (Backend Auto-Routes)</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>AI Models</Typography>
                 <Stack spacing={1}>
-                  <Paper className="glass-card" sx={{ p: 1.5, border: '2px solid #4ade80' }}>
+                  <Box sx={{ p: 1.5, border: '2px solid #4ade80', borderRadius: '8px', bgcolor: 'rgba(74, 222, 128, 0.05)' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>Gemini 1.5 Flash</Typography>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Google • FREE tier (60 req/min)</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>Ollama (Local)</Typography>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Free • Private • Fast</Typography>
                       </Box>
                       <Chip label="PRIMARY" size="small" sx={{ bgcolor: '#4ade80', color: '#000', fontWeight: 700 }} />
                     </Box>
-                  </Paper>
-                  <Paper className="glass-card" sx={{ p: 1.5, border: '1px solid rgba(255,255,255,0.1)' }}>
+                  </Box>
+                  <Box sx={{ p: 1.5, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>Claude 3.5 Sonnet</Typography>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Anthropic • Complex tasks & code</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>Cloud Models</Typography>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Claude, GPT, Gemini</Typography>
                       </Box>
-                      <Chip label="FALLBACK" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }} />
+                      <Chip label="Fallback" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }} />
                     </Box>
-                  </Paper>
-                  <Paper className="glass-card" sx={{ p: 1.5, border: '1px solid rgba(255,255,255,0.1)' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>GPT-4 Turbo</Typography>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>OpenAI • If configured</Typography>
-                      </Box>
-                      <Chip label="OPTIONAL" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }} />
-                    </Box>
-                  </Paper>
-                </Stack>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
-                  Backend automatically routes to best available AI based on task type and provider availability.
-                </Typography>
-              </Box>
-
-              {/* Animation & Effects */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Visual Effects</Typography>
-                <Stack spacing={1.5}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2">Hex Grid Animation</Typography>
-                    <Chip label="ON" size="small" sx={{ bgcolor: 'var(--accent)', color: '#000' }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2">Scanline Effect</Typography>
-                    <Chip label="ON" size="small" sx={{ bgcolor: 'var(--accent)', color: '#000' }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2">Particle System</Typography>
-                    <Chip label="ON" size="small" sx={{ bgcolor: 'var(--accent)', color: '#000' }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2">Hologram Flicker</Typography>
-                    <Chip label="ON" size="small" sx={{ bgcolor: 'var(--accent)', color: '#000' }} />
                   </Box>
                 </Stack>
                 <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
-                  Visual effects are always active and optimized for performance.
+                  Auto-routes to best available model. Ollama runs locally for privacy.
                 </Typography>
               </Box>
 
-              {/* Voice & Audio */}
+              {/* System Info */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Voice & Audio</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>System Status</Typography>
                 <Stack spacing={1.5}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2">Voice Input (Hold V)</Typography>
-                    <Chip label="Enabled" size="small" className="chip-soft" />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Memory Database</Typography>
+                    <Chip label="Connected" size="small" sx={{ bgcolor: 'rgba(74, 222, 128, 0.2)', color: '#4ade80', fontWeight: 600 }} />
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2">UI Sound Effects</Typography>
-                    <Chip label="OFF" size="small" className="chip-soft" />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Conversations</Typography>
+                    <Chip label={`${threads.length} saved`} size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)', fontWeight: 600 }} />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Storage</Typography>
+                    <Chip label="Auto-Save" size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)', fontWeight: 600 }} />
                   </Box>
                 </Stack>
               </Box>
 
-              {/* Data & Storage */}
+              {/* Actions */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Data & Storage</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Data Management</Typography>
                 <Stack spacing={1}>
-                  <Button variant="outlined" fullWidth sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
-                    Export All Data (JSON)
+                  <Button 
+                    variant="outlined" 
+                    fullWidth 
+                    size="small"
+                    sx={{ 
+                      borderColor: 'var(--accent)', 
+                      color: 'var(--accent)',
+                      textTransform: 'none',
+                      '&:hover': { bgcolor: 'rgba(0,255,255,0.1)', borderColor: 'var(--accent)' }
+                    }}
+                  >
+                    Export Data
                   </Button>
-                  <Button variant="outlined" fullWidth sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
-                    Clear Chat History
-                  </Button>
-                  <Button variant="outlined" fullWidth color="error">
-                    Reset All Settings
+                  <Button 
+                    variant="outlined" 
+                    fullWidth 
+                    size="small"
+                    onClick={clearHistory}
+                    sx={{ 
+                      borderColor: 'rgba(255,255,255,0.2)', 
+                      color: '#fff',
+                      textTransform: 'none',
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.3)' }
+                    }}
+                  >
+                    Clear Current Chat
                   </Button>
                 </Stack>
               </Box>
