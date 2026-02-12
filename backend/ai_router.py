@@ -64,6 +64,9 @@ class AIRouter:
         self.google_configured = False
         self.ollama_available = False
         
+        # Detect environment: local vs production
+        self.is_local = self._detect_local_environment()
+        
         # Configure Anthropic (Claude)
         if ANTHROPIC_AVAILABLE:
             anthropic_key = os.getenv("ANTHROPIC_API_KEY")
@@ -91,45 +94,91 @@ class AIRouter:
             try:
                 ollama.list()
                 self.ollama_available = True
-                print("[OK] Ollama (local) available")
+                print(f"[OK] Ollama (local) available - {'PRIMARY' if self.is_local else 'fallback'}")
             except Exception:
                 print("[WARN] Ollama not available (install: https://ollama.ai)")
         else:
             print("[WARN] Ollama not available (install: https://ollama.ai)")
+    
+    def _detect_local_environment(self) -> bool:
+        """Detect if running locally vs cloud production"""
+        # Check for Railway production indicators
+        database_url = os.getenv("DATABASE_URL", "")
+        railway_env = os.getenv("RAILWAY_ENVIRONMENT")
+        
+        # If DATABASE_URL contains postgres:// (Railway), it's production
+        if database_url.startswith("postgres://") or database_url.startswith("postgresql://"):
+            if "railway" in database_url or railway_env:
+                return False  # Production
+        
+        # Default to local (sqlite or localhost)
+        return True
         
         # Routing strategy: which provider to use for each task
-        self.routing_strategy = {
-            TaskType.CODE: [
-                ModelProvider.ANTHROPIC,  # Claude best for code
-                ModelProvider.OPENAI,
-                ModelProvider.GOOGLE,
-                ModelProvider.OLLAMA
-            ],
-            TaskType.CHAT: [
-                ModelProvider.GOOGLE,     # Gemini Flash free & fast
-                ModelProvider.OPENAI,
-                ModelProvider.ANTHROPIC,
-                ModelProvider.OLLAMA
-            ],
-            TaskType.SEARCH: [
-                ModelProvider.GOOGLE,     # Gemini has grounding
-                ModelProvider.OPENAI,
-                ModelProvider.ANTHROPIC,
-                ModelProvider.OLLAMA
-            ],
-            TaskType.ANALYSIS: [
-                ModelProvider.OPENAI,     # GPT-4o great for analysis
-                ModelProvider.ANTHROPIC,
-                ModelProvider.GOOGLE,
-                ModelProvider.OLLAMA
-            ],
-            TaskType.CREATIVE: [
-                ModelProvider.ANTHROPIC,  # Claude creative
-                ModelProvider.OPENAI,
-                ModelProvider.GOOGLE,
-                ModelProvider.OLLAMA
-            ]
-        }
+        # Prioritize Ollama for local, Gemini for cloud
+        if self.is_local:
+            # LOCAL: Ollama first (free, private, fast)
+            self.routing_strategy = {
+                TaskType.CODE: [
+                    ModelProvider.OLLAMA,     # Local first
+                    ModelProvider.ANTHROPIC,  # Claude fallback for code
+                    ModelProvider.OPENAI,
+                    ModelProvider.GOOGLE
+                ],
+                TaskType.CHAT: [
+                    ModelProvider.OLLAMA,     # Local first
+                    ModelProvider.GOOGLE,     # Gemini fallback
+                    ModelProvider.OPENAI,
+                    ModelProvider.ANTHROPIC
+                ],
+                TaskType.SEARCH: [
+                    ModelProvider.OLLAMA,     # Local first
+                    ModelProvider.GOOGLE,     # Gemini has grounding
+                    ModelProvider.OPENAI,
+                    ModelProvider.ANTHROPIC
+                ],
+                TaskType.ANALYSIS: [
+                    ModelProvider.OLLAMA,     # Local first
+                    ModelProvider.OPENAI,     # GPT-4o for complex analysis
+                    ModelProvider.ANTHROPIC,
+                    ModelProvider.GOOGLE
+                ],
+                TaskType.CREATIVE: [
+                    ModelProvider.OLLAMA,     # Local first
+                    ModelProvider.ANTHROPIC,  # Claude creative fallback
+                    ModelProvider.OPENAI,
+                    ModelProvider.GOOGLE
+                ]
+            }
+        else:
+            # PRODUCTION/CLOUD: Gemini first (free & fast), Ollama not available
+            self.routing_strategy = {
+                TaskType.CODE: [
+                    ModelProvider.ANTHROPIC,  # Claude best for code
+                    ModelProvider.GOOGLE,     # Gemini fallback
+                    ModelProvider.OPENAI
+                ],
+                TaskType.CHAT: [
+                    ModelProvider.GOOGLE,     # Gemini Flash free & fast
+                    ModelProvider.OPENAI,
+                    ModelProvider.ANTHROPIC
+                ],
+                TaskType.SEARCH: [
+                    ModelProvider.GOOGLE,     # Gemini has grounding
+                    ModelProvider.OPENAI,
+                    ModelProvider.ANTHROPIC
+                ],
+                TaskType.ANALYSIS: [
+                    ModelProvider.OPENAI,     # GPT-4o great for analysis
+                    ModelProvider.ANTHROPIC,
+                    ModelProvider.GOOGLE
+                ],
+                TaskType.CREATIVE: [
+                    ModelProvider.ANTHROPIC,  # Claude creative
+                    ModelProvider.OPENAI,
+                    ModelProvider.GOOGLE
+                ]
+            }
         
         # Model selection per provider
         self.models = {

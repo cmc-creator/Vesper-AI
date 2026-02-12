@@ -155,6 +155,22 @@ function App() {
   const [uploadedImages, setUploadedImages] = useState([]);
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [abortController, setAbortController] = useState(null);
+  const [soundEnabled, setSoundEnabled] = useState(() => safeStorageGet('vesper_sound_enabled', 'true') === 'true');
+  
+  // Audio context for UI sounds
+  const audioContextRef = useRef(null);
+  
+  // Initialize Web Audio API
+  useEffect(() => {
+    if (soundEnabled && !audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, [soundEnabled]);
   
   // Draggable board positions - load from localStorage
   const [boardPositions, setBoardPositions] = useState(() => {
@@ -397,6 +413,8 @@ function App() {
     setLoading(true);
     setThinking(true);
     
+    playSound('click'); // Sound on send
+    
     // Create new abort controller for this request
     const controller = new AbortController();
     setAbortController(controller);
@@ -422,12 +440,14 @@ function App() {
       addLocalMessage('assistant', data.response);
       await saveMessageToThread('assistant', data.response);
       speak(data.response);
+      playSound('notification'); // Sound on response received
     } catch (error) {
       if (error.name === 'AbortError') {
         console.log('🛑 Generation stopped by user');
         return; // Don't show error message for user-initiated stops
       }
       console.error('❌ Chat error:', error);
+      playSound('error'); // Error sound
       const errorMsg = "I'm having trouble connecting right now, but I'm still here! Press C to jump into the world and I'll keep watch.";
       addLocalMessage('assistant', errorMsg);
       await saveMessageToThread('assistant', errorMsg);
@@ -451,6 +471,8 @@ function App() {
       typeof deleteDoc !== 'function'
     ) {
       setMessages([]);
+      playSound('success');
+      setToast('Chat cleared');
       return;
     }
     const q = query(collection(db, 'chat_messages'));
@@ -461,7 +483,102 @@ function App() {
     });
     await Promise.all(deletePromises);
     setMessages([]);
+    playSound('success');
+    setToast('Chat cleared');
   };
+
+  const exportAllData = () => {
+    try {
+      const exportData = {
+        version: '1.0',
+        exported_at: new Date().toISOString(),
+        threads: threads.map(t => ({
+          id: t.id,
+          title: t.title,
+          pinned: t.pinned,
+          messages: t.messages || [],
+          created_at: t.created_at
+        })),
+        current_messages: messages,
+        settings: {
+          theme: activeTheme.id,
+          tts_enabled: ttsEnabled,
+          sound_enabled: soundEnabled,
+          active_section: activeSection,
+          memory_category: memoryCategory
+        },
+        tasks: tasks,
+        research: researchItems,
+        memory: memoryItems
+      };
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `vesper-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      playSound('success');
+      setToast('Data exported successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      playSound('error');
+      setToast('Export failed');
+    }
+  };
+
+  const playSound = useCallback((type) => {
+    if (!soundEnabled || !audioContextRef.current) return;
+    
+    const ctx = audioContextRef.current;
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    // Different sounds for different actions
+    switch (type) {
+      case 'click':
+        oscillator.frequency.value = 800;
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.1);
+        break;
+      case 'success':
+        oscillator.frequency.value = 1200;
+        gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.2);
+        break;
+      case 'error':
+        oscillator.frequency.value = 400;
+        gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.3);
+        break;
+      case 'notification':
+        oscillator.frequency.value = 1000;
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.15);
+        break;
+      default:
+        oscillator.frequency.value = 600;
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.1);
+    }
+  }, [soundEnabled]);
 
   const fetchResearch = useCallback(async () => {
     if (!apiBase) return;
@@ -1391,7 +1508,11 @@ function App() {
                             </IconButton>
                             <IconButton
                               size="small"
-                              onClick={(e) => { e.stopPropagation(); deleteThread(thread.id); }}
+                              onClick={(e) => { 
+                        e.stopPropagation(); 
+                        deleteThread(thread.id);
+                        playSound('click');
+                      }}
                               sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#ff4444' } }}
                             >
                               <DeleteIcon fontSize="small" />
@@ -1629,7 +1750,33 @@ function App() {
                     </Box>
                     <Switch 
                       checked={ttsEnabled} 
-                      onChange={(e) => setTtsEnabled(e.target.checked)}
+                      onChange={(e) => {
+                        setTtsEnabled(e.target.checked);
+                        playSound('click');
+                      }}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': {
+                          color: 'var(--accent)',
+                        },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                          backgroundColor: 'var(--accent)',
+                        },
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>UI Sound Effects</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Button clicks and notifications</Typography>
+                    </Box>
+                    <Switch 
+                      checked={soundEnabled} 
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        setSoundEnabled(newValue);
+                        localStorage.setItem('vesper_sound_enabled', newValue.toString());
+                        if (newValue) playSound('success');
+                      }}
                       sx={{
                         '& .MuiSwitch-switchBase.Mui-checked': {
                           color: 'var(--accent)',
@@ -1705,6 +1852,10 @@ function App() {
                     variant="outlined" 
                     fullWidth 
                     size="small"
+                    onClick={() => {
+                      exportAllData();
+                      playSound('click');
+                    }}
                     sx={{ 
                       borderColor: 'var(--accent)', 
                       color: 'var(--accent)',
@@ -1712,13 +1863,16 @@ function App() {
                       '&:hover': { bgcolor: 'rgba(0,255,255,0.1)', borderColor: 'var(--accent)' }
                     }}
                   >
-                    Export Data
+                    Export All Data
                   </Button>
                   <Button 
                     variant="outlined" 
                     fullWidth 
                     size="small"
-                    onClick={clearHistory}
+                    onClick={() => {
+                      clearHistory();
+                      playSound('click');
+                    }}
                     sx={{ 
                       borderColor: 'rgba(255,255,255,0.2)', 
                       color: '#fff',
@@ -1789,7 +1943,10 @@ function App() {
               <Box
                 key={id}
                 className={`nav-item ${activeSection === id ? 'active' : ''}`}
-                onClick={() => setActiveSection(id)}
+                onClick={() => {
+                  setActiveSection(id);
+                  playSound('click');
+                }}
               >
                 <Icon fontSize="small" />
                 <span>{label}</span>
