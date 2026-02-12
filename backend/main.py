@@ -1573,6 +1573,148 @@ async def extract_text(file: UploadFile = File(...)):
     except Exception as e:
         return {"error": f"Text extraction failed: {str(e)}"}
 
+@app.post("/api/image/analyze")
+async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = "Describe this image in detail"):
+    """
+    Analyze an image using AI vision capabilities (GPT-4 Vision or Claude with vision).
+    Returns detailed description, detected objects, text, and contextual analysis.
+    """
+    try:
+        content = await file.read()
+        file_type = magic.from_buffer(content, mime=True)
+        
+        if not file_type.startswith("image/"):
+            return {"error": "File must be an image"}
+        
+        # Convert to base64 for AI vision APIs
+        image_base64 = base64.b64encode(content).decode('utf-8')
+        image_data_url = f"data:{file_type};base64,{image_base64}"
+        
+        # Try vision APIs in order of availability
+        analysis_result = None
+        provider_used = None
+        
+        # 1. Try OpenAI GPT-4 Vision
+        if os.getenv("OPENAI_API_KEY"):
+            try:
+                import openai
+                openai.api_key = os.getenv("OPENAI_API_KEY")
+                
+                response = openai.chat.completions.create(
+                    model="gpt-4-vision-preview",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": image_data_url}
+                                }
+                            ]
+                        }
+                    ],
+                    max_tokens=1000
+                )
+                
+                analysis_result = response.choices[0].message.content
+                provider_used = "GPT-4 Vision"
+            except Exception as e:
+                print(f"GPT-4 Vision failed: {e}")
+        
+        # 2. Try Claude with vision (Anthropic)
+        if not analysis_result and os.getenv("ANTHROPIC_API_KEY"):
+            try:
+                import anthropic
+                client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+                
+                message = client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=1024,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": file_type,
+                                        "data": image_base64,
+                                    },
+                                },
+                                {
+                                    "type": "text",
+                                    "text": prompt
+                                }
+                            ],
+                        }
+                    ],
+                )
+                
+                analysis_result = message.content[0].text
+                provider_used = "Claude 3.5 Sonnet (Vision)"
+            except Exception as e:
+                print(f"Claude Vision failed: {e}")
+        
+        # 3. Try Google Gemini Vision
+        if not analysis_result and os.getenv("GOOGLE_API_KEY"):
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+                
+                # Upload image to Gemini
+                image_parts = [
+                    {
+                        'mime_type': file_type,
+                        'data': content
+                    }
+                ]
+                
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content([prompt, image_parts[0]])
+                
+                analysis_result = response.text
+                provider_used = "Gemini 1.5 Flash (Vision)"
+            except Exception as e:
+                print(f"Gemini Vision failed: {e}")
+        
+        # Fallback to OCR if no vision API available
+        if not analysis_result:
+            try:
+                image = Image.open(io.BytesIO(content))
+                ocr_text = pytesseract.image_to_string(image)
+                
+                analysis_result = f"Vision AI not available. OCR extracted text:\n\n{ocr_text}" if ocr_text.strip() else "No text detected in image. Vision AI required for detailed analysis."
+                provider_used = "OCR Fallback (Tesseract)"
+            except Exception as e:
+                return {"error": "No vision AI available and OCR failed"}
+        
+        # Get image metadata
+        try:
+            image = Image.open(io.BytesIO(content))
+            metadata = {
+                "dimensions": image.size,
+                "format": image.format,
+                "mode": image.mode,
+                "size_bytes": len(content)
+            }
+        except:
+            metadata = {"size_bytes": len(content)}
+        
+        return {
+            "filename": file.filename,
+            "analysis": analysis_result,
+            "provider": provider_used,
+            "metadata": metadata,
+            "prompt_used": prompt
+        }
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"error": f"Image analysis failed: {str(e)}"}
+
 @app.post("/api/file/compare")
 async def compare_files(file1: UploadFile = File(...), file2: UploadFile = File(...)):
     """
