@@ -723,3 +723,222 @@ canvas {
   background: var(--accent);
   box-shadow: 0 0 14px var(--accent);
 }
+
+/* ===== ENHANCED UI POLISH (Feature H) ===== */
+
+/* Icon Button Animations */
+.MuiIconButton-root {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.MuiIconButton-root:hover {
+  transform: scale(1.15) !important;
+}
+
+.MuiIconButton-root:active {
+  transform: scale(0.95) !important;
+}
+
+.MuiIconButton-root svg {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Loading Skeleton Animation */
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.04) 0%, 
+    rgba(255, 255, 255, 0.08) 50%, 
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Toast Notification Slide-in */
+@keyframes toast-slide-in {
+  0% {
+    transform: translateY(-100px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px);
+    opacity: 0;
+  }
+}
+
+.toast-enter {
+  animation: toast-slide-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.toast-exit {
+  animation: toast-slide-out 0.2s ease-in;
+}
+
+/* Button Press Effect */
+button:active,
+.MuiButton-root:active {
+  transform: scale(0.97) !important;
+}
+
+/* Smooth Input Focus */
+.MuiTextField-root input,
+.MuiTextField-root textarea {
+  transition: all 0.2s ease !important;
+}
+
+.MuiTextField-root:focus-within {
+  transform: translateY(-1px);
+}
+
+/* Card Hover Lift */
+.board-card,
+.memory-card,
+.task-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.board-card:hover,
+.memory-card:hover,
+.task-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 255, 0.3);
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 255, 0.5);
+}
+
+/* Fade-in for Messages */
+@keyframes message-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-fade-in {
+  animation: message-fade-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Ripple Effect */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(0, 255, 255, 0.6);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  animation: ripple 0.6s ease-out;
+}
+
+/* Page Transition */
+@keyframes page-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.page-transition {
+  animation: page-slide-in 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Status Badge Pulse */
+@keyframes status-pulse {
+  0%, 100% {
+    box-shadow: 0 0 14px var(--accent);
+  }
+  50% {
+    box-shadow: 0 0 24px var(--accent), 0 0 40px var(--accent);
+  }
+}
+
+.status-dot {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+/* Enhanced Theme Card */
+.theme-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.theme-card:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+/* Smooth Modal Backdrop */
+.MuiBackdrop-root {
+  backdrop-filter: blur(8px) !important;
+  transition: all 0.3s ease !important;
+}

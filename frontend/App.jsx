@@ -1103,7 +1103,22 @@ function App() {
             {memoryView === 'history' ? (
               <Box className="board-list">
                 {threadsLoading ? (
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>Loading chat history...</Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {[1, 2, 3, 4].map((i) => (
+                      <Box key={i} className="board-row" sx={{ opacity: 0.6 }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Box className="skeleton" sx={{ height: 20, width: '70%', mb: 0.5 }} />
+                          <Box className="skeleton" sx={{ height: 16, width: '40%' }} />
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <Box className="skeleton" sx={{ width: 32, height: 32, borderRadius: '50%' }} />
+                          <Box className="skeleton" sx={{ width: 32, height: 32, borderRadius: '50%' }} />
+                          <Box className="skeleton" sx={{ width: 32, height: 32, borderRadius: '50%' }} />
+                          <Box className="skeleton" sx={{ width: 32, height: 32, borderRadius: '50%' }} />
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
                 ) : filteredThreads.length > 0 ? (
                   filteredThreads.map((thread) => (
                     <Box 
@@ -1796,7 +1811,9 @@ function App() {
             </Paper>
 
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-              {renderActiveBoard()}
+              <div key={activeSection} className="page-transition">
+                {renderActiveBoard()}
+              </div>
             </DndContext>
           </section>
         </main>
@@ -1807,6 +1824,18 @@ function App() {
         onClose={() => setToast('')}
         message={toast}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        ContentProps={{
+          className: 'toast-enter',
+          sx: {
+            background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.15), rgba(0, 136, 255, 0.15))',
+            border: '1px solid rgba(0, 255, 255, 0.3)',
+            borderRadius: '12px',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 0 30px rgba(0, 255, 255, 0.3), 0 8px 32px rgba(0, 0, 0, 0.4)',
+            color: '#fff',
+            fontWeight: 600,
+          }
+        }}
       />
       <Menu
         anchorEl={exportMenuAnchor}
@@ -1816,7 +1845,7 @@ function App() {
         <MenuItem onClick={() => {
           if (exportThreadData) downloadThreadMD(exportThreadData.id, exportThreadData.title);
           setExportMenuAnchor(null);
-          setExport ThreadData(null);
+          setExportThreadData(null);
         }}>
           <DownloadIcon fontSize="small" sx={{ mr: 1 }} /> Export as Markdown
         </MenuItem>
