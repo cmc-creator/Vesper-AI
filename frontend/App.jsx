@@ -684,7 +684,7 @@ function App() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      setTo ast('Exported as JSON');
+      setToast('Exported as JSON');
     } catch (error) {
       console.error('Export failed:', error);
       setToast('Export failed');
