@@ -646,7 +646,8 @@ def delete_note(idx: int):
 # --- Threaded Conversation Endpoints ---
 @app.get("/api/threads")
 def get_threads():
-    return load_threads()
+    """Get all conversation threads from PostgreSQL database"""
+    return memory_db.get_all_threads()
 
 @app.post("/api/threads")
 def add_thread(entry: ThreadEntry):
