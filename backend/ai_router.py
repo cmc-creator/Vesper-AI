@@ -135,7 +135,7 @@ class AIRouter:
         self.models = {
             ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
             ModelProvider.OPENAI: "gpt-4o-mini",  # Fast & cheap
-            ModelProvider.GOOGLE: "gemini-2.0-flash-exp",  # Free tier!
+            ModelProvider.GOOGLE: "gemini-1.5-flash",  # Stable free tier model!
             ModelProvider.OLLAMA: "llama3.1:70b"  # Best local model
         }
     

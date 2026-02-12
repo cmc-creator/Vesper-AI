@@ -1088,6 +1088,9 @@ function App() {
                     <Chip label="ON" size="small" sx={{ bgcolor: 'var(--accent)', color: '#000' }} />
                   </Box>
                 </Stack>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
+                  Visual effects are always active and optimized for performance.
+                </Typography>
               </Box>
 
               {/* Voice & Audio */}
