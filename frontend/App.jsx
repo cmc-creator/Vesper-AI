@@ -22,6 +22,8 @@ import {
   Delete as DeleteIcon,
   Close as CloseIcon,
   Add as AddIcon,
+  PushPin as PinIcon,
+  PushPinOutlined as PinOutlinedIcon,
   HistoryRounded,
   BoltRounded,
   ContentCopyRounded,
@@ -127,6 +129,9 @@ function App() {
   const [memoryCategory, setMemoryCategory] = useState(() => safeStorageGet('vesper_memory_category', 'notes'));
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [memoryText, setMemoryText] = useState('');
+  const [memoryView, setMemoryView] = useState('history'); // 'history' or 'notes'
+  const [threads, setThreads] = useState([]);
+  const [threadsLoading, setThreadsLoading] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [themeMenuAnchor, setThemeMenuAnchor] = useState(null);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -432,6 +437,42 @@ function App() {
       setTasksLoading(false);
     }
   }, [apiBase]);
+
+  const fetchThreads = useCallback(async () => {
+    if (!apiBase) return;
+    setThreadsLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/api/threads`);
+      const data = await res.json();
+      setThreads(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Threads fetch failed:', error);
+    } finally {
+      setThreadsLoading(false);
+    }
+  }, [apiBase]);
+
+  const togglePinThread = async (threadId) => {
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase}/api/threads/${threadId}/pin`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setThreads(prev => 
+          prev.map(t => t.id === threadId ? { ...t, pinned: data.pinned } : t)
+            .sort((a, b) => {
+              if (a.pinned !== b.pinned) return b.pinned ? 1 : -1;
+              return new Date(b.updated_at) - new Date(a.updated_at);
+            })
+        );
+        setToast(data.pinned ? 'Pinned!' : 'Unpinned');
+      }
+    } catch (error) {
+      console.error('Pin failed:', error);
+    }
+  };
 
   const addTask = async () => {
     if (!taskForm.title.trim() || !apiBase) return;
@@ -783,67 +824,115 @@ function App() {
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Memory Core</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                    Uses /api/memory/{memoryCategory}. Fast, file-backed store.
+                    {memoryView === 'history' ? 'Chat history with pinning' : 'Fast, file-backed memory store'}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <Chip label={memoryLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
+                <Chip label={memoryView === 'history' ? (threadsLoading ? 'Loading…' : 'Loaded') : (memoryLoading ? 'Syncing…' : 'Synced')} size="small" className="chip-soft" />
                 <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </Box>
             </Box>
-            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
-              {['notes', 'conversations', 'sensory_experiences', 'creative_moments', 'emotional_bonds'].map((cat) => (
-                <Chip
-                  key={cat}
-                  label={cat.replace(/_/g, ' ')}
-                  onClick={() => setMemoryCategory(cat)}
-                  color={memoryCategory === cat ? 'primary' : 'default'}
-                  variant={memoryCategory === cat ? 'filled' : 'outlined'}
-                  size="small"
-                />
-              ))}
+            <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+              <Chip
+                label="History"
+                onClick={() => { setMemoryView('history'); fetchThreads(); }}
+                color={memoryView === 'history' ? 'primary' : 'default'}
+                variant={memoryView === 'history' ? 'filled' : 'outlined'}
+                size="small"
+              />
+              <Chip
+                label="Notes"
+                onClick={() => setMemoryView('notes')}
+                color={memoryView === 'notes' ? 'primary' : 'default'}
+                variant={memoryView === 'notes' ? 'filled' : 'outlined'}
+                size="small"
+              />
             </Stack>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Stack spacing={1}>
-                  <TextField
-                    label="New memory"
-                    multiline
-                    minRows={3}
-                    value={memoryText}
-                    onChange={(e) => setMemoryText(e.target.value)}
-                    fullWidth
-                    variant="filled"
+            {memoryView === 'notes' && (
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                {['notes', 'conversations', 'sensory_experiences', 'creative_moments', 'emotional_bonds'].map((cat) => (
+                  <Chip
+                    key={cat}
+                    label={cat.replace(/_/g, ' ')}
+                    onClick={() => setMemoryCategory(cat)}
+                    color={memoryCategory === cat ? 'primary' : 'default'}
+                    variant={memoryCategory === cat ? 'filled' : 'outlined'}
                     size="small"
-                    InputProps={{ sx: { color: '#fff' } }}
                   />
-                  <Button variant="contained" onClick={addMemoryEntry} disabled={!memoryText.trim()}>
-                    Save Memory
-                  </Button>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Box className="board-list">
-                  {(memoryItems || []).slice().reverse().map((item, idx) => (
-                    <Box key={`${item.timestamp}-${idx}`} className="board-row">
-                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>
-                        {item.content}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                        {formatTime(item.timestamp || Date.now())}
-                      </Typography>
+                ))}
+              </Stack>
+            )}
+            {memoryView === 'history' ? (
+              <Box className="board-list">
+                {threadsLoading ? (
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>Loading chat history...</Typography>
+                ) : threads.length > 0 ? (
+                  threads.map((thread) => (
+                    <Box key={thread.id} className="board-row" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: thread.pinned ? 700 : 400 }}>
+                          {thread.pinned && '📌 '}{thread.title}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                          {thread.message_count || 0} messages • {formatTime(thread.updated_at)}
+                        </Typography>
+                      </Box>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); togglePinThread(thread.id); }}
+                        sx={{ color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.5)' }}
+                      >
+                        {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
+                      </IconButton>
                     </Box>
-                  ))}
-                  {!memoryItems?.length && !memoryLoading && (
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                      Nothing stored for this category yet.
-                    </Typography>
-                  )}
-                </Box>
+                  ))
+                ) : (
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>No chat history yet.</Typography>
+                )}
+              </Box>
+            ) : (
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Stack spacing={1}>
+                    <TextField
+                      label="New memory"
+                      multiline
+                      minRows={3}
+                      value={memoryText}
+                      onChange={(e) => setMemoryText(e.target.value)}
+                      fullWidth
+                      variant="filled"
+                      size="small"
+                      InputProps={{ sx: { color: '#fff' } }}
+                    />
+                    <Button variant="contained" onClick={addMemoryEntry} disabled={!memoryText.trim()}>
+                      Save Memory
+                    </Button>
+                  </Stack>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Box className="board-list">
+                    {(memoryItems || []).slice().reverse().map((item, idx) => (
+                      <Box key={`${item.timestamp}-${idx}`} className="board-row">
+                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                          {item.content}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                          {formatTime(item.timestamp || Date.now())}
+                        </Typography>
+                      </Box>
+                    ))}
+                    {!memoryItems?.length && !memoryLoading && (
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                        Nothing stored for this category yet.
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
               </Grid>
-            </Grid>
+            )}
           </Paper>
           </DraggableBoard>
         );
