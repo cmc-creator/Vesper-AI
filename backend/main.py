@@ -1996,14 +1996,16 @@ async def execute_workflow(workflow: dict):
                     for key, value in context.items():
                         prompt = prompt.replace(f"{{{{ {key} }}}}", str(value))
                     
-                    if client:
-                        response = client.messages.create(
-                            model="claude-3-5-sonnet-20241022",
-                            max_tokens=4000,
-                            messages=[{"role": "user", "content": prompt}]
-                        )
-                        step_result['output'] = response.content[0].text
-                        context[step['name']] = response.content[0].text
+                    ai_response = await ai_router.chat(
+                        messages=[{"role": "user", "content": prompt}],
+                        task_type=TaskType.ANALYSIS,
+                        max_tokens=4000,
+                        temperature=0.7
+                    )
+                    
+                    if "error" not in ai_response:
+                        step_result['output'] = ai_response.get("content", "")
+                        context[step['name']] = ai_response.get("content", "")
             
             except Exception as e:
                 step_result['error'] = str(e)
@@ -2490,13 +2492,13 @@ async def chat_with_vesper(chat: ChatMessage):
             })
             
             # Continue conversation
-            response = client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=2000,
-                system=enhanced_system,
+            response = (await ai_router.chat(
                 messages=messages,
+                task_type=TaskType.CHAT,
+                max_tokens=2000,
+                temperature=0.7,
                 tools=tools
-            )
+            )).get("raw_response")
         
         # Extract final text response (works for Claude, GPT, Gemini responses)
         ai_response = ai_response_obj.get("content", "Sorry, I couldn't generate a response.")
