@@ -152,6 +152,7 @@ function App() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [analyzingImage, setAnalyzingImage] = useState(false);
+  const [abortController, setAbortController] = useState(null);
   
   // Draggable board positions - load from localStorage
   const [boardPositions, setBoardPositions] = useState(() => {
@@ -377,12 +378,26 @@ function App() {
     }
   };
 
+  const stopGeneration = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setLoading(false);
+      setThinking(false);
+      setToast('Generation stopped');
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
     const userMessage = input.trim();
     setInput('');
     setLoading(true);
     setThinking(true);
+    
+    // Create new abort controller for this request
+    const controller = new AbortController();
+    setAbortController(controller);
     
     console.log('📤 Sending message:', userMessage.substring(0, 50));
     
@@ -394,6 +409,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage }),
+        signal: controller.signal,
       });
       
       if (!response.ok) throw new Error('Backend call failed');
@@ -405,12 +421,17 @@ function App() {
       await saveMessageToThread('assistant', data.response);
       speak(data.response);
     } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('🛑 Generation stopped by user');
+        return; // Don't show error message for user-initiated stops
+      }
       console.error('❌ Chat error:', error);
       const errorMsg = "I'm having trouble connecting right now, but I'm still here! Press C to jump into the world and I'll keep watch.";
       addLocalMessage('assistant', errorMsg);
       await saveMessageToThread('assistant', errorMsg);
       speak(errorMsg);
     } finally {
+      setAbortController(null);
       setLoading(false);
       setThinking(false);
     }
@@ -2136,13 +2157,21 @@ function App() {
                 }}
                 size="small"
               />
-              <Tooltip title="Send (Enter)" placement="top">
-                <span>
-                  <IconButton onClick={sendMessage} disabled={loading || !input.trim()} className="cta-button" size="small">
-                    {loading ? <CircularProgress size={20} /> : <SendIcon />}
+              {loading ? (
+                <Tooltip title="Stop generation" placement="top">
+                  <IconButton onClick={stopGeneration} className="cta-button" size="small" sx={{ bgcolor: '#ff4444', '&:hover': { bgcolor: '#cc0000' } }}>
+                    <CloseIcon />
                   </IconButton>
-                </span>
-              </Tooltip>
+                </Tooltip>
+              ) : (
+                <Tooltip title="Send (Enter)" placement="top">
+                  <span>
+                    <IconButton onClick={sendMessage} disabled={!input.trim()} className="cta-button" size="small">
+                      <SendIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              )}
               <Tooltip title="Clear chat" placement="top">
                 <IconButton onClick={clearHistory} className="ghost-button" size="small">
                   <DeleteIcon fontSize="small" />
@@ -2152,68 +2181,188 @@ function App() {
           </section>
 
           <section className="ops-panel">
-            <Box className="panel-grid">
-              <Paper className="ops-card glass-card" onClick={() => setActiveSection('research')}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Research Tools</Typography>
-                  <Chip icon={<ScienceRounded />} label="Ready" size="small" className="chip-soft" />
+            {/* Cool Dashboard - Statistics & Quick Actions */}
+            <Box className="panel-grid" sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
+              
+              {/* AI Stats Card */}
+              <Paper className="ops-card glass-card">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--accent)' }}>AI Statistics</Typography>
+                  <BoltRounded sx={{ color: 'var(--accent)' }} />
                 </Box>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, fontSize: '12px' }}>
-                  Web scraping, DB access, file processing, code execution.
-                </Typography>
-                <Stack spacing={0.6}>
-                  <div className="list-row">Web Scraper · Deep + shallow crawl</div>
-                  <div className="list-row">Database Manager · SQL / NoSQL</div>
-                  <div className="list-row">File Processor · PDFs, docs</div>
-                  <div className="list-row">Synthesizer · Blend sources</div>
+                <Stack spacing={1.5}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px' }}>Messages Today</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 800, color: 'var(--accent)' }}>{messages.length}</Typography>
+                  </Box>
+                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '10px' }}>Threads</Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700 }}>{threads.length}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '10px' }}>Active</Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#00ff88' }}>{currentThreadId ? '1' : '0'}</Typography>
+                    </Box>
+                  </Box>
                 </Stack>
               </Paper>
 
-              <Paper className="ops-card glass-card" onClick={() => setActiveSection('memory')}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Memory Core</Typography>
-                  <Chip icon={<HistoryRounded />} label="Sync" size="small" className="chip-soft" />
+              {/* System Status Card */}
+              <Paper className="ops-card glass-card">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--accent)' }}>System Status</Typography>
+                  <CircularProgress 
+                    variant="determinate" 
+                    value={100} 
+                    size={32} 
+                    sx={{ 
+                      color: '#00ff88',
+                      '& .MuiCircularProgress-circle': { strokeLinecap: 'round' }
+                    }} 
+                  />
                 </Box>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, fontSize: '12px' }}>
-                  Long-term context, vectors, and recall-ready notes.
-                </Typography>
-                <Stack spacing={0.6}>
-                  <div className="list-row">Pinned facts · Rapid recall</div>
-                  <div className="list-row">Context stitching · Auto-augment</div>
-                  <div className="list-row">Exportable knowledge graph</div>
+                <Stack spacing={1}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>Backend</Typography>
+                    <Chip label="Online" size="small" sx={{ bgcolor: 'rgba(0,255,136,0.2)', color: '#00ff88', fontSize: '10px', height: '20px' }} />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>Memory</Typography>
+                    <Chip label="Synced" size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)', fontSize: '10px', height: '20px' }} />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>TTS</Typography>
+                    <Chip 
+                      label={ttsEnabled ? 'Enabled' : 'Disabled'} 
+                      size="small" 
+                      sx={{ 
+                        bgcolor: ttsEnabled ? 'rgba(0,255,255,0.2)' : 'rgba(255,255,255,0.1)', 
+                        color: ttsEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.5)', 
+                        fontSize: '10px', 
+                        height: '20px' 
+                      }} 
+                    />
+                  </Box>
                 </Stack>
               </Paper>
 
-              <Paper className="ops-card glass-card" onClick={() => setActiveSection('tasks')}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Task Matrix</Typography>
-                  <Chip icon={<ChecklistRounded />} label="Tracked" size="small" className="chip-soft" />
+              {/* Quick Actions Card */}
+              <Paper className="ops-card glass-card">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--accent)' }}>Quick Actions</Typography>
+                  <HubRounded sx={{ color: 'var(--accent)' }} />
                 </Box>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, fontSize: '12px' }}>
-                  Multi-panel tasks, status chips, and action history.
-                </Typography>
-                <Stack spacing={0.6}>
-                  <div className="list-row">Inbox · capture quick asks</div>
-                  <div className="list-row">Doing · current focus</div>
-                  <div className="list-row">Done · audit log</div>
+                <Stack spacing={1}>
+                  <Button 
+                    fullWidth 
+                    variant="outlined" 
+                    size="small"
+                    onClick={startNewChat}
+                    startIcon={<AddIcon />}
+                    sx={{ 
+                      borderColor: 'var(--accent)', 
+                      color: 'var(--accent)', 
+                      textTransform: 'none',
+                      '&:hover': { bgcolor: 'rgba(0,255,255,0.1)', borderColor: 'var(--accent)' }
+                    }}
+                  >
+                    New Chat
+                  </Button>
+                  <Button 
+                    fullWidth 
+                    variant="outlined" 
+                    size="small"
+                    onClick={() => setCommandPaletteOpen(true)}
+                    startIcon={<BoltRounded />}
+                    sx={{ 
+                      borderColor: 'rgba(255,255,255,0.2)', 
+                      color: '#fff', 
+                      textTransform: 'none',
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.3)' }
+                    }}
+                  >
+                    Command Palette
+                  </Button>
+                  <Button 
+                    fullWidth 
+                    variant="outlined" 
+                    size="small"
+                    onClick={() => setGameMode(true)}
+                    startIcon={<PublicRounded />}
+                    sx={{ 
+                      borderColor: 'rgba(255,255,255,0.2)', 
+                      color: '#fff', 
+                      textTransform: 'none',
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.3)' }
+                    }}
+                  >
+                    Enter World
+                  </Button>
                 </Stack>
               </Paper>
 
-              <Paper className="ops-card glass-card" onClick={() => setActiveSection('settings')}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Settings</Typography>
-                  <Chip icon={<SettingsRounded />} label="Theming" size="small" className="chip-soft" />
+              {/* Active Session Card  */}
+              <Paper className="ops-card glass-card">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--accent)' }}>Active Session</Typography>
+                  <HistoryRounded sx={{ color: 'var(--accent)' }} />
                 </Box>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, fontSize: '12px' }}>
-                  Themes, layout, AI models, and system preferences.
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>
-                  Click to configure all options
-                </Typography>
+                {currentThreadId ? (
+                  <Box>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1, fontWeight: 600 }}>
+                      {currentThreadTitle || 'Current Conversation'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>
+                      {messages.length} messages in this chat
+                    </Typography>
+                    <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+                      <Button 
+                        variant="text" 
+                        size="small"
+                        onClick={startNewChat}
+                        sx={{ color: 'var(--accent)', textTransform: 'none', fontSize: '11px' }}
+                      >
+                        New Thread
+                      </Button>
+                      <Button 
+                        variant="text" 
+                        size="small"
+                        onClick={clearHistory}
+                        sx={{ color: '#ff4444', textTransform: 'none', fontSize: '11px' }}
+                      >
+                        Clear
+                      </Button>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 2 }}>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 2 }}>
+                      No active conversation
+                    </Typography>
+                    <Button 
+                      variant="outlined" 
+                      size="small"
+                      onClick={startNewChat}
+                      startIcon={<AddIcon />}
+                      sx={{ 
+                        borderColor: 'var(--accent)', 
+                        color: 'var(--accent)', 
+                        textTransform: 'none',
+                        fontSize: '11px'
+                      }}
+                    >
+                      Start Chatting
+                    </Button>
+                  </Box>
+                )}
               </Paper>
+
             </Box>
 
-            <Paper className="world-panel glass-card">
+            {/* Vesper World Panel */}
+            <Paper className="world-panel glass-card" sx={{ mt: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Vesper World</Typography>
                 <Stack direction="row" spacing={1}>
@@ -2231,7 +2380,6 @@ function App() {
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
                     <button className="primary-btn" onClick={() => setGameMode(true)}>Enter World</button>
-                    <button className="ghost-btn" onClick={() => setActiveSection('research')}>Open Research</button>
                   </Box>
                 </Box>
               )}
