@@ -677,6 +677,31 @@ def add_message_to_thread(thread_id: str, message: dict):
             return {"status": "ok"}
     return {"status": "not found"}
 
+@app.post("/api/threads/{thread_id}/pin")
+async def pin_thread(thread_id: str):
+    """Pin or unpin a conversation thread"""
+    try:
+        thread = memory_db.get_thread(thread_id)
+        if not thread:
+            return {"status": "not_found", "thread_id": thread_id}
+        
+        # Toggle pinned status
+        current_pinned = thread.get("pinned", False)
+        success = memory_db.update_thread_pinned(thread_id, not current_pinned)
+        
+        if success:
+            return {
+                "status": "success",
+                "thread_id": thread_id,
+                "pinned": not current_pinned
+            }
+        return {"status": "error", "message": "Failed to update pin status"}
+    except Exception as e:
+        print(f"❌ Error pinning thread: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "error": str(e)}
+
 @app.delete("/api/threads/{idx}")
 def delete_thread(idx: int):
     threads = load_threads()

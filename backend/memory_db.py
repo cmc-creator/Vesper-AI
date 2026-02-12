@@ -21,6 +21,7 @@ class Thread(Base):
     
     id = Column(String, primary_key=True)
     title = Column(String, nullable=False)
+    pinned = Column(Boolean, default=False)  # Pin important conversations
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     messages = Column(JSON, default=list)  # Store messages as JSON array
@@ -152,10 +153,13 @@ class PersistentMemoryDB:
             session.close()
     
     def get_all_threads(self) -> List[Dict]:
-        """Get all threads"""
+        """Get all threads, pinned first"""
         session = self.get_session()
         try:
-            threads = session.query(Thread).order_by(Thread.updated_at.desc()).all()
+            threads = session.query(Thread).order_by(
+                Thread.pinned.desc(),  # Pinned first
+                Thread.updated_at.desc()  # Then by most recent
+            ).all()
             return [self._thread_to_dict(t) for t in threads]
         finally:
             session.close()
@@ -185,6 +189,20 @@ class PersistentMemoryDB:
             thread = session.query(Thread).filter(Thread.id == thread_id).first()
             if thread:
                 session.delete(thread)
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
+    
+    def update_thread_pinned(self, thread_id: str, pinned: bool) -> bool:
+        """Pin or unpin a thread"""
+        session = self.get_session()
+        try:
+            thread = session.query(Thread).filter(Thread.id == thread_id).first()
+            if thread:
+                thread.pinned = pinned
+                thread.updated_at = datetime.datetime.utcnow()
                 session.commit()
                 return True
             return False
@@ -393,6 +411,8 @@ class PersistentMemoryDB:
         return {
             "id": thread.id,
             "title": thread.title,
+            "pinned": thread.pinned if hasattr(thread, 'pinned') else False,
+            "message_count": len(thread.messages) if thread.messages else 0,
             "created_at": thread.created_at.isoformat() if thread.created_at else None,
             "updated_at": thread.updated_at.isoformat() if thread.updated_at else None,
             "messages": thread.messages or [],
