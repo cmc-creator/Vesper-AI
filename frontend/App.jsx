@@ -132,6 +132,8 @@ function App() {
   const [memoryView, setMemoryView] = useState('history'); // 'history' or 'notes'
   const [threads, setThreads] = useState([]);
   const [threadsLoading, setThreadsLoading] = useState(false);
+  const [currentThreadId, setCurrentThreadId] = useState(null);
+  const [currentThreadTitle, setCurrentThreadTitle] = useState('');
   const [tasks, setTasks] = useState([]);
   const [themeMenuAnchor, setThemeMenuAnchor] = useState(null);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -472,6 +474,37 @@ function App() {
     } catch (error) {
       console.error('Pin failed:', error);
     }
+  };
+
+  const loadThread = async (threadId) => {
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase}/api/threads/${threadId}`);
+      const data = await res.json();
+      if (data && data.messages) {
+        // Convert backend message format to frontend format
+        const formattedMessages = data.messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp || Date.now()
+        }));
+        setMessages(formattedMessages);
+        setCurrentThreadId(threadId);
+        setCurrentThreadTitle(data.title || 'Untitled Conversation');
+        setActiveSection('chat');
+        setToast(`Loaded: ${data.title || 'Conversation'}`);
+      }
+    } catch (error) {
+      console.error('Thread load failed:', error);
+      setToast('Failed to load conversation');
+    }
+  };
+
+  const startNewChat = () => {
+    setMessages([]);
+    setCurrentThreadId(null);
+    setCurrentThreadTitle('');
+    setToast('New conversation started');
   };
 
   const addTask = async () => {
@@ -870,7 +903,12 @@ function App() {
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>Loading chat history...</Typography>
                 ) : threads.length > 0 ? (
                   threads.map((thread) => (
-                    <Box key={thread.id} className="board-row" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                    <Box 
+                      key={thread.id} 
+                      className="board-row" 
+                      onClick={() => loadThread(thread.id)}
+                      sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' } }}
+                    >
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: thread.pinned ? 700 : 400 }}>
                           {thread.pinned && '📌 '}{thread.title}
@@ -1286,9 +1324,33 @@ function App() {
         <main className="content-grid">
           <section className="chat-panel glass-panel">
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--accent)' }}>
-                Neural Chat
-              </Typography>
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--accent)' }}>
+                  Neural Chat
+                </Typography>
+                {currentThreadId && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                      💬 {currentThreadTitle}
+                    </Typography>
+                    <Button 
+                      size="small" 
+                      variant="outlined"
+                      onClick={startNewChat}
+                      sx={{ 
+                        fontSize: '0.7rem', 
+                        py: 0.25, 
+                        px: 1,
+                        borderColor: 'var(--accent)',
+                        color: 'var(--accent)',
+                        '&:hover': { bgcolor: 'rgba(0,255,255,0.1)', borderColor: 'var(--accent)' }
+                      }}
+                    >
+                      New Chat
+                    </Button>
+                  </Box>
+                )}
+              </Box>
               <Box className="status-dot" />
             </Box>
 
