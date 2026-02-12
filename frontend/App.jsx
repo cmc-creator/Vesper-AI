@@ -336,6 +336,8 @@ function App() {
         const firstWords = content.slice(0, 50).trim();
         const title = firstWords.length === 50 ? `${firstWords}...` : firstWords;
         
+        console.log('📝 Creating new thread with title:', title);
+        
         const createRes = await fetch(`${apiBase}/api/threads`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -344,20 +346,34 @@ function App() {
             messages: [{ role, content, timestamp: Date.now() }],
           }),
         });
+        
+        if (!createRes.ok) throw new Error(`HTTP ${createRes.status}: ${createRes.statusText}`);
+        
         const createData = await createRes.json();
+        if (createData.error) throw new Error(createData.error);
+        
         threadId = createData.id;
         setCurrentThreadId(threadId);
         setCurrentThreadTitle(title);
+        
+        // CRITICAL: Refresh thread list after creating
+        fetchThreads();
+        console.log('✅ Thread created:', threadId);
       } else {
         // Add message to existing thread
-        await fetch(`${apiBase}/api/threads/${threadId}`, {
+        console.log('💬 Adding message to thread:', threadId);
+        
+        const addRes = await fetch(`${apiBase}/api/threads/${threadId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ role, content, timestamp: Date.now() }),
         });
+        
+        if (!addRes.ok) throw new Error(`HTTP ${addRes.status}: ${addRes.statusText}`);
       }
     } catch (error) {
-      console.error('Failed to save message to thread:', error);
+      console.error('❌ Failed to save message to thread:', error);
+      setToast(`Memory save failed: ${error.message}`);
     }
   };
 
@@ -367,25 +383,33 @@ function App() {
     setInput('');
     setLoading(true);
     setThinking(true);
+    
+    console.log('📤 Sending message:', userMessage.substring(0, 50));
+    
     addLocalMessage('user', userMessage);
     await saveMessageToThread('user', userMessage);
+    
     try {
       const response = await fetch(`${chatBase}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage }),
       });
+      
       if (!response.ok) throw new Error('Backend call failed');
+      
       const data = await response.json();
+      console.log('🤖 Received response:', data.response?.substring(0, 50));
+      
       addLocalMessage('assistant', data.response);
       await saveMessageToThread('assistant', data.response);
-      speak(data.response); // Speak Vesper's response
+      speak(data.response);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('❌ Chat error:', error);
       const errorMsg = "I'm having trouble connecting right now, but I'm still here! Press C to jump into the world and I'll keep watch.";
       addLocalMessage('assistant', errorMsg);
       await saveMessageToThread('assistant', errorMsg);
-      speak(errorMsg); // Speak error message
+      speak(errorMsg);
     } finally {
       setLoading(false);
       setThinking(false);
@@ -742,11 +766,21 @@ function App() {
   useEffect(() => {
     fetchResearch();
     fetchTasks();
-  }, [fetchResearch, fetchTasks]);
+    fetchThreads(); // CRITICAL FIX: Load chat history on startup
+  }, [fetchResearch, fetchTasks, fetchThreads]);
 
   useEffect(() => {
     fetchMemory(memoryCategory);
   }, [fetchMemory, memoryCategory]);
+
+  // Debug: Log Thread System Status
+  useEffect(() => {
+    console.log('🔍 THREAD SYSTEM DEBUG:', {
+      threadsCount: threads.length,
+      apiBase,
+      threads: threads.slice(0, 3)
+    });
+  }, [threads, apiBase]);
 
   const handleCommand = (command) => {
     switch (command) {
@@ -1778,7 +1812,7 @@ function App() {
 
       <Box className="app-shell" style={themeVars}>
         <aside className="sidebar glass-panel">
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Box>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 2 }}>
                 VESPER AI
@@ -1787,10 +1821,9 @@ function App() {
                 Ops Console
               </Typography>
             </Box>
-            {/* Removed fake LIVE indicator */}
           </Box>
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, mb: 3 }}>
             {NAV.map(({ id, label, icon: Icon }) => (
               <Box
                 key={id}
@@ -1803,7 +1836,190 @@ function App() {
             ))}
           </Box>
 
+          {/* Chat History Sidebar - ALWAYS VISIBLE */}
+          <Box sx={{ 
+            flex: 1, 
+            display: 'flex', 
+            flexDirection: 'column',
+            minHeight: 0,
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            pt: 2
+          }}>
+            <Typography 
+              variant="subtitle2" 
+              sx={{ 
+                fontWeight: 700, 
+                mb: 1.5,
+                color: 'var(--accent)',
+                fontSize: '0.85rem',
+                letterSpacing: 1
+              }}
+            >
+              💬 CHAT HISTORY
+            </Typography>
+            
+            {/* Search Box */}
+            <TextField
+              size="small"
+              placeholder="Search threads..."
+              value={threadSearchQuery}
+              onChange={(e) => setThreadSearchQuery(e.target.value)}
+              variant="outlined"
+              sx={{
+                mb: 1.5,
+                '& .MuiOutlinedInput-root': {
+                  color: '#fff',
+                  fontSize: '0.85rem',
+                  bgcolor: 'rgba(255,255,255,0.05)',
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  '&:hover': { borderColor: 'rgba(0,255,255,0.3)' },
+                  '&.Mui-focused': { borderColor: 'var(--accent)' }
+                }
+              }}
+              InputProps={{
+                endAdornment: threadSearchQuery && (
+                  <IconButton
+                    size="small"
+                    onClick={() => setThreadSearchQuery('')}
+                    sx={{ p: 0.5 }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                )
+              }}
+            />
 
+            {/* Thread List - Scrollable */}
+            <Box sx={{ 
+              flex: 1,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.8,
+              '&::-webkit-scrollbar': {
+                width: '6px',
+              },
+              '&::-webkit-scrollbar-track': {
+                background: 'transparent',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: 'rgba(0, 255, 255, 0.3)',
+                borderRadius: '3px',
+              },
+              '&::-webkit-scrollbar-thumb:hover': {
+                background: 'rgba(0, 255, 255, 0.5)',
+              }
+            }}>
+              {threadsLoading ? (
+                <Box sx={{ py: 2, textAlign: 'center' }}>
+                  <CircularProgress size={24} sx={{ color: 'var(--accent)' }} />
+                </Box>
+              ) : filteredThreads.length > 0 ? (
+                filteredThreads.map((thread) => (
+                  <Box
+                    key={thread.id}
+                    onClick={() => loadThread(thread.id)}
+                    sx={{
+                      p: 1,
+                      borderRadius: '8px',
+                      bgcolor: currentThreadId === thread.id ? 'rgba(0,255,255,0.15)' : 'rgba(255,255,255,0.04)',
+                      border: currentThreadId === thread.id ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.08)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        bgcolor: 'rgba(0,255,255,0.1)',
+                        borderColor: 'rgba(0,255,255,0.3)',
+                      },
+                      position: 'relative',
+                      overflow: 'hidden',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: '3px',
+                        bgcolor: currentThreadId === thread.id ? 'var(--accent)' : 'transparent',
+                      }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            display: 'block',
+                            fontWeight: thread.pinned ? 700 : 500,
+                            color: thread.pinned ? 'var(--accent)' : '#fff',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          {thread.pinned && '📌 '}{thread.title}
+                        </Typography>
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            display: 'block',
+                            color: 'rgba(255,255,255,0.5)',
+                            fontSize: '0.7rem',
+                            mt: 0.25
+                          }}
+                        >
+                          {thread.message_count || 0} msgs • {formatTime(thread.updated_at)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 0.25 }}>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePinThread(thread.id);
+                          }}
+                          sx={{ 
+                            p: 0.25,
+                            color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.4)',
+                            '&:hover': { color: 'var(--accent)' }
+                          }}
+                        >
+                          {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteThread(thread.id);
+                          }}
+                          sx={{ 
+                            p: 0.25,
+                            color: 'rgba(255,255,255,0.4)',
+                            '&:hover': { color: '#ff4444' }
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  </Box>
+                ))
+              ) : (
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    color: 'rgba(255,255,255,0.5)',
+                    textAlign: 'center',
+                    py: 3,
+                    display: 'block'
+                  }}
+                >
+                  {threadSearchQuery ? `No conversations matching "${threadSearchQuery}"` : 'No conversations yet'}
+                </Typography>
+              )}
+            </Box>
+          </Box>
         </aside>
 
         <main className="content-grid">
