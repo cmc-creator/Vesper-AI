@@ -604,6 +604,35 @@ canvas {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.board-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  transform: scaleY(0);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.board-row:hover {
+  background: rgba(0, 255, 255, 0.06);
+  border-color: rgba(0, 255, 255, 0.2);
+  transform: translateX(4px);
+}
+
+.board-row:hover::before {
+  transform: scaleY(1);
+}
+
+.board-row:active {
+  transform: translateX(2px) scale(0.99);
 }
 
 .task-column {
