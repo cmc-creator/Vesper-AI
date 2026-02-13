@@ -891,9 +891,16 @@ class PersistentMemoryDB:
     
     def _thread_to_dict(self, thread: Thread) -> Dict:
         """Convert Thread to dict"""
+        # Extract summary from first user message or use generated title
+        summary = ""
+        if thread.messages:
+            first_user_msg = next((m.get('content', '') for m in thread.messages if m.get('role') == 'user'), '')
+            summary = first_user_msg[:200]  # First 200 chars as summary
+        
         return {
             "id": thread.id,
             "title": thread.title,
+            "summary": summary,  # Preview text for cards
             "pinned": thread.pinned if hasattr(thread, 'pinned') else False,
             "message_count": len(thread.messages) if thread.messages else 0,
             "created_at": thread.created_at.isoformat() if thread.created_at else None,

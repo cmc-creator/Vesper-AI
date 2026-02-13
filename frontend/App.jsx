@@ -3103,14 +3103,14 @@ function App() {
             borderTop: '1px solid rgba(255,255,255,0.1)',
             pt: 1.5
           }}>
-            {/* Thread List - Scrollable */}
+            {/* Thread Grid - Gemini Style Cards */}
             <Box sx={{ 
               flex: 1,
               overflowY: 'auto',
               overflowX: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 0.6,
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 1,
               pr: 0.5,
               '&::-webkit-scrollbar': {
                 width: '5px',
@@ -3127,87 +3127,155 @@ function App() {
               }
             }}>
               {threadsLoading ? (
-                <Box sx={{ py: 2, textAlign: 'center' }}>
+                <Box sx={{ py: 2, textAlign: 'center', gridColumn: '1 / -1' }}>
                   <CircularProgress size={20} sx={{ color: 'var(--accent)' }} />
                 </Box>
               ) : threads && threads.length > 0 ? (
-                threads.map((thread) => (
-                  <Box
-                    key={thread.id}
-                    onClick={() => loadThread(thread.id)}
-                    sx={{
-                      p: '10px 12px',
-                      borderRadius: '8px',
-                      bgcolor: currentThreadId === thread.id ? 'rgba(0,255,255,0.15)' : 'rgba(255,255,255,0.03)',
-                      border: currentThreadId === thread.id ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.08)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 1,
-                      group: 'hover',
-                      '&:hover': {
-                        bgcolor: 'rgba(0,255,255,0.1)',
-                        borderColor: 'rgba(0,255,255,0.3)',
-                      }
-                    }}
-                  >
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        flex: 1,
-                        fontWeight: thread.pinned ? 600 : 400,
-                        color: thread.pinned ? 'var(--accent)' : '#fff',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        fontSize: '0.9rem'
-                      }}
+                threads.map((thread) => {
+                  // Extract preview summary from first user message
+                  const firstUserMsg = thread.messages?.find((m) => m.role === 'user')?.content || '';
+                  const preview = firstUserMsg.substring(0, 100).trim();
+                  
+                  return (
+                    <motion.div
+                      key={thread.id}
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ duration: 0.2 }}
                     >
-                      {thread.pinned && '📌 '}{thread.title}
-                    </Typography>
-                    <Box 
-                      sx={{ 
-                        display: 'flex', 
-                        gap: 0.3,
-                        opacity: 0,
-                        transition: 'opacity 0.2s',
-                        '&:has(> button:hover)': { opacity: 1 },
-                        '.MuiBox-root:hover &': { opacity: 1 }
-                      }}
-                    >
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePinThread(thread.id);
-                        }}
-                        sx={{ 
-                          p: 0.25,
-                          color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.4)',
-                          '&:hover': { color: 'var(--accent)' }
+                      <Box
+                        onClick={() => loadThread(thread.id)}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: '12px',
+                          bgcolor: currentThreadId === thread.id ? 'rgba(0,255,255,0.2)' : 'rgba(0,255,255,0.05)',
+                          border: currentThreadId === thread.id ? '2px solid var(--accent)' : '1px solid rgba(0,255,255,0.2)',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 1,
+                          minHeight: '120px',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          backdropFilter: 'blur(10px)',
+                          '&:hover': {
+                            bgcolor: 'rgba(0,255,255,0.15)',
+                            borderColor: 'var(--accent)',
+                            boxShadow: '0 0 20px rgba(0,255,255,0.2)',
+                          },
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: '2px',
+                            background: 'linear-gradient(90deg, transparent, var(--accent), transparent)',
+                            opacity: 0.5
+                          }
                         }}
                       >
-                        {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteThread(thread.id);
-                        }}
-                        sx={{ 
-                          p: 0.25,
-                          color: 'rgba(255,255,255,0.4)',
-                          '&:hover': { color: '#ff4444' }
-                        }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  </Box>
-                ))
+                        {/* Card Header */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                fontWeight: 700,
+                                color: 'var(--accent)',
+                                fontSize: '0.95rem',
+                                mb: 0.5,
+                                lineHeight: 1.2
+                              }}
+                            >
+                              {thread.pinned && '📌 '}{thread.title}
+                            </Typography>
+                          </Box>
+                          <Box 
+                            sx={{ 
+                              display: 'flex', 
+                              gap: 0.25,
+                              opacity: 0.6,
+                              transition: 'opacity 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
+                          >
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePinThread(thread.id);
+                              }}
+                              sx={{ 
+                                p: 0.3,
+                                color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.5)',
+                                '&:hover': { color: 'var(--accent)' }
+                              }}
+                            >
+                              {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteThread(thread.id);
+                              }}
+                              sx={{ 
+                                p: 0.3,
+                                color: 'rgba(255,255,255,0.5)',
+                                '&:hover': { color: '#ff4444' }
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </Box>
+
+                        {/* Card Preview */}
+                        {preview && (
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: 'rgba(255,255,255,0.7)',
+                              lineHeight: 1.4,
+                              flex: 1,
+                              overflow: 'hidden',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical'
+                            }}
+                          >
+                            {preview}
+                            {firstUserMsg.length > 100 && '...'}
+                          </Typography>
+                        )}
+
+                        {/* Card Footer */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: 'rgba(255,255,255,0.5)',
+                              fontSize: '0.75rem'
+                            }}
+                          >
+                            {thread.message_count} messages
+                          </Typography>
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: 'rgba(255,255,255,0.4)',
+                              fontSize: '0.75rem'
+                            }}
+                          >
+                            {new Date(thread.updated_at).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </motion.div>
+                  );
+                })
               ) : !threadsLoading && (
                 <Typography 
                   variant="caption" 
@@ -3215,7 +3283,8 @@ function App() {
                     color: 'rgba(255,255,255,0.5)',
                     textAlign: 'center',
                     py: 2,
-                    display: 'block'
+                    display: 'block',
+                    gridColumn: '1 / -1'
                   }}
                 >
                   No chats yet
