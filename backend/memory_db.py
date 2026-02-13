@@ -8,7 +8,7 @@ import os
 import json
 import datetime
 from typing import List, Dict, Optional, Any
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, JSON, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, JSON, Boolean, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool

@@ -1,5 +1,10 @@
 # --- IMPORTS ---
 import os
+from dotenv import load_dotenv
+
+# Load environment variables FIRST, before anything else
+load_dotenv()
+
 import json
 from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +18,6 @@ import datetime
 import urllib.parse
 import urllib.request
 import anthropic
-from dotenv import load_dotenv
 from urllib.parse import urljoin, urlparse
 import re
 from sqlalchemy import create_engine, text, inspect# Import AI router and persistent memory
@@ -80,9 +84,6 @@ import shutil
 import requests
 
 # ...existing code...
-
-# Load environment variables
-load_dotenv()
 
 import sys
 try:
