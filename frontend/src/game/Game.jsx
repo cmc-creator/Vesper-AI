@@ -52,31 +52,41 @@ const PlayerHomeInterior = lazy(() => import('./PlayerHomeInterior'));
 export default function Game({ onExitGame, onChatWithNPC }) {
   const [playerPosition, setPlayerPosition] = useState([0, 1.2, 2]);
   const [keyboard, setKeyboard] = useState({ forward: false, backward: false, left: false, right: false });
+  
+  // UI Panels
   const [showInventory, setShowInventory] = useState(false);
   const [showQuestJournal, setShowQuestJournal] = useState(false);
-  const [activePet, setActivePet] = useState(null);
+  const [showCrafting, setShowCrafting] = useState(false);
   const [showPetSelector, setShowPetSelector] = useState(false);
-  const [isFishing, setIsFishing] = useState(false);
-  const [currentSeason, setCurrentSeason] = useState('spring');
+  const [showingChat, setShowingChat] = useState(false);
+  const [photoModeActive, setPhotoModeActive] = useState(false);
+  
+  // Player State
   const [playerHealth, setPlayerHealth] = useState(100);
   const [playerMaxHealth] = useState(100);
   const [playerGold, setPlayerGold] = useState(1000);
-  const [showCrafting, setShowCrafting] = useState(false);
-  const [unlockedRecipes, setUnlockedRecipes] = useState(() => {
-    const saved = localStorage.getItem('unlocked_recipes');
-    return saved ? JSON.parse(saved) : ['iron_sword', 'health_potion', 'torch', 'wooden_chair', 'leather_armor'];
-  });
   const [playerTool, setPlayerTool] = useState(null);
-  const [showingChat, setShowingChat] = useState(false);
-  const [photoModeActive, setPhotoModeActive] = useState(false);
+  const [activePet, setActivePet] = useState(null);
+  
+  // World State
+  const [currentSeason, setCurrentSeason] = useState('spring');
+  const [isFishing, setIsFishing] = useState(false);
   const [isInsideCastle, setIsInsideCastle] = useState(false);
   const [isInsidePlayerHome, setIsInsidePlayerHome] = useState(false);
+  
+  // Player Status/Achievements
   const [ridingHorseId, setRidingHorseId] = useState(null);
   const [ridingPosition, setRidingPosition] = useState(null);
   const [isRidingUnicorn, setIsRidingUnicorn] = useState(false);
   const [isFlying, setIsFlying] = useState(false);
   const [horsesRidden, setHorsesRidden] = useState(0);
   const [portalsTraveled, setPortalsTraveled] = useState(0);
+  
+  // Unlocked Content
+  const [unlockedRecipes, setUnlockedRecipes] = useState(() => {
+    const saved = localStorage.getItem('unlocked_recipes');
+    return saved ? JSON.parse(saved) : ['iron_sword', 'health_potion', 'torch', 'wooden_chair', 'leather_armor'];
+  });
 
   // Keyboard controls
   useEffect(() => {
@@ -115,26 +125,28 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas camera={{ position: [0, 5, 10], fov: 60 }} gl={{ antialias: true }}>
         <Suspense fallback={null}>
-          {/* Lighting */}
+          {/* === LIGHTING === */}
           <ambientLight intensity={0.8} />
           <pointLight position={[20, 20, 20]} intensity={0.8} />
           <directionalLight position={[100, 100, 100]} intensity={0.5} castShadow />
 
-          {/* Environment */}
+          {/* === ENVIRONMENT & SKY === */}
           <Sky sunPosition={[100, 20, 100]} turbidity={10} rayleigh={2} mieCoefficient={0.005} mieDirectionalG={0.7} />
           <Stars radius={100} depth={20} count={800} factor={4} saturation={0} fade speed={1} />
           <Environment preset="sunset" />
           
-          {/* World Components */}
+          {/* === CORE WORLD LAYER === */}
           <Terrain position={[0, -1, 0]} />
-          <Castle position={[0, 0, -8]} />
           <Grass position={[0, 0, 0]} />
-          <Butterflies count={30} />
+          <Castle position={[0, 0, -8]} />
           <Weather season={currentSeason} />
+          
+          {/* === INTERACTIVE ELEMENTS === */}
           <VesperNPC position={[5, 0, 5]} onChat={onChatWithNPC} />
           <Horses position={[8, 0, 2]} onMount={() => {}} />
-
-          {/* Player */}
+          <Butterflies count={30} />
+          
+          {/* === PLAYER CHARACTER === */}
           <Character 
             position={playerPosition} 
             keyboard={keyboard} 
@@ -143,14 +155,15 @@ export default function Game({ onExitGame, onChatWithNPC }) {
             maxHealth={playerMaxHealth}
           />
 
-          {/* Shadows */}
+          {/* === LIGHTING EFFECTS === */}
           <ContactShadows position={[0, 0, 0]} opacity={0.35} scale={100} blur={2.5} far={40} resolution={256} color="#000000" />
         </Suspense>
       </Canvas>
 
-      {/* UI Overlays */}
+      {/* === GAME UI LAYER === */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
         <Suspense fallback={null}>
+          {/* HUD & Stats */}
           <GameUI 
             health={playerHealth}
             maxHealth={playerMaxHealth}
@@ -160,9 +173,11 @@ export default function Game({ onExitGame, onChatWithNPC }) {
             showQuests={showQuestJournal}
           />
           
+          {/* Persistent UI Systems */}
           <AchievementSystem />
-          <PhotoMode active={photoModeActive} />
           
+          {/* Conditional Panels - Only render when active */}
+          {photoModeActive && <PhotoMode active={true} />}
           {showInventory && <InventorySystem onClose={() => setShowInventory(false)} />}
           {showQuestJournal && <QuestJournal onClose={() => setShowQuestJournal(false)} />}
           {showPetSelector && <PetCompanion onSelect={setActivePet} onClose={() => setShowPetSelector(false)} />}
@@ -170,7 +185,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         </Suspense>
       </div>
 
-      {/* Exit button */}
+      {/* === EXIT BUTTON === */}
       <button 
         onClick={onExitGame}
         style={{
@@ -190,7 +205,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
         Exit [ESC]
       </button>
 
-      {/* Controls Overlay */}
+      {/* === CONTROLS GUIDE === */}
       <div style={{
         position: 'absolute',
         bottom: '20px',
