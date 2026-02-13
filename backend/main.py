@@ -31,50 +31,50 @@ try:
     import pymongo
 except ImportError:
     pymongo = None
-    print("⚠️  pymongo not installed (optional for MongoDB support)")
+    print("[WARN] pymongo not installed (optional for MongoDB support)")
 
 try:
     import mysql.connector
 except ImportError:
     mysql = None
-    print("⚠️  mysql.connector not installed (optional for MySQL support)")
+    print("[WARN] mysql.connector not installed (optional for MySQL support)")
 
 try:
     import PyPDF2
 except ImportError:
     PyPDF2 = None
-    print("⚠️  PyPDF2 not installed (optional for PDF support)")
+    print("[WARN] PyPDF2 not installed (optional for PDF support)")
 
 try:
     from docx import Document
 except ImportError:
     Document = None
-    print("⚠️  python-docx not installed (optional for Word support)")
+    print("[WARN] python-docx not installed (optional for Word support)")
 
 try:
     from openpyxl import load_workbook
 except ImportError:
     load_workbook = None
-    print("⚠️  openpyxl not installed (optional for Excel support)")
+    print("[WARN] openpyxl not installed (optional for Excel support)")
 
 try:
     from PIL import Image
 except ImportError:
     Image = None
-    print("⚠️  Pillow (PIL) not installed (optional for image support)")
+    print("[WARN] Pillow (PIL) not installed (optional for image support)")
 
 try:
     import pytesseract
 except ImportError:
     pytesseract = None
-    print("⚠️  pytesseract not installed (optional for OCR support)")
+    print("[WARN] pytesseract not installed (optional for OCR support)")
 
 try:
     import magic
     MAGIC_AVAILABLE = True
 except ImportError:
     MAGIC_AVAILABLE = False
-    print("⚠️  python-magic not available (optional for file type detection)")
+    print("Warning: python-magic not available (optional for file type detection)")
 import chardet
 import io
 import base64
