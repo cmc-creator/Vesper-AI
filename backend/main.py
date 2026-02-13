@@ -1,7 +1,7 @@
 # --- IMPORTS ---
 import os
 import json
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,8 +17,8 @@ from dotenv import load_dotenv
 from urllib.parse import urljoin, urlparse
 import re
 from sqlalchemy import create_engine, text, inspect# Import AI router and persistent memory
-from backend.ai_router import router as ai_router, TaskType
-from backend.memory_db import db as memory_db
+from ai_router import router as ai_router, TaskType
+from memory_db import db as memory_db
 from sqlalchemy.pool import NullPool
 import pandas as pd
 
@@ -822,6 +822,365 @@ def delete_thread(idx: int):
 
 
 
+# --- Smart Memory with Tags (Database-backed) ---
+
+@app.get("/api/memories")
+def get_all_memories(category: str = None, limit: int = 100):
+    """Get all memories, optionally filtered by category"""
+    try:
+        memories = memory_db.get_memories(category=category, limit=limit)
+        return {"status": "success", "memories": memories}
+    except Exception as e:
+        print(f"❌ Error getting memories: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.post("/api/memories")
+async def create_memory(data: dict):
+    """Create a new memory entry with tags"""
+    try:
+        category = data.get("category", "notes")
+        content = data.get("content", "")
+        importance = data.get("importance", 5)
+        tags = data.get("tags", [])
+        
+        memory = memory_db.add_memory(category, content, importance, tags)
+        return {"status": "success", "memory": memory}
+    except Exception as e:
+        print(f"❌ Error creating memory: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "error": str(e)}
+
+@app.get("/api/memories/search/by-tag")
+def search_by_tag(tags: str = "", match_all: bool = False):
+    """Search memories by tags (query: tags=tag1,tag2)"""
+    try:
+        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+        if not tag_list:
+            return {"status": "error", "error": "No tags provided"}
+        
+        memories = memory_db.search_memories_by_tags(tag_list, match_all=match_all)
+        return {"status": "success", "memories": memories, "tags": tag_list}
+    except Exception as e:
+        print(f"❌ Error searching by tags: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.get("/api/memories/search/text")
+def search_memories_text(q: str = "", category: str = None):
+    """Search memories by text content"""
+    try:
+        if not q:
+            return {"status": "error", "error": "Query required"}
+        
+        memories = memory_db.search_memories(q, category=category)
+        return {"status": "success", "memories": memories, "query": q}
+    except Exception as e:
+        print(f"❌ Error searching memories: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.get("/api/memories/tags")
+def get_all_memory_tags(category: str = None):
+    """Get all unique tags used in memories"""
+    try:
+        tags = memory_db.get_all_tags(category=category)
+        return {"status": "success", "tags": tags}
+    except Exception as e:
+        print(f"❌ Error getting tags: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.patch("/api/memories/{memory_id}")
+async def update_memory(memory_id: int, data: dict):
+    """Update memory content or tags"""
+    try:
+        tags = data.get("tags")
+        if tags is not None:
+            success = memory_db.update_memory_tags(memory_id, tags)
+            if success:
+                return {"status": "success", "memory_id": memory_id}
+        return {"status": "error", "message": "No valid fields to update"}
+    except Exception as e:
+        print(f"❌ Error updating memory: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.post("/api/memories/{memory_id}/tags")
+async def add_tag_to_memory(memory_id: int, data: dict):
+    """Add a single tag to memory"""
+    try:
+        tag = data.get("tag", "").strip()
+        if not tag:
+            return {"status": "error", "error": "Tag required"}
+        
+        success = memory_db.add_tag_to_memory(memory_id, tag)
+        if success:
+            return {"status": "success", "memory_id": memory_id, "tag": tag}
+        return {"status": "not_found"}
+    except Exception as e:
+        print(f"❌ Error adding tag: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.delete("/api/memories/{memory_id}/tags/{tag}")
+async def remove_tag_from_memory(memory_id: int, tag: str):
+    """Remove a tag from memory"""
+    try:
+        success = memory_db.remove_tag_from_memory(memory_id, tag)
+        if success:
+            return {"status": "success", "memory_id": memory_id, "tag": tag}
+        return {"status": "not_found"}
+    except Exception as e:
+        print(f"❌ Error removing tag: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.delete("/api/memories/{memory_id}")
+async def delete_memory(memory_id: int):
+    """Delete a memory"""
+    try:
+        success = memory_db.delete_memory(memory_id)
+        if success:
+            return {"status": "success", "memory_id": memory_id}
+        return {"status": "not_found"}
+    except Exception as e:
+        print(f"❌ Error deleting memory: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+
+# --- PDF & Document Upload ---
+
+@app.post("/api/documents/upload")
+async def upload_document(file: UploadFile = File(...), tags: str = ""):
+    """Upload and process document (PDF, TXT, etc)"""
+    try:
+        # Read file content
+        file_content = await file.read()
+        filename = file.filename or "unnamed_document"
+        file_type = filename.split('.')[-1].lower()
+        file_size = len(file_content)
+        
+        # Extract text based on file type
+        text_content = ""
+        if file_type == 'pdf':
+            try:
+                import PyPDF2
+                import io
+                pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+                text_content = "\n".join(page.extract_text() for page in pdf_reader.pages)
+            except ImportError:
+                # Fallback if PyPDF2 not installed
+                text_content = f"[PDF file: {filename} - content extraction requires PyPDF2]"
+        elif file_type in ['txt', 'md']:
+            text_content = file_content.decode('utf-8')
+        else:
+            text_content = f"Unsupported file type: {file_type}"
+        
+        # Create document summary (first 200 chars)
+        summary = text_content[:200] + "..." if len(text_content) > 200 else text_content
+        
+        # Parse tags
+        tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+        
+        # Save to database
+        doc = memory_db.add_document(
+            filename=filename,
+            file_type=file_type,
+            content=text_content,
+            summary=summary,
+            file_size=file_size,
+            tags=tag_list
+        )
+        
+        return {
+            "status": "success",
+            "document": doc,
+            "file_size": file_size,
+            "content_length": len(text_content)
+        }
+    except Exception as e:
+        print(f"❌ Error uploading document: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "error": str(e)}
+
+@app.get("/api/documents")
+def get_documents(limit: int = 50):
+    """Get all uploaded documents"""
+    try:
+        docs = memory_db.get_documents(limit=limit)
+        return {"status": "success", "documents": docs}
+    except Exception as e:
+        print(f"❌ Error getting documents: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.get("/api/documents/{doc_id}")
+def get_document(doc_id: int):
+    """Get full document content"""
+    try:
+        doc = memory_db.get_document(doc_id)
+        if doc:
+            return {"status": "success", "document": doc}
+        return {"status": "not_found"}
+    except Exception as e:
+        print(f"❌ Error getting document: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.get("/api/documents/search")
+def search_documents(q: str = ""):
+    """Search document content"""
+    try:
+        if not q:
+            return {"status": "error", "error": "Query required"}
+        
+        docs = memory_db.search_documents(q)
+        return {"status": "success", "documents": docs, "query": q}
+    except Exception as e:
+        print(f"❌ Error searching documents: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.delete("/api/documents/{doc_id}")
+async def delete_document(doc_id: int):
+    """Delete a document"""
+    try:
+        success = memory_db.delete_document(doc_id)
+        if success:
+            return {"status": "success", "doc_id": doc_id}
+        return {"status": "not_found"}
+    except Exception as e:
+        print(f"❌ Error deleting document: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+# ============ Enhanced Research Endpoints ============
+@app.get("/api/research/search")
+def search_research_items(q: str):
+    """Full-text search research items"""
+    try:
+        items = memory_db.search_research(q)
+        return {"status": "success", "results": items, "count": len(items)}
+    except Exception as e:
+        print(f"❌ Error searching research: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@app.get("/api/research/by-tag")
+def search_research_by_tag(tag: str):
+    """Search research by tag"""
+    try:
+        items = memory_db.search_research_by_tag(tag)
+        return {"status": "success", "results": items, "count": len(items)}
+    except Exception as e:
+        print(f"❌ Error searching research by tag: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@app.get("/api/research/by-source")
+def get_research_by_source(source: str):
+    """Get research items by source type"""
+    try:
+        items = memory_db.get_research_by_source(source)
+        return {"status": "success", "results": items, "count": len(items)}
+    except Exception as e:
+        print(f"❌ Error getting research by source: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@app.post("/api/research/{research_id}/sources")
+def add_research_source(research_id: int, url: str, title: str):
+    """Add a source to research item"""
+    try:
+        result = memory_db.add_research_source(research_id, url, title)
+        if result:
+            return {"status": "success", "result": result}
+        return {"status": "not_found"}
+    except Exception as e:
+        print(f"❌ Error adding research source: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@app.post("/api/research/{research_id}/citations")
+def update_research_citations(research_id: int, citations: list):
+    """Update citations for research item"""
+    try:
+        result = memory_db.update_research_citations(research_id, citations)
+        if result:
+            return {"status": "success", "result": result}
+        return {"status": "not_found"}
+    except Exception as e:
+        print(f"❌ Error updating citations: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+# ============ Analytics Endpoints ============
+@app.post("/api/analytics")
+def log_analytics_event(
+    event_type: str,
+    topic: str,
+    response_time_ms: int,
+    tokens: int = 0,
+    ai_provider: str = "unknown",
+    success: bool = True,
+    error_message: str = ""
+):
+    """Log an analytics event"""
+    try:
+        memory_db.log_event(event_type, topic, response_time_ms, tokens, ai_provider, success, error_message)
+        return {"status": "success"}
+    except Exception as e:
+        print(f"❌ Error logging analytics: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@app.get("/api/analytics/summary")
+def get_analytics_summary(days: int = 30):
+    """Get analytics summary for the last N days"""
+    try:
+        summary = memory_db.get_analytics_summary(days)
+        return summary
+    except Exception as e:
+        print(f"❌ Error getting analytics summary: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+# ============ Personality Endpoints ============
+@app.get("/api/personality")
+def get_current_personality():
+    """Get current personality settings"""
+    try:
+        personality = memory_db.get_personality()
+        if personality:
+            return memory_db._personality_to_dict(personality)
+        return {"status": "not_set"}
+    except Exception as e:
+        print(f"❌ Error getting personality: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@app.post("/api/personality")
+def set_personality(
+    name: str,
+    system_prompt: str,
+    tone: str = "neutral",
+    response_style: str = "conversational"
+):
+    """Set personality settings"""
+    try:
+        memory_db.set_personality(name, system_prompt, tone, response_style)
+        personality = memory_db.get_personality()
+        return memory_db._personality_to_dict(personality)
+    except Exception as e:
+        print(f"❌ Error setting personality: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@app.get("/api/personality/presets")
+def get_personality_presets():
+    """Get all personality presets"""
+    try:
+        presets = memory_db.get_preset_personalities()
+        return {"presets": presets}
+    except Exception as e:
+        print(f"❌ Error getting personality presets: {e}")
+        return {"status": "error", "error": str(e)}
+
+
 @app.get("/api/memory/{category}")
 def get_memories(category: str):
     path = os.path.join(MEMORY_DIR, f"{category}.json")
@@ -1389,7 +1748,6 @@ async def get_tables(connection_id: str):
         return {"error": str(e)}
 
 # --- Advanced File Processing Endpoints ---
-from fastapi import UploadFile, File
 
 @app.post("/api/file/analyze")
 async def analyze_file(file: UploadFile = File(...)):

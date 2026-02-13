@@ -18,6 +18,9 @@ import {
   MenuItem,
   Switch,
   FormControlLabel,
+  LinearProgress,
+  Checkbox,
+  Select,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -40,6 +43,8 @@ import {
   Palette as PaletteIcon,
   VolumeUp as VolumeUpIcon,
   VolumeOff as VolumeOffIcon,
+  BarChart,
+  Person,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -100,8 +105,11 @@ const THEMES = [
 const NAV = [
   { id: 'chat', label: 'Neural Chat', icon: HubRounded },
   { id: 'research', label: 'Research Tools', icon: ScienceRounded },
+  { id: 'documents', label: 'Documents', icon: DownloadIcon },
   { id: 'memory', label: 'Memory Core', icon: StorageRounded },
   { id: 'tasks', label: 'Task Matrix', icon: ChecklistRounded },
+  { id: 'analytics', label: 'Analytics', icon: BarChart },
+  { id: 'personality', label: 'Personality', icon: Person },
   { id: 'settings', label: 'Settings', icon: SettingsRounded },
 ];
 
@@ -148,7 +156,7 @@ function App() {
   const [tasks, setTasks] = useState([]);
   const [themeMenuAnchor, setThemeMenuAnchor] = useState(null);
   const [tasksLoading, setTasksLoading] = useState(false);
-  const [taskForm, setTaskForm] = useState({ title: '', status: 'inbox' });
+  const [taskForm, setTaskForm] = useState({ title: '', description: '', status: 'inbox', priority: 'medium', dueDate: '' });
   const [toast, setToast] = useState('');
   const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'false') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -157,7 +165,61 @@ function App() {
   const [abortController, setAbortController] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(() => safeStorageGet('vesper_sound_enabled', 'true') === 'true');
   
-  // Audio context for UI sounds
+  // Smart Memory Tags
+  const [memoryTags, setMemoryTags] = useState([]);
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [newMemoryTags, setNewMemoryTags] = useState('');
+  
+  // PDF & Document Upload
+  const [documents, setDocuments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [documentTags, setDocumentTags] = useState('');
+  
+  // Analytics Dashboard
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsDays, setAnalyticsDays] = useState(30);
+  
+  // Personality Customization
+  const [personality, setPersonality] = useState(null);
+  const [personalities, setPersonalities] = useState([]);
+  const [personalityLoading, setPersonalityLoading] = useState(false);
+  const [personalityForm, setPersonalityForm] = useState({ name: '', systemPrompt: '', tone: '', responseStyle: '' });
+  
+  // Enhanced Research
+  const [researchSearch, setResearchSearch] = useState('');
+  const [researchSearchResults, setResearchSearchResults] = useState([]);
+  const [researchFilter, setResearchFilter] = useState('all'); // 'all', 'web', 'file', 'manual'
+  const [selectedResearchId, setSelectedResearchId] = useState(null);
+  const [researchTags, setResearchTags] = useState([]);
+  const [researchCitations, setResearchCitations] = useState({});
+  const [citationFormat, setCitationFormat] = useState('APA');
+  
+  // Better Export Options
+  const [exportMenuAnchorAdvanced, setExportMenuAnchorAdvanced] = useState(null);
+  const [exportSelection, setExportSelection] = useState({
+    memories: true,
+    tasks: true,
+    research: true,
+    documents: true,
+    conversations: true,
+  });
+  const [exportFormat, setExportFormat] = useState('markdown'); // markdown, json, csv
+  
+  // Advanced Customization Options
+  const [customizations, setCustomizations] = useState({
+    sidebarWidth: localStorage.getItem('vesper_sidebar_width') || '300px',
+    fontSize: localStorage.getItem('vesper_font_size') || 'medium', // small, medium, large
+    compactMode: localStorage.getItem('vesper_compact_mode') === 'true',
+    analyticsCharts: localStorage.getItem('vesper_analytics_charts') || 'all', // all, summary, detailed
+    memoryCategories: JSON.parse(localStorage.getItem('vesper_memory_categories') || '["notes", "insights", "learnings", "ideas"]'),
+    researchSources: JSON.parse(localStorage.getItem('vesper_research_sources') || '["web", "file", "manual", "database"]'),
+  });
+  
+  const [newMemoryCategory, setNewMemoryCategory] = useState('');
+  const [newResearchSource, setNewResearchSource] = useState('');
+    
+    // Audio context for UI sounds
   const audioContextRef = useRef(null);
   
   // Initialize Web Audio API
@@ -621,14 +683,218 @@ function App() {
     }
   };
 
+  // ===== Enhanced Research Functions =====
+  const searchResearch = async (query) => {
+    if (!apiBase || !query.trim()) {
+      setResearchSearchResults([]);
+      return;
+    }
+    try {
+      const res = await fetch(`${apiBase}/api/research/search?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      setResearchSearchResults(data.results || []);
+    } catch (error) {
+      console.error('Research search failed:', error);
+    }
+  };
+
+  const filterResearchBySource = async (source) => {
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase}/api/research/by-source?source=${source}`);
+      const data = await res.json();
+      if (source === 'all') {
+        fetchResearch();
+      } else {
+        setResearchItems(data.results || []);
+      }
+    } catch (error) {
+      console.error('Research filter failed:', error);
+    }
+  };
+
+  const generateCitations = (research) => {
+    if (!research) return {};
+    
+    const citations = {};
+    
+    // APA Format
+    citations.apa = `[${research.id}] "${research.title}". Accessed: ${research.created_at?.split('T')[0] || 'Unknown date'}.`;
+    
+    // MLA Format
+    citations.mla = `"${research.title}." Last modified: ${research.updated_at?.split('T')[0] || 'Unknown date'}.`;
+    
+    // Chicago Format
+    citations.chicago = `${research.title}. [Online]. Available: ${research.url || 'N/A'}. [Accessed: ${research.created_at?.split('T')[0] || 'Unknown date'}].`;
+    
+    return citations;
+  };
+
+  // ===== Advanced Export Functions =====
+  const generateMarkdownReport = () => {
+    let report = `# Vesper AI Knowledge Export\n\n`;
+    report += `**Generated:** ${new Date().toLocaleString()}\n\n`;
+    
+    if (exportSelection.memories && memoryItems?.length > 0) {
+      report += `## Memories (${memoryItems.length})\n\n`;
+      memoryItems.forEach(m => {
+        report += `### ${m.title || m.content?.substring(0, 50)}\n`;
+        report += `- **Category:** ${memoryCategory}\n`;
+        report += `- **Importance:** ${m.importance || 'N/A'}\n`;
+        report += `- **Date:** ${new Date(m.created_at).toLocaleDateString()}\n\n`;
+        report += `${m.content}\n\n`;
+      });
+    }
+    
+    if (exportSelection.tasks && tasks?.length > 0) {
+      report += `## Tasks (${tasks.length})\n\n`;
+      tasks.forEach(t => {
+        report += `- [${t.status === 'done' ? 'x' : ' '}] **${t.title}** (${t.priority || 'medium'} priority)\n`;
+        if (t.description) report += `  - ${t.description}\n`;
+        if (t.due_date) report += `  - Due: ${new Date(t.due_date).toLocaleDateString()}\n`;
+      });
+      report += `\n`;
+    }
+    
+    if (exportSelection.research && researchItems?.length > 0) {
+      report += `## Research (${researchItems.length})\n\n`;
+      researchItems.forEach(r => {
+        report += `### ${r.title}\n`;
+        report += `- **Source:** ${r.source || 'N/A'}\n`;
+        report += `- **URL:** ${r.url || 'N/A'}\n`;
+        if (r.tags?.length > 0) report += `- **Tags:** ${r.tags.join(', ')}\n`;
+        report += `\n${r.content || r.summary || 'No content'}\n\n`;
+      });
+    }
+    
+    if (exportSelection.documents && documents?.length > 0) {
+      report += `## Documents (${documents.length})\n\n`;
+      documents.forEach(d => {
+        report += `### ${d.filename}\n`;
+        report += `- **Type:** ${d.file_type}\n`;
+        report += `- **Size:** ${(d.file_size / 1024).toFixed(2)} KB\n`;
+        if (d.summary) report += `- **Summary:** ${d.summary}\n`;
+        report += `\n`;
+      });
+    }
+    
+    return report;
+  };
+
+  const exportAsMarkdown = () => {
+    const content = generateMarkdownReport();
+    const element = document.createElement('a');
+    element.setAttribute('href', `data:text/markdown;charset=utf-8,${encodeURIComponent(content)}`);
+    element.setAttribute('download', `Vesper-Export-${new Date().toISOString().split('T')[0]}.md`);
+    element.click();
+    setToast('📥 Exported as Markdown');
+    playSound('success');
+  };
+
+  const exportAsJSON = () => {
+    const data = {};
+    if (exportSelection.memories) data.memories = memoryItems;
+    if (exportSelection.tasks) data.tasks = tasks;
+    if (exportSelection.research) data.research = researchItems;
+    if (exportSelection.documents) data.documents = documents;
+    if (exportSelection.conversations) data.conversations = threads;
+    
+    const element = document.createElement('a');
+    element.setAttribute('href', `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`);
+    element.setAttribute('download', `Vesper-Export-${new Date().toISOString().split('T')[0]}.json`);
+    element.click();
+    setToast('📥 Exported as JSON');
+    playSound('success');
+  };
+
+  const exportAsCSV = () => {
+    let csv = '';
+    
+    if (exportSelection.memories && memoryItems?.length > 0) {
+      csv += 'TYPE,CATEGORY,TITLE,CONTENT,DATE\n';
+      memoryItems.forEach(m => {
+        const content = (m.content || '').replace(/"/g, '""');
+        csv += `"Memory","${memoryCategory}","${m.title || ''}","${content.substring(0, 100)}","${new Date(m.created_at).toISOString()}"\n`;
+      });
+    }
+    
+    if (exportSelection.tasks && tasks?.length > 0) {
+      csv += 'TYPE,TITLE,STATUS,PRIORITY,DUE_DATE\n';
+      tasks.forEach(t => {
+        csv += `"Task","${t.title}","${t.status}","${t.priority || 'medium'}","${t.due_date || ''}"\n`;
+      });
+    }
+    
+    const element = document.createElement('a');
+    element.setAttribute('href', `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`);
+    element.setAttribute('download', `Vesper-Export-${new Date().toISOString().split('T')[0]}.csv`);
+    element.click();
+    setToast('📥 Exported as CSV');
+    playSound('success');
+  };
+
+  // ===== Advanced Customization Functions =====
+  const updateCustomization = (key, value) => {
+    const updated = { ...customizations, [key]: value };
+    setCustomizations(updated);
+    localStorage.setItem(`vesper_${key}`, typeof value === 'object' ? JSON.stringify(value) : value);
+    setToast(`✨ ${key} updated`);
+    playSound('success');
+  };
+
+  const addMemoryCategory = () => {
+    if (!newMemoryCategory.trim() || customizations.memoryCategories.includes(newMemoryCategory)) return;
+    const updated = [...customizations.memoryCategories, newMemoryCategory];
+    updateCustomization('memoryCategories', updated);
+    setNewMemoryCategory('');
+  };
+
+  const removeMemoryCategory = (cat) => {
+    const updated = customizations.memoryCategories.filter(c => c !== cat);
+    updateCustomization('memoryCategories', updated);
+  };
+
+  const addResearchSource = () => {
+    if (!newResearchSource.trim() || customizations.researchSources.includes(newResearchSource)) return;
+    const updated = [...customizations.researchSources, newResearchSource];
+    updateCustomization('researchSources', updated);
+    setNewResearchSource('');
+  };
+
+  const removeResearchSource = (src) => {
+    const updated = customizations.researchSources.filter(s => s !== src);
+    updateCustomization('researchSources', updated);
+  };
+
+  const applyFontSize = (size) => {
+    document.documentElement.style.fontSize = size === 'small' ? '14px' : size === 'large' ? '18px' : '16px';
+    updateCustomization('fontSize', size);
+  };
+
+  const toggleCompactMode = () => {
+    const newCompact = !customizations.compactMode;
+    updateCustomization('compactMode', newCompact);
+    if (newCompact) {
+      document.documentElement.style.setProperty('--spacing-multiplier', '0.75');
+    } else {
+      document.documentElement.style.setProperty('--spacing-multiplier', '1');
+    }
+  };
+
   const fetchMemory = useCallback(
     async (category) => {
       if (!apiBase || !category) return;
       setMemoryLoading(true);
       try {
-        const res = await fetch(`${apiBase}/api/memory/${category}`);
+        const res = await fetch(`${apiBase}/api/memories?category=${category}&limit=100`);
         const data = await res.json();
-        setMemoryItems(Array.isArray(data) ? data : []);
+        if (data.status === 'success') {
+          setMemoryItems(Array.isArray(data.memories) ? data.memories : []);
+        } else {
+          setMemoryItems([]);
+        }
+        // Also fetch tags for this category
+        fetchMemoryTags();
       } catch (error) {
         console.error('Memory fetch failed:', error);
       } finally {
@@ -641,16 +907,230 @@ function App() {
   const addMemoryEntry = async () => {
     if (!memoryText.trim() || !apiBase) return;
     try {
-      await fetch(`${apiBase}/api/memory/${memoryCategory}`, {
+      // Parse tags from input
+      const tags = newMemoryTags
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+      
+      const res = await fetch(`${apiBase}/api/memories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: memoryText, meta: { category: memoryCategory } }),
+        body: JSON.stringify({ 
+          category: memoryCategory, 
+          content: memoryText,
+          importance: 5,
+          tags: tags
+        }),
       });
+      
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      
       setMemoryText('');
+      setNewMemoryTags('');
       fetchMemory(memoryCategory);
-      setToast('Memory stored');
+      fetchMemoryTags();
+      setToast('Memory stored!');
+      playSound('success');
     } catch (error) {
       console.error('Memory save failed:', error);
+      setToast('Failed to save memory');
+      playSound('error');
+    }
+  };
+
+  const fetchMemoryTags = useCallback(async () => {
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase}/api/memories/tags?category=${memoryCategory}`);
+      const data = await res.json();
+      if (data.status === 'success') {
+        setMemoryTags(data.tags || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch tags:', error);
+    }
+  }, [apiBase, memoryCategory]);
+
+  const searchByTag = async (tags) => {
+    if (!apiBase || tags.length === 0) return;
+    setMemoryLoading(true);
+    try {
+      const tagsQuery = tags.join(',');
+      const res = await fetch(`${apiBase}/api/memories/search/by-tag?tags=${encodeURIComponent(tagsQuery)}`);
+      const data = await res.json();
+      if (data.status === 'success') {
+        // Filter by category if we're in a specific category view
+        const filtered = memoryCategory 
+          ? data.memories.filter(m => m.category === memoryCategory)
+          : data.memories;
+        setMemoryItems(filtered);
+      }
+    } catch (error) {
+      console.error('Tag search failed:', error);
+    } finally {
+      setMemoryLoading(false);
+    }
+  };
+
+  const toggleTagFilter = (tag) => {
+    if (selectedTags.includes(tag)) {
+      const newTags = selectedTags.filter(t => t !== tag);
+      setSelectedTags(newTags);
+      if (newTags.length > 0) {
+        searchByTag(newTags);
+      } else {
+        fetchMemory(memoryCategory);
+      }
+    } else {
+      const newTags = [...selectedTags, tag];
+      setSelectedTags(newTags);
+      searchByTag(newTags);
+    }
+  };
+
+  const fetchDocuments = useCallback(async () => {
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase}/api/documents?limit=50`);
+      const data = await res.json();
+      if (data.status === 'success') {
+        setDocuments(data.documents || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch documents:', error);
+    }
+  }, [apiBase]);
+
+  const uploadDocument = async (e) => {
+    if (!apiBase) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tags', documentTags);
+
+      const res = await fetch(`${apiBase}/api/documents/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.status === 'success') {
+        setToast(`📄 ${file.name} uploaded!`);
+        playSound('success');
+        setDocumentTags('');
+        e.target.value = '';
+        fetchDocuments();
+      } else {
+        setToast(`Upload failed: ${data.error}`);
+        playSound('error');
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setToast('Failed to upload document');
+      playSound('error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const deleteDocument = async (docId) => {
+    if (!apiBase || !confirm('Delete this document?')) return;
+    try {
+      const res = await fetch(`${apiBase}/api/documents/${docId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setToast('Document deleted');
+        fetchDocuments();
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+    }
+  };
+
+  // ===== Analytics Functions =====
+  const fetchAnalytics = useCallback(async (days = 30) => {
+    if (!apiBase) return;
+    setAnalyticsLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/api/analytics/summary?days=${days}`);
+      const data = await res.json();
+      setAnalytics(data);
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [apiBase]);
+
+  // ===== Personality Functions =====
+  const fetchPersonality = useCallback(async () => {
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase}/api/personality`);
+      const data = await res.json();
+      setPersonality(data);
+      if (data.name && data.system_prompt && data.tone && data.response_style) {
+        setPersonalityForm({
+          name: data.name,
+          systemPrompt: data.system_prompt,
+          tone: data.tone,
+          responseStyle: data.response_style,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch personality:', error);
+    }
+  }, [apiBase]);
+
+  const fetchPersonalityPresets = useCallback(async () => {
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase}/api/personality/presets`);
+      const data = await res.json();
+      if (data.presets) {
+        setPersonalities(data.presets);
+      }
+    } catch (error) {
+      console.error('Failed to fetch personality presets:', error);
+    }
+  }, [apiBase]);
+
+  const applyPersonality = async (preset) => {
+    if (!apiBase) return;
+    setPersonalityLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/api/personality`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: preset.name,
+          system_prompt: preset.system_prompt,
+          tone: preset.tone,
+          response_style: preset.response_style,
+        }),
+      });
+      const data = await res.json();
+      setPersonality(data);
+      setToast(`✨ Personality set to ${preset.name}`);
+      playSound('success');
+      setPersonalityForm({
+        name: preset.name,
+        systemPrompt: preset.system_prompt,
+        tone: preset.tone,
+        responseStyle: preset.response_style,
+      });
+    } catch (error) {
+      console.error('Failed to set personality:', error);
+      setToast('Failed to set personality');
+      playSound('error');
+    } finally {
+      setPersonalityLoading(false);
     }
   };
 
@@ -730,9 +1210,8 @@ function App() {
 
   const startNewChat = () => {
     setMessages([]);
-    // Generate new thread ID for new conversation
-    const newThreadId = `thread_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    setCurrentThreadId(newThreadId);
+    // Reset thread ID - let first message create the thread
+    setCurrentThreadId(null);
     setCurrentThreadTitle('New Conversation');
     playSound('click');
     setToast('New conversation started');
@@ -902,7 +1381,6 @@ function App() {
       console.error('Update task failed:', error);
     }
   };
-
   const deleteTask = async (idx) => {
     if (!apiBase) return;
     try {
@@ -917,11 +1395,27 @@ function App() {
     fetchResearch();
     fetchTasks();
     fetchThreads(); // CRITICAL FIX: Load chat history on startup
-  }, [fetchResearch, fetchTasks, fetchThreads]);
+    fetchDocuments(); // Load documents on startup
+    fetchPersonalityPresets(); // Load personality presets on startup
+  }, [fetchResearch, fetchTasks, fetchThreads, fetchDocuments, fetchPersonalityPresets]);
 
   useEffect(() => {
     fetchMemory(memoryCategory);
   }, [fetchMemory, memoryCategory]);
+
+  // Fetch analytics when analytics section is viewed
+  useEffect(() => {
+    if (activeSection === 'analytics' && !analytics) {
+      fetchAnalytics(analyticsDays);
+    }
+  }, [activeSection, analyticsDays, analytics, fetchAnalytics]);
+
+  // Fetch personality when personality section is viewed
+  useEffect(() => {
+    if (activeSection === 'personality' && !personality) {
+      fetchPersonality();
+    }
+  }, [activeSection, personality, fetchPersonality]);
 
   // Debug: Log Thread System Status
   useEffect(() => {
@@ -1295,9 +1789,9 @@ function App() {
             <Paper className="intel-board glass-card">
               <Box className="board-header">
                 <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Research Feed</Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Research Tools</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                    Fetches from /api/research. Add notes, summaries, and citations.
+                    Multi-source research with auto-citations and cross-referencing
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -1308,8 +1802,10 @@ function App() {
                 </Box>
               </Box>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Stack spacing={1}>
+              {/* Add Research */}
+              <Grid item xs={12} md={4}>
+                <Stack spacing={1.5}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>Add Research</Typography>
                   <TextField
                     label="Title"
                     value={researchForm.title}
@@ -1330,37 +1826,197 @@ function App() {
                     size="small"
                     InputProps={{ sx: { color: '#fff' } }}
                   />
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {['web', 'file', 'manual', 'database'].map(source => (
+                      <Chip
+                        key={source}
+                        label={source}
+                        size="small"
+                        variant="outlined"
+                        onClick={() => setResearchForm(f => ({ ...f, source: f.source === source ? 'manual' : source }))}
+                        sx={{ borderColor: researchForm.source === source ? 'var(--accent)' : 'rgba(255,255,255,0.2)' }}
+                      />
+                    ))}
+                  </Box>
                   <Button variant="contained" onClick={addResearchEntry} disabled={!researchForm.title.trim()}>
                     Save Research
                   </Button>
                 </Stack>
               </Grid>
-              <Grid item xs={12} md={6}>
-                <Box className="board-list">
-                  {(researchItems || []).slice().reverse().map((item, idx) => (
-                    <Box key={`${item.title}-${idx}`} className="board-row">
-                      <Box>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                          {item.title || 'Untitled entry'}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                          {item.summary || item.content || 'No summary yet.'}
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                        {formatTime(item.timestamp || Date.now())}
+
+              {/* Search & Filter */}
+              <Grid item xs={12} md={8}>
+                <Stack spacing={1.5}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>Search & Filter</Typography>
+                  <TextField
+                    label="Search research..."
+                    value={researchSearch}
+                    onChange={(e) => {
+                      setResearchSearch(e.target.value);
+                      searchResearch(e.target.value);
+                    }}
+                    fullWidth
+                    variant="filled"
+                    size="small"
+                    InputProps={{ sx: { color: '#fff' } }}
+                    placeholder="Search by title or content..."
+                  />
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip
+                      label="All Sources"
+                      onClick={() => { setResearchFilter('all'); filterResearchBySource('all'); }}
+                      variant={researchFilter === 'all' ? 'filled' : 'outlined'}
+                      color={researchFilter === 'all' ? 'primary' : 'default'}
+                      size="small"
+                    />
+                    {['web', 'file', 'manual'].map(source => (
+                      <Chip
+                        key={source}
+                        label={source}
+                        onClick={() => { setResearchFilter(source); filterResearchBySource(source); }}
+                        variant={researchFilter === source ? 'filled' : 'outlined'}
+                        color={researchFilter === source ? 'primary' : 'default'}
+                        size="small"
+                      />
+                    ))}
+                  </Box>
+
+                  {/* Display Results */}
+                  <Box className="board-list" sx={{ maxHeight: 400, overflow: 'auto' }}>
+                    {(researchSearch ? researchSearchResults : researchItems || []).map((item, idx) => {
+                      const citations = generateCitations(item);
+                      return (
+                        <Box 
+                          key={`${item.title}-${idx}`} 
+                          className="board-row"
+                          onClick={() => setSelectedResearchId(selectedResearchId === item.id ? null : item.id)}
+                          sx={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                        >
+                          <Box>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                              {item.title || 'Untitled'}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mt: 0.5 }}>
+                              {item.source && `📍 ${item.source}`}
+                            </Typography>
+                            {item.tags && item.tags.length > 0 && (
+                              <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+                                {item.tags.map(tag => (
+                                  <Chip key={tag} label={tag} size="small" className="chip-soft" />
+                                ))}
+                              </Box>
+                            )}
+                          </Box>
+                          {selectedResearchId === item.id && (
+                            <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1, width: '100%' }}>
+                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 700, display: 'block', mb: 0.5 }}>Citation ({citationFormat}):</Typography>
+                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'monospace', display: 'block', wordBreak: 'break-word' }}>
+                                {citations[citationFormat.toLowerCase()] || 'N/A'}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      );
+                    })}
+                    {!researchItems?.length && !researchSearch && (
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                        No research logged yet.
                       </Typography>
-                    </Box>
-                  ))}
-                  {!researchItems?.length && !researchLoading && (
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                      No research logged yet.
-                    </Typography>
-                  )}
-                </Box>
+                    )}
+                  </Box>
+                </Stack>
               </Grid>
             </Grid>
           </Paper>
+          </DraggableBoard>
+        );
+      case 'documents':
+        return (
+          <DraggableBoard id="documents">
+            <Paper className="intel-board glass-card">
+              <Box className="board-header">
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>📄 Document Library</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Upload PDFs and docs - Vesper learns from them
+                  </Typography>
+                </Box>
+                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Box>
+              <Stack spacing={2}>
+                {/* Upload Section */}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Upload Document</Typography>
+                  <Stack spacing={1.5}>
+                    <input 
+                      type="file" 
+                      accept=".pdf,.txt,.md"
+                      onChange={uploadDocument}
+                      disabled={uploading}
+                      style={{ display: 'block' }}
+                    />
+                    <TextField
+                      label="Tags for this document"
+                      value={documentTags}
+                      onChange={(e) => setDocumentTags(e.target.value)}
+                      placeholder="documentation, reference"
+                      fullWidth
+                      size="small"
+                      variant="filled"
+                      disabled={uploading}
+                      InputProps={{ sx: { color: '#fff' } }}
+                    />
+                    {uploading && <LinearProgress />}
+                  </Stack>
+                </Box>
+
+                {/* Documents List */}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'rgba(255,255,255,0.7)' }}>
+                    {documents.length > 0 ? `${documents.length} Document${documents.length !== 1 ? 's' : ''}` : 'No documents yet'}
+                  </Typography>
+                  <Box className="board-list">
+                    {(documents || []).map((doc) => (
+                      <Box key={doc.id} className="board-row">
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            📄 {doc.filename}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', display: 'block', mt: 0.5 }}>
+                            {(doc.file_size / 1024).toFixed(1)} KB • {doc.file_type.toUpperCase()}
+                          </Typography>
+                          {doc.tags && doc.tags.length > 0 && (
+                            <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
+                              {doc.tags.map((tag) => (
+                                <Chip key={tag} label={tag} size="small" variant="outlined" sx={{ height: 24, fontSize: '0.75rem' }} />
+                              ))}
+                            </Box>
+                          )}
+                          {doc.summary && (
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
+                              {doc.summary}
+                            </Typography>
+                          )}
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', mt: 0.5, display: 'block' }}>
+                            {formatTime(doc.created_at)}
+                          </Typography>
+                        </Box>
+                        <IconButton size="small" onClick={() => deleteDocument(doc.id)} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    ))}
+                    {!documents?.length && (
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                        No documents uploaded yet. Start by uploading a PDF or text file!
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              </Stack>
+            </Paper>
           </DraggableBoard>
         );
       case 'memory':
@@ -1539,9 +2195,10 @@ function App() {
                 )}
               </Box>
             ) : (
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Stack spacing={1}>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Add Memory</Typography>
+                  <Stack spacing={1.5}>
                     <TextField
                       label="New memory"
                       multiline
@@ -1553,31 +2210,91 @@ function App() {
                       size="small"
                       InputProps={{ sx: { color: '#fff' } }}
                     />
+                    <TextField
+                      label="Tags (comma-separated)"
+                      value={newMemoryTags}
+                      onChange={(e) => setNewMemoryTags(e.target.value)}
+                      placeholder="code, idea, project"
+                      fullWidth
+                      variant="filled"
+                      size="small"
+                      InputProps={{ sx: { color: '#fff' } }}
+                    />
                     <Button variant="contained" onClick={addMemoryEntry} disabled={!memoryText.trim()}>
                       Save Memory
                     </Button>
                   </Stack>
-                </Grid>
-                <Grid item xs={12} md={6}>
+                </Box>
+
+                {/* Tag Filter */}
+                {memoryTags.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: 'rgba(255,255,255,0.7)' }}>Filter by Tag</Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {memoryTags.map((tag) => (
+                        <Chip
+                          key={tag}
+                          label={tag}
+                          onClick={() => toggleTagFilter(tag)}
+                          variant={selectedTags.includes(tag) ? 'filled' : 'outlined'}
+                          color={selectedTags.includes(tag) ? 'primary' : 'default'}
+                          size="small"
+                          sx={{ cursor: 'pointer' }}
+                        />
+                      ))}
+                      {selectedTags.length > 0 && (
+                        <Chip
+                          label="Clear filters"
+                          onClick={() => { setSelectedTags([]); fetchMemory(memoryCategory); }}
+                          size="small"
+                          variant="outlined"
+                          sx={{ color: 'rgba(255,255,255,0.7)' }}
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Memory Items */}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'rgba(255,255,255,0.7)' }}>
+                    Memories {selectedTags.length > 0 && `(filtered by: ${selectedTags.join(', ')})`}
+                  </Typography>
                   <Box className="board-list">
                     {(memoryItems || []).slice().reverse().map((item, idx) => (
-                      <Box key={`${item.timestamp}-${idx}`} className="board-row">
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>
-                          {item.content}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                          {formatTime(item.timestamp || Date.now())}
-                        </Typography>
+                      <Box key={`${item.id || item.timestamp}-${idx}`} className="board-row">
+                        <Box>
+                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                            {item.content}
+                          </Typography>
+                          {item.tags && item.tags.length > 0 && (
+                            <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
+                              {item.tags.map((tag) => (
+                                <Chip
+                                  key={tag}
+                                  label={tag}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ height: 24, fontSize: '0.75rem' }}
+                                  onClick={() => toggleTagFilter(tag)}
+                                />
+                              ))}
+                            </Box>
+                          )}
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
+                            {formatTime(item.timestamp || item.created_at || Date.now())}
+                          </Typography>
+                        </Box>
                       </Box>
                     ))}
                     {!memoryItems?.length && !memoryLoading && (
                       <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                        Nothing stored for this category yet.
+                        {selectedTags.length > 0 ? `No memories with tags: ${selectedTags.join(', ')}` : 'Nothing stored for this category yet.'}
                       </Typography>
                     )}
                   </Box>
-                </Grid>
-              </Grid>
+                </Box>
+              </Stack>
             )}
           </Paper>
           </DraggableBoard>
@@ -1590,7 +2307,7 @@ function App() {
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Task Matrix</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                    Connected to /api/tasks with quick status hops.
+                    Track tasks by status, priority, and deadline.
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -1612,6 +2329,43 @@ function App() {
                     size="small"
                     InputProps={{ sx: { color: '#fff' } }}
                   />
+                  <TextField
+                    label="Description"
+                    value={taskForm.description || ''}
+                    onChange={(e) => setTaskForm((f) => ({ ...f, description: e.target.value }))}
+                    multiline
+                    minRows={2}
+                    fullWidth
+                    variant="filled"
+                    size="small"
+                    InputProps={{ sx: { color: '#fff' } }}
+                  />
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+                    <TextField
+                      label="Priority"
+                      select
+                      value={taskForm.priority || 'medium'}
+                      onChange={(e) => setTaskForm((f) => ({ ...f, priority: e.target.value }))}
+                      variant="filled"
+                      size="small"
+                      InputProps={{ sx: { color: '#fff' } }}
+                    >
+                      <MenuItem value="low">Low</MenuItem>
+                      <MenuItem value="medium">Medium</MenuItem>
+                      <MenuItem value="high">High</MenuItem>
+                      <MenuItem value="urgent">Urgent</MenuItem>
+                    </TextField>
+                    <TextField
+                      label="Due Date"
+                      type="date"
+                      value={taskForm.dueDate || ''}
+                      onChange={(e) => setTaskForm((f) => ({ ...f, dueDate: e.target.value }))}
+                      variant="filled"
+                      size="small"
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ sx: { color: '#fff' } }}
+                    />
+                  </Box>
                   <Button variant="contained" onClick={addTask} disabled={!taskForm.title.trim()}>
                     Add Task
                   </Button>
@@ -1627,11 +2381,52 @@ function App() {
                       <Stack spacing={1}>
                         {(tasks || []).map((task, idx) => {
                           if ((task.status || 'inbox') !== status) return null;
+                          const isPriority = (task.priority || 'medium') === 'urgent' || (task.priority || 'medium') === 'high';
+                          const isOverdue = task.due_date && new Date(task.due_date) < new Date();
                           return (
-                            <Box key={`${task.title}-${idx}`} className="task-row">
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                {task.title || 'Untitled task'}
-                              </Typography>
+                            <Box 
+                              key={`${task.id || task.title}-${idx}`} 
+                              className="task-row"
+                              sx={{
+                                borderLeft: isPriority ? '3px solid var(--accent)' : '3px solid transparent',
+                                opacity: isOverdue ? 0.7 : 1,
+                              }}
+                            >
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {task.title || 'Untitled task'}
+                                </Typography>
+                                {task.description && (
+                                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mt: 0.5 }}>
+                                    {task.description}
+                                  </Typography>
+                                )}
+                                <Box sx={{ display: 'flex', gap: 0.5, mt: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                                  {task.priority && task.priority !== 'medium' && (
+                                    <Chip 
+                                      label={task.priority} 
+                                      size="small" 
+                                      sx={{
+                                        height: 20,
+                                        bgcolor: task.priority === 'urgent' ? '#ff4444' : task.priority === 'high' ? '#ff8844' : 'rgba(255,255,255,0.1)',
+                                        color: '#fff',
+                                        fontSize: '0.7rem'
+                                      }}
+                                    />
+                                  )}
+                                  {task.due_date && (
+                                    <Typography 
+                                      variant="caption" 
+                                      sx={{
+                                        color: isOverdue ? '#ff4444' : 'rgba(255,255,255,0.5)',
+                                        fontWeight: isOverdue ? 700 : 400
+                                      }}
+                                    >
+                                      📅 {new Date(task.due_date).toLocaleDateString()}
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </Box>
                               <Stack direction="row" spacing={1}>
                                 <Tooltip title="Advance status">
                                   <IconButton
@@ -1665,6 +2460,178 @@ function App() {
               </Grid>
             </Grid>
           </Paper>
+          </DraggableBoard>
+        );
+      case 'analytics':
+        return (
+          <DraggableBoard id="analytics">
+            <Paper className="intel-board glass-card">
+              <Box className="board-header">
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Analytics Dashboard</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Track AI interactions, token usage, and provider distribution
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <TextField
+                    label="Days"
+                    type="number"
+                    value={analyticsDays}
+                    onChange={(e) => {
+                      setAnalyticsDays(parseInt(e.target.value));
+                      fetchAnalytics(parseInt(e.target.value));
+                    }}
+                    variant="filled"
+                    size="small"
+                    sx={{ width: 80 }}
+                    InputProps={{ sx: { color: '#fff' } }}
+                  />
+                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Box>
+              {analyticsLoading ? (
+                <CircularProgress sx={{ color: 'var(--accent)', mt: 2 }} />
+              ) : analytics ? (
+                <Stack spacing={2}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box className="glass-card" sx={{ p: 1.5 }}>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Total Events</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{analytics.total_events || 0}</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box className="glass-card" sx={{ p: 1.5 }}>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Success Rate</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{(analytics.success_rate || 0).toFixed(1)}%</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box className="glass-card" sx={{ p: 1.5 }}>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Avg Response Time</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{(analytics.avg_response_time_ms || 0).toFixed(0)}ms</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box className="glass-card" sx={{ p: 1.5 }}>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Total Tokens</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{(analytics.total_tokens || 0).toLocaleString()}</Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                  
+                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+                  
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Top Topics</Typography>
+                    <Stack spacing={0.5}>
+                      {Object.entries(analytics.topics || {})
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5)
+                        .map(([topic, count]) => (
+                          <Box key={topic} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">{topic}</Typography>
+                            <Chip label={count} size="small" className="chip-soft" />
+                          </Box>
+                        ))}
+                    </Stack>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>AI Providers</Typography>
+                    <Stack spacing={0.5}>
+                      {Object.entries(analytics.providers || {})
+                        .map(([provider, count]) => (
+                          <Box key={provider} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{provider}</Typography>
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                              <LinearProgress variant="determinate" value={(count / (analytics.total_events || 1)) * 100} sx={{ width: 100 }} />
+                              <Typography variant="caption">{count}</Typography>
+                            </Box>
+                          </Box>
+                        ))}
+                    </Stack>
+                  </Box>
+                </Stack>
+              ) : (
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', mt: 2 }}>No analytics data available yet</Typography>
+              )}
+            </Paper>
+          </DraggableBoard>
+        );
+      case 'personality':
+        return (
+          <DraggableBoard id="personality">
+            <Paper className="intel-board glass-card">
+              <Box className="board-header">
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Personality Configuration</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    Customize Vesper's tone and response style
+                  </Typography>
+                </Box>
+                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Box>
+              
+              {personalityLoading ? (
+                <CircularProgress sx={{ color: 'var(--accent)', mt: 2 }} />
+              ) : (
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Quick Presets</Typography>
+                    <Grid container spacing={1}>
+                      {personalities.map((preset) => (
+                        <Grid item xs={12} sm={6} key={preset.name}>
+                          <Button
+                            fullWidth
+                            variant={personality?.name === preset.name ? 'contained' : 'outlined'}
+                            onClick={() => applyPersonality(preset)}
+                            sx={{
+                              p: 1.5,
+                              textAlign: 'left',
+                              borderColor: 'rgba(255,255,255,0.2)',
+                              '&:hover': { borderColor: 'var(--accent)' }
+                            }}
+                          >
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 700 }}>{preset.name}</Typography>
+                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', display: 'block', mt: 0.5 }}>
+                                {preset.tone}
+                              </Typography>
+                            </Box>
+                          </Button>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+
+                  {personality && (
+                    <Box>
+                      <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 2 }} />
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Current Personality</Typography>
+                      <Stack spacing={1}>
+                        <Typography variant="body2"><strong>Name:</strong> {personality.name}</Typography>
+                        <Typography variant="body2"><strong>Tone:</strong> {personality.tone}</Typography>
+                        <Typography variant="body2"><strong>Response Style:</strong> {personality.response_style}</Typography>
+                        <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                            <strong>System Prompt:</strong>
+                          </Typography>
+                          <Typography variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.5)', mt: 0.5, maxHeight: 150, overflow: 'auto' }}>
+                            {personality.system_prompt}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Box>
+                  )}
+                </Stack>
+              )}
+            </Paper>
           </DraggableBoard>
         );
       case 'settings':
@@ -1892,6 +2859,169 @@ function App() {
                   >
                     Clear Current Chat
                   </Button>
+                </Stack>
+              </Box>
+
+              {/* Advanced Customization */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>⚙️ Advanced Customization</Typography>
+                <Stack spacing={1.5}>
+                  {/* Font Size */}
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>Font Size</Typography>
+                    <Stack direction="row" spacing={0.5}>
+                      {['small', 'medium', 'large'].map(size => (
+                        <Chip
+                          key={size}
+                          label={size}
+                          onClick={() => applyFontSize(size)}
+                          variant={customizations.fontSize === size ? 'filled' : 'outlined'}
+                          color={customizations.fontSize === size ? 'primary' : 'default'}
+                          size="small"
+                        />
+                      ))}
+                    </Stack>
+                  </Box>
+
+                  {/* Compact Mode */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Compact Mode</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Reduce spacing and padding</Typography>
+                    </Box>
+                    <Switch
+                      checked={customizations.compactMode}
+                      onChange={toggleCompactMode}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: 'var(--accent)' },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: 'var(--accent)' },
+                      }}
+                    />
+                  </Box>
+
+                  {/* Analytics Display */}
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>Analytics Display</Typography>
+                    <Select
+                      value={customizations.analyticsCharts}
+                      onChange={(e) => updateCustomization('analyticsCharts', e.target.value)}
+                      size="small"
+                      fullWidth
+                      sx={{ bgcolor: 'rgba(255,255,255,0.05)', color: '#fff' }}
+                    >
+                      <MenuItem value="all">All Charts</MenuItem>
+                      <MenuItem value="summary">Summary Only</MenuItem>
+                      <MenuItem value="detailed">Detailed Only</MenuItem>
+                    </Select>
+                  </Box>
+
+                  {/* Custom Memory Categories */}
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>Memory Categories</Typography>
+                    <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', mb: 1 }}>
+                      {customizations.memoryCategories.map(cat => (
+                        <Chip
+                          key={cat}
+                          label={cat}
+                          onDelete={() => removeMemoryCategory(cat)}
+                          size="small"
+                          className="chip-soft"
+                        />
+                      ))}
+                    </Stack>
+                    <Stack direction="row" spacing={0.5}>
+                      <TextField
+                        value={newMemoryCategory}
+                        onChange={(e) => setNewMemoryCategory(e.target.value)}
+                        placeholder="New category..."
+                        size="small"
+                        variant="filled"
+                        onKeyPress={(e) => e.key === 'Enter' && addMemoryCategory()}
+                        InputProps={{ sx: { color: '#fff' } }}
+                        sx={{ flex: 1 }}
+                      />
+                      <Button onClick={addMemoryCategory} size="small" variant="outlined">Add</Button>
+                    </Stack>
+                  </Box>
+
+                  {/* Custom Research Sources */}
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>Research Sources</Typography>
+                    <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', mb: 1 }}>
+                      {customizations.researchSources.map(src => (
+                        <Chip
+                          key={src}
+                          label={src}
+                          onDelete={() => removeResearchSource(src)}
+                          size="small"
+                          className="chip-soft"
+                        />
+                      ))}
+                    </Stack>
+                    <Stack direction="row" spacing={0.5}>
+                      <TextField
+                        value={newResearchSource}
+                        onChange={(e) => setNewResearchSource(e.target.value)}
+                        placeholder="New source..."
+                        size="small"
+                        variant="filled"
+                        onKeyPress={(e) => e.key === 'Enter' && addResearchSource()}
+                        InputProps={{ sx: { color: '#fff' } }}
+                        sx={{ flex: 1 }}
+                      />
+                      <Button onClick={addResearchSource} size="small" variant="outlined">Add</Button>
+                    </Stack>
+                  </Box>
+                </Stack>
+              </Box>
+
+              {/* Advanced Export */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>📥 Advanced Export</Typography>
+                <Stack spacing={1.5}>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Select what to export:</Typography>
+                  <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }}>
+                    {['memories', 'tasks', 'research', 'documents', 'conversations'].map(item => (
+                      <FormControlLabel
+                        key={item}
+                        control={
+                          <Checkbox
+                            checked={exportSelection[item]}
+                            onChange={(e) => setExportSelection(s => ({ ...s, [item]: e.target.checked }))}
+                            size="small"
+                          />
+                        }
+                        label={<Typography variant="caption" sx={{ textTransform: 'capitalize' }}>{item}</Typography>}
+                        sx={{ m: 0, mr: 1 }}
+                      />
+                    ))}
+                  </Stack>
+                  <Stack direction="row" spacing={1}>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      onClick={exportAsMarkdown}
+                      sx={{ flex: 1 }}
+                    >
+                      📄 Markdown
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      onClick={exportAsJSON}
+                      sx={{ flex: 1 }}
+                    >
+                      {} JSON
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      onClick={exportAsCSV}
+                      sx={{ flex: 1 }}
+                    >
+                      📊 CSV
+                    </Button>
+                  </Stack>
                 </Stack>
               </Box>
             </Stack>

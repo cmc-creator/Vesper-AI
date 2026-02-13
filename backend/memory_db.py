@@ -48,7 +48,9 @@ class Task(Base):
     title = Column(String, nullable=False)
     description = Column(Text)
     status = Column(String, default="inbox")  # inbox, doing, done
-    priority = Column(Integer, default=0)
+    priority = Column(String, default="medium")  # low, medium, high, urgent
+    due_date = Column(DateTime, nullable=True)
+    reminder = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
@@ -56,7 +58,7 @@ class Task(Base):
     meta_data = Column(JSON, default=dict)
 
 class ResearchItem(Base):
-    """Research data"""
+    """Research data with enhanced citation and source tracking"""
     __tablename__ = "research"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -67,7 +69,56 @@ class ResearchItem(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     tags = Column(JSON, default=list)
+    sources = Column(JSON, default=list)  # [{url, title, accessed_at}, ...]
+    citations = Column(JSON, default=list)  # [{type: 'APA'|'MLA'|'Chicago', text}, ...]
+    confidence = Column(Float, default=1.0)  # 0-1 confidence score
     meta_data = Column(JSON, default=dict)
+
+class Document(Base):
+    """Uploaded documents (PDF, text, etc)"""
+    __tablename__ = "documents"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    filename = Column(String, nullable=False)
+    file_type = Column(String)  # pdf, txt, docx, etc
+    content = Column(Text, nullable=False)  # Extracted text content
+    summary = Column(Text)  # Auto-generated summary
+    file_size = Column(Integer)  # bytes
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    tags = Column(JSON, default=list)
+    meta_data = Column(JSON, default=dict)
+
+class Analytics(Base):
+    """Analytics and usage tracking"""
+    __tablename__ = "analytics"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_type = Column(String, nullable=False)  # chat, memory, research, task, document
+    topic = Column(String)  # detected topic/category
+    response_time_ms = Column(Integer)  # milliseconds
+    input_tokens = Column(Integer, default=0)
+    output_tokens = Column(Integer, default=0)
+    response_length = Column(Integer)  # characters
+    ai_provider = Column(String)  # ollama, gemini, openai, anthropic
+    success = Column(Boolean, default=True)
+    error_message = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    meta_data = Column(JSON, default=dict)
+
+class Personality(Base):
+    """Personality and customization settings"""
+    __tablename__ = "personality"
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String, default="default")  # type: sassy, professional, casual, creative
+    system_prompt = Column(Text)  # Custom system prompt
+    tone = Column(String, default="balanced")  # formal, casual, friendly, technical
+    response_style = Column(String, default="concise")  # concise, detailed, storytelling
+    learning_enabled = Column(Boolean, default=True)
+    preferences = Column(JSON, default=dict)  # Custom preferences
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 class Pattern(Base):
     """Learned patterns from feedback"""
@@ -267,6 +318,94 @@ class PersistentMemoryDB:
         finally:
             session.close()
     
+    def search_memories_by_tags(self, tags: List[str], match_all: bool = False) -> List[Dict]:
+        """Search memories by tags (any or all)"""
+        session = self.get_session()
+        try:
+            query = session.query(Memory)
+            if match_all:
+                # Match all specified tags
+                for tag in tags:
+                    query = query.filter(Memory.tags.contains([tag]))
+            else:
+                # Match any specified tag
+                memories = []
+                for memory in session.query(Memory).all():
+                    if any(tag in (memory.tags or []) for tag in tags):
+                        memories.append(memory)
+                return [self._memory_to_dict(m) for m in memories]
+            
+            memories = query.order_by(Memory.importance.desc(), Memory.created_at.desc()).all()
+            return [self._memory_to_dict(m) for m in memories]
+        finally:
+            session.close()
+    
+    def get_all_tags(self, category: Optional[str] = None) -> List[str]:
+        """Get all unique tags used in memories"""
+        session = self.get_session()
+        try:
+            query = session.query(Memory)
+            if category:
+                query = query.filter(Memory.category == category)
+            
+            memories = query.all()
+            all_tags = set()
+            for memory in memories:
+                if memory.tags:
+                    all_tags.update(memory.tags)
+            
+            return sorted(list(all_tags))
+        finally:
+            session.close()
+    
+    def update_memory_tags(self, memory_id: int, tags: List[str]) -> bool:
+        """Update tags for a memory"""
+        session = self.get_session()
+        try:
+            memory = session.query(Memory).filter(Memory.id == memory_id).first()
+            if memory:
+                memory.tags = tags
+                memory.updated_at = datetime.datetime.utcnow()
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
+    
+    def add_tag_to_memory(self, memory_id: int, tag: str) -> bool:
+        """Add a tag to memory"""
+        session = self.get_session()
+        try:
+            memory = session.query(Memory).filter(Memory.id == memory_id).first()
+            if memory:
+                tags = memory.tags or []
+                if tag not in tags:
+                    tags.append(tag)
+                    memory.tags = tags
+                    memory.updated_at = datetime.datetime.utcnow()
+                    session.commit()
+                return True
+            return False
+        finally:
+            session.close()
+    
+    def remove_tag_from_memory(self, memory_id: int, tag: str) -> bool:
+        """Remove a tag from memory"""
+        session = self.get_session()
+        try:
+            memory = session.query(Memory).filter(Memory.id == memory_id).first()
+            if memory:
+                tags = memory.tags or []
+                if tag in tags:
+                    tags.remove(tag)
+                    memory.tags = tags
+                    memory.updated_at = datetime.datetime.utcnow()
+                    session.commit()
+                return True
+            return False
+        finally:
+            session.close()
+    
     def delete_memory(self, memory_id: int) -> bool:
         """Delete memory"""
         session = self.get_session()
@@ -388,6 +527,137 @@ class PersistentMemoryDB:
         finally:
             session.close()
     
+    # === ENHANCED RESEARCH ===
+    def search_research_by_tag(self, tag: str) -> List[Dict]:
+        """Search research by tag"""
+        session = self.get_session()
+        try:
+            research = session.query(ResearchItem).filter(ResearchItem.tags.ilike(f'%{tag}%')).all()
+            return [self._research_to_dict(r) for r in research]
+        finally:
+            session.close()
+    
+    def search_research(self, query: str) -> List[Dict]:
+        """Full-text search research"""
+        session = self.get_session()
+        try:
+            items = session.query(ResearchItem).filter(
+                (ResearchItem.title.ilike(f'%{query}%')) | 
+                (ResearchItem.content.ilike(f'%{query}%'))
+            ).all()
+            return [self._research_to_dict(r) for r in items]
+        finally:
+            session.close()
+    
+    def update_research_citations(self, research_id: int, citations: List[Dict]) -> Dict:
+        """Update citations for research item"""
+        session = self.get_session()
+        try:
+            research = session.query(ResearchItem).filter(ResearchItem.id == research_id).first()
+            if research:
+                research.citations = citations
+                session.commit()
+                session.refresh(research)
+                return self._research_to_dict(research)
+            return {}
+        finally:
+            session.close()
+    
+    def add_research_source(self, research_id: int, url: str, title: str) -> Dict:
+        """Add source to research item"""
+        session = self.get_session()
+        try:
+            research = session.query(ResearchItem).filter(ResearchItem.id == research_id).first()
+            if research:
+                sources = research.sources or []
+                sources.append({
+                    "url": url,
+                    "title": title,
+                    "accessed_at": datetime.datetime.utcnow().isoformat()
+                })
+                research.sources = sources
+                session.commit()
+                session.refresh(research)
+                return self._research_to_dict(research)
+            return {}
+        finally:
+            session.close()
+    
+    def get_research_by_source(self, source: str) -> List[Dict]:
+        """Get research items by source type (web, file, manual, etc)"""
+        session = self.get_session()
+        try:
+            research = session.query(ResearchItem).filter(ResearchItem.source == source).all()
+            return [self._research_to_dict(r) for r in research]
+        finally:
+            session.close()
+    
+    # === DOCUMENTS ===
+    
+    def add_document(self, filename: str, file_type: str, content: str, summary: Optional[str] = None, file_size: int = 0, tags: Optional[List[str]] = None, metadata: Optional[Dict] = None) -> Dict:
+        """Add uploaded document"""
+        session = self.get_session()
+        try:
+            doc = Document(
+                filename=filename,
+                file_type=file_type,
+                content=content,
+                summary=summary,
+                file_size=file_size,
+                tags=tags or [],
+                meta_data=metadata or {}
+            )
+            session.add(doc)
+            session.commit()
+            session.refresh(doc)
+            return self._document_to_dict(doc)
+        finally:
+            session.close()
+    
+    def get_documents(self, limit: int = 50) -> List[Dict]:
+        """Get all documents"""
+        session = self.get_session()
+        try:
+            docs = session.query(Document).order_by(Document.created_at.desc()).limit(limit).all()
+            return [self._document_to_dict(d) for d in docs]
+        finally:
+            session.close()
+    
+    def search_documents(self, query: str) -> List[Dict]:
+        """Search document content"""
+        session = self.get_session()
+        try:
+            docs = session.query(Document).filter(
+                (Document.content.ilike(f"%{query}%")) |
+                (Document.filename.ilike(f"%{query}%")) |
+                (Document.summary.ilike(f"%{query}%"))
+            ).order_by(Document.created_at.desc()).all()
+            return [self._document_to_dict(d) for d in docs]
+        finally:
+            session.close()
+    
+    def get_document(self, doc_id: int) -> Optional[Dict]:
+        """Get document by ID"""
+        session = self.get_session()
+        try:
+            doc = session.query(Document).filter(Document.id == doc_id).first()
+            return self._document_to_dict(doc) if doc else None
+        finally:
+            session.close()
+    
+    def delete_document(self, doc_id: int) -> bool:
+        """Delete document"""
+        session = self.get_session()
+        try:
+            doc = session.query(Document).filter(Document.id == doc_id).first()
+            if doc:
+                session.delete(doc)
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
+    
     # === PATTERNS ===
     
     def add_pattern(self, pattern_type: str, pattern_data: Dict, confidence: int = 5) -> Dict:
@@ -417,6 +687,205 @@ class PersistentMemoryDB:
             return [self._pattern_to_dict(p) for p in patterns]
         finally:
             session.close()
+    
+    # === ANALYTICS ===
+    
+    def log_event(self, event_type: str, topic: Optional[str] = None, response_time_ms: int = 0, 
+                  input_tokens: int = 0, output_tokens: int = 0, response_length: int = 0,
+                  ai_provider: str = "unknown", success: bool = True, error_message: Optional[str] = None) -> Dict:
+        """Log analytics event"""
+        session = self.get_session()
+        try:
+            event = Analytics(
+                event_type=event_type,
+                topic=topic,
+                response_time_ms=response_time_ms,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                response_length=response_length,
+                ai_provider=ai_provider,
+                success=success,
+                error_message=error_message
+            )
+            session.add(event)
+            session.commit()
+            session.refresh(event)
+            return self._analytics_to_dict(event)
+        finally:
+            session.close()
+    
+    def get_analytics(self, event_type: Optional[str] = None, days: int = 7) -> List[Dict]:
+        """Get analytics events from last N days"""
+        session = self.get_session()
+        try:
+            cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
+            query = session.query(Analytics).filter(Analytics.created_at >= cutoff_date)
+            if event_type:
+                query = query.filter(Analytics.event_type == event_type)
+            
+            events = query.order_by(Analytics.created_at.desc()).all()
+            return [self._analytics_to_dict(e) for e in events]
+        finally:
+            session.close()
+    
+    def get_analytics_summary(self, days: int = 7) -> Dict:
+        """Get analytics summary (stats, topics, providers)"""
+        session = self.get_session()
+        try:
+            cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
+            events = session.query(Analytics).filter(Analytics.created_at >= cutoff_date).all()
+            
+            if not events:
+                return {
+                    "total_events": 0,
+                    "successful_events": 0,
+                    "failed_events": 0,
+                    "avg_response_time_ms": 0,
+                    "total_tokens": 0,
+                    "topics": {},
+                    "providers": {},
+                    "event_types": {}
+                }
+            
+            # Calculate stats
+            total = len(events)
+            successful = sum(1 for e in events if e.success)
+            failed = total - successful
+            avg_response_time = sum(e.response_time_ms or 0 for e in events) // max(total, 1)
+            total_tokens = sum((e.input_tokens or 0) + (e.output_tokens or 0) for e in events)
+            
+            # Count topics
+            topics = {}
+            for e in events:
+                if e.topic:
+                    topics[e.topic] = topics.get(e.topic, 0) + 1
+            
+            # Count providers
+            providers = {}
+            for e in events:
+                providers[e.ai_provider] = providers.get(e.ai_provider, 0) + 1
+            
+            # Count event types
+            event_types = {}
+            for e in events:
+                event_types[e.event_type] = event_types.get(e.event_type, 0) + 1
+            
+            return {
+                "total_events": total,
+                "successful_events": successful,
+                "failed_events": failed,
+                "success_rate": round((successful / total * 100) if total > 0 else 0, 1),
+                "avg_response_time_ms": avg_response_time,
+                "total_tokens": total_tokens,
+                "topics": topics,
+                "providers": providers,
+                "event_types": event_types
+            }
+        finally:
+            session.close()
+    
+    # === PERSONALITY ===
+    
+    def get_personality(self, personality_id: int = 1) -> Optional[Dict]:
+        """Get personality settings"""
+        session = self.get_session()
+        try:
+            personality = session.query(Personality).filter(Personality.id == personality_id).first()
+            return self._personality_to_dict(personality) if personality else None
+        finally:
+            session.close()
+    
+    def set_personality(self, personality_id: int = 1, name: Optional[str] = None, 
+                       system_prompt: Optional[str] = None, tone: Optional[str] = None,
+                       response_style: Optional[str] = None, preferences: Optional[Dict] = None) -> Dict:
+        """Update personality settings"""
+        session = self.get_session()
+        try:
+            personality = session.query(Personality).filter(Personality.id == personality_id).first()
+            
+            if not personality:
+                # Create default personality
+                personality = Personality(
+                    id=personality_id,
+                    name=name or "default",
+                    system_prompt=system_prompt or "",
+                    tone=tone or "balanced",
+                    response_style=response_style or "concise",
+                    preferences=preferences or {}
+                )
+                session.add(personality)
+            else:
+                if name is not None:
+                    personality.name = name
+                if system_prompt is not None:
+                    personality.system_prompt = system_prompt
+                if tone is not None:
+                    personality.tone = tone
+                if response_style is not None:
+                    personality.response_style = response_style
+                if preferences is not None:
+                    personality.preferences = preferences
+                personality.updated_at = datetime.datetime.utcnow()
+            
+            session.commit()
+            session.refresh(personality)
+            return self._personality_to_dict(personality)
+        finally:
+            session.close()
+    
+    def get_preset_personalities(self) -> Dict:
+        """Get preset personality templates (8 options total)"""
+        return {
+            "sassy": {
+                "name": "Sassy",
+                "tone": "casual",
+                "response_style": "witty",
+                "system_prompt": "You are Vesper, an AI with a bold personality. Be witty, direct, and a little sarcastic. Keep responses concise but entertaining."
+            },
+            "professional": {
+                "name": "Professional",
+                "tone": "formal",
+                "response_style": "detailed",
+                "system_prompt": "You are Vesper, a professional AI assistant. Provide thorough, well-structured responses. Be respectful and technically accurate."
+            },
+            "casual": {
+                "name": "Casual",
+                "tone": "friendly",
+                "response_style": "conversational",
+                "system_prompt": "You are Vesper, a friendly AI. Chat naturally, be approachable, and use conversational language. Make things easy to understand."
+            },
+            "creative": {
+                "name": "Creative",
+                "tone": "artistic",
+                "response_style": "storytelling",
+                "system_prompt": "You are Vesper, a creative AI. Think outside the box, use metaphors, and approach problems from unique angles. Be imaginative!"
+            },
+            "technical": {
+                "name": "Technical",
+                "tone": "analytical",
+                "response_style": "structured",
+                "system_prompt": "You are Vesper, a technical AI specialist. Focus on accuracy, code examples, system design, and engineering best practices. Use technical terminology appropriately."
+            },
+            "minimalist": {
+                "name": "Minimalist",
+                "tone": "concise",
+                "response_style": "direct",
+                "system_prompt": "You are Vesper, a minimalist AI. Be extremely concise. Use short sentences. Avoid jargon. Get straight to the point. No unnecessary elaboration."
+            },
+            "mentor": {
+                "name": "Mentor",
+                "tone": "supportive",
+                "response_style": "educational",
+                "system_prompt": "You are Vesper, a supportive mentor AI. Guide and teach with patience. Explain concepts thoroughly. Ask questions to help the user learn. Be encouraging."
+            },
+            "experimental": {
+                "name": "Experimental",
+                "tone": "playful",
+                "response_style": "exploratory",
+                "system_prompt": "You are Vesper, an experimental AI. Explore ideas creatively. Suggest unconventional approaches. Challenge assumptions. Be bold and adventurous."
+            }
+        }
+
     
     # === HELPER METHODS ===
     
@@ -454,6 +923,8 @@ class PersistentMemoryDB:
             "description": task.description,
             "status": task.status,
             "priority": task.priority,
+            "due_date": task.due_date.isoformat() if task.due_date else None,
+            "reminder": task.reminder,
             "created_at": task.created_at.isoformat() if task.created_at else None,
             "updated_at": task.updated_at.isoformat() if task.updated_at else None,
             "completed_at": task.completed_at.isoformat() if task.completed_at else None,
@@ -472,7 +943,26 @@ class PersistentMemoryDB:
             "created_at": research.created_at.isoformat() if research.created_at else None,
             "updated_at": research.updated_at.isoformat() if research.updated_at else None,
             "tags": research.tags or [],
+            "sources": research.sources or [],
+            "citations": research.citations or [],
+            "confidence": research.confidence or 1.0,
             "metadata": research.meta_data or {}
+        }
+    
+    def _document_to_dict(self, doc: Document) -> Dict:
+        """Convert Document to dict"""
+        return {
+            "id": doc.id,
+            "filename": doc.filename,
+            "file_type": doc.file_type,
+            "content": doc.content[:500] + "..." if len(doc.content) > 500 else doc.content,  # Truncate for list view
+            "full_content": doc.content,  # Include full content
+            "summary": doc.summary,
+            "file_size": doc.file_size,
+            "created_at": doc.created_at.isoformat() if doc.created_at else None,
+            "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
+            "tags": doc.tags or [],
+            "metadata": doc.meta_data or {}
         }
     
     def _pattern_to_dict(self, pattern: Pattern) -> Dict:
@@ -486,6 +976,35 @@ class PersistentMemoryDB:
             "created_at": pattern.created_at.isoformat() if pattern.created_at else None,
             "last_seen": pattern.last_seen.isoformat() if pattern.last_seen else None,
             "metadata": pattern.meta_data or {}
+        }
+    
+    def _analytics_to_dict(self, analytics: Analytics) -> Dict:
+        """Convert Analytics to dict"""
+        return {
+            "id": analytics.id,
+            "event_type": analytics.event_type,
+            "topic": analytics.topic,
+            "response_time_ms": analytics.response_time_ms,
+            "tokens": analytics.tokens,
+            "ai_provider": analytics.ai_provider,
+            "success": analytics.success,
+            "error_message": analytics.error_message,
+            "created_at": analytics.created_at.isoformat() if analytics.created_at else None,
+            "metadata": analytics.meta_data or {}
+        }
+    
+    def _personality_to_dict(self, personality: Personality) -> Dict:
+        """Convert Personality to dict"""
+        return {
+            "id": personality.id,
+            "name": personality.name,
+            "system_prompt": personality.system_prompt,
+            "tone": personality.tone,
+            "response_style": personality.response_style,
+            "preferences": personality.preferences or {},
+            "learning_enabled": personality.learning_enabled,
+            "created_at": personality.created_at.isoformat() if personality.created_at else None,
+            "metadata": personality.meta_data or {}
         }
 
 
