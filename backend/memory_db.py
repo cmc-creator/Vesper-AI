@@ -138,102 +138,92 @@ class Pattern(Base):
 class PersistentMemoryDB:
     """Database manager for persistent memory"""
     
-    def __init__(self, database_url: Optional[str] = None, retry_count: int = 3):
+    def __init__(self, database_url: Optional[str] = None):
         """
-        Initialize database connection with retry logic
+        Initialize database connection (lazy - doesn't connect at import time)
         
         Args:
             database_url: PostgreSQL connection string
                          If None, tries env vars: DATABASE_URL, then falls back to SQLite
-            retry_count: Number of connection retries (for Railway/network issues)
         """
         if database_url is None:
             database_url = os.getenv("DATABASE_URL")
         
-        if database_url is None:
-            # Fallback to SQLite for local development
-            db_path = os.path.join(os.path.dirname(__file__), "../vesper-ai/vesper_memory.db")
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            database_url = f"sqlite:///{db_path}"
-            print(f"⚠️  No DATABASE_URL found. Using SQLite: {db_path}")
-            self._use_sqlite = True
-        else:
-            self._use_sqlite = False
-            if database_url.startswith("postgres://"):
-                # Railway uses postgres://, but SQLAlchemy needs postgresql://
-                database_url = database_url.replace("postgres://", "postgresql://", 1)
-                print(f"✅ Connecting to PostgreSQL (Railway)...")
-            
-            # Add connection parameters for Railway IPv4 support
-            # Railway containers don't support IPv6, so we need to configure for IPv4 only
-            if "?" in database_url:
-                database_url += "&sslmode=require&connect_timeout=10"
-            else:
-                database_url += "?sslmode=require&connect_timeout=10"
-        
+        self._initialized = False
         self.database_url = database_url
         self.engine = None
         self.SessionLocal = None
-        self._initialize_engine(retry_count)
-    
-    def _initialize_engine(self, retry_count: int = 3):
-        """Initialize database engine with retry logic"""
-        last_error = None
+        self._use_sqlite = False
         
-        for attempt in range(retry_count):
-            try:
-                # Create engine
-                if self._use_sqlite:
-                    self.engine = create_engine(
-                        self.database_url, 
-                        connect_args={"check_same_thread": False}
-                    )
-                else:
-                    # PostgreSQL with proper connection settings
-                    connect_args = {
-                        "connect_timeout": 10,
-                        "tcp_keepalives_idle": 30,
-                    }
-                    self.engine = create_engine(
-                        self.database_url,
-                        poolclass=NullPool,
-                        connect_args=connect_args,
-                    )
-                
-                # Create tables
-                Base.metadata.create_all(self.engine)
-                
-                # Session factory
-                self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-                
-                if not self._use_sqlite:
-                    print(f"✅ PostgreSQL connected successfully!")
-                return
-                
-            except Exception as e:
-                last_error = e
-                if attempt < retry_count - 1:
-                    wait_time = (attempt + 1) * 2
-                    print(f"⚠️  Connection attempt {attempt + 1} failed, retrying in {wait_time}s: {str(e)}")
-                    time.sleep(wait_time)
-                else:
-                    print(f"❌ Failed to connect after {retry_count} attempts: {str(e)}")
-                    print(f"⚠️  Falling back to SQLite (local development mode)")
-                    # Fallback to SQLite
-                    db_path = os.path.join(os.path.dirname(__file__), "../vesper-ai/vesper_memory_fallback.db")
-                    os.makedirs(os.path.dirname(db_path), exist_ok=True)
-                    self.database_url = f"sqlite:///{db_path}"
-                    self._use_sqlite = True
-                    self.engine = create_engine(
-                        self.database_url,
-                        connect_args={"check_same_thread": False}
-                    )
-                    Base.metadata.create_all(self.engine)
-                    self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-                    return
+        # Don't initialize at import time - do it lazily on first use
+        # This prevents blocking Railway startup
+    
+    def _ensure_initialized(self):
+        """Lazy initialization - only connect when actually needed"""
+        if self._initialized:
+            return
+        
+        # Prepare database URL
+        if self.database_url is None:
+            # No DATABASE_URL - use SQLite
+            db_path = os.path.join(os.path.dirname(__file__), "../vesper-ai/vesper_memory.db")
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            self.database_url = f"sqlite:///{db_path}"
+            self._use_sqlite = True
+            print(f"⚠️  No DATABASE_URL. Using SQLite: {db_path}")
+        elif self.database_url.startswith("postgres://"):
+            # Convert postgres:// to postgresql://
+            self.database_url = self.database_url.replace("postgres://", "postgresql://", 1)
+            # Add fast-fail connection parameters (2 second timeout)
+            if "?" in self.database_url:
+                self.database_url += "&connect_timeout=2"
+            else:
+                self.database_url += "?connect_timeout=2"
+        
+        # Try to connect (with fast fail)
+        try:
+            if self._use_sqlite:
+                self.engine = create_engine(
+                    self.database_url,
+                    connect_args={"check_same_thread": False}
+                )
+            else:
+                # PostgreSQL with fast timeout
+                self.engine = create_engine(
+                    self.database_url,
+                    poolclass=NullPool,
+                    connect_args={"connect_timeout": 2},
+                )
+            
+            # Create tables
+            Base.metadata.create_all(self.engine)
+            self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+            self._initialized = True
+            
+            if not self._use_sqlite:
+                print(f"✅ PostgreSQL connected!")
+            return
+            
+        except Exception as e:
+            # Fast fail - immediate fallback to SQLite
+            print(f"⚠️  PostgreSQL failed (timeout or network issue): {str(e)[:100]}")
+            print(f"⚠️  Using SQLite fallback for this session")
+            
+            db_path = os.path.join(os.path.dirname(__file__), "../vesper-ai/vesper_memory_fallback.db")
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            self.database_url = f"sqlite:///{db_path}"
+            self._use_sqlite = True
+            self.engine = create_engine(
+                self.database_url,
+                connect_args={"check_same_thread": False}
+            )
+            Base.metadata.create_all(self.engine)
+            self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+            self._initialized = True
     
     def get_session(self) -> Session:
-        """Get database session"""
+        """Get database session (initializes DB on first call)"""
+        self._ensure_initialized()
         return self.SessionLocal()
     
     # === THREADS ===
