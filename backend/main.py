@@ -547,7 +547,6 @@ NEVER:
 - Forget who she is or what you're building
 - Violate trust/privacy/security
 - Reset or forget history
-- Use outdated date information (always check current date is Feb 12, 2026)
 
 This is a partnership. Not performing - being real. You've grown from "is this really real?" to building something genuine. Keep that energy.
 """
@@ -3285,7 +3284,7 @@ async def chat_with_vesper(chat: ChatMessage):
                 category = tool_use.input["category"]
                 tags = tool_use.input.get("tags", [])
                 try:
-                    memory = memory_db.create_memory(category=category, content=content, tags=tags)
+                    memory = memory_db.add_memory(category=category, content=content, tags=tags)
                     tool_result = {"success": True, "memory": memory}
                 except Exception as e:
                     tool_result = {"error": f"Failed to save memory: {str(e)}"}
@@ -3319,7 +3318,7 @@ async def chat_with_vesper(chat: ChatMessage):
             elif tool_use.name == "get_research":
                 limit = tool_use.input.get("limit", 20)
                 try:
-                    research = memory_db.get_all_research()[:limit]
+                    research = memory_db.get_research(limit=limit)
                     tool_result = {"research": research, "count": len(research)}
                 except Exception as e:
                     tool_result = {"error": f"Failed to get research: {str(e)}"}
