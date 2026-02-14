@@ -3103,14 +3103,14 @@ function App() {
             borderTop: '1px solid rgba(255,255,255,0.1)',
             pt: 1.5
           }}>
-            {/* Thread Grid - Gemini Style Cards */}
+            {/* Thread List - Gemini Style */}
             <Box sx={{ 
               flex: 1,
               overflowY: 'auto',
               overflowX: 'hidden',
-              display: 'grid',
-              gridTemplateColumns: '1fr',
-              gap: 0.8,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.3,
               pr: 0.3,
               '&::-webkit-scrollbar': {
                 width: '4px',
@@ -3127,170 +3127,196 @@ function App() {
               }
             }}>
               {threadsLoading ? (
-                <Box sx={{ py: 2, textAlign: 'center', gridColumn: '1 / -1' }}>
+                <Box sx={{ py: 2, textAlign: 'center' }}>
                   <CircularProgress size={20} sx={{ color: 'var(--accent)' }} />
                 </Box>
               ) : threads && threads.length > 0 ? (
-                threads.map((thread) => {
-                  // Extract preview summary from first user message
-                  const firstUserMsg = thread.messages?.find((m) => m.role === 'user')?.content || '';
-                  const preview = firstUserMsg.substring(0, 100).trim();
-                  
-                  return (
-                    <motion.div
-                      key={thread.id}
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Box
-                        onClick={() => loadThread(thread.id)}
-                        sx={{
-                          p: 1,
-                          borderRadius: '10px',
-                          bgcolor: currentThreadId === thread.id ? 'rgba(0,255,255,0.2)' : 'rgba(0,255,255,0.05)',
-                          border: currentThreadId === thread.id ? '2px solid var(--accent)' : '1px solid rgba(0,255,255,0.2)',
-                          cursor: 'pointer',
-                          transition: 'all 0.3s ease',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 0.6,
-                          minHeight: '90px',
-                          maxHeight: '100px',
-                          position: 'relative',
-                          overflow: 'hidden',
-                          backdropFilter: 'blur(10px)',
-                          '&:hover': {
-                            bgcolor: 'rgba(0,255,255,0.15)',
-                            borderColor: 'var(--accent)',
-                            boxShadow: '0 0 15px rgba(0,255,255,0.2)',
-                          },
-                          '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: '1px',
-                            background: 'linear-gradient(90deg, transparent, var(--accent), transparent)',
-                            opacity: 0.5
-                          }
+                threads.map((thread) => (
+                  <Box
+                    key={thread.id}
+                    sx={{
+                      p: '8px 10px',
+                      borderRadius: '8px',
+                      bgcolor: currentThreadId === thread.id ? 'rgba(0,255,255,0.15)' : 'transparent',
+                      border: currentThreadId === thread.id ? '1px solid rgba(0,255,255,0.4)' : '1px solid transparent',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 0.5,
+                      '&:hover': {
+                        bgcolor: 'rgba(0,255,255,0.1)',
+                        borderColor: 'rgba(0,255,255,0.3)',
+                      },
+                      group: 'hover'
+                    }}
+                    onClick={() => !editingThreadId && loadThread(thread.id)}
+                  >
+                    <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {thread.pinned && (
+                        <PinIcon sx={{ fontSize: '0.75rem', color: 'var(--accent)', flexShrink: 0 }} />
+                      )}
+                      {editingThreadId === thread.id ? (
+                        <TextField
+                          value={editingThreadTitle}
+                          onChange={(e) => setEditingThreadTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') renameThread(thread.id);
+                            if (e.key === 'Escape') cancelRenameThread();
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                          size="small"
+                          variant="standard"
+                          sx={{ 
+                            flex: 1,
+                            input: { 
+                              color: '#fff', 
+                              fontSize: '0.85rem',
+                              padding: '4px 0'
+                            }
+                          }}
+                        />
+                      ) : (
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontWeight: thread.pinned ? 600 : 400,
+                            color: thread.pinned ? 'var(--accent)' : '#fff',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: '0.85rem'
+                          }}
+                          title={thread.title}
+                        >
+                          {thread.title}
+                        </Typography>
+                      )}
+                    </Box>
+                    {editingThreadId === thread.id ? (
+                      <Box sx={{ display: 'flex', gap: 0.25, flexShrink: 0 }}>
+                        <Tooltip title="Save">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              renameThread(thread.id);
+                            }}
+                            sx={{ 
+                              p: 0.2,
+                              color: 'var(--accent)',
+                              '&:hover': { color: '#00ff88' }
+                            }}
+                          >
+                            <ChecklistRounded fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Cancel">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              cancelRenameThread();
+                            }}
+                            sx={{ 
+                              p: 0.2,
+                              color: 'rgba(255,255,255,0.5)',
+                              '&:hover': { color: '#ff4444' }
+                            }}
+                          >
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    ) : (
+                      <Box 
+                        sx={{ 
+                          display: 'flex', 
+                          gap: 0.25,
+                          opacity: 0,
+                          transition: 'opacity 0.2s',
+                          flexShrink: 0,
+                          '&:has(> button:hover)': { opacity: 1 },
+                          '.MuiBox-root:hover &': { opacity: 1 }
                         }}
                       >
-                        {/* Card Header */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 0.5 }}>
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography 
-                              variant="body2" 
-                              sx={{ 
-                                fontWeight: 700,
-                                color: 'var(--accent)',
-                                fontSize: '0.8rem',
-                                mb: 0.3,
-                                lineHeight: 1.1,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                              }}
-                            >
-                              {thread.pinned && '📌 '}{thread.title}
-                            </Typography>
-                          </Box>
-                          <Box 
-                            sx={{ 
-                              display: 'flex', 
-                              gap: 0.15,
-                              opacity: 0.6,
-                              transition: 'opacity 0.2s',
-                              flexShrink: 0
+                        <Tooltip title="Share">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setToast('Share feature coming soon');
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
-                          >
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                togglePinThread(thread.id);
-                              }}
-                              sx={{ 
-                                p: 0.2,
-                                color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.5)',
-                                '&:hover': { color: 'var(--accent)' }
-                              }}
-                            >
-                              {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteThread(thread.id);
-                              }}
-                              sx={{ 
-                                p: 0.2,
-                                color: 'rgba(255,255,255,0.5)',
-                                '&:hover': { color: '#ff4444' }
-                              }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        </Box>
-
-                        {/* Card Preview */}
-                        {preview && (
-                          <Typography 
-                            variant="caption" 
                             sx={{ 
-                              color: 'rgba(255,255,255,0.6)',
-                              lineHeight: 1.2,
-                              flex: 1,
-                              overflow: 'hidden',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 1,
-                              WebkitBoxOrient: 'vertical',
-                              fontSize: '0.7rem'
+                              p: 0.2,
+                              color: 'rgba(255,255,255,0.5)',
+                              '&:hover': { color: 'var(--accent)' }
                             }}
                           >
-                            {preview}
-                            {firstUserMsg.length > 80 && '...'}
-                          </Typography>
-                        )}
-
-                        {/* Card Footer */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 0.5, mt: 'auto' }}>
-                          <Typography 
-                            variant="caption" 
+                            <span style={{ fontSize: '0.9rem' }}>↗</span>
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title={thread.pinned ? 'Unpin' : 'Pin'}>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              togglePinThread(thread.id);
+                            }}
                             sx={{ 
-                              color: 'rgba(255,255,255,0.4)',
-                              fontSize: '0.65rem'
+                              p: 0.2,
+                              color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.5)',
+                              '&:hover': { color: 'var(--accent)' }
                             }}
                           >
-                            {thread.message_count} msg
-                          </Typography>
-                          <Typography 
-                            variant="caption" 
+                            {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Rename">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startRenameThread(thread.id, thread.title);
+                            }}
                             sx={{ 
-                              color: 'rgba(255,255,255,0.3)',
-                              fontSize: '0.65rem'
+                              p: 0.2,
+                              color: 'rgba(255,255,255,0.5)',
+                              '&:hover': { color: 'var(--accent)' }
                             }}
                           >
-                            {new Date(thread.updated_at).toLocaleDateString()}
-                          </Typography>
-                        </Box>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteThread(thread.id);
+                            }}
+                            sx={{ 
+                              p: 0.2,
+                              color: 'rgba(255,255,255,0.5)',
+                              '&:hover': { color: '#ff4444' }
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </Box>
-                    </motion.div>
-                  );
-                })
+                    )}
+                  </Box>
+                ))
               ) : !threadsLoading && (
                 <Typography 
                   variant="caption" 
                   sx={{ 
                     color: 'rgba(255,255,255,0.5)',
                     textAlign: 'center',
-                    py: 2,
-                    display: 'block',
-                    gridColumn: '1 / -1'
+                    py: 2
                   }}
                 >
                   No chats yet
