@@ -175,6 +175,23 @@ function App() {
   // Tools
   const [toolsExpanded, setToolsExpanded] = useState(true);
   const [canvasOpen, setCanvasOpen] = useState(false);
+  const [canvasAppCode, setCanvasAppCode] = useState(`import React, { useState } from "react";
+import { Button, Container } from "react-bootstrap";
+import { MoveRight } from "lucide-react";
+
+export default function App() {
+  const [count, setCount] = useState(0);
+  return (
+    <Container className="p-5 text-white bg-dark min-vh-100 d-flex flex-column align-items-center justify-content-center">
+      <h1 className="mb-4 display-4 fw-bold">Built with Vesper</h1>
+      <p className="lead mb-4">I can build real React apps for you.</p>
+      <Button variant="info" size="lg" onClick={() => setCount(c => c + 1)}>
+        Count is {count}
+      </Button>
+    </Container>
+  );
+}`);
+  const [canvasActiveTab, setCanvasActiveTab] = useState(0); // 0=Drawing, 1=AppBuilder
   const [researchOpen, setResearchOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
@@ -477,7 +494,7 @@ function App() {
   }, [messages, currentThreadId]);
 
   const saveMessageToThread = async (role, content) => {
-    if (!apiBase) return;
+    if (!apiBase) return null;
     try {
       let threadId = currentThreadId;
       
@@ -509,6 +526,7 @@ function App() {
         // CRITICAL: Refresh thread list after creating
         fetchThreads();
         console.log('✅ Thread created:', threadId);
+        return threadId;
       } else {
         // Add message to existing thread
         console.log('💬 Adding message to thread:', threadId);
@@ -520,10 +538,12 @@ function App() {
         });
         
         if (!addRes.ok) throw new Error(`HTTP ${addRes.status}: ${addRes.statusText}`);
+        return threadId;
       }
     } catch (error) {
       console.error('❌ Failed to save message to thread:', error);
       setToast(`Memory save failed: ${error.message}`);
+      return currentThreadId;
     }
   };
 
@@ -554,7 +574,7 @@ function App() {
     console.log('🎯 Current thread ID:', currentThreadId || 'default');
     
     addLocalMessage('user', userMessage);
-    await saveMessageToThread('user', userMessage);
+    const savedThreadId = await saveMessageToThread('user', userMessage);
     
     try {
       const response = await fetch(`${chatBase}/api/chat`, {
@@ -562,7 +582,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: userMessage,
-          thread_id: currentThreadId || 'default'
+          thread_id: savedThreadId || currentThreadId || 'default'
         }),
         signal: controller.signal,
       });
@@ -573,7 +593,10 @@ function App() {
       console.log('🤖 Received response:', data.response?.substring(0, 50));
       
       addLocalMessage('assistant', data.response);
-      await saveMessageToThread('assistant', data.response);
+      
+      // Save assistant response to the same thread using the valid ID
+      await saveMessageToThread('assistant', data.response, savedThreadId);
+      
       speak(data.response);
       playSound('notification'); // Sound on response received
 
@@ -1804,6 +1827,16 @@ function App() {
                     console.error(e);
                   }
                 };
+                const isReact = match && ['js', 'jsx', 'javascript', 'tsx', 'ts', 'react'].includes(match[1]);
+                
+                const openInAppBuilder = () => {
+                   setCanvasAppCode(codeString);
+                   setCanvasActiveTab(1); // Switch to App Builder tab
+                   setCanvasOpen(true);
+                   setToast('Code loaded into App Builder');
+                   playSound('click');
+                };
+
                 return !inline && match ? (
                   <Box
                     sx={{
@@ -1816,9 +1849,20 @@ function App() {
                       whiteSpace: 'pre-wrap',
                     }}
                   >
-                    <IconButton size="small" onClick={copy} sx={{ position: 'absolute', top: 4, right: 4, color: 'var(--accent)' }}>
-                      <ContentCopyRounded fontSize="small" />
-                    </IconButton>
+                    <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 4, right: 4 }}>
+                        {isReact && (
+                            <Tooltip title="Preview in App Builder">
+                                <IconButton size="small" onClick={openInAppBuilder} sx={{ color: 'var(--accent)', bgcolor: 'rgba(0, 255, 255, 0.1)', '&:hover': { bgcolor: 'rgba(0, 255, 255, 0.2)' } }}>
+                                    <BoltRounded fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                        <Tooltip title="Copy Code">
+                            <IconButton size="small" onClick={copy} sx={{ color: 'var(--accent)' }}>
+                                <ContentCopyRounded fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
                     <code className={className}>{codeString}</code>
                   </Box>
                 ) : (
@@ -3972,7 +4016,12 @@ function App() {
       
       {/* Canvas Modal */}
       <Dialog open={canvasOpen} onClose={() => setCanvasOpen(false)} maxWidth="lg" fullWidth fullScreen>
-        <Canvas onClose={() => setCanvasOpen(false)} onShare={() => setToast('Canvas shared!')} />
+        <Canvas 
+            onClose={() => setCanvasOpen(false)} 
+            onShare={() => setToast('Canvas shared!')} 
+            initialCode={canvasAppCode}
+            initialTab={canvasActiveTab}
+        />
       </Dialog>
 
       {/* Deep Research Modal */}

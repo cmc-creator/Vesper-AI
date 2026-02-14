@@ -6,6 +6,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@codesandbox/sandpack-react": "^2.20.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/utilities": "^3.2.2",
     "@emotion/react": "^11.11.1",
@@ -31,6 +32,7 @@
     "react-hotkeys-hook": "^5.2.4",
     "react-markdown": "^10.1.0",
     "react-syntax-highlighter": "^16.1.0",
+    "recharts": "^3.7.0",
     "simplex-noise": "^4.0.3",
     "three": "^0.160.0",
     "three-mesh-bvh": "^0.9.8",
