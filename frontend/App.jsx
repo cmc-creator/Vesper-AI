@@ -3335,67 +3335,6 @@ function App() {
             </Box>
           </Box>
 
-          {/* Tools Section */}
-          <Box sx={{ 
-            borderTop: '1px solid rgba(255,255,255,0.1)',
-            pt: 1.5,
-            pb: 1
-          }}>
-            <Box 
-              onClick={() => setToolsExpanded(!toolsExpanded)}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                mb: 1,
-                cursor: 'pointer',
-                padding: '8px 0',
-                transition: 'all 0.2s ease',
-                '&:hover': { color: '#fff' }
-              }}
-            >
-              <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>
-                Tools
-              </Typography>
-              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', transition: 'transform 0.2s', transform: toolsExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                ▼
-              </span>
-            </Box>
-            
-            {toolsExpanded && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                {TOOLS.map((tool) => (
-                  <Box
-                    key={tool.id}
-                    onClick={() => setToast(`${tool.label} feature coming soon`)}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      color: 'rgba(255,255,255,0.7)',
-                      fontSize: '0.85rem',
-                      transition: 'all 0.2s ease',
-                      border: '1px solid transparent',
-                      '&:hover': {
-                        bgcolor: 'rgba(0,255,255,0.1)',
-                        color: '#fff',
-                        borderColor: 'rgba(0,255,255,0.3)',
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1rem' }}>{tool.icon}</span>
-                    <Typography variant="body2" sx={{ fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {tool.label}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            )}
-          </Box>
-
           {/* New Chat Button - Bottom */}
           <Button
             fullWidth
@@ -3587,6 +3526,44 @@ function App() {
                 </IconButton>
               </Tooltip>
             </Paper>
+
+            {/* Tools Section - Below Input */}
+            <Box sx={{ 
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: 0.8,
+              mt: 1
+            }}>
+              {TOOLS.map((tool) => (
+                <Box
+                  key={tool.id}
+                  onClick={() => setToast(`${tool.label} feature coming soon`)}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    padding: '8px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    color: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.75rem',
+                    transition: 'all 0.2s ease',
+                    border: '1px solid rgba(0,255,255,0.2)',
+                    '&:hover': {
+                      bgcolor: 'rgba(0,255,255,0.1)',
+                      color: '#fff',
+                      borderColor: 'var(--accent)',
+                    }
+                  }}
+                >
+                  <span style={{ fontSize: '1.2rem' }}>{tool.icon}</span>
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem', textAlign: 'center', lineHeight: 1 }}>
+                    {tool.label}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
           </section>
 
           <section className="ops-panel">
