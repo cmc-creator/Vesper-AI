@@ -26,14 +26,6 @@ html5lib==1.1
 pandas==2.2.0
 numpy==1.26.3
 
-# Tracing & Observability (optional - compatible versions)
-opentelemetry-api==0.43b0
-opentelemetry-sdk==0.43b0
-opentelemetry-exporter-otlp-proto-http==0.43b0
-opentelemetry-instrumentation==0.43b0
-opentelemetry-instrumentation-fastapi==0.43b0
-opentelemetry-instrumentation-requests==0.43b0
-
 # Utilities
 python-dotenv==1.0.1
 chardet==5.2.0
