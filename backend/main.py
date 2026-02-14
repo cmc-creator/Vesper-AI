@@ -2086,21 +2086,27 @@ async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = 
                 print(f"Claude Vision failed: {e}")
         
         # 3. Try Google Gemini Vision
-        if not analysis_result and os.getenv("GOOGLE_API_KEY"):
+        if not analysis_result and (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")):
             try:
-                import google.generativeai as genai
-                genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+                from google import genai
+                google_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+                client = genai.Client(api_key=google_key)
                 
-                # Upload image to Gemini
-                image_parts = [
-                    {
-                        'mime_type': file_type,
-                        'data': content
-                    }
-                ]
+                # Upload image to Gemini using new API
+                # Convert base64 content to proper format
+                image_data = {
+                    'mime_type': file_type,
+                    'data': base64.b64encode(content).decode('utf-8')
+                }
                 
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                response = model.generate_content([prompt, image_parts[0]])
+                # Use new Client-based API for generate_content
+                response = client.models.generate_content(
+                    model='gemini-1.5-flash',
+                    contents=[
+                        {"role": "user", "parts": [{"text": prompt}]},
+                        {"role": "user", "parts": [{"inline_data": image_data}]}
+                    ]
+                )
                 
                 analysis_result = response.text
                 provider_used = "Gemini 1.5 Flash (Vision)"

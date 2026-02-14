@@ -26,12 +26,12 @@ except ImportError:
     print("[WARN] openai not installed")
 
 try:
-    import google.generativeai as genai
+    from google import genai
     GOOGLE_AVAILABLE = True
 except ImportError:
     genai = None
     GOOGLE_AVAILABLE = False
-    print("[WARN] google-generativeai not installed")
+    print("[WARN] google-genai not installed")
 
 try:
     import ollama
@@ -61,7 +61,7 @@ class AIRouter:
         # Initialize clients
         self.anthropic_client = None
         self.openai_client = None
-        self.google_configured = False
+        self.google_client = None  # Changed from google_configured to google_client
         self.ollama_available = False
         
         # Detect environment: local vs production
@@ -81,12 +81,11 @@ class AIRouter:
                 self.openai_client = OpenAI(api_key=openai_key)
                 print("[OK] OpenAI GPT configured")
         
-        # Configure Google Gemini
+        # Configure Google Gemini (new google-genai SDK with Client-based API)
         if GOOGLE_AVAILABLE:
-            google_key = os.getenv("GOOGLE_API_KEY")
+            google_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
             if google_key:
-                genai.configure(api_key=google_key)
-                self.google_configured = True
+                self.google_client = genai.Client(api_key=google_key)
                 print("[OK] Google Gemini configured")
         
         # Check Ollama availability
@@ -206,7 +205,7 @@ class AIRouter:
         elif provider == ModelProvider.OPENAI:
             return self.openai_client is not None
         elif provider == ModelProvider.GOOGLE:
-            return self.google_configured
+            return self.google_client is not None  # Changed from google_configured
         elif provider == ModelProvider.OLLAMA:
             return self.ollama_available
         return False
@@ -332,27 +331,27 @@ class AIRouter:
         }
     
     async def _chat_google(self, messages, model, tools, max_tokens, temperature):
-        """Chat with Google Gemini"""
+        """Chat with Google Gemini using new google-genai SDK"""
         # Convert messages to Gemini format
-        gemini_messages = []
+        contents = []
         for msg in messages:
             role = "user" if msg["role"] in ["system", "user"] else "model"
-            gemini_messages.append({
+            contents.append({
                 "role": role,
-                "parts": [msg["content"]]
+                "parts": [{"text": msg["content"]}]
             })
         
-        gemini_model = genai.GenerativeModel(model)
-        
-        generation_config = {
+        # Use new Client-based API
+        config = {
             "max_output_tokens": max_tokens,
             "temperature": temperature
         }
         
         # Note: Gemini's function calling format is different, simplified for now
-        response = gemini_model.generate_content(
-            gemini_messages,
-            generation_config=generation_config
+        response = self.google_client.models.generate_content(
+            model=model,
+            contents=contents,
+            config=config
         )
         
         return {
