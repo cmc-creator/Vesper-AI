@@ -156,40 +156,42 @@ class AIRouter:
                 ]
             }
         else:
-            # PRODUCTION/CLOUD: OpenAI gpt-5.1-chat (primary), Claude Haiku (fallback)
+            # PRODUCTION/CLOUD: OpenAI gpt-4o-mini (primary), Google Gemini (fallback), Claude (last resort)
             self.routing_strategy = {
                 TaskType.CODE: [
-                    ModelProvider.OPENAI,     # gpt-5.1-chat for code
-                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini for code
+                    ModelProvider.GOOGLE,     # Gemini Flash fallback
+                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.CHAT: [
-                    ModelProvider.OPENAI,     # gpt-5.1-chat primary
-                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback (fast)
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini primary
+                    ModelProvider.GOOGLE,     # Gemini Flash fallback
+                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.SEARCH: [
-                    ModelProvider.OPENAI,     # gpt-5.1-chat
-                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback
-                    ModelProvider.GOOGLE      # Gemini for grounding
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini for grounding
+                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.ANALYSIS: [
-                    ModelProvider.OPENAI,     # gpt-5.1-chat for analysis
-                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini for analysis
+                    ModelProvider.GOOGLE,     # Gemini Flash fallback
+                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.CREATIVE: [
-                    ModelProvider.ANTHROPIC,  # Claude Haiku for creative
-                    ModelProvider.OPENAI,     # gpt-5.1-chat fallback
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini Flash
+                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ]
             }
         
         # Model selection per provider - BUDGET FOCUSED
         self.models = {
-            ModelProvider.ANTHROPIC: "claude-3-haiku-20240307",  # Claude 3 Haiku (fast & cheap)
+            # Move Claude to last priority by adjusting routing_strategy above
+            # Keep cheap models:
             ModelProvider.OPENAI: "gpt-4o-mini",  # Budget model ($0.15/M input, $0.60/M output)
             ModelProvider.GOOGLE: "gemini-1.5-flash",  # Fallback (free tier)
+            ModelProvider.ANTHROPIC: "claude-3-haiku-20240307",  # Claude 3 Haiku (fast & cheap)
             ModelProvider.OLLAMA: "llama3.1:70b"  # Free local
         }
     
