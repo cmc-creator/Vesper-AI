@@ -165,6 +165,16 @@ function App() {
   const [abortController, setAbortController] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(() => safeStorageGet('vesper_sound_enabled', 'true') === 'true');
   
+  // Tools
+  const [toolsExpanded, setToolsExpanded] = useState(true);
+  const TOOLS = [
+    { id: 'research', label: 'Deep Research', icon: '🔬' },
+    { id: 'videos', label: 'Create videos', icon: '🎬' },
+    { id: 'images', label: 'Create images', icon: '🎨' },
+    { id: 'canvas', label: 'Canvas', icon: '📐' },
+    { id: 'learning', label: 'Guided Learning', icon: '📚' },
+  ];
+  
   // Smart Memory Tags
   const [memoryTags, setMemoryTags] = useState([]);
   const [selectedTags, setSelectedTags] = useState([]);
@@ -3325,6 +3335,67 @@ function App() {
             </Box>
           </Box>
 
+          {/* Tools Section */}
+          <Box sx={{ 
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            pt: 1.5,
+            pb: 1
+          }}>
+            <Box 
+              onClick={() => setToolsExpanded(!toolsExpanded)}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                mb: 1,
+                cursor: 'pointer',
+                padding: '8px 0',
+                transition: 'all 0.2s ease',
+                '&:hover': { color: '#fff' }
+              }}
+            >
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>
+                Tools
+              </Typography>
+              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', transition: 'transform 0.2s', transform: toolsExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                ▼
+              </span>
+            </Box>
+            
+            {toolsExpanded && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                {TOOLS.map((tool) => (
+                  <Box
+                    key={tool.id}
+                    onClick={() => setToast(`${tool.label} feature coming soon`)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      color: 'rgba(255,255,255,0.7)',
+                      fontSize: '0.85rem',
+                      transition: 'all 0.2s ease',
+                      border: '1px solid transparent',
+                      '&:hover': {
+                        bgcolor: 'rgba(0,255,255,0.1)',
+                        color: '#fff',
+                        borderColor: 'rgba(0,255,255,0.3)',
+                      }
+                    }}
+                  >
+                    <span style={{ fontSize: '1rem' }}>{tool.icon}</span>
+                    <Typography variant="body2" sx={{ fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {tool.label}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
+
           {/* New Chat Button - Bottom */}
           <Button
             fullWidth
@@ -3351,7 +3422,7 @@ function App() {
 
         <main className="content-grid">
           <section className="chat-panel glass-panel">
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexShrink: 0 }}>
               <Box>
                 <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--accent)' }}>
                   Neural Chat
@@ -3413,7 +3484,7 @@ function App() {
               </Box>
             </Box>
 
-            <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+            <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.5, flexShrink: 0 }}>
               {['Summarize the scene', 'Generate a quest', 'Give me a hint', 'Explain controls'].map((label) => (
                 <Chip key={label} label={label} onClick={() => setInput(label)} className="chip-ghost" />
               ))}
@@ -3421,7 +3492,7 @@ function App() {
               <Chip label="Hold V to speak" className="chip-ghost" />
             </Stack>
 
-            <Paper ref={chatContainerRef} className="chat-window glass-card" sx={{ mb: 2 }}>
+            <Paper ref={chatContainerRef} className="chat-window glass-card">
               <AnimatePresence>
                 {messages.map((message) => (
                   <div key={message.id}>{renderMessage(message)}</div>
