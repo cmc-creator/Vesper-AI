@@ -72,6 +72,8 @@ import AIAvatar from './src/components/AIAvatar';
 import CommandPalette from './src/components/CommandPalette';
 import VoiceInput from './src/components/VoiceInput';
 import FloatingActionButton from './src/components/FloatingActionButton';
+import Canvas from './src/components/Canvas';
+import DeepResearch from './src/components/DeepResearch';
 import Game from './src/game/Game';
 
 // Styles
@@ -167,6 +169,8 @@ function App() {
   
   // Tools
   const [toolsExpanded, setToolsExpanded] = useState(true);
+  const [canvasOpen, setCanvasOpen] = useState(false);
+  const [researchOpen, setResearchOpen] = useState(false);
   const TOOLS = [
     { id: 'research', label: 'Deep Research', icon: '🔬' },
     { id: 'videos', label: 'Create videos', icon: '🎬' },
@@ -3299,7 +3303,21 @@ function App() {
                             size="small"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setToast('Share feature coming soon');
+                              // Share thread - export as JSON
+                              const threadData = {
+                                title: thread.title,
+                                timestamp: thread.created_at,
+                                messages: thread.messages || [],
+                              };
+                              const json = JSON.stringify(threadData, null, 2);
+                              const link = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+                              
+                              // Download the thread
+                              const downloadLink = document.createElement('a');
+                              downloadLink.href = link;
+                              downloadLink.download = `vesper-thread-${thread.id}.json`;
+                              downloadLink.click();
+                              setToast(`📥 Thread exported as JSON`);
                             }}
                             sx={{ 
                               p: 0.2,
@@ -3603,7 +3621,15 @@ function App() {
               {TOOLS.map((tool) => (
                 <Box
                   key={tool.id}
-                  onClick={() => setToast(`${tool.label} feature coming soon`)}
+                  onClick={() => {
+                    if (tool.id === 'canvas') {
+                      setCanvasOpen(true);
+                    } else if (tool.id === 'research') {
+                      setResearchOpen(true);
+                    } else {
+                      setToast(`${tool.label} feature coming soon`);
+                    }
+                  }}
                   sx={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -3884,6 +3910,16 @@ function App() {
           <DownloadIcon fontSize="small" sx={{ mr: 1 }} /> Export as JSON
         </MenuItem>
       </Menu>
+      
+      {/* Canvas Modal */}
+      <Dialog open={canvasOpen} onClose={() => setCanvasOpen(false)} maxWidth="lg" fullWidth fullScreen>
+        <Canvas onClose={() => setCanvasOpen(false)} onShare={() => setToast('Canvas shared!')} />
+      </Dialog>
+
+      {/* Deep Research Modal */}
+      <Dialog open={researchOpen} onClose={() => setResearchOpen(false)} maxWidth="md" fullWidth sx={{ height: '90vh' }}>
+        <DeepResearch apiBase={apiBase} onClose={() => setResearchOpen(false)} />
+      </Dialog>
     </ThemeProvider>
   );
 }
