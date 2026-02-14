@@ -3912,12 +3912,16 @@ def _execute_github_create_issue(params):
 
 
 # --- SUPABASE STORAGE ---
-try:
-    from supabase_storage import ensure_buckets, upload_image, upload_canvas, list_files
-    STORAGE_ENABLED = True
-except Exception as e:
-    STORAGE_ENABLED = False
-    print(f"[WARN] Supabase storage not available: {e}")
+# Temporarily disabled to debug recursion issue
+STORAGE_ENABLED = False
+print("[INFO] Supabase storage temporarily disabled")
+
+# try:
+#     from supabase_storage import ensure_buckets, upload_image, upload_canvas, list_files
+#     STORAGE_ENABLED = True
+# except Exception as e:
+#     STORAGE_ENABLED = False
+#     print(f"[WARN] Supabase storage not available: {e}")
 
 @app.post("/api/storage/init")
 async def init_storage():
