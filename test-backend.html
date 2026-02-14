@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vesper Backend Test</title>
+</head>
+<body>
+    <h1>Testing Vesper Backend</h1>
+    <button onclick="testHealth()">1. Test Health Check</button>
+    <button onclick="testChat()">2. Test Chat Endpoint</button>
+    <button onclick="testThreads()">3. Test Threads</button>
+    <pre id="output"></pre>
+
+    <script>
+        const API_BASE = 'https://vesper-backend-production-b486.up.railway.app';
+        const output = document.getElementById('output');
+
+        async function testHealth() {
+            output.textContent = 'Testing /health...\n';
+            try {
+                const res = await fetch(`${API_BASE}/health`);
+                const data = await res.json();
+                output.textContent += `✅ Status: ${res.status}\n`;
+                output.textContent += `Response: ${JSON.stringify(data, null, 2)}\n`;
+            } catch (e) {
+                output.textContent += `❌ Error: ${e.message}\n`;
+            }
+        }
+
+        async function testChat() {
+            output.textContent = 'Testing /api/chat...\n';
+            try {
+                const res = await fetch(`${API_BASE}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: 'test',
+                        thread_id: 'test_123'
+                    })
+                });
+                const data = await res.json();
+                output.textContent += `✅ Status: ${res.status}\n`;
+                output.textContent += `Response: ${JSON.stringify(data, null, 2)}\n`;
+            } catch (e) {
+                output.textContent += `❌ Error: ${e.message}\n`;
+            }
+        }
+
+        async function testThreads() {
+            output.textContent = 'Testing /api/threads...\n';
+            try {
+                const res = await fetch(`${API_BASE}/api/threads`);
+                const data = await res.json();
+                output.textContent += `✅ Status: ${res.status}\n`;
+                output.textContent += `Response: ${JSON.stringify(data, null, 2)}\n`;
+            } catch (e) {
+                output.textContent += `❌ Error: ${e.message}\n`;
+            }
+        }
+    </script>
+</body>
+</html>
