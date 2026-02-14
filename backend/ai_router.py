@@ -285,6 +285,12 @@ class AIRouter:
         
         response = self.anthropic_client.messages.create(**kwargs)
         
+        # Extract content (join all text blocks)
+        content_text = ""
+        if hasattr(response, "content") and response.content:
+            text_blocks = [c.text for c in response.content if hasattr(c, "type") and c.type == "text"]
+            content_text = "\n".join(text_blocks)
+        
         # Extract tool calls safely
         tool_calls = []
         if hasattr(response, "content") and response.content:
@@ -297,7 +303,7 @@ class AIRouter:
                     })
         
         return {
-            "content": response.content[0].text if response.content else "",
+            "content": content_text,
             "provider": ModelProvider.ANTHROPIC.value,
             "model": model,
             "usage": {
