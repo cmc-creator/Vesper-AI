@@ -22,6 +22,7 @@ import {
   Redo as RedoIcon,
   Share as ShareIcon,
   Close as CloseIcon,
+  CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material';
 
 /**
@@ -43,6 +44,8 @@ export default function Canvas({ onClose, onShare }) {
   const [historyStep, setHistoryStep] = useState(-1);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareTitle, setShareTitle] = useState('My Canvas Artwork');
+  const [isSavingToCloud, setIsSavingToCloud] = useState(false);
+  const [cloudSaveSuccess, setCloudSaveSuccess] = useState(false);
 
   // Initialize canvas
   useEffect(() => {
@@ -252,6 +255,35 @@ export default function Canvas({ onClose, onShare }) {
     link.click();
   };
 
+  // Save to Supabase Storage
+  const saveToCloud = async () => {
+    setIsSavingToCloud(true);
+    setCloudSaveSuccess(false);
+    try {
+      const canvasData = canvasRef.current.toDataURL('image/png');
+      const filename = `${shareTitle.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.png`;
+      
+      const response = await fetch('https://vesper-backend-production-b486.up.railway.app/api/storage/save-canvas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canvas_data: canvasData, filename }),
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setCloudSaveSuccess(true);
+        alert(`✅ Saved to cloud!\n\nURL: ${result.url}`);
+      } else {
+        alert(`❌ Save failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Cloud save error:', error);
+      alert(`❌ Save failed: ${error.message}`);
+    } finally {
+      setIsSavingToCloud(false);
+    }
+  };
+
   return (
     <Paper
       sx={{
@@ -368,6 +400,19 @@ export default function Canvas({ onClose, onShare }) {
               sx={{ color: 'var(--accent)' }}
             >
               <DownloadIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Save to Cloud">
+            <IconButton
+              onClick={saveToCloud}
+              disabled={isSavingToCloud}
+              size="small"
+              sx={{ 
+                color: cloudSaveSuccess ? '#4caf50' : 'var(--accent)',
+                opacity: isSavingToCloud ? 0.5 : 1,
+              }}
+            >
+              <CloudUploadIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Share Canvas">

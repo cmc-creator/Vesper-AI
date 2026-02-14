@@ -3911,6 +3911,78 @@ def _execute_github_create_issue(params):
         return {"error": str(e)}
 
 
+# --- SUPABASE STORAGE ---
+try:
+    from supabase_storage import ensure_buckets, upload_image, upload_canvas, list_files
+    STORAGE_ENABLED = True
+except ImportError:
+    STORAGE_ENABLED = False
+    print("[WARN] Supabase storage module not available")
+
+@app.post("/api/storage/init")
+async def init_storage():
+    """Initialize Supabase storage buckets"""
+    if not STORAGE_ENABLED:
+        return {"error": "Storage not enabled"}
+    try:
+        ensure_buckets()
+        return {"success": True, "message": "Storage buckets initialized"}
+    except Exception as e:
+        return {"error": str(e)}
+
+class SaveImageRequest(BaseModel):
+    image_url: Optional[str] = None
+    image_base64: Optional[str] = None
+    filename: str
+
+@app.post("/api/storage/save-image")
+async def save_image_to_storage(req: SaveImageRequest):
+    """Save generated image to Supabase Storage"""
+    if not STORAGE_ENABLED:
+        return {"error": "Storage not enabled"}
+    
+    try:
+        import base64
+        import urllib.request
+        
+        if req.image_base64:
+            # Decode base64 image
+            image_data = base64.b64decode(req.image_base64)
+        elif req.image_url:
+            # Download image from URL
+            with urllib.request.urlopen(req.image_url) as response:
+                image_data = response.read()
+        else:
+            return {"error": "No image data provided"}
+        
+        public_url = upload_image(image_data, req.filename)
+        if public_url:
+            return {"success": True, "url": public_url}
+        else:
+            return {"error": "Upload failed"}
+    except Exception as e:
+        return {"error": str(e)}
+
+class SaveCanvasRequest(BaseModel):
+    canvas_data: str  # base64 data:image/png...
+    filename: str
+
+@app.post("/api/storage/save-canvas")
+async def save_canvas_to_storage(req: SaveCanvasRequest):
+    """Save canvas drawing to Supabase Storage"""
+    if not STORAGE_ENABLED:
+        return {"error": "Storage not enabled"}
+    
+    try:
+        public_url = upload_canvas(req.canvas_data, req.filename)
+        if public_url:
+            return {"success": True, "url": public_url}
+        else:
+            return {"error": "Upload failed"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # --- STARTUP ---
 if __name__ == "__main__":
     import uvicorn

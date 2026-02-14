@@ -17,6 +17,7 @@ import {
   Download as DownloadIcon,
   Close as CloseIcon,
   Image as ImageIcon,
+  CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material';
 
 export default function ImageGenerator({ apiBase, onClose }) {
@@ -28,6 +29,8 @@ export default function ImageGenerator({ apiBase, onClose }) {
   const [error, setError] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imageBase64, setImageBase64] = useState('');
+  const [isSavingToCloud, setIsSavingToCloud] = useState(false);
+  const [cloudSaveSuccess, setCloudSaveSuccess] = useState(false);
 
   const generateImage = async () => {
     if (!prompt.trim()) return;
@@ -67,6 +70,36 @@ export default function ImageGenerator({ apiBase, onClose }) {
     }
     link.download = `vesper-image-${Date.now()}.png`;
     link.click();
+  };
+
+  const saveToCloud = async () => {
+    setIsSavingToCloud(true);
+    setCloudSaveSuccess(false);
+    try {
+      const filename = `dalle-${Date.now()}.png`;
+      const response = await fetch(`${apiBase}/api/storage/save-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_url: imageUrl || null,
+          image_base64: imageBase64 || null,
+          filename,
+        }),
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setCloudSaveSuccess(true);
+        alert(`✅ Saved to cloud!\n\nURL: ${result.url}`);
+      } else {
+        alert(`❌ Save failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Cloud save error:', error);
+      alert(`❌ Save failed: ${error.message}`);
+    } finally {
+      setIsSavingToCloud(false);
+    }
   };
 
   return (
@@ -168,15 +201,31 @@ export default function ImageGenerator({ apiBase, onClose }) {
               style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: '8px' }}
             />
             <Divider sx={{ my: 2, borderColor: 'rgba(0, 255, 255, 0.2)' }} />
-            <Button
-              onClick={downloadImage}
-              variant="outlined"
-              size="small"
-              startIcon={<DownloadIcon fontSize="small" />}
-              sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-            >
-              Download
-            </Button>
+            <Stack direction="row" spacing={1} justifyContent="center">
+              <Button
+                onClick={downloadImage}
+                variant="outlined"
+                size="small"
+                startIcon={<DownloadIcon fontSize="small" />}
+                sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+              >
+                Download
+              </Button>
+              <Button
+                onClick={saveToCloud}
+                disabled={isSavingToCloud}
+                variant="outlined"
+                size="small"
+                startIcon={<CloudUploadIcon fontSize="small" />}
+                sx={{ 
+                  borderColor: cloudSaveSuccess ? '#4caf50' : 'var(--accent)',
+                  color: cloudSaveSuccess ? '#4caf50' : 'var(--accent)',
+                  opacity: isSavingToCloud ? 0.5 : 1,
+                }}
+              >
+                {cloudSaveSuccess ? 'Saved!' : 'Save to Cloud'}
+              </Button>
+            </Stack>
           </Box>
         ) : (
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)' }}>
