@@ -351,9 +351,13 @@ function App() {
     return 'https://vesper-backend-production-b486.up.railway.app';
   }, []);
 
-  const disableFirebaseAuth = useMemo(
-    () => String(import.meta.env.VITE_DISABLE_FIREBASE_AUTH).toLowerCase() === 'true',
+  const firebaseAuthEnabled = useMemo(
+    () => String(import.meta.env.VITE_FIREBASE_AUTH_ENABLED).toLowerCase() === 'true',
     []
+  );
+  const disableFirebaseAuth = useMemo(
+    () => !firebaseAuthEnabled || String(import.meta.env.VITE_DISABLE_FIREBASE_AUTH).toLowerCase() === 'true',
+    [firebaseAuthEnabled]
   );
 
   const chatBase = useMemo(() => {
