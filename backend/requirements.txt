@@ -9,7 +9,6 @@ pydantic-settings==2.1.0
 sqlalchemy==2.0.25
 psycopg2-binary==2.9.9
 alembic==1.13.1
-supabase==2.3.4
 
 # AI Providers
 anthropic==0.18.0
