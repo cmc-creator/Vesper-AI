@@ -1013,6 +1013,245 @@ class PersistentMemoryDB:
             "created_at": personality.created_at.isoformat() if personality.created_at else None,
             "metadata": personality.meta_data or {}
         }
+    def extract_conversation_insights(self, limit: int = 10) -> Dict[str, str]:
+        """
+        Extract learnings from past conversations for intelligent memory injection.
+        Analyzes recent threads to identify patterns in CC's preferences, interests, and communication style.
+        
+        Returns a dict with keys that can be injected into system prompt.
+        """
+        try:
+            session = self.SessionLocal()
+            
+            # Get recent conversations
+            threads = session.query(Thread).order_by(Thread.updated_at.desc()).limit(limit).all()
+            
+            if not threads:
+                return {
+                    "learned_patterns": "No conversation history yet - learning will begin now!",
+                    "interaction_style": "",
+                    "known_interests": "",
+                    "technical_preferences": "",
+                    "communication_patterns": ""
+                }
+            
+            # Analyze all messages across threads
+            all_user_messages = []
+            all_assistant_responses = []
+            
+            for thread in threads:
+                if thread.messages:
+                    for msg in thread.messages:
+                        role = msg.get("role") or msg.get("from", "")
+                        content = msg.get("content") or msg.get("text", "")
+                        
+                        if role == "user" and content:
+                            all_user_messages.append(content.lower())
+                        elif role == "assistant" and content:
+                            all_assistant_responses.append(content.lower())
+            
+            # Extract patterns
+            insights = {
+                "learned_patterns": self._extract_patterns(all_user_messages, all_assistant_responses),
+                "interaction_style": self._extract_interaction_style(all_user_messages),
+                "known_interests": self._extract_interests(all_user_messages),
+                "technical_preferences": self._extract_tech_preferences(all_user_messages),
+                "communication_patterns": self._extract_communication_style(all_user_messages)
+            }
+            
+            session.close()
+            return insights
+            
+        except Exception as e:
+            print(f"[ERROR] extract_conversation_insights: {str(e)}")
+            return {
+                "learned_patterns": "Building knowledge from conversations...",
+                "interaction_style": "",
+                "known_interests": "",
+                "technical_preferences": "",
+                "communication_patterns": ""
+            }
+    
+    def _extract_patterns(self, user_msgs: List[str], assistant_msgs: List[str]) -> str:
+        """Extract key patterns from conversation history"""
+        if not user_msgs:
+            return "No patterns learned yet."
+        
+        patterns = []
+        
+        # Check for technical interests
+        tech_keywords = {
+            "python": "Python development",
+            "javascript": "JavaScript development",
+            "react": "React/frontend development",
+            "fastapi": "FastAPI backend",
+            "database": "Database design",
+            "api": "API development",
+            "ai": "AI/ML applications",
+            "agent": "AI agents and agentic workflows",
+            "memory": "Persistent memory systems",
+            "agent framework": "Microsoft Agent Framework"
+        }
+        
+        for keyword, topic in tech_keywords.items():
+            for msg in user_msgs:
+                if keyword in msg:
+                    patterns.append(topic)
+                    break
+        
+        # Check for work/business interests
+        work_keywords = {
+            "consulting": "Runs consulting business",
+            "risk management": "Risk management expertise",
+            "financial": "Financial planning interest",
+            "business": "Business development focus"
+        }
+        
+        for keyword, topic in work_keywords.items():
+            for msg in user_msgs:
+                if keyword in msg:
+                    patterns.append(topic)
+                    break
+        
+        # Check for creative interests
+        creative_keywords = {
+            "nyxshift": "NyxShift project (creative vision)",
+            "atmospheric": "Atmospheric storytelling",
+            "monsoon": "Desert/monsoon aesthetics",
+            "creative": "Creative worldbuilding",
+            "storytelling": "Narrative design"
+        }
+        
+        for keyword, topic in creative_keywords.items():
+            for msg in user_msgs:
+                if keyword in msg:
+                    patterns.append(topic)
+                    break
+        
+        if patterns:
+            return "CC is active in: " + ", ".join(list(set(patterns)))
+        return "Diverse interests emerging from conversations"
+    
+    def _extract_interaction_style(self, user_msgs: List[str]) -> str:
+        """Extract how CC prefers to interact"""
+        if not user_msgs:
+            return ""
+        
+        # Check for preference indicators
+        direct_msgs = sum(1 for msg in user_msgs if len(msg) < 100)
+        detailed_msgs = sum(1 for msg in user_msgs if len(msg) > 300)
+        question_msgs = sum(1 for msg in user_msgs if "?" in msg)
+        
+        style_clues = []
+        
+        if direct_msgs > len(user_msgs) * 0.4:
+            style_clues.append("Prefers concise, direct communication")
+        
+        if question_msgs > len(user_msgs) * 0.3:
+            style_clues.append("Asks detailed questions, wants deep dives")
+        
+        if detailed_msgs > len(user_msgs) * 0.2:
+            style_clues.append("Often provides context and background")
+        
+        # Check for preference keywords
+        preference_keywords = {
+            "brief": "Wants brief responses",
+            "short": "Prefers shorter answers",
+            "list": "Likes organized lists",
+            "number": "Prefers numbered formats",
+            "efficiency": "Values efficiency"
+        }
+        
+        for keyword, style in preference_keywords.items():
+            for msg in user_msgs[-5:]:  # Check recent messages more heavily
+                if keyword in msg:
+                    style_clues.append(style)
+                    break
+        
+        if style_clues:
+            return "CC's interaction style: " + ", ".join(style_clues[:3])
+        return ""
+    
+    def _extract_interests(self, user_msgs: List[str]) -> str:
+        """Extract CC's known interests and passions"""
+        interests = []
+        
+        interest_keywords = {
+            "michigan": "Nostalgic about Michigan seasons",
+            "monsoon": "Loves desert monsoons",
+            "autumn": "Misses autumn sensory experiences",
+            "thunderstorm": "Interested in thunderstorm narratives",
+            "white tank": "Enjoys White Tank Mountain area",
+            "waterfall": "Appreciates natural water features",
+            "3, 6, 9": "Connected to harmonic proportions"
+        }
+        
+        for msg in user_msgs:
+            for keyword, interest in interest_keywords.items():
+                if keyword in msg:
+                    interests.append(interest)
+        
+        if interests:
+            return "Known interests: " + ", ".join(list(set(interests)))
+        return ""
+    
+    def _extract_tech_preferences(self, user_msgs: List[str]) -> str:
+        """Extract technical stack preferences"""
+        preferences = []
+        
+        tech_prefs = {
+            "python": "Uses Python",
+            "javascript": "Uses JavaScript",
+            "react": "Uses React",
+            "fastapi": "Uses FastAPI",
+            "vite": "Uses Vite",
+            "postgresql": "Uses PostgreSQL",
+            "supabase": "Uses Supabase",
+            "firebase": "Uses Firebase",
+            "ollama": "Runs local AI (Ollama)",
+            "claude": "Prefers Claude AI",
+            "gemini": "Uses Google Gemini",
+            "three.js": "Uses Three.js for 3D"
+        }
+        
+        for keyword, pref in tech_prefs.items():
+            for msg in user_msgs:
+                if keyword in msg:
+                    preferences.append(pref)
+                    break
+        
+        if preferences:
+            return "Tech stack: " + ", ".join(list(set(preferences)))
+        return ""
+    
+    def _extract_communication_style(self, user_msgs: List[str]) -> str:
+        """Extract CC's overall communication style"""
+        if not user_msgs:
+            return ""
+        
+        avg_msg_length = sum(len(msg) for msg in user_msgs) / len(user_msgs)
+        
+        style = "Communication: "
+        
+        if avg_msg_length < 150:
+            style += "Prefers concise responses. "
+        elif avg_msg_length > 400:
+            style += "Often provides detailed context. "
+        else:
+            style += "Balanced communication style. "
+        
+        # Check for personality clues
+        emoji_msgs = sum(1 for msg in user_msgs if any(ord(ch) > 127 for ch in msg))
+        formal_indicators = sum(1 for msg in user_msgs if msg.count(".") > 3)
+        exclamation_statements = sum(1 for msg in user_msgs if "!" in msg)
+        
+        if exclamation_statements > len(user_msgs) * 0.1:
+            style += "Expresses enthusiasm. "
+        
+        if emoji_msgs < len(user_msgs) * 0.2:
+            style += "Uses minimal emojis. "
+        
+        return style.strip()
 
 
 # Global database instance

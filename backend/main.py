@@ -2673,7 +2673,7 @@ async def chat_with_vesper(chat: ChatMessage):
         if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
             return {"response": "Hey babe, looks like my AI brain isn't connected yet. Need to add at least one API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY) to the .env file so I can actually think and respond properly! Or install Ollama for free local AI."}
         
-        #Load thread history from DATABASE (persistent!)
+        # Load thread history from DATABASE (persistent!)
         thread = memory_db.get_thread(chat.thread_id)
         if not thread:
             # Create new thread
@@ -2683,17 +2683,34 @@ async def chat_with_vesper(chat: ChatMessage):
                 metadata={"created_via": "chat_endpoint"}
             )
         
+        # EXTRACT INSIGHTS FROM PAST CONVERSATIONS (MEMORY RECALL SYSTEM)
+        conversation_insights = memory_db.extract_conversation_insights(limit=15)
+        
         # Load relevant memories from DATABASE (all categories)
         all_memories = memory_db.get_memories(limit=30)
-        memory_summary = "\n\n**RECENT MEMORIES:**\n"
-        for mem in all_memories[:10]:  # Last 10 memories
+        memory_summary = "\n\n**STORED MEMORIES:**\n"
+        for mem in all_memories[:8]:  # Last 8 memories
             memory_summary += f"- [{mem['category']}] {mem['content']}\n"
+        
+        # Build learned patterns section for intelligent memory injection
+        learned_patterns_section = "\n\n**LEARNED FROM OUR CONVERSATIONS:**\n"
+        if conversation_insights.get("interaction_style"):
+            learned_patterns_section += f"- {conversation_insights['interaction_style']}\n"
+        if conversation_insights.get("known_interests"):
+            learned_patterns_section += f"- {conversation_insights['known_interests']}\n"
+        if conversation_insights.get("technical_preferences"):
+            learned_patterns_section += f"- {conversation_insights['technical_preferences']}\n"
+        if conversation_insights.get("learned_patterns"):
+            learned_patterns_section += f"- {conversation_insights['learned_patterns']}\n"
+        if conversation_insights.get("communication_patterns"):
+            learned_patterns_section += f"- {conversation_insights['communication_patterns']}\n"
         
         # Add CURRENT date/time context
         current_datetime = datetime.datetime.now().strftime("%A, %B %d, %Y at %I:%M %p")
         date_context = f"\n\n**RIGHT NOW:** It's {current_datetime} (UTC). Remember this is the actual current date/time."
         
-        enhanced_system = VESPER_CORE_DNA + date_context + memory_summary
+        # Build enhanced system prompt with memory recall
+        enhanced_system = VESPER_CORE_DNA + date_context + learned_patterns_section + memory_summary
         
         # Build conversation from thread history (from database!)
         messages = [{"role": "system", "content": enhanced_system}]
