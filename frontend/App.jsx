@@ -16,6 +16,7 @@ import {
   Snackbar,
   Menu,
   MenuItem,
+  Dialog,
   Switch,
   FormControlLabel,
   LinearProgress,
