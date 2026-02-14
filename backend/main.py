@@ -2089,23 +2089,21 @@ async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = 
         if not analysis_result and (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")):
             try:
                 from google import genai
+                from google.genai import types
                 google_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
                 client = genai.Client(api_key=google_key)
                 
-                # Upload image to Gemini using new API
-                # Convert base64 content to proper format
-                image_data = {
-                    'mime_type': file_type,
-                    'data': base64.b64encode(content).decode('utf-8')
-                }
+                # Create image part using proper API (content is raw bytes)
+                image_part = types.Part.from_bytes(
+                    data=content,
+                    mime_type=file_type
+                )
                 
                 # Use new Client-based API for generate_content
+                # Combine prompt and image in single contents list
                 response = client.models.generate_content(
                     model='gemini-1.5-flash',
-                    contents=[
-                        {"role": "user", "parts": [{"text": prompt}]},
-                        {"role": "user", "parts": [{"inline_data": image_data}]}
-                    ]
+                    contents=[prompt, image_part]
                 )
                 
                 analysis_result = response.text

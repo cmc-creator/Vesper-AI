@@ -331,8 +331,12 @@ class AIRouter:
         }
     
     async def _chat_google(self, messages, model, tools, max_tokens, temperature):
-        """Chat with Google Gemini using new google-genai SDK"""
-        # Convert messages to Gemini format
+        """Chat with Google Gemini using new google-genai SDK
+        
+        Note: This method handles text-only chat messages. Image/multimodal 
+        content is handled separately in the image analysis endpoint.
+        """
+        # Convert messages to Gemini format (text-only)
         contents = []
         for msg in messages:
             role = "user" if msg["role"] in ["system", "user"] else "model"

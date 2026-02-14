@@ -1,6 +1,6 @@
 anthropic
 openai
-google-generativeai
+google-genai
 ollama
 fastapi
 uvicorn[standard]
