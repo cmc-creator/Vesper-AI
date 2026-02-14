@@ -4,7 +4,6 @@ Used for storing generated files: images (DALL-E), canvas drawings, local videos
 """
 
 import os
-from supabase import create_client, Client
 from typing import Optional
 import base64
 from datetime import datetime
@@ -13,10 +12,15 @@ from datetime import datetime
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://maqxeaobrwopedogsdcf.supabase.co")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
-# Initialize Supabase client
-supabase: Optional[Client] = None
-if SUPABASE_KEY:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Initialize Supabase client safely
+supabase = None
+try:
+    if SUPABASE_KEY:
+        from supabase import create_client, Client
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception as e:
+    print(f"[WARN] Supabase storage initialization failed: {e}")
+    supabase = None
 
 # Storage bucket names
 IMAGES_BUCKET = "generated-images"

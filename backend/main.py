@@ -3915,9 +3915,9 @@ def _execute_github_create_issue(params):
 try:
     from supabase_storage import ensure_buckets, upload_image, upload_canvas, list_files
     STORAGE_ENABLED = True
-except ImportError:
+except Exception as e:
     STORAGE_ENABLED = False
-    print("[WARN] Supabase storage module not available")
+    print(f"[WARN] Supabase storage not available: {e}")
 
 @app.post("/api/storage/init")
 async def init_storage():
