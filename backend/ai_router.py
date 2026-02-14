@@ -5,6 +5,7 @@ Routes tasks to the best model based on type and availability
 """
 
 import os
+import json
 from typing import Dict, List, Optional, Any
 from enum import Enum
 
@@ -289,7 +290,11 @@ class AIRouter:
         if hasattr(response, "content") and response.content:
             for c in response.content:
                 if hasattr(c, "type") and c.type == "tool_use":
-                    tool_calls.append(c)
+                    tool_calls.append({
+                        "id": getattr(c, "id", None),
+                        "name": getattr(c, "name", None),
+                        "input": getattr(c, "input", {})
+                    })
         
         return {
             "content": response.content[0].text if response.content else "",
@@ -318,7 +323,19 @@ class AIRouter:
         
         response = self.openai_client.chat.completions.create(**kwargs)
         
-        tool_calls = response.choices[0].message.tool_calls if response.choices[0].message.tool_calls else []
+        tool_calls = []
+        raw_tool_calls = response.choices[0].message.tool_calls or []
+        for tc in raw_tool_calls:
+            args = getattr(tc.function, "arguments", "")
+            try:
+                parsed_args = json.loads(args) if isinstance(args, str) else (args or {})
+            except Exception:
+                parsed_args = {"raw": args}
+            tool_calls.append({
+                "id": getattr(tc, "id", None),
+                "name": getattr(tc.function, "name", None),
+                "input": parsed_args
+            })
         
         return {
             "content": response.choices[0].message.content or "",

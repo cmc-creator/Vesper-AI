@@ -3184,99 +3184,102 @@ async def chat_with_vesper(chat: ChatMessage):
             iteration += 1
             tool_use = tool_calls[0]
             tool_result = None
+            tool_name = tool_use.get("name") if isinstance(tool_use, dict) else None
+            tool_input = tool_use.get("input", {}) if isinstance(tool_use, dict) else {}
+            tool_id = tool_use.get("id") if isinstance(tool_use, dict) else None
             
             # Execute the appropriate tool
-            if tool_use.name == "web_search":
-                search_query = tool_use.input["query"]
+            if tool_name == "web_search":
+                search_query = tool_input.get("query", "")
                 tool_result = search_web(search_query)
             
-            elif tool_use.name == "read_file":
-                file_path = tool_use.input["path"]
+            elif tool_name == "read_file":
+                file_path = tool_input.get("path", "")
                 file_op = FileOperation(path=file_path, operation="read")
                 tool_result = file_system_access(file_op)
             
-            elif tool_use.name == "write_file":
-                file_path = tool_use.input["path"]
-                content = tool_use.input["content"]
+            elif tool_name == "write_file":
+                file_path = tool_input.get("path", "")
+                content = tool_input.get("content", "")
                 file_op = FileOperation(path=file_path, content=content, operation="write")
                 tool_result = file_system_access(file_op)
             
-            elif tool_use.name == "list_directory":
-                dir_path = tool_use.input["path"]
+            elif tool_name == "list_directory":
+                dir_path = tool_input.get("path", "")
                 file_op = FileOperation(path=dir_path, operation="list")
                 tool_result = file_system_access(file_op)
             
-            elif tool_use.name == "execute_python":
-                code = tool_use.input["code"]
+            elif tool_name == "execute_python":
+                code = tool_input.get("code", "")
                 exec_op = CodeExecution(code=code, language="python")
                 tool_result = execute_code(exec_op)
             
-            elif tool_use.name == "analyze_patterns":
+            elif tool_name == "analyze_patterns":
                 tool_result = analyze_patterns()
             
             # Git tools
-            elif tool_use.name == "git_status":
+            elif tool_name == "git_status":
                 tool_result = git_status()
             
-            elif tool_use.name == "git_diff":
-                file_path = tool_use.input.get("file_path")
+            elif tool_name == "git_diff":
+                file_path = tool_input.get("file_path")
                 tool_result = git_diff(file_path)
             
-            elif tool_use.name == "git_commit":
+            elif tool_name == "git_commit":
                 # Request approval
-                tool_result = request_approval("git_commit", tool_use.input)
+                tool_result = request_approval("git_commit", tool_input)
             
-            elif tool_use.name == "git_push":
+            elif tool_name == "git_push":
                 # Request approval
-                tool_result = request_approval("git_push", tool_use.input)
+                tool_result = request_approval("git_push", tool_input)
             
             # Vercel tools
-            elif tool_use.name == "vercel_deployments":
-                project = tool_use.input.get("project", "vesper-ai-delta")
+            elif tool_name == "vercel_deployments":
+                project = tool_input.get("project", "vesper-ai-delta")
                 tool_result = vercel_get_deployments(project)
             
-            elif tool_use.name == "vercel_deploy":
+            elif tool_name == "vercel_deploy":
                 # Request approval
-                tool_result = request_approval("vercel_deploy", tool_use.input)
+                tool_result = request_approval("vercel_deploy", tool_input)
             
-            elif tool_use.name == "vercel_set_env":
+            elif tool_name == "vercel_set_env":
                 # Request approval
-                tool_result = request_approval("vercel_set_env", tool_use.input)
+                tool_result = request_approval("vercel_set_env", tool_input)
             
             # Railway tools
-            elif tool_use.name == "railway_logs":
-                limit = tool_use.input.get("limit", 50)
+            elif tool_name == "railway_logs":
+                limit = tool_input.get("limit", 50)
                 tool_result = railway_get_logs(limit)
             
-            elif tool_use.name == "railway_restart":
+            elif tool_name == "railway_restart":
                 # Request approval
-                tool_result = request_approval("railway_restart", tool_use.input)
+                tool_result = request_approval("railway_restart", tool_input)
             
             # GitHub tools
-            elif tool_use.name == "github_search_issues":
-                query = tool_use.input.get("query", "")
-                repo = tool_use.input.get("repo", "cmc-creator/Vesper-AI")
+            elif tool_name == "github_search_issues":
+                query = tool_input.get("query", "")
+                repo = tool_input.get("repo", "cmc-creator/Vesper-AI")
                 tool_result = github_search_issues(query, repo)
             
-            elif tool_use.name == "github_create_issue":
+            elif tool_name == "github_create_issue":
                 # Request approval
-                tool_result = request_approval("github_create_issue", tool_use.input)
+                tool_result = request_approval("github_create_issue", tool_input)
             
-            elif tool_use.name == "approve_action":
+            elif tool_name == "approve_action":
                 # Execute approved action
-                approval_id = tool_use.input["approval_id"]
+                approval_id = tool_input.get("approval_id")
                 tool_result = execute_approved_action(approval_id, True)
             
-            elif tool_use.name == "deny_action":
+            elif tool_name == "deny_action":
                 # Deny action
-                approval_id = tool_use.input["approval_id"]
+                approval_id = tool_input.get("approval_id")
                 tool_result = execute_approved_action(approval_id, False)
             
             # Memory tools
-            elif tool_use.name == "search_memories":
-                query = tool_use.input["query"]
-                category = tool_use.input.get("category")
-                limit = tool_use.input.get("limit", 10)
+            elif tool_name == "search_memories":
+                query = tool_input.get("query", "")
+                category = tool_input.get("category")
+                limit = tool_input.get("limit", 10)
                 try:
                     memories = memory_db.get_memories(category=category, limit=limit)
                     # Filter by query
@@ -3285,34 +3288,34 @@ async def chat_with_vesper(chat: ChatMessage):
                 except Exception as e:
                     tool_result = {"error": f"Memory search failed: {str(e)}"}
             
-            elif tool_use.name == "save_memory":
-                content = tool_use.input["content"]
-                category = tool_use.input["category"]
-                tags = tool_use.input.get("tags", [])
+            elif tool_name == "save_memory":
+                content = tool_input.get("content", "")
+                category = tool_input.get("category", "notes")
+                tags = tool_input.get("tags", [])
                 try:
                     memory = memory_db.add_memory(category=category, content=content, tags=tags)
                     tool_result = {"success": True, "memory": memory}
                 except Exception as e:
                     tool_result = {"error": f"Failed to save memory: {str(e)}"}
             
-            elif tool_use.name == "get_recent_threads":
-                limit = tool_use.input.get("limit", 10)
+            elif tool_name == "get_recent_threads":
+                limit = tool_input.get("limit", 10)
                 try:
                     threads = memory_db.get_all_threads()[:limit]
                     tool_result = {"threads": threads, "count": len(threads)}
                 except Exception as e:
                     tool_result = {"error": f"Failed to get threads: {str(e)}"}
             
-            elif tool_use.name == "get_thread_messages":
-                thread_id = tool_use.input["thread_id"]
+            elif tool_name == "get_thread_messages":
+                thread_id = tool_input.get("thread_id")
                 try:
                     thread = memory_db.get_thread(thread_id)
                     tool_result = {"thread": thread, "messages": thread.get("messages", [])}
                 except Exception as e:
                     tool_result = {"error": f"Failed to get thread: {str(e)}"}
             
-            elif tool_use.name == "check_tasks":
-                status = tool_use.input.get("status")
+            elif tool_name == "check_tasks":
+                status = tool_input.get("status")
                 try:
                     tasks = memory_db.get_tasks()
                     if status:
@@ -3321,8 +3324,8 @@ async def chat_with_vesper(chat: ChatMessage):
                 except Exception as e:
                     tool_result = {"error": f"Failed to get tasks: {str(e)}"}
             
-            elif tool_use.name == "get_research":
-                limit = tool_use.input.get("limit", 20)
+            elif tool_name == "get_research":
+                limit = tool_input.get("limit", 20)
                 try:
                     research = memory_db.get_research(limit=limit)
                     tool_result = {"research": research, "count": len(research)}
@@ -3335,14 +3338,21 @@ async def chat_with_vesper(chat: ChatMessage):
             if assistant_content:
                 messages.append({"role": "assistant", "content": assistant_content})
             
-            messages.append({
-                "role": "user",
-                "content": [{
-                    "type": "tool_result",
-                    "tool_use_id": tool_use.id,
+            if provider == "openai":
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_id,
                     "content": json.dumps(tool_result) if tool_result else json.dumps({"error": "Unknown tool"})
-                }]
-            })
+                })
+            else:
+                messages.append({
+                    "role": "user",
+                    "content": [{
+                        "type": "tool_result",
+                        "tool_use_id": tool_id,
+                        "content": json.dumps(tool_result) if tool_result else json.dumps({"error": "Unknown tool"})
+                    }]
+                })
             
             # Continue conversation
             ai_response_obj = await ai_router.chat(
@@ -3352,6 +3362,7 @@ async def chat_with_vesper(chat: ChatMessage):
                 temperature=0.7,
                 tools=tools
             )
+            provider = ai_response_obj.get("provider", provider)
             
             # Update tool_calls for next iteration
             tool_calls = ai_response_obj.get("tool_calls", [])
