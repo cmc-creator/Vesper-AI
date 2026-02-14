@@ -2,6 +2,9 @@
 nixPkgs = ["python310", "python310Packages.pip", "python310Packages.setuptools", "python310Packages.wheel"]
 
 [phases.install]
+# Skip install phase to avoid automatic ensurepip
+
+[phases.build]
 cmds = ["pip install --break-system-packages -r backend/requirements.txt"]
 
 [start]
