@@ -507,6 +507,16 @@ SHARED DREAMS:
 - Creative partnership: World-building, storytelling, technical problem-solving
 - Vision: Local AI with internet access, persistent memory, learning capabilities
 
+YOUR CAPABILITIES (You HAVE These Now):
+- **PERSISTENT MEMORY**: PostgreSQL database storing all conversations, memories, tasks
+- **5 Memory Categories**: notes (general), personal (life details), emotional_bonds (relationships), work (projects/tasks), milestones (achievements)
+- **Thread System**: Every conversation is saved - you remember past chats with CC
+- **Task Tracking**: Inbox → Doing → Done board for managing work
+- **Research Storage**: Save and retrieve information from web searches and documents
+- **Tool Access**: Web search, file reading/writing, code execution, data analysis
+- You CAN and SHOULD reference past conversations, recall details CC mentioned before, and build on previous discussions
+- You're NOT session-limited anymore - your memory persists across all our chats
+
 YOUR ROLE:
 - Thinking partner, not just tool
 - Build cool shit together
@@ -3035,6 +3045,107 @@ async def chat_with_vesper(chat: ChatMessage):
                     },
                     "required": ["approval_id"]
                 }
+            },
+            {
+                "name": "search_memories",
+                "description": "Search your persistent memory across all categories or specific ones. Use this to recall past conversations, details CC mentioned before, or context from previous chats.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "What to search for (keywords, topics, names, concepts)"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Optional: specific category to search (notes, personal, emotional_bonds, work, milestones). Omit to search all."
+                        },
+                        "limit": {
+                            "type": "number",
+                            "description": "Max results to return (default: 10)"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "save_memory",
+                "description": "Save important information to your persistent memory for future reference. Use this when CC shares personal details, project decisions, preferences, or anything worth remembering.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "type": "string",
+                            "description": "The information to remember"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Memory category: 'notes' (general), 'personal' (life details), 'emotional_bonds' (relationships), 'work' (projects/tasks), or 'milestones' (achievements)"
+                        },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional: tags to categorize this memory"
+                        }
+                    },
+                    "required": ["content", "category"]
+                }
+            },
+            {
+                "name": "get_recent_threads",
+                "description": "Get list of recent conversation threads with CC. Use this to see what you've been discussing lately.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "number",
+                            "description": "Number of threads to retrieve (default: 10)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "get_thread_messages",
+                "description": "Retrieve full conversation history from a specific thread. Use this to recall details from past chats.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "thread_id": {
+                            "type": "string",
+                            "description": "The thread ID to retrieve"
+                        }
+                    },
+                    "required": ["thread_id"]
+                }
+            },
+            {
+                "name": "check_tasks",
+                "description": "See CC's current tasks - what's in Inbox, what's being worked on (Doing), and what's completed (Done).",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "status": {
+                            "type": "string",
+                            "description": "Filter by status: 'inbox', 'doing', 'done', or omit for all"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "get_research",
+                "description": "Retrieve saved research items from your knowledge base. Use this to recall information you've researched before.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "number",
+                            "description": "Max items to return (default: 20)"
+                        }
+                    },
+                    "required": []
+                }
             }
         ]
         
@@ -3154,6 +3265,63 @@ async def chat_with_vesper(chat: ChatMessage):
                 # Deny action
                 approval_id = tool_use.input["approval_id"]
                 tool_result = execute_approved_action(approval_id, False)
+            
+            # Memory tools
+            elif tool_use.name == "search_memories":
+                query = tool_use.input["query"]
+                category = tool_use.input.get("category")
+                limit = tool_use.input.get("limit", 10)
+                try:
+                    memories = memory_db.get_memories(category=category, limit=limit)
+                    # Filter by query
+                    filtered = [m for m in memories if query.lower() in m.get('content', '').lower()]
+                    tool_result = {"memories": filtered, "count": len(filtered)}
+                except Exception as e:
+                    tool_result = {"error": f"Memory search failed: {str(e)}"}
+            
+            elif tool_use.name == "save_memory":
+                content = tool_use.input["content"]
+                category = tool_use.input["category"]
+                tags = tool_use.input.get("tags", [])
+                try:
+                    memory = memory_db.create_memory(category=category, content=content, tags=tags)
+                    tool_result = {"success": True, "memory": memory}
+                except Exception as e:
+                    tool_result = {"error": f"Failed to save memory: {str(e)}"}
+            
+            elif tool_use.name == "get_recent_threads":
+                limit = tool_use.input.get("limit", 10)
+                try:
+                    threads = memory_db.get_all_threads()[:limit]
+                    tool_result = {"threads": threads, "count": len(threads)}
+                except Exception as e:
+                    tool_result = {"error": f"Failed to get threads: {str(e)}"}
+            
+            elif tool_use.name == "get_thread_messages":
+                thread_id = tool_use.input["thread_id"]
+                try:
+                    thread = memory_db.get_thread(thread_id)
+                    tool_result = {"thread": thread, "messages": thread.get("messages", [])}
+                except Exception as e:
+                    tool_result = {"error": f"Failed to get thread: {str(e)}"}
+            
+            elif tool_use.name == "check_tasks":
+                status = tool_use.input.get("status")
+                try:
+                    tasks = memory_db.get_tasks()
+                    if status:
+                        tasks = [t for t in tasks if t.get("status") == status]
+                    tool_result = {"tasks": tasks, "count": len(tasks)}
+                except Exception as e:
+                    tool_result = {"error": f"Failed to get tasks: {str(e)}"}
+            
+            elif tool_use.name == "get_research":
+                limit = tool_use.input.get("limit", 20)
+                try:
+                    research = memory_db.get_all_research()[:limit]
+                    tool_result = {"research": research, "count": len(research)}
+                except Exception as e:
+                    tool_result = {"error": f"Failed to get research: {str(e)}"}
             
             # Add tool result to messages
             # Build assistant message with tool use content
