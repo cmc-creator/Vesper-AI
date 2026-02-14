@@ -69,6 +69,13 @@ except ImportError:
     pytesseract = None
     print("[WARN] pytesseract not installed (optional for OCR support)")
 
+# Helper for noop tracing
+from contextlib import contextmanager
+@contextmanager
+def __noop_context():
+    """No-op context manager for when tracing is not available"""
+    yield
+
 try:
     import magic
     MAGIC_AVAILABLE = True
@@ -86,9 +93,23 @@ import requests
 # ...existing code...
 
 import sys
+
+# === SETUP TRACING ===
+try:
+    from tracing_setup import setup_tracing, instrument_fastapi
+    setup_tracing("vesper-backend")
+except Exception as e:
+    print(f"[WARN] Tracing setup failed: {e}")
+
 try:
     # Initialize FastAPI app immediately after imports
     app = FastAPI()
+    
+    # Instrument FastAPI for automatic tracing
+    try:
+        instrument_fastapi(app)
+    except Exception as e:
+        print(f"[WARN] FastAPI instrumentation failed: {e}")
     
     # Log AI provider availability
     print("\n=== Vesper AI Initialization ===")
@@ -2668,22 +2689,31 @@ class ChatMessage(BaseModel):
 @app.post("/api/chat")
 async def chat_with_vesper(chat: ChatMessage):
     """Chat with Vesper using Multi-Model AI with persistent memory and web search"""
+    # Get tracer for this endpoint
     try:
-        # Check at least one AI provider is configured
-        if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
-            return {"response": "Hey babe, looks like my AI brain isn't connected yet. Need to add at least one API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY) to the .env file so I can actually think and respond properly! Or install Ollama for free local AI."}
-        
-        # Load thread history from DATABASE (persistent!)
-        thread = memory_db.get_thread(chat.thread_id)
-        if not thread:
-            # Create new thread
-            thread = memory_db.create_thread(
-                thread_id=chat.thread_id,
-                title=f"Conversation {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                metadata={"created_via": "chat_endpoint"}
-            )
-        
-        # EXTRACT INSIGHTS FROM PAST CONVERSATIONS (MEMORY RECALL SYSTEM)
+        from tracing_setup import get_tracer
+        tracer = get_tracer(__name__)
+    except:
+        tracer = None
+    
+    try:
+        with tracer.start_as_current_span("chat_with_vesper") if tracer else __noop_context():
+            # Check at least one AI provider is configured
+            if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+                return {"response": "Hey babe, looks like my AI brain isn't connected yet. Need to add at least one API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY) to the .env file so I can actually think and respond properly! Or install Ollama for free local AI."}
+            
+            # Load thread history from DATABASE (persistent!)
+            with tracer.start_as_current_span("load_thread") if tracer else __noop_context():
+                thread = memory_db.get_thread(chat.thread_id)
+                if not thread:
+                    # Create new thread
+                    thread = memory_db.create_thread(
+                        thread_id=chat.thread_id,
+                        title=f"Conversation {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                        metadata={"created_via": "chat_endpoint"}
+                    )
+            
+            # EXTRACT INSIGHTS FROM PAST CONVERSATIONS (MEMORY RECALL SYSTEM)
         conversation_insights = memory_db.extract_conversation_insights(limit=15)
         
         # Load relevant memories from DATABASE (all categories)
