@@ -1,0 +1,17 @@
+# Ignore frontend (deployed separately on Vercel)
+package.json
+package-lock.json
+node_modules/
+frontend/
+dist/
+vite.config.js
+
+# Ignore local files
+.env
+.env.local
+*.log
+.vscode/
+.git/
+
+# Keep backend
+!backend/
