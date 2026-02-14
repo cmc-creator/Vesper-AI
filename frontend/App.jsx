@@ -75,6 +75,9 @@ import VoiceInput from './src/components/VoiceInput';
 import FloatingActionButton from './src/components/FloatingActionButton';
 import Canvas from './src/components/Canvas';
 import DeepResearch from './src/components/DeepResearch';
+import ImageGenerator from './src/components/ImageGenerator';
+import VideoCreator from './src/components/VideoCreator';
+import GuidedLearning from './src/components/GuidedLearning';
 import Game from './src/game/Game';
 
 // Styles
@@ -172,6 +175,9 @@ function App() {
   const [toolsExpanded, setToolsExpanded] = useState(true);
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [researchOpen, setResearchOpen] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [learningOpen, setLearningOpen] = useState(false);
   const TOOLS = [
     { id: 'research', label: 'Deep Research', icon: '🔬' },
     { id: 'videos', label: 'Create videos', icon: '🎬' },
@@ -3627,6 +3633,12 @@ function App() {
                       setCanvasOpen(true);
                     } else if (tool.id === 'research') {
                       setResearchOpen(true);
+                    } else if (tool.id === 'images') {
+                      setImageOpen(true);
+                    } else if (tool.id === 'videos') {
+                      setVideoOpen(true);
+                    } else if (tool.id === 'learning') {
+                      setLearningOpen(true);
                     } else {
                       setToast(`${tool.label} feature coming soon`);
                     }
@@ -3920,6 +3932,21 @@ function App() {
       {/* Deep Research Modal */}
       <Dialog open={researchOpen} onClose={() => setResearchOpen(false)} maxWidth="md" fullWidth sx={{ height: '90vh' }}>
         <DeepResearch apiBase={apiBase} onClose={() => setResearchOpen(false)} />
+      </Dialog>
+
+      {/* Image Generator Modal */}
+      <Dialog open={imageOpen} onClose={() => setImageOpen(false)} maxWidth="md" fullWidth>
+        <ImageGenerator apiBase={apiBase} onClose={() => setImageOpen(false)} />
+      </Dialog>
+
+      {/* Video Creator Modal */}
+      <Dialog open={videoOpen} onClose={() => setVideoOpen(false)} maxWidth="md" fullWidth>
+        <VideoCreator apiBase={apiBase} onClose={() => setVideoOpen(false)} />
+      </Dialog>
+
+      {/* Guided Learning Modal */}
+      <Dialog open={learningOpen} onClose={() => setLearningOpen(false)} maxWidth="md" fullWidth>
+        <GuidedLearning apiBase={apiBase} onClose={() => setLearningOpen(false)} />
       </Dialog>
     </ThemeProvider>
   );

@@ -3333,15 +3333,173 @@ class VoiceInput(BaseModel):
 def transcribe_voice(voice: VoiceInput):
     """Transcribe voice input to text"""
     try:
-        # Note: This is a placeholder - you'd integrate with Whisper API or similar
-        # For now, return a helpful message
-        return {
-            "text": "",
-            "message": "Voice transcription requires Whisper API integration",
-            "suggestion": "Use Web Speech API in browser for now (already implemented in frontend)"
-        }
+        if not os.getenv("OPENAI_API_KEY"):
+            return {
+                "text": "",
+                "error": "OPENAI_API_KEY not configured. Voice transcription requires Whisper API."
+            }
+
+        import openai
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+
+        audio_bytes = base64.b64decode(voice.audio_data)
+        audio_file = io.BytesIO(audio_bytes)
+        audio_file.name = f"audio.{voice.format}"
+
+        response = openai.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file
+        )
+
+        text = response.text if hasattr(response, "text") else response.get("text", "")
+        return {"text": text}
     except Exception as e:
         return {"error": str(e)}
+
+# --- Image Generation ---
+class ImageGenerationRequest(BaseModel):
+    prompt: str
+    size: Optional[str] = "1024x1024"
+    style: Optional[str] = "vivid"  # vivid | natural
+    quality: Optional[str] = "standard"  # standard | hd
+
+@app.post("/api/images/generate")
+async def generate_image(req: ImageGenerationRequest):
+    """Generate images using OpenAI (DALL-E 3)"""
+    try:
+        if not os.getenv("OPENAI_API_KEY"):
+            return {"error": "OPENAI_API_KEY not configured for image generation"}
+
+        import openai
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+
+        response = openai.images.generate(
+            model="dall-e-3",
+            prompt=req.prompt,
+            size=req.size,
+            quality=req.quality,
+            style=req.style
+        )
+
+        image_url = None
+        image_b64 = None
+        if response.data and len(response.data) > 0:
+            image_url = getattr(response.data[0], "url", None)
+            image_b64 = getattr(response.data[0], "b64_json", None)
+
+        return {
+            "prompt": req.prompt,
+            "image_url": image_url,
+            "image_base64": image_b64,
+            "provider": "OpenAI DALL-E 3",
+            "size": req.size,
+            "style": req.style,
+            "quality": req.quality
+        }
+    except Exception as e:
+        return {"error": f"Image generation failed: {str(e)}"}
+
+# --- Video Planning ---
+class VideoPlanRequest(BaseModel):
+    prompt: str
+    duration_seconds: Optional[int] = 30
+    style: Optional[str] = "cinematic"
+    aspect_ratio: Optional[str] = "16:9"
+
+@app.post("/api/video/plan")
+async def plan_video(req: VideoPlanRequest):
+    """Generate a video plan/storyboard (no rendering)"""
+    try:
+        system_prompt = (
+            "You are a video producer. Return JSON only with: "
+            "title, logline, style, duration_seconds, aspect_ratio, scenes (array). "
+            "Each scene: {index, description, camera, lighting, audio, on_screen_text}."
+        )
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": (
+                f"Prompt: {req.prompt}\n"
+                f"Duration: {req.duration_seconds}s\n"
+                f"Style: {req.style}\n"
+                f"Aspect Ratio: {req.aspect_ratio}"
+            )}
+        ]
+
+        ai_response = await ai_router.chat(
+            messages=messages,
+            task_type=TaskType.ANALYSIS,
+            max_tokens=1200,
+            temperature=0.6
+        )
+
+        if "error" in ai_response:
+            return {"error": ai_response["error"]}
+
+        raw = ai_response.get("raw_response", "")
+        parsed = None
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            parsed = None
+
+        return {
+            "prompt": req.prompt,
+            "raw": raw,
+            "plan": parsed
+        }
+    except Exception as e:
+        return {"error": f"Video planning failed: {str(e)}"}
+
+# --- Guided Learning ---
+class LearningGuideRequest(BaseModel):
+    topic: str
+    level: Optional[str] = "beginner"
+    goals: Optional[str] = ""
+
+@app.post("/api/learning/guide")
+async def create_learning_guide(req: LearningGuideRequest):
+    """Generate a structured learning guide"""
+    try:
+        system_prompt = (
+            "You are a learning coach. Return JSON only with: "
+            "title, level, goals, outline (array of lessons). "
+            "Each lesson: {title, summary, exercises (array), resources (array)}."
+        )
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": (
+                f"Topic: {req.topic}\n"
+                f"Level: {req.level}\n"
+                f"Goals: {req.goals}"
+            )}
+        ]
+
+        ai_response = await ai_router.chat(
+            messages=messages,
+            task_type=TaskType.ANALYSIS,
+            max_tokens=1400,
+            temperature=0.5
+        )
+
+        if "error" in ai_response:
+            return {"error": ai_response["error"]}
+
+        raw = ai_response.get("raw_response", "")
+        parsed = None
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            parsed = None
+
+        return {
+            "topic": req.topic,
+            "raw": raw,
+            "guide": parsed
+        }
+    except Exception as e:
+        return {"error": f"Learning guide failed: {str(e)}"}
 
 # --- Pattern Recognition & Learning ---
 class FeedbackEntry(BaseModel):
