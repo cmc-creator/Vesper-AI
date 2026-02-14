@@ -155,41 +155,41 @@ class AIRouter:
                 ]
             }
         else:
-            # PRODUCTION/CLOUD: Gemini first (free & fast), Ollama not available
+            # PRODUCTION/CLOUD: OpenAI gpt-5.1-chat (primary), Claude Haiku (fallback)
             self.routing_strategy = {
                 TaskType.CODE: [
-                    ModelProvider.ANTHROPIC,  # Claude best for code
-                    ModelProvider.GOOGLE,     # Gemini fallback
-                    ModelProvider.OPENAI
+                    ModelProvider.OPENAI,     # gpt-5.1-chat for code
+                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback
+                    ModelProvider.GOOGLE
                 ],
                 TaskType.CHAT: [
-                    ModelProvider.GOOGLE,     # Gemini Flash free & fast
-                    ModelProvider.OPENAI,
-                    ModelProvider.ANTHROPIC
+                    ModelProvider.OPENAI,     # gpt-5.1-chat primary
+                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback (fast)
+                    ModelProvider.GOOGLE
                 ],
                 TaskType.SEARCH: [
-                    ModelProvider.GOOGLE,     # Gemini has grounding
-                    ModelProvider.OPENAI,
-                    ModelProvider.ANTHROPIC
+                    ModelProvider.OPENAI,     # gpt-5.1-chat
+                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback
+                    ModelProvider.GOOGLE      # Gemini for grounding
                 ],
                 TaskType.ANALYSIS: [
-                    ModelProvider.OPENAI,     # GPT-4o great for analysis
-                    ModelProvider.ANTHROPIC,
+                    ModelProvider.OPENAI,     # gpt-5.1-chat for analysis
+                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback
                     ModelProvider.GOOGLE
                 ],
                 TaskType.CREATIVE: [
-                    ModelProvider.ANTHROPIC,  # Claude creative
-                    ModelProvider.OPENAI,
+                    ModelProvider.ANTHROPIC,  # Claude Haiku for creative
+                    ModelProvider.OPENAI,     # gpt-5.1-chat fallback
                     ModelProvider.GOOGLE
                 ]
             }
         
-        # Model selection per provider
+        # Model selection per provider - BUDGET FOCUSED
         self.models = {
-            ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
-            ModelProvider.OPENAI: "gpt-4o-mini",  # Fast & cheap
-            ModelProvider.GOOGLE: "gemini-1.5-flash",  # Stable free tier model!
-            ModelProvider.OLLAMA: "llama3.1:70b"  # Best local model
+            ModelProvider.ANTHROPIC: "claude-haiku-4-5",  # Fast & cheap ($2/M tokens)
+            ModelProvider.OPENAI: "gpt-5.1-chat",  # Primary ($3.44/M tokens) - great value
+            ModelProvider.GOOGLE: "gemini-1.5-flash",  # Fallback (free tier)
+            ModelProvider.OLLAMA: "llama3.1:70b"  # Free local
         }
     
     def get_available_provider(self, task_type: TaskType) -> Optional[ModelProvider]:
