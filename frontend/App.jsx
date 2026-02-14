@@ -3109,11 +3109,11 @@ function App() {
               overflowY: 'auto',
               overflowX: 'hidden',
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 1,
-              pr: 0.5,
+              gridTemplateColumns: '1fr',
+              gap: 0.8,
+              pr: 0.3,
               '&::-webkit-scrollbar': {
-                width: '5px',
+                width: '4px',
               },
               '&::-webkit-scrollbar-track': {
                 background: 'transparent',
@@ -3145,23 +3145,24 @@ function App() {
                       <Box
                         onClick={() => loadThread(thread.id)}
                         sx={{
-                          p: 1.5,
-                          borderRadius: '12px',
+                          p: 1,
+                          borderRadius: '10px',
                           bgcolor: currentThreadId === thread.id ? 'rgba(0,255,255,0.2)' : 'rgba(0,255,255,0.05)',
                           border: currentThreadId === thread.id ? '2px solid var(--accent)' : '1px solid rgba(0,255,255,0.2)',
                           cursor: 'pointer',
                           transition: 'all 0.3s ease',
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: 1,
-                          minHeight: '120px',
+                          gap: 0.6,
+                          minHeight: '90px',
+                          maxHeight: '100px',
                           position: 'relative',
                           overflow: 'hidden',
                           backdropFilter: 'blur(10px)',
                           '&:hover': {
                             bgcolor: 'rgba(0,255,255,0.15)',
                             borderColor: 'var(--accent)',
-                            boxShadow: '0 0 20px rgba(0,255,255,0.2)',
+                            boxShadow: '0 0 15px rgba(0,255,255,0.2)',
                           },
                           '&::before': {
                             content: '""',
@@ -3169,23 +3170,26 @@ function App() {
                             top: 0,
                             left: 0,
                             right: 0,
-                            height: '2px',
+                            height: '1px',
                             background: 'linear-gradient(90deg, transparent, var(--accent), transparent)',
                             opacity: 0.5
                           }
                         }}
                       >
                         {/* Card Header */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-                          <Box sx={{ flex: 1 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 0.5 }}>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Typography 
                               variant="body2" 
                               sx={{ 
                                 fontWeight: 700,
                                 color: 'var(--accent)',
-                                fontSize: '0.95rem',
-                                mb: 0.5,
-                                lineHeight: 1.2
+                                fontSize: '0.8rem',
+                                mb: 0.3,
+                                lineHeight: 1.1,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
                               }}
                             >
                               {thread.pinned && '📌 '}{thread.title}
@@ -3194,9 +3198,10 @@ function App() {
                           <Box 
                             sx={{ 
                               display: 'flex', 
-                              gap: 0.25,
+                              gap: 0.15,
                               opacity: 0.6,
-                              transition: 'opacity 0.2s'
+                              transition: 'opacity 0.2s',
+                              flexShrink: 0
                             }}
                             onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
                             onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
@@ -3208,7 +3213,7 @@ function App() {
                                 togglePinThread(thread.id);
                               }}
                               sx={{ 
-                                p: 0.3,
+                                p: 0.2,
                                 color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.5)',
                                 '&:hover': { color: 'var(--accent)' }
                               }}
@@ -3222,7 +3227,7 @@ function App() {
                                 deleteThread(thread.id);
                               }}
                               sx={{ 
-                                p: 0.3,
+                                p: 0.2,
                                 color: 'rgba(255,255,255,0.5)',
                                 '&:hover': { color: '#ff4444' }
                               }}
@@ -3237,36 +3242,37 @@ function App() {
                           <Typography 
                             variant="caption" 
                             sx={{ 
-                              color: 'rgba(255,255,255,0.7)',
-                              lineHeight: 1.4,
+                              color: 'rgba(255,255,255,0.6)',
+                              lineHeight: 1.2,
                               flex: 1,
                               overflow: 'hidden',
                               display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical'
+                              WebkitLineClamp: 1,
+                              WebkitBoxOrient: 'vertical',
+                              fontSize: '0.7rem'
                             }}
                           >
                             {preview}
-                            {firstUserMsg.length > 100 && '...'}
+                            {firstUserMsg.length > 80 && '...'}
                           </Typography>
                         )}
 
                         {/* Card Footer */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-                          <Typography 
-                            variant="caption" 
-                            sx={{ 
-                              color: 'rgba(255,255,255,0.5)',
-                              fontSize: '0.75rem'
-                            }}
-                          >
-                            {thread.message_count} messages
-                          </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 0.5, mt: 'auto' }}>
                           <Typography 
                             variant="caption" 
                             sx={{ 
                               color: 'rgba(255,255,255,0.4)',
-                              fontSize: '0.75rem'
+                              fontSize: '0.65rem'
+                            }}
+                          >
+                            {thread.message_count} msg
+                          </Typography>
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: 'rgba(255,255,255,0.3)',
+                              fontSize: '0.65rem'
                             }}
                           >
                             {new Date(thread.updated_at).toLocaleDateString()}
