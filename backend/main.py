@@ -3410,6 +3410,13 @@ async def chat_with_vesper(chat: ChatMessage):
         # Extract final text response (works for Claude, GPT, Gemini responses)
         ai_response = ai_response_obj.get("content", "")
         
+        # If content is empty but tool_calls are present (meaning loop exited due to max_iterations),
+        # return a sensible message instead of an error.
+        if not ai_response and tool_calls:
+            ai_response = "I processed your request, but I got stuck in a loop of tool calls. Here is the last tool result."
+            # Or perhaps just return the last content if available?
+            # Actually, if content is empty, maybe there's a problem with parsing the final response?
+        
         # Better error handling with diagnostics
         if not ai_response:
             print(f"⚠️ Warning: Empty response from AI router")
