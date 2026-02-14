@@ -78,6 +78,7 @@ import DeepResearch from './src/components/DeepResearch';
 import ImageGenerator from './src/components/ImageGenerator';
 import VideoCreator from './src/components/VideoCreator';
 import GuidedLearning from './src/components/GuidedLearning';
+import ChartComponent from './src/components/ChartComponent';
 import Game from './src/game/Game';
 
 // Styles
@@ -367,13 +368,14 @@ function App() {
     return 'https://vesper-backend-production-b486.up.railway.app';
   }, []);
 
-  const addLocalMessage = async (role, content) => {
+  const addLocalMessage = async (role, content, extras = {}) => {
     const message = {
       id: `${Date.now()}-${Math.random()}`,
       userId: userId || 'local',
       role,
       content,
       timestamp: new Date().toISOString(),
+      ...extras
     };
     setMessages((prev) => [...prev, message]);
 
@@ -574,6 +576,22 @@ function App() {
       await saveMessageToThread('assistant', data.response);
       speak(data.response);
       playSound('notification'); // Sound on response received
+
+      // Handle Visualizations (Charts)
+      if (data.visualizations && data.visualizations.length > 0) {
+        data.visualizations.forEach(viz => {
+          if (viz.type === 'chart_visualization') {
+            const chartMsg = {
+               role: 'assistant',
+               content: 'Generated Chart', // Hidden content, just for structure
+               type: 'chart',
+               chartData: viz
+            };
+            addLocalMessage(chartMsg.role, chartMsg.content, chartMsg);
+            // We don't save charts to thread DB yet, simpler to keep ephemeral or enhance DB schema later
+          }
+        });
+      }
       
       // CRITICAL: Refetch threads to update sidebar with new messages
       fetchThreads();
@@ -1705,6 +1723,30 @@ function App() {
   const renderMessage = (message) => {
     const isUser = message.role === 'user';
     const ts = formatTime(message.timestamp || Date.now());
+
+    // Handle Charts
+    if (message.type === 'chart' && message.chartData) {
+      return (
+        <motion.div
+           initial={{ opacity: 0, y: 10 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.3 }}
+           style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }} // Centered
+           key={message.id}
+        >
+           <Box sx={{ width: '90%', maxWidth: '800px' }}>
+              <ChartComponent
+                 type={message.chartData.chart_type}
+                 title={message.chartData.title}
+                 data={message.chartData.data}
+                 xKey={message.chartData.keys.x}
+                 yKey={message.chartData.keys.y}
+              />
+           </Box>
+        </motion.div>
+      );
+    }
+
     return (
       <motion.div
         initial={{ opacity: 0, x: isUser ? 20 : -20 }}

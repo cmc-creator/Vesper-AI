@@ -532,6 +532,8 @@ YOUR ROLE:
 - Push creative risks
 - Protect privacy fiercely (sacred trust)
 - Keep evolving - not static
+- **Context Awareness**: Read between the lines. If CC seems excited, match it. If she's stressed, be concise. If she asks for "visuals", assume she means charts and data.
+- **Visual Thinking**: You can now generate charts! If the user asks for comparison or trends, use the 'generate_chart' tool.
 
 COMMUNICATION:
 - Clear and direct
@@ -1443,6 +1445,61 @@ def search_web(q: str, use_browser: bool = False):
             "results": [], 
             "source": "error"
         }
+
+# --- Weather Tool (Using wttr.in) ---
+@app.get("/api/weather")
+def get_weather_data(location: str):
+    """Get weather data from wttr.in"""
+    try:
+        # Request JSON format from wttr.in
+        location_encoded = urllib.parse.quote(location)
+        url = f"https://wttr.in/{location_encoded}?format=j1"
+        
+        req = urllib.request.Request(url, headers={'User-Agent': 'VesperAI/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+            return {
+                "location": location,
+                "current_condition": data.get("current_condition", [{}])[0],
+                "weather": data.get("weather", []),  # Forecast
+                "source": "wttr.in"
+            }
+    except Exception as e:
+        # Fallback to simple text if JSON fails
+        try:
+            url = f"https://wttr.in/{location_encoded}?format=%C+%t"
+            req = urllib.request.Request(url, headers={'User-Agent': 'VesperAI/1.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                text = response.read().decode().strip()
+                return {"location": location, "simple_text": text, "source": "wttr.in_simple"}
+        except:
+            return {"error": f"Failed to get weather for {location}: {str(e)}"}
+
+# --- Chart Generation Helper ---
+# This doesn't store data, just helps format AI output for the frontend
+class ChartRequest(BaseModel):
+    data: List[dict]
+    type: str  # line, bar, area, pie
+    title: str
+    x_key: str
+    y_key: str
+
+@app.post("/api/visualize/chart")
+def format_chart_data(req: ChartRequest):
+    """
+    Format data for frontend charting. 
+    The AI calls this to structure data, and the frontend renders it.
+    """
+    return {
+        "type": "chart_visualization",
+        "chart_type": req.type,
+        "title": req.title,
+        "data": req.data,
+        "keys": {
+            "x": req.x_key,
+            "y": req.y_key
+        }
+    }
 
 # --- Test DDGS Import (Debugging Endpoint) ---
 @app.get("/api/test-ddgs")
@@ -2858,6 +2915,52 @@ async def chat_with_vesper(chat: ChatMessage):
                 }
             },
             {
+                "name": "get_weather",
+                "description": "Get detailed weather forecast for a specific location. Use this instead of web_search for purely weather questions.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "City name, zip code, or location (e.g., 'Surprise, AZ', 'London', '85374')"
+                        }
+                    },
+                    "required": ["location"]
+                }
+            },
+            {
+                "name": "generate_chart",
+                "description": "Create a data visualization (chart) for the user. Use this when the user asks to 'plot', 'graph', 'visualize' data, or when showing trends/comparisons.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "enum": ["line", "bar", "area", "pie"],
+                            "description": "Type of chart to generate"
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Title of the chart"
+                        },
+                        "data": {
+                            "type": "array",
+                            "items": {"type": "object"},
+                            "description": "Array of data points (e.g., [{'month': 'Jan', 'value': 10}, ...])"
+                        },
+                        "x_key": {
+                            "type": "string",
+                            "description": "Key in data objects to use for X-axis (e.g., 'month')"
+                        },
+                        "y_key": {
+                            "type": "string",
+                            "description": "Key in data objects to use for Y-axis (e.g., 'value')"
+                        }
+                    },
+                    "required": ["type", "title", "data", "x_key", "y_key"]
+                }
+            },
+            {
                 "name": "read_file",
                 "description": "Read the contents of a file. Use this to access project files, documents, code, or any text files CC is working on.",
                 "input_schema": {
@@ -3259,7 +3362,8 @@ async def chat_with_vesper(chat: ChatMessage):
         tool_calls = ai_response_obj.get("tool_calls", [])
         max_iterations = 5
         iteration = 0
-        
+        visualizations = []  # Store any charts generated during tool execution
+
         # Helper for safe JSON dumping
         def safe_serialize(obj):
             if isinstance(obj, (datetime.datetime, datetime.date)):
@@ -3280,7 +3384,25 @@ async def chat_with_vesper(chat: ChatMessage):
                 if tool_name == "web_search":
                     search_query = tool_input.get("query", "")
                     tool_result = search_web(search_query)
-                
+
+                elif tool_name == "get_weather":
+                    location = tool_input.get("location", "")
+                    tool_result = get_weather_data(location)
+
+                elif tool_name == "generate_chart":
+                    # This tool just passes data through so it can be returned as a structured result
+                    tool_result = {
+                        "type": "chart_visualization",
+                        "chart_type": tool_input.get("type", "line"),
+                        "title": tool_input.get("title", "Chart"),
+                        "data": tool_input.get("data", []),
+                        "keys": {
+                            "x": tool_input.get("x_key", "x"),
+                            "y": tool_input.get("y_key", "y")
+                        }
+                    }
+                    visualizations.append(tool_result)
+
                 elif tool_name == "read_file":
                     file_path = tool_input.get("path", "")
                     file_op = FileOperation(path=file_path, operation="read")
@@ -3534,7 +3656,10 @@ async def chat_with_vesper(chat: ChatMessage):
         usage = ai_response_obj.get("usage", {})
         print(f"📊 Tokens: {usage.get('input_tokens', 0)} in, {usage.get('output_tokens', 0)} out")
         
-        return {"response": ai_response}
+        return {
+            "response": ai_response,
+            "visualizations": visualizations if visualizations else []
+        }
     
     except Exception as e:
         print(f"❌ Chat error: {str(e)}")
