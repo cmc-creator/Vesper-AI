@@ -3176,7 +3176,8 @@ async def chat_with_vesper(chat: ChatMessage):
         print(f"🤖 Using {provider} AI provider")
         
         # Handle tool use (if provider supports it)
-        tool_calls = ai_response_obj.get("tool_calls", [])
+        # TEMPORARILY DISABLED: Debugging recursion error on second message
+        tool_calls = []  # Disable tool calling temporarily
         max_iterations = 5
         iteration = 0
         
@@ -3385,6 +3386,12 @@ async def chat_with_vesper(chat: ChatMessage):
         provider = ai_response_obj.get("provider", "unknown")  # Get updated provider after tool loop
         
         # Save messages to thread IN DATABASE (persistent!)
+        # Ensure content is JSON-serializable (string, not object)
+        ai_response_clean = str(ai_response) if not isinstance(ai_response, str) else ai_response
+        usage_clean = ai_response_obj.get("usage", {})
+        if not isinstance(usage_clean, dict):
+            usage_clean = {}
+        
         memory_db.add_message_to_thread(chat.thread_id, {
             "role": "user",
             "content": chat.message,
@@ -3392,10 +3399,10 @@ async def chat_with_vesper(chat: ChatMessage):
         })
         memory_db.add_message_to_thread(chat.thread_id, {
             "role": "assistant",
-            "content": ai_response,
+            "content": ai_response_clean,
             "timestamp": datetime.datetime.now().isoformat(),
             "provider": provider,  # Track which AI model responded
-            "usage": ai_response_obj.get("usage", {})
+            "usage": usage_clean
         })
         
         # Log usage stats
