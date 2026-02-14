@@ -224,6 +224,7 @@ function App() {
     analyticsCharts: localStorage.getItem('vesper_analytics_charts') || 'all', // all, summary, detailed
     memoryCategories: JSON.parse(localStorage.getItem('vesper_memory_categories') || '["notes", "insights", "learnings", "ideas"]'),
     researchSources: JSON.parse(localStorage.getItem('vesper_research_sources') || '["web", "file", "manual", "database"]'),
+    chatBoxHeight: localStorage.getItem('vesper_chat_box_height') || '35vh', // Resizable chat height
   });
   
   const [newMemoryCategory, setNewMemoryCategory] = useState('');
@@ -291,6 +292,47 @@ function App() {
       return newPositions;
     });
   }, []);
+
+  // Chat box resize handler
+  const startResizeChat = useCallback((e) => {
+    e.preventDefault();
+    const startHeight = chatContainerRef.current?.offsetHeight || 300;
+    const startY = e.clientY;
+
+    const handleMouseMove = (moveEvent) => {
+      const deltaY = moveEvent.clientY - startY;
+      const newHeight = Math.max(150, Math.min(600, startHeight + deltaY)); // Min 150px, max 600px
+      
+      if (chatContainerRef.current) {
+        chatContainerRef.current.style.maxHeight = `${newHeight}px`;
+        // Update customizations and localStorage
+        setCustomizations((prev) => ({
+          ...prev,
+          chatBoxHeight: `${newHeight}px`,
+        }));
+        try {
+          localStorage.setItem('vesper_chat_box_height', `${newHeight}px`);
+        } catch (e) {
+          console.warn('Failed to save chat height', e);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  // Apply saved chat height on mount
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.style.maxHeight = customizations.chatBoxHeight;
+    }
+  }, [customizations.chatBoxHeight]);
 
   const apiBase = useMemo(() => {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
@@ -3448,6 +3490,30 @@ function App() {
               )}
               <div ref={messagesEndRef} />
             </Paper>
+
+            {/* Chat Box Resize Handle */}
+            <Box
+              onMouseDown={startResizeChat}
+              className="chat-resize-handle"
+              sx={{
+                height: '8px',
+                cursor: 'ns-resize',
+                background: 'linear-gradient(to bottom, rgba(0,255,255,0.3), rgba(0,255,255,0.1))',
+                borderRadius: '0 0 8px 8px',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  background: 'linear-gradient(to bottom, rgba(0,255,255,0.6), rgba(0,255,255,0.3))',
+                  boxShadow: '0 0 10px rgba(0,255,255,0.4)',
+                },
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                userSelect: 'none',
+              }}
+              title="Drag to resize chat window"
+            >
+              <Box sx={{ width: '30px', height: '2px', bgcolor: 'rgba(0,255,255,0.4)' }} />
+            </Box>
 
             <Paper
               component="form"
