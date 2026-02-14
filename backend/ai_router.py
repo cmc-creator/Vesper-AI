@@ -186,7 +186,7 @@ class AIRouter:
         
         # Model selection per provider - BUDGET FOCUSED
         self.models = {
-            ModelProvider.ANTHROPIC: "claude-3-5-haiku-20241022",  # Fast & cheap  
+            ModelProvider.ANTHROPIC: "claude-3-haiku-20240307",  # Claude 3 Haiku (fast & cheap)
             ModelProvider.OPENAI: "gpt-4o-mini",  # Budget model ($0.15/M input, $0.60/M output)
             ModelProvider.GOOGLE: "gemini-1.5-flash",  # Fallback (free tier)
             ModelProvider.OLLAMA: "llama3.1:70b"  # Free local

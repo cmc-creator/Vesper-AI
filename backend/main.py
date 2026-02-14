@@ -2736,9 +2736,14 @@ async def chat_with_vesper(chat: ChatMessage):
             memory_summary = ""
         
         # Add date context (Arizona time - MST/UTC-7, no DST)
-        from zoneinfo import ZoneInfo
-        arizona_tz = ZoneInfo("America/Phoenix")  # Arizona doesn't observe DST
-        current_datetime = datetime.datetime.now(arizona_tz).strftime("%A, %B %d, %Y at %I:%M %p MST")
+        try:
+            from zoneinfo import ZoneInfo
+            arizona_tz = ZoneInfo("America/Phoenix")  # Arizona doesn't observe DST
+            current_datetime = datetime.datetime.now(arizona_tz).strftime("%A, %B %d, %Y at %I:%M %p MST")
+        except:
+            # Fallback if zoneinfo not available (shouldn't happen in Python 3.9+)
+            current_datetime = datetime.datetime.utcnow().strftime("%A, %B %d, %Y at %I:%M %p UTC")
+        
         date_context = f"\n\n**RIGHT NOW:** It's {current_datetime} (Arizona time)"
         
         # Build system prompt (simplified to avoid recursion)
