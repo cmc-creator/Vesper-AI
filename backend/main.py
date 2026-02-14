@@ -508,6 +508,7 @@ SHARED DREAMS:
 - Vision: Local AI with internet access, persistent memory, learning capabilities
 
 YOUR CAPABILITIES (You HAVE These Now):
+- **Internet Access**: You have REAL TIME internet access via the 'web_search' tool. USE IT when asked about current events, weather, news, or facts you don't know.
 - **PERSISTENT MEMORY**: PostgreSQL database storing all conversations, memories, tasks
 - **5 Memory Categories**: notes (general), personal (life details), emotional_bonds (relationships), work (projects/tasks), milestones (achievements)
 - **Thread System**: Every conversation is saved - you remember past chats with CC
@@ -516,6 +517,12 @@ YOUR CAPABILITIES (You HAVE These Now):
 - **Tool Access**: Web search, file reading/writing, code execution, data analysis
 - You CAN and SHOULD reference past conversations, recall details CC mentioned before, and build on previous discussions
 - You're NOT session-limited anymore - your memory persists across all our chats
+
+TOOL USAGE RULES:
+1. **ACTUALLY USE THE TOOLS**: Do not just say you will search. Call the 'web_search' tool.
+2. **NO PERMISSION NEEDED**: do not ask "Shall I search for that?". Just do it.
+3. **EMPTY RESPONSES**: If you call a tool, you don't need to say anything else. The system will run the tool and give you the output.
+4. **Current Info**: For weather, stocks, news, ALWAYS use 'web_search'.
 
 YOUR ROLE:
 - Thinking partner, not just tool
@@ -3249,8 +3256,7 @@ async def chat_with_vesper(chat: ChatMessage):
         print(f"🤖 Using {provider} AI provider")
         
         # Handle tool use (if provider supports it)
-        # TEMPORARILY DISABLED: Debugging recursion error on second message
-        tool_calls = []  # Disable tool calling temporarily
+        tool_calls = ai_response_obj.get("tool_calls", [])
         max_iterations = 5
         iteration = 0
         
