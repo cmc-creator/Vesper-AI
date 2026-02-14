@@ -284,6 +284,13 @@ class AIRouter:
         
         response = self.anthropic_client.messages.create(**kwargs)
         
+        # Extract tool calls safely
+        tool_calls = []
+        if hasattr(response, "content") and response.content:
+            for c in response.content:
+                if hasattr(c, "type") and c.type == "tool_use":
+                    tool_calls.append(c)
+        
         return {
             "content": response.content[0].text if response.content else "",
             "provider": ModelProvider.ANTHROPIC.value,
@@ -292,8 +299,7 @@ class AIRouter:
                 "input_tokens": response.usage.input_tokens,
                 "output_tokens": response.usage.output_tokens
             },
-            "raw_response": response,
-            "tool_calls": [c for c in response.content if c.type == "tool_use"] if hasattr(response, "content") else []
+            "tool_calls": tool_calls
         }
     
     async def _chat_openai(self, messages, model, tools, max_tokens, temperature):
@@ -312,6 +318,8 @@ class AIRouter:
         
         response = self.openai_client.chat.completions.create(**kwargs)
         
+        tool_calls = response.choices[0].message.tool_calls if response.choices[0].message.tool_calls else []
+        
         return {
             "content": response.choices[0].message.content or "",
             "provider": ModelProvider.OPENAI.value,
@@ -320,8 +328,7 @@ class AIRouter:
                 "input_tokens": response.usage.prompt_tokens,
                 "output_tokens": response.usage.completion_tokens
             },
-            "raw_response": response,
-            "tool_calls": response.choices[0].message.tool_calls if response.choices[0].message.tool_calls else []
+            "tool_calls": tool_calls
         }
     
     async def _chat_google(self, messages, model, tools, max_tokens, temperature):
@@ -356,7 +363,6 @@ class AIRouter:
                 "input_tokens": response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0,
                 "output_tokens": response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0
             },
-            "raw_response": response,
             "tool_calls": []  # Simplified - Gemini has different tool format
         }
     
@@ -379,7 +385,6 @@ class AIRouter:
                 "input_tokens": 0,  # Ollama doesn't report tokens
                 "output_tokens": 0
             },
-            "raw_response": response,
             "tool_calls": []  # Ollama doesn't support function calling
         }
     

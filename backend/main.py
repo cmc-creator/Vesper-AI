@@ -3054,7 +3054,7 @@ async def chat_with_vesper(chat: ChatMessage):
         if "error" in ai_response_obj:
             return {"response": f"Oops, AI error: {ai_response_obj['error']}"}
         
-        response = ai_response_obj.get("raw_response")
+        response = ai_response_obj.get("content", "")
         provider = ai_response_obj.get("provider", "unknown")
         print(f"🤖 Using {provider} AI provider")
         
@@ -3156,9 +3156,11 @@ async def chat_with_vesper(chat: ChatMessage):
                 tool_result = execute_approved_action(approval_id, False)
             
             # Add tool result to messages
-            raw_response = ai_response_obj.get("raw_response")
-            if hasattr(raw_response, 'content'):
-                messages.append({"role": "assistant", "content": raw_response.content})
+            # Build assistant message with tool use content
+            assistant_content = ai_response_obj.get("content", "")
+            if assistant_content:
+                messages.append({"role": "assistant", "content": assistant_content})
+            
             messages.append({
                 "role": "user",
                 "content": [{
@@ -3455,16 +3457,16 @@ async def plan_video(req: VideoPlanRequest):
         if "error" in ai_response:
             return {"error": ai_response["error"]}
 
-        raw = ai_response.get("raw_response", "")
+        content = ai_response.get("content", "")
         parsed = None
         try:
-            parsed = json.loads(raw)
+            parsed = json.loads(content)
         except Exception:
             parsed = None
 
         return {
             "prompt": req.prompt,
-            "raw": raw,
+            "raw": content,
             "plan": parsed
         }
     except Exception as e:
@@ -3505,16 +3507,16 @@ async def create_learning_guide(req: LearningGuideRequest):
         if "error" in ai_response:
             return {"error": ai_response["error"]}
 
-        raw = ai_response.get("raw_response", "")
+        content = ai_response.get("content", "")
         parsed = None
         try:
-            parsed = json.loads(raw)
+            parsed = json.loads(content)
         except Exception:
             parsed = None
 
         return {
             "topic": req.topic,
-            "raw": raw,
+            "raw": content,
             "guide": parsed
         }
     except Exception as e:
