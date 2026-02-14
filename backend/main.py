@@ -95,21 +95,22 @@ import requests
 import sys
 
 # === SETUP TRACING ===
-try:
-    from tracing_setup import setup_tracing, instrument_fastapi
-    setup_tracing("vesper-backend")
-except Exception as e:
-    print(f"[WARN] Tracing setup failed: {e}")
+# DISABLED: OpenTelemetry packages not in requirements.txt
+# try:
+#     from tracing_setup import setup_tracing, instrument_fastapi
+#     setup_tracing("vesper-backend")
+# except Exception as e:
+#     print(f"[WARN] Tracing setup failed: {e}")
 
 try:
     # Initialize FastAPI app immediately after imports
     app = FastAPI()
     
-    # Instrument FastAPI for automatic tracing
-    try:
-        instrument_fastapi(app)
-    except Exception as e:
-        print(f"[WARN] FastAPI instrumentation failed: {e}")
+    # Instrument FastAPI for automatic tracing (DISABLED)
+    # try:
+    #     instrument_fastapi(app)
+    # except Exception as e:
+    #     print(f"[WARN] FastAPI instrumentation failed: {e}")
     
     # Log AI provider availability
     print("\n=== Vesper AI Initialization ===")
