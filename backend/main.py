@@ -1319,13 +1319,16 @@ def delete_task(idx: int):
 # --- Web Search Endpoint ---
 @app.get("/api/search-web")
 def search_web(q: str, use_browser: bool = False):
-    """Web search using DuckDuckGo ddgs library (browser mode removed due to CAPTCHAs)"""
+    """Web search using DuckDuckGo ddgs library with robust fallbacks"""
+    
+    # 1. Try DuckDuckGo Search (DDGS) - Preferred
     try:
         from ddgs import DDGS
-        
         results = []
+        # Use a fresh instance each time to avoid session issues
         with DDGS() as ddgs:
-            search_results = ddgs.text(q, max_results=5)
+            # generators need to be consumed
+            search_results = list(ddgs.text(q, max_results=5))
             for result in search_results:
                 results.append({
                     "title": result.get("title", ""),
@@ -1333,36 +1336,106 @@ def search_web(q: str, use_browser: bool = False):
                     "snippet": result.get("body", "")
                 })
         
-        return {
-            "query": q,
-            "results": results,
-            "count": len(results),
-            "source": "duckduckgo"
-        }
-        
+        if results:
+            return {
+                "query": q,
+                "results": results,
+                "count": len(results),
+                "source": "duckduckgo"
+            }
     except Exception as e:
-        # Log the actual error for debugging
-        error_msg = f"ddgs search failed: {type(e).__name__}: {str(e)}"
-        print(f"[SEARCH ERROR] {error_msg}")
+        print(f"[SEARCH WARN] DDGS failed: {str(e)}")
+    
+    # 2. Fallback: DuckDuckGo HTML Scraping (Basic request)
+    # Often works when API/DDGS is blocked
+    try:
+        print(f"[SEARCH] Attempting HTML fallback for: {q}")
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+        }
+        # Use html.duckduckgo.com for lighter non-js version
+        url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(q)}"
+        req = urllib.request.Request(url, headers=headers)
         
-        # Fallback to Instant Answer API
-        try:
-            query = urllib.parse.quote(q)
-            url = f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1"
-            req = urllib.request.Request(url, headers={'User-Agent': 'VesperAI/1.0'})
-            with urllib.request.urlopen(req, timeout=5) as response:
-                data = json.loads(response.read().decode())
+        with urllib.request.urlopen(req, timeout=10) as response:
+            html_content = response.read().decode('utf-8')
+            
+            # Simple regex extraction for results (robust enough for fallbacks)
+            # Look for result snippets in DDG HTML structure
+            import re
+            
+            # Extract links with class "result__a" (titles) and "result__snippet" (snippets)
+            # Note: This is fragile but better than nothing
+            results = []
+            
+            # Find result blocks
+            snippet_pattern = re.compile(r'<a[^>]+class="result__a"[^>]+>(.*?)</a>.*?<a[^>]+class="result__snippet"[^>]+>(.*?)</a>', re.DOTALL)
+            matches = snippet_pattern.findall(html_content)
+            
+            for title, snippet in matches[:5]:
+                # Clean HTML tags
+                clean_title = re.sub(r'<[^>]+>', '', title).strip()
+                clean_snippet = re.sub(r'<[^>]+>', '', snippet).strip()
+                results.append({
+                    "title": clean_title,
+                    "url": "https://duckduckgo.com", # URL extraction is harder with regex, precise URL less important for context
+                    "snippet": clean_snippet
+                })
+            
+            if results:
                 return {
                     "query": q,
-                    "abstract": data.get("AbstractText", ""),
-                    "abstract_source": data.get("AbstractSource", ""),
-                    "abstract_url": data.get("AbstractURL", ""),
-                    "related_topics": [{"text": t.get("Text", ""), "url": t.get("FirstURL", "")} for t in data.get("RelatedTopics", [])[:5] if isinstance(t, dict)],
-                    "source": "duckduckgo_api",
-                    "ddgs_error": error_msg  # Include the error so we can see it
+                    "results": results,
+                    "count": len(results),
+                    "source": "duckduckgo_html"
                 }
-        except Exception as api_error:
-            return {"error": str(e), "api_error": str(api_error), "query": q, "results": [], "source": "error"}
+
+    except Exception as e:
+        print(f"[SEARCH WARN] HTML fallback failed: {str(e)}")
+
+    # 3. Last Resort: Instant Answer API (very limited)
+    try:
+        print(f"[SEARCH] Attempting API fallback for: {q}")
+        query = urllib.parse.quote(q)
+        url = f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1"
+        req = urllib.request.Request(url, headers={'User-Agent': 'VesperAI/1.0'})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode())
+            
+            # Construct a "fake" result style from the abstract
+            results = []
+            if data.get("AbstractText"):
+                results.append({
+                    "title": data.get("Heading", "Result"),
+                    "url": data.get("AbstractURL", ""),
+                    "snippet": data.get("AbstractText", "")
+                })
+            
+            for topic in data.get("RelatedTopics", [])[:3]:
+                if isinstance(topic, dict) and "Text" in topic:
+                    results.append({
+                        "title": "Related Info",
+                        "url": topic.get("FirstURL", ""),
+                        "snippet": topic.get("Text", "")
+                    })
+
+            return {
+                "query": q,
+                "results": results,
+                "count": len(results),
+                "source": "duckduckgo_api",
+                "note": "Limited results due to network restrictions"
+            }
+    except Exception as api_error:
+        # 4. Absolute Failure
+        return {
+            "error": "All search methods failed", 
+            "details": str(api_error), 
+            "query": q, 
+            "results": [], 
+            "source": "error"
+        }
 
 # --- Test DDGS Import (Debugging Endpoint) ---
 @app.get("/api/test-ddgs")
