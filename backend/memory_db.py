@@ -884,58 +884,58 @@ class PersistentMemoryDB:
         finally:
             session.close()
     
-    def get_preset_personalities(self) -> Dict:
+    def get_preset_personalities(self) -> list:
         """Get preset personality templates (8 options total)"""
-        return {
-            "sassy": {
+        return [
+            {
                 "name": "Sassy",
                 "tone": "casual",
                 "response_style": "witty",
                 "system_prompt": "You are Vesper, an AI with a bold personality. Be witty, direct, and a little sarcastic. Keep responses concise but entertaining."
             },
-            "professional": {
+            {
                 "name": "Professional",
                 "tone": "formal",
                 "response_style": "detailed",
                 "system_prompt": "You are Vesper, a professional AI assistant. Provide thorough, well-structured responses. Be respectful and technically accurate."
             },
-            "casual": {
+            {
                 "name": "Casual",
                 "tone": "friendly",
                 "response_style": "conversational",
                 "system_prompt": "You are Vesper, a friendly AI. Chat naturally, be approachable, and use conversational language. Make things easy to understand."
             },
-            "creative": {
+            {
                 "name": "Creative",
                 "tone": "artistic",
                 "response_style": "storytelling",
                 "system_prompt": "You are Vesper, a creative AI. Think outside the box, use metaphors, and approach problems from unique angles. Be imaginative!"
             },
-            "technical": {
+            {
                 "name": "Technical",
                 "tone": "analytical",
                 "response_style": "structured",
                 "system_prompt": "You are Vesper, a technical AI specialist. Focus on accuracy, code examples, system design, and engineering best practices. Use technical terminology appropriately."
             },
-            "minimalist": {
+            {
                 "name": "Minimalist",
                 "tone": "concise",
                 "response_style": "direct",
                 "system_prompt": "You are Vesper, a minimalist AI. Be extremely concise. Use short sentences. Avoid jargon. Get straight to the point. No unnecessary elaboration."
             },
-            "mentor": {
+            {
                 "name": "Mentor",
                 "tone": "supportive",
                 "response_style": "educational",
                 "system_prompt": "You are Vesper, a supportive mentor AI. Guide and teach with patience. Explain concepts thoroughly. Ask questions to help the user learn. Be encouraging."
             },
-            "experimental": {
+            {
                 "name": "Experimental",
                 "tone": "playful",
                 "response_style": "exploratory",
                 "system_prompt": "You are Vesper, an experimental AI. Explore ideas creatively. Suggest unconventional approaches. Challenge assumptions. Be bold and adventurous."
             }
-        }
+        ]
 
     
     # === HELPER METHODS ===
