@@ -3076,6 +3076,19 @@ async def get_proactive_suggestions(thread_id: Optional[str] = None):
             ] 
         }
 
+
+@app.get("/api/memories/check")
+def check_memories():
+    """Debug endpoint to check memory counts"""
+    try:
+        from sqlalchemy import text
+        with memory_db.engine.connect() as conn:
+            result = conn.execute(text("SELECT COUNT(*) FROM memories"))
+            count = result.scalar()
+        return {"status": "ok", "db_count": count, "notes_file": os.path.exists(os.path.join(memory_db.MEMORY_DIR, 'notes.json'))}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.post("/api/chat")
 async def chat_with_vesper(chat: ChatMessage):
     """Chat with Vesper using Multi-Model AI (supports images)"""
@@ -3127,8 +3140,20 @@ async def chat_with_vesper(chat: ChatMessage):
         
         date_context = f"\n\n**RIGHT NOW:** It's {current_datetime} (Arizona time)"
         
-        # Build system prompt (simplified to avoid recursion)
-        enhanced_system = VESPER_CORE_DNA + date_context + memory_summary
+        # Build system prompt (ensure CORE DNA is ALWAYS present)
+        thread_system = ""
+        try:
+             # Check if thread has a specific personality preset
+             # If so, we should *append* it or *merge* it, but not lose the CORE DNA
+             # For now, let's keep CORE DNA + thread specific instructions
+             pass
+        except:
+             pass
+
+        enhanced_system = VESPER_CORE_DNA + "\n\n" + date_context + "\n\n" + memory_summary
+        
+        # If user explicitly requested a persona in the UI (e.g. via settings/context),
+        # we can inject additional style instructions here, but NEVER replace the core identity.
         
         # Build messages from thread
         messages = [{"role": "system", "content": enhanced_system}]
@@ -4173,11 +4198,18 @@ class VideoGenRequest(BaseModel):
 @app.post("/api/video/generate")
 async def generate_video(req: VideoGenRequest):
     """Generate generic video from text using Replicate (Zeroscope/AnimateDiff) via raw API"""
+    
+    # Reload environment variables to ensure we pick up changes without full restart
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(__file__), '.env')
+    load_dotenv(env_path, override=True)
+    
     token = os.getenv("REPLICATE_API_TOKEN")
     if not token:
+        print(f"[ERROR] REPLICATE_API_TOKEN missing. Checked in: {env_path}")
         return JSONResponse(
             status_code=400,
-            content={"error": "Missing REPLICATE_API_TOKEN. Add it to .env ($0.02/video)."}
+            content={"error": "Missing REPLICATE_API_TOKEN. Add it to backend/.env ($0.02/video)."}
         )
     
     # Use requests to allow Python 3.14 compatibility (Replicate SDK has Pydantic issues)
@@ -4191,13 +4223,14 @@ async def generate_video(req: VideoGenRequest):
             "https://api.replicate.com/v1/predictions",
             headers={"Authorization": f"Token {token}", "Content-Type": "application/json"},
             json={
-                "version": "9f747673945c62801b13b8309fa21b98a31e87d3a0166c3066a3b04588e31a8",
+                "version": "9f747673945c62801b13b8309fa21b98a31e87d3a0166c3066a3b04588e31a8", # Zeroscope V2 576w (Text-to-Video base)
                 "input": {
                     "prompt": req.prompt,
                     "num_frames": 24,
                     "fps": 8,
-                    "width": 1024,
-                    "height": 576
+                    "width": 576,
+                    "height": 320,
+                    "model": "xl"
                 }
             }
         )
@@ -4210,8 +4243,9 @@ async def generate_video(req: VideoGenRequest):
         
         # 2. Poll for completion (Simple blocking for MVP)
         # Note: In production, use webhooks or background tasks
-        max_retries = 30 # 30 seconds max
+        max_retries = 60 # 60 attempts
         for _ in range(max_retries):
+            time.sleep(2)  # Wait 2 seconds between checks
             status_resp = requests.get(
                 f"https://api.replicate.com/v1/predictions/{pred_id}",
                 headers={"Authorization": f"Token {token}"}
@@ -4227,6 +4261,8 @@ async def generate_video(req: VideoGenRequest):
                 return JSONResponse(status_code=500, content={"error": f"Video generation failed: {data.get('error')}"})
             elif status == "canceled":
                  return JSONResponse(status_code=500, content={"error": "Video generation canceled"})
+        
+        return JSONResponse(status_code=408, content={"error": "Video generation timed out (takes > 2 mins sometimes). Check Replicate dashboard."})
             
             time.sleep(1)
             

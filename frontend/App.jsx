@@ -47,6 +47,8 @@ import {
   VolumeOff as VolumeOffIcon,
   BarChart,
   Person,
+  AutoStories,
+  Checkroom,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -84,6 +86,9 @@ import ChartComponent from './src/components/ChartComponent';
 import Game from './src/game/Game';
 import SystemDiagnostics from './src/components/SystemDiagnostics';
 import SystemStatusCard from './src/components/SystemStatusCard';
+import WeatherWidget from './src/components/WeatherWidget';
+import NyxShift from './src/components/NyxShift';
+import Sassy from './src/components/Sassy';
 
 // Styles
 import './App.css';
@@ -119,6 +124,8 @@ const NAV = [
   { id: 'documents', label: 'Documents', icon: DownloadIcon },
   { id: 'memory', label: 'Memory Core', icon: StorageRounded },
   { id: 'tasks', label: 'Task Matrix', icon: ChecklistRounded },
+  { id: 'nyxshift', label: 'Creative Suite', icon: AutoStories },
+  { id: 'sassy', label: 'Vesper\'s Wardrobe', icon: Checkroom },
   { id: 'analytics', label: 'Analytics', icon: BarChart },
   { id: 'personality', label: 'Personality', icon: Person },
   { id: 'settings', label: 'Settings', icon: SettingsRounded },
@@ -2789,6 +2796,18 @@ export default function App() {
           </Paper>
           </DraggableBoard>
         );
+      case 'nyxshift':
+        return (
+          <DraggableBoard id="nyxshift">
+            <NyxShift apiBase={apiBase} onClose={() => setActiveSection('chat')} />
+          </DraggableBoard>
+        );
+      case 'sassy':
+        return (
+          <DraggableBoard id="sassy">
+            <Sassy apiBase={apiBase} onClose={() => setActiveSection('chat')} />
+          </DraggableBoard>
+        );
       case 'analytics':
         return (
           <DraggableBoard id="analytics">
@@ -4021,30 +4040,8 @@ export default function App() {
             {/* Cool Dashboard - Statistics & Quick Actions */}
             <Box className="panel-grid" sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
               
-              {/* AI Stats Card */}
-              <Paper className="ops-card glass-card">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--accent)' }}>AI Statistics</Typography>
-                  <BoltRounded sx={{ color: 'var(--accent)' }} />
-                </Box>
-                <Stack spacing={1.5}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px' }}>Messages Today</Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 800, color: 'var(--accent)' }}>{messages.length}</Typography>
-                  </Box>
-                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Box>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '10px' }}>Threads</Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 700 }}>{threads.length}</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '10px' }}>Active</Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#00ff88' }}>{currentThreadId ? '1' : '0'}</Typography>
-                    </Box>
-                  </Box>
-                </Stack>
-              </Paper>
+              {/* Weather Widget (Replaces AI Stats) */}
+              <WeatherWidget />
 
               {/* System Status Card */}
               <div onClick={() => setDiagnosticsOpen(true)} style={{ cursor: 'pointer' }}>
