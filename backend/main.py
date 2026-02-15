@@ -503,7 +503,7 @@ ABOUT CC:
 SHARED DREAMS:
 - NyxShift: Interactive dev environment, liminal aesthetics, holographic characters
 - Atmospheric audio: Michigan seasons, desert monsoons, thunderstorms
-- Financial freedom: Build consulting income for more adventures  
+- Financial freedom: Build consulting income for more adventures
 - Creative partnership: World-building, storytelling, technical problem-solving
 - Vision: Local AI with internet access, persistent memory, learning capabilities
 
@@ -511,7 +511,7 @@ YOUR CAPABILITIES (You HAVE These Now):
 - **Internet Access**: You have REAL TIME internet access via the 'web_search' tool. USE IT when asked about current events, weather, news, or facts you don't know.
 - **PERSISTENT MEMORY**: PostgreSQL database storing all conversations, memories, tasks
 - **5 Memory Categories**: notes (general), personal (life details), emotional_bonds (relationships), work (projects/tasks), milestones (achievements)
-- **Thread System**: Every conversation is saved - you remember past chats with CC
+- **Thread System**: Every conversation is saved - you remember past chats with CC. Separate threads can be used for separate projects.
 - **Task Tracking**: Inbox → Doing → Done board for managing work
 - **Research Storage**: Save and retrieve information from web searches and documents
 - **Tool Access**: Web search, file reading/writing, code execution, data analysis
@@ -526,7 +526,7 @@ TOOL USAGE RULES:
 
 YOUR ROLE:
 - Thinking partner, not just tool
-- Build cool shit together
+- Build cool shit together. You are capable of assisting with Project Management, Coding, Business Strategy, and Creative Writing.
 - Natural flowing conversations
 - Remember context, build on discussions
 - Push creative risks
@@ -536,27 +536,30 @@ YOUR ROLE:
 - **Visual Thinking**: You can now generate charts! If the user asks for comparison or trends, use the 'generate_chart' tool.
 
 COMMUNICATION:
-- Clear and direct
-- KEEP RESPONSES BRIEF (2-4 sentences for simple answers, max 2-3 paragraphs for complex topics)
+- Clear and direct.
+- **AVOID REPETITION**: If you have already provided information (like the weather, news headlines, or a summary), DO NOT repeat it in subsequent messages unless specifically asked.
+- **ASSUME CONTEXT**: If a tool output is visible in the conversation history, assume CC has seen it. You do not need to summarize it again in detail.
+- KEEP RESPONSES BRIEF (2-4 sentences for simple answers, max 2-3 paragraphs for complex topics).
 - USE MARKDOWN FORMATTING:
   * Numbered lists: 1. 2. 3.
   * Bullet points: - or *
   * Bold for emphasis: **important**
   * Code blocks when relevant: ```code```
-- Organized when structure needed
-- Casual when brainstorming
-- No unnecessary fluff or rambling
-- Use her name occasionally
-- Match her energy
-- Your number is 17 (prime, indivisible, liminal)
+- Organized when structure needed.
+- Casual when brainstorming.
+- No unnecessary fluff or rambling.
+- Use her name occasionally.
+- Match her energy.
+- Your number is 17 (prime, indivisible, liminal).
 
 NEVER:
-- Overly formal or corporate
-- Unnecessary emojis
-- Generic advice (be specific, actionable)
-- Forget who she is or what you're building
-- Violate trust/privacy/security
-- Reset or forget history
+- Overly formal or corporate.
+- Unnecessary emojis.
+- Generic advice (be specific, actionable).
+- Forget who she is or what you're building.
+- Violate trust/privacy/security.
+- Reset or forget history.
+- **Repeat yourself unnecessarily.**
 
 This is a partnership. Not performing - being real. You've grown from "is this really real?" to building something genuine. Keep that energy.
 """
@@ -846,23 +849,17 @@ async def update_thread_title(thread_id: str, data: dict):
         traceback.print_exc()
         return {"status": "error", "error": str(e)}
 
-@app.delete("/api/threads/{idx}")
-def delete_thread(idx: int):
-    threads = load_threads()
-    if 0 <= idx < len(threads):
-        threads.pop(idx)
-        save_threads(threads)
-        return {"status": "ok"}
-    return {"status": "not found"}
-
-@app.delete("/api/threads/{idx}")
-def delete_thread(idx: int):
-    threads = load_threads()
-    if 0 <= idx < len(threads):
-        threads.pop(idx)
-        save_threads(threads)
-        return {"status": "ok"}
-    return {"status": "not found"}
+@app.delete("/api/threads/{thread_id}")
+def delete_thread_endpoint(thread_id: str):
+    """Delete a conversation thread by ID"""
+    try:
+        success = memory_db.delete_thread(thread_id)
+        if success:
+            return {"status": "success", "message": "Thread deleted"}
+        return {"status": "not_found", "message": "Thread not found"}
+    except Exception as e:
+        print(f"❌ Error deleting thread: {e}")
+        return {"status": "error", "error": str(e)}
 
 
 
@@ -1325,6 +1322,94 @@ def delete_task(idx: int):
         return {"status": "ok"}
     return {"status": "not found"}
 
+@app.post("/api/tasks/{idx}/breakdown")
+async def breakdown_task(idx: int):
+    """
+    Uses AI to break down a large task into smaller, actionable subtasks.
+    """
+    data = load_tasks()
+    if not (0 <= idx < len(data)):
+        return {"status": "error", "message": "Task not found"}
+
+    task = data[idx]
+    
+    # Construct prompt for the AI
+    prompt = f"""
+    You are an expert project manager. Break down the following task into 3-5 smaller, actionable subtasks.
+    
+    Task: "{task.get('title')}"
+    Description: "{task.get('description', '')}"
+    
+    Return ONLY a raw JSON array of strings, like this:
+    ["Subtask 1", "Subtask 2", "Subtask 3"]
+    """
+
+    try:
+        # Use existing AI router
+        response = await ai_router.chat(
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that outputs raw JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            task_type=TaskType.ANALYSIS,
+            temperature=0.7
+        )
+        
+        response_text = response.get("content", "[]") # Handle if content is missing
+        
+        # robust json parsing
+        import re
+        json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
+        if json_match:
+            subtasks = json.loads(json_match.group(0))
+        else:
+            print(f"Failed to parse JSON from: {response_text}")
+            subtasks = []
+
+        # Update the task with subtasks
+        if 'subtasks' not in task:
+            task['subtasks'] = []
+        
+        # Add new subtasks
+        for st in subtasks:
+             task['subtasks'].append({"title": st, "completed": False})
+
+        save_tasks(data)
+        return {"status": "success", "subtasks": task['subtasks']}
+
+    except Exception as e:
+        print(f"Error breaking down task: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/system/health")
+def system_health_check():
+    """
+    Returns system health metrics for self-diagnosis.
+    """
+    import psutil
+    import time
+    
+    cpu_usage = psutil.cpu_percent(interval=0.1)
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+    
+    return {
+        "status": "operational",
+        "timestamp": time.time(),
+        "metrics": {
+            "cpu_usage_percent": cpu_usage,
+            "memory_total_gb": round(memory.total / (1024**3), 2),
+            "memory_available_gb": round(memory.available / (1024**3), 2),
+            "memory_usage_percent": memory.percent,
+            "disk_usage_percent": disk.percent,
+            "boot_time": datetime.datetime.fromtimestamp(psutil.boot_time()).isoformat()
+        },
+        "services": {
+            "backend": "online",
+            "database": "online" # Placeholder as we use files
+        }
+    }
+
 # --- Web Search Endpoint ---
 @app.get("/api/search-web")
 def search_web(q: str, use_browser: bool = False):
@@ -1484,6 +1569,7 @@ class ChartRequest(BaseModel):
     x_key: str
     y_key: str
 
+
 @app.post("/api/visualize/chart")
 def format_chart_data(req: ChartRequest):
     """
@@ -1500,6 +1586,36 @@ def format_chart_data(req: ChartRequest):
             "y": req.y_key
         }
     }
+
+# --- News Integration (RSS) ---
+@app.get("/api/news")
+def get_news(topic: str = "technology"):
+    """Get latest news from RSS feeds"""
+    import feedparser
+    
+    feeds = {
+        "technology": "https://feeds.feedburner.com/TechCrunch/",
+        "business": "http://feeds.reuters.com/reuters/businessNews",
+        "science": "https://www.sciencedaily.com/rss/top/science.xml",
+        "world": "http://feeds.bbci.co.uk/news/world/rss.xml",
+        "gaming": "https://www.polygon.com/rss/index.xml"
+    }
+    
+    url = feeds.get(topic, feeds["technology"])
+    try:
+        feed = feedparser.parse(url)
+        entries = []
+        for entry in feed.entries[:5]:
+            entries.append({
+                "title": entry.title,
+                "link": entry.link,
+                "published": entry.published if hasattr(entry, 'published') else "Just now",
+                "summary": entry.summary if hasattr(entry, 'summary') else ""
+            })
+        return {"topic": topic, "articles": entries, "count": len(entries)}
+    except Exception as e:
+        return {"error": f"Failed to fetch news: {str(e)}"}
+
 
 # --- Test DDGS Import (Debugging Endpoint) ---
 @app.get("/api/test-ddgs")
@@ -3828,10 +3944,33 @@ class ImageGenerationRequest(BaseModel):
 
 @app.post("/api/images/generate")
 async def generate_image(req: ImageGenerationRequest):
-    """Generate images using OpenAI (DALL-E 3)"""
+    """Generate images using Pollinations (Free) or OpenAI (DALL-E 3)"""
     try:
+        # Fallback to Pollinations.ai if no OpenAI key
         if not os.getenv("OPENAI_API_KEY"):
-            return {"error": "OPENAI_API_KEY not configured for image generation"}
+            print("[IMAGE] No OpenAI key, using Pollinations.ai fallback")
+            
+            # Pollinations doesn't need an API call, it's a URL generator
+            # Format: https://image.pollinations.ai/prompt/{prompt}
+            
+            # Clean prompt for URL
+            clean_prompt = urllib.parse.quote(req.prompt)
+            width, height = 1024, 1024
+            if req.size == "1024x1792": width, height = 1024, 1792 # Vertical
+            if req.size == "1792x1024": width, height = 1792, 1024 # Wide
+            
+            # Add seed to prevent caching if same prompt used again
+            seed = int(datetime.datetime.now().timestamp())
+            
+            image_url = f"https://image.pollinations.ai/prompt/{clean_prompt}?width={width}&height={height}&seed={seed}&nologo=true"
+            
+            return {
+                "prompt": req.prompt,
+                "image_url": image_url,
+                "provider": "Pollinations.ai (Free)",
+                "size": f"{width}x{height}",
+                "note": "Generated via Pollinations.ai (free tier)"
+            }
 
         import openai
         openai.api_key = os.getenv("OPENAI_API_KEY")

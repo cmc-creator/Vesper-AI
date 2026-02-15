@@ -30,6 +30,7 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Download as DownloadIcon,
+  AutoFixHigh,
   PushPin as PinIcon,
   PushPinOutlined as PinOutlinedIcon,
   HistoryRounded,
@@ -80,6 +81,7 @@ import VideoCreator from './src/components/VideoCreator';
 import GuidedLearning from './src/components/GuidedLearning';
 import ChartComponent from './src/components/ChartComponent';
 import Game from './src/game/Game';
+import SystemDiagnostics from './src/components/SystemDiagnostics';
 
 // Styles
 import './App.css';
@@ -152,6 +154,9 @@ function App() {
   const [memoryText, setMemoryText] = useState('');
   const [memoryView, setMemoryView] = useState('history'); // 'history' or 'notes'
   const [threads, setThreads] = useState([]);
+  const [selectedThreadIds, setSelectedThreadIds] = useState([]); // Array of IDs for bulk operations
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Controls the confirmation dialog
+  const [deleteTargetId, setDeleteTargetId] = useState(null); // 'bulk' or specific ID when confirm dialog is open
   const [threadsLoading, setThreadsLoading] = useState(false);
   const [currentThreadId, setCurrentThreadId] = useState(null);
   const [currentThreadTitle, setCurrentThreadTitle] = useState('');
@@ -171,6 +176,7 @@ function App() {
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [abortController, setAbortController] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(() => safeStorageGet('vesper_sound_enabled', 'true') === 'true');
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   
   // Tools
   const [toolsExpanded, setToolsExpanded] = useState(true);
@@ -1325,9 +1331,15 @@ export default function App() {
     setToast('New conversation started');
   };
 
-  const deleteThread = async (threadId) => {
+  const deleteThread = async (threadId, skipConfirm = false) => {
     if (!apiBase) return;
-    if (!confirm('Delete this conversation? This cannot be undone.')) return;
+    if (!skipConfirm) {
+      // Use custom dialog instead of window.confirm
+      setDeleteTargetId(threadId);
+      setShowDeleteConfirm(true);
+      return;
+    }
+    
     try {
       const res = await fetch(`${apiBase}/api/threads/${threadId}`, {
         method: 'DELETE',
@@ -1343,6 +1355,49 @@ export default function App() {
     } catch (error) {
       console.error('Delete failed:', error);
       setToast('Failed to delete conversation');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setDeleteTargetId('bulk');
+    setShowDeleteConfirm(true);
+  };
+  
+  const executeDelete = async () => {
+    if (deleteTargetId === 'bulk') {
+      let count = 0;
+      for (const id of selectedThreadIds) {
+        // Direct delete call without confirm
+        try {
+          const res = await fetch(`${apiBase}/api/threads/${id}`, { method: 'DELETE' });
+          if (res.ok) {
+            setThreads(prev => prev.filter(t => t.id !== id));
+            count++;
+          }
+        } catch (e) { console.error(e); }
+      }
+      setToast(`Deleted ${count} conversations`);
+      setSelectedThreadIds([]);
+      if (selectedThreadIds.includes(currentThreadId)) startNewChat();
+    } else {
+      await deleteThread(deleteTargetId, true);
+    }
+    setShowDeleteConfirm(false);
+    setDeleteTargetId(null);
+  };
+
+  const handleSelectThread = (id) => {
+    setSelectedThreadIds(prev => {
+      if (prev.includes(id)) return prev.filter(tid => tid !== id);
+      return [...prev, id];
+    });
+  };
+
+  const handleSelectAllThreads = (filteredThreads) => {
+    if (selectedThreadIds.length === filteredThreads.length) {
+      setSelectedThreadIds([]);
+    } else {
+      setSelectedThreadIds(filteredThreads.map(t => t.id));
     }
   };
 
@@ -1494,8 +1549,27 @@ export default function App() {
     try {
       await fetch(`${apiBase}/api/tasks/${idx}`, { method: 'DELETE' });
       fetchTasks();
+      setToast('Task deleted');
     } catch (error) {
       console.error('Delete task failed:', error);
+    }
+  };
+
+  const breakdownTask = async (idx, task) => {
+    if (!apiBase) return;
+    setToast('Breaking down task w/ AI...');
+    try {
+      const res = await fetch(`${apiBase}/api/tasks/${idx}/breakdown`, { method: 'POST' });
+      const data = await res.json();
+      if (data.status === 'success') {
+        fetchTasks();
+        setToast('Subtasks created!');
+      } else {
+        setToast('AI Breakdown failed');
+      }
+    } catch (error) {
+      console.error('Breakdown task failed:', error);
+      setToast('Error connecting to AI');
     }
   };
 
@@ -2241,6 +2315,40 @@ export default function App() {
             )}
             {memoryView === 'history' ? (
               <Box className="board-list">
+                {selectedThreadIds.length > 0 && (
+                  <Box sx={{ p: 1, mb: 1, bgcolor: 'rgba(255, 68, 68, 0.1)', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" sx={{ color: 'white' }}>{selectedThreadIds.length} selected</Typography>
+                    <Button 
+                      size="small" 
+                      color="error" 
+                      startIcon={<DeleteIcon />} 
+                      onClick={() => {
+                        setDeleteTargetId('bulk');
+                        setShowDeleteConfirm(true);
+                      }}
+                      sx={{ textTransform: 'none', py: 0 }}
+                    >
+                      Delete Selected
+                    </Button>
+                  </Box>
+                )}
+                {/* Select All Checkbox */}
+                <Box sx={{ display: 'flex', alignItems: 'center', px: 1, mb: 1, borderBottom: '1px solid rgba(255,255,255,0.1)', pb: 1 }}>
+                  <Checkbox 
+                    size="small" 
+                    checked={filteredThreads.length > 0 && selectedThreadIds.length === filteredThreads.length}
+                    indeterminate={selectedThreadIds.length > 0 && selectedThreadIds.length < filteredThreads.length}
+                    onChange={() => {
+                      if (selectedThreadIds.length === filteredThreads.length) {
+                        setSelectedThreadIds([]);
+                      } else {
+                        setSelectedThreadIds(filteredThreads.map(t => t.id));
+                      }
+                    }}
+                    sx={{ p: 0.5, mr: 1, color: 'rgba(255,255,255,0.5)' }} 
+                  />
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Select All ({filteredThreads.length})</Typography>
+                </Box>
                 {threadsLoading ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     {[1, 2, 3, 4].map((i) => (
@@ -2263,8 +2371,25 @@ export default function App() {
                     <Box 
                       key={thread.id} 
                       className="board-row" 
-                      sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' } }}
+                      sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        gap: 1, 
+                        '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' },
+                        borderLeft: selectedThreadIds.includes(thread.id) ? '2px solid var(--accent)' : 'none',
+                        pl: selectedThreadIds.includes(thread.id) ? 1.75 : 2
+                      }}
                     >
+                      <Checkbox 
+                        size="small" 
+                        checked={selectedThreadIds.includes(thread.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleSelectThread(thread.id);
+                        }}
+                        sx={{ p: 0.5, mr: 0.5, color: 'rgba(255,255,255,0.3)' }}
+                      />
                       {editingThreadId === thread.id ? (
                         <TextField
                           value={editingThreadTitle}
@@ -2579,8 +2704,26 @@ export default function App() {
                                     </Typography>
                                   )}
                                 </Box>
+                                {task.subtasks && task.subtasks.length > 0 && (
+                                  <Box sx={{ mt: 1, pl: 1, borderLeft: '2px solid rgba(255,255,255,0.1)' }}>
+                                    {task.subtasks.map((st, i) => (
+                                      <Typography key={i} variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.6)' }}>
+                                        • {st.title}
+                                      </Typography>
+                                    ))}
+                                  </Box>
+                                )}
                               </Box>
                               <Stack direction="row" spacing={1}>
+                                <Tooltip title="AI Breakdown">
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => breakdownTask(idx, task)}
+                                    sx={{ color: 'var(--accent)' }}
+                                  >
+                                    <AutoFixHigh fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
                                 <Tooltip title="Advance status">
                                   <IconButton
                                     size="small"
@@ -2893,6 +3036,21 @@ export default function App() {
                         },
                       }}
                     />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>System Diagnostics</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Check health & performance</Typography>
+                    </Box>
+                    <Button 
+                      onClick={() => setDiagnosticsOpen(true)}
+                      size="small"
+                      variant="outlined"
+                      sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                      startIcon={<SpeedIcon />}
+                    >
+                      Run Check
+                    </Button>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
@@ -4042,6 +4200,57 @@ export default function App() {
       {/* Guided Learning Modal */}
       <Dialog open={learningOpen} onClose={() => setLearningOpen(false)} maxWidth="md" fullWidth>
         <GuidedLearning apiBase={apiBase} onClose={() => setLearningOpen(false)} />
+      </Dialog>
+      
+      {/* System Diagnostics Modal */}
+      <SystemDiagnostics 
+        open={diagnosticsOpen} 
+        onClose={() => setDiagnosticsOpen(false)} 
+        apiBase={apiBase} 
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog 
+        open={showDeleteConfirm} 
+        onClose={() => setShowDeleteConfirm(false)}
+        PaperProps={{
+          style: {
+            backgroundColor: 'rgba(10, 10, 20, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 68, 68, 0.3)',
+            borderRadius: '16px',
+            minWidth: '300px'
+          },
+        }}
+      >
+        <Box sx={{ p: 3, textAlign: 'center' }}>
+          <DeleteIcon sx={{ fontSize: 48, color: '#ff4444', mb: 2, opacity: 0.8 }} />
+          <Typography variant="h6" sx={{ color: '#fff', mb: 1, fontWeight: 700 }}>
+            {deleteTargetId === 'bulk' 
+              ? `Delete ${selectedThreadIds.length} Conversations?` 
+              : 'Delete Conversation?'}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 3 }}>
+            This action cannot be undone. All messages and data will be permanently removed.
+          </Typography>
+          <Stack direction="row" spacing={2} justifyContent="center">
+            <Button 
+              onClick={() => setShowDeleteConfirm(false)}
+              sx={{ color: 'rgba(255,255,255,0.6)', '&:hover': { color: '#fff' } }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="contained" 
+              color="error" 
+              onClick={executeDelete}
+              startIcon={<DeleteIcon />}
+              sx={{ bgcolor: '#ff4444', '&:hover': { bgcolor: '#ff0000' } }}
+            >
+              Delete
+            </Button>
+          </Stack>
+        </Box>
       </Dialog>
     </ThemeProvider>
   );
