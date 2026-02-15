@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography, CircularProgress, Stack, Chip, LinearProgress, Slider } from '@mui/material';
+import { Box, Paper, Typography, CircularProgress, Stack, Chip, LinearProgress, Slider, IconButton, Collapse } from '@mui/material';
+import { ExpandLess, ExpandMore, VisibilityOff } from '@mui/icons-material';
 
-const SystemStatusCard = ({ apiBase, onScaleChange, currentScale = 1 }) => {
+const SystemStatusCard = ({ apiBase, onScaleChange, currentScale = 1, onHide }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,63 +49,50 @@ const SystemStatusCard = ({ apiBase, onScaleChange, currentScale = 1 }) => {
         mb: 2
       }}
     >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--accent)' }}>System Status</Typography>
-        <Box 
-          sx={{ 
-            width: 12, 
-            height: 12, 
-            borderRadius: '50%', 
-            bgcolor: backendColor,
-            boxShadow: `0 0 8px ${backendColor}`
-          }} 
-        />
-      </Box>
-
-      <Stack spacing={1.5}>
-        {/* Backend Status */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Backend</Typography>
-          <Chip 
-            label={backendStatus} 
-            size="small" 
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box 
             sx={{ 
-              bgcolor: `${backendColor}20`, 
-              color: backendColor, 
-              fontSize: '10px', 
-              height: '20px',
-              fontWeight: 700
+              width: 8, 
+              height: 8, 
+              borderRadius: '50%', 
+              bgcolor: backendColor,
+              boxShadow: `0 0 8px ${backendColor}`
             }} 
           />
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>System</Typography>
         </Box>
-
-        {/* UI Scale Slider */}
-        <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>UI Scale ({Math.round(currentScale * 100)}%)</Typography>
-          </Box>
-          <Slider
-            size="small"
-            value={currentScale}
-            min={0.5}
-            max={1.5}
-            step={0.1}
-            onChange={(_, val) => onScaleChange && onScaleChange(val)}
-            sx={{
-              color: 'var(--accent, #00ffff)',
-              height: 4,
-              '& .MuiSlider-thumb': {
-                width: 12,
-                height: 12,
-                transition: '0.3s cubic-bezier(.47,1.64,.41,.8)',
-                '&:hover': { boxShadow: '0 0 0 8px rgba(0, 255, 255, 0.1)' },
-              },
-              '& .MuiSlider-rail': { opacity: 0.2 },
-            }}
-          />
+        <Box>
+            <IconButton size="small" onClick={() => setExpanded(!expanded)} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+            </IconButton>
+            <IconButton size="small" onClick={onHide} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                <VisibilityOff fontSize="small" />
+            </IconButton>
         </Box>
+      </Box>
 
-        {/* Latency */}
+      <Collapse in={expanded}>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+            {/* Stats Column */}
+            <Stack spacing={1.5} sx={{ flex: 1 }}>
+                {/* Backend Status */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>Backend</Typography>
+                <Chip 
+                    label={backendStatus} 
+                    size="small" 
+                    sx={{ 
+                    bgcolor: `${backendColor}20`, 
+                    color: backendColor, 
+                    fontSize: '10px', 
+                    height: '20px',
+                    fontWeight: 700
+                    }} 
+                />
+                </Box>
+                
+                {/* Latency */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Ping</Typography>
           <Typography variant="caption" sx={{ color: data?.latency < 100 ? '#00ff88' : '#ffbb33', fontFamily: 'monospace' }}>
@@ -165,21 +154,34 @@ const SystemStatusCard = ({ apiBase, onScaleChange, currentScale = 1 }) => {
           />
         </Box>
 
-        {/* Uptime */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 0.5 }}>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Uptime</Typography>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontFamily: 'monospace' }}>
-             {data?.metrics?.boot_time ? (() => {
-               const boot = new Date(data.metrics.boot_time);
-               const now = new Date();
-               const diff = Math.floor((now - boot) / 1000);
-               const hours = Math.floor(diff / 3600);
-               const minutes = Math.floor((diff % 3600) / 60);
-               return `${hours}h ${minutes}m`;
-             })() : '--'}
-          </Typography>
+            </Stack>
+
+            {/* Vertical Scale Slider */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 120 }}>
+               <Slider
+                  orientation="vertical"
+                  size="small"
+                  value={currentScale}
+                  min={0.5}
+                  max={1.5}
+                  step={0.1}
+                  onChange={(_, val) => onScaleChange && onScaleChange(val)}
+                  valueLabelDisplay="auto"
+                  sx={{
+                    color: 'var(--accent, #00ffff)',
+                    height: 100,
+                    '& .MuiSlider-thumb': {
+                      width: 12,
+                      height: 12,
+                      '&:hover': { boxShadow: '0 0 0 8px rgba(0, 255, 255, 0.1)' },
+                    },
+                    '& .MuiSlider-rail': { opacity: 0.2 },
+                  }}
+                />
+                <Typography variant="caption" sx={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', mt: 1, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>UI Scale</Typography>
+            </Box>
         </Box>
-      </Stack>
+      </Collapse>
     </Paper>
   );
 };

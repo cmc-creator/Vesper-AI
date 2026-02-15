@@ -189,6 +189,7 @@ function App() {
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [uiScale, setUiScale] = useState(() => parseFloat(safeStorageGet('vesper_ui_scale', '1')));
+  const [showSystemStatus, setShowSystemStatus] = useState(true);
 
   // Tools
   const [toolsExpanded, setToolsExpanded] = useState(true);
@@ -4053,21 +4054,39 @@ export default function App() {
               <WeatherWidget />
 
               {/* System Status Card */}
-              <div onClick={(e) => {
-                // Only open diagnostics if not interacting with the slider
-                if (!e.target.closest('.MuiSlider-root')) {
-                  setDiagnosticsOpen(true);
-                }
-              }} style={{ cursor: 'pointer' }}>
-                <SystemStatusCard 
-                  apiBase={apiBase} 
-                  currentScale={uiScale} 
-                  onScaleChange={(val) => {
-                    setUiScale(val);
-                    localStorage.setItem('vesper_ui_scale', val.toString());
+              {showSystemStatus && (
+                <div 
+                  onClick={(e) => {
+                    // Only open diagnostics if not interacting with the slider or hide button
+                    const target = e.target;
+                    if (target.closest('.MuiSlider-root') || target.closest('button')) {
+                      return;
+                    }
+                    setDiagnosticsOpen(true);
                   }} 
-                />
-              </div>
+                  style={{ cursor: 'pointer' }}
+                >
+                  <SystemStatusCard 
+                    apiBase={apiBase} 
+                    currentScale={uiScale} 
+                    onScaleChange={(val) => {
+                      setUiScale(val);
+                      localStorage.setItem('vesper_ui_scale', val.toString());
+                    }} 
+                    onHide={() => setShowSystemStatus(false)}
+                  />
+                </div>
+              )}
+              {!showSystemStatus && (
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={() => setShowSystemStatus(true)}
+                  sx={{ borderColor: 'var(--accent)', color: 'var(--accent)', width: '100%', height: '50px' }}
+                >
+                  Show System Widget
+                </Button>
+              )}
 
               {/* Quick Actions Card */}
               <Paper className="ops-card glass-card">
