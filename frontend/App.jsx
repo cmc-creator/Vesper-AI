@@ -179,6 +179,8 @@ function App() {
   const [abortController, setAbortController] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(() => safeStorageGet('vesper_sound_enabled', 'true') === 'true');
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   
   // Tools
   const [toolsExpanded, setToolsExpanded] = useState(true);
@@ -564,6 +566,23 @@ export default function App() {
       setLoading(false);
       setThinking(false);
       setToast('Generation stopped');
+    }
+  };
+
+  const fetchSuggestions = async () => {
+    setSuggestionsLoading(true);
+    try {
+      const response = await fetch(`${apiBase}/suggestions?thread_id=${currentThreadId || ''}`);
+      if (!response.ok) throw new Error('Failed to fetch suggestions');
+      const data = await response.json();
+      if (data.suggestions) {
+        setSuggestions(data.suggestions);
+      }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+      setToast('⚠️ Could not load suggestions');
+    } finally {
+      setSuggestionsLoading(false);
     }
   };
 
@@ -3831,6 +3850,30 @@ export default function App() {
               </Box>
             )}
 
+            {/* Proactive Suggestions */}
+            {suggestions.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 1, mb: 1, overflowX: 'auto', px: 1 }}>
+                {suggestions.map((s, i) => (
+                  <Chip 
+                    key={i} 
+                    label={s} 
+                    onClick={() => {
+                        setInput(s);
+                        setSuggestions([]); // Clear after selection
+                    }}
+                    onDelete={() => setSuggestions(prev => prev.filter((_, idx) => idx !== i))}
+                    sx={{ 
+                      bgcolor: 'rgba(0,255,255,0.1)', 
+                      backdropFilter: 'blur(5px)',
+                      border: '1px solid rgba(0,255,255,0.3)',
+                      color: 'var(--accent)',
+                      '&:hover': { bgcolor: 'rgba(0,255,255,0.2)' }
+                    }} 
+                  />
+                ))}
+              </Box>
+            )}
+
             <Paper
               component="form"
               onSubmit={(e) => {
@@ -3855,6 +3898,16 @@ export default function App() {
                   disabled={analyzingImage}
                 >
                   {analyzingImage ? <CircularProgress size={20} sx={{ color: 'var(--accent)' }} /> : <AddIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Get Proactive Suggestions" placement="top">
+                <IconButton
+                  onClick={fetchSuggestions}
+                  className="ghost-button"
+                  size="small"
+                  disabled={suggestionsLoading}
+                >
+                  {suggestionsLoading ? <CircularProgress size={20} sx={{ color: 'var(--accent)' }} /> : <AutoFixHigh fontSize="small" />}
                 </IconButton>
               </Tooltip>
               <VoiceInput onTranscript={handleVoiceTranscript} />

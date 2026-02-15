@@ -163,6 +163,9 @@ VesperApp/
 - `PUT /api/tasks/{idx}` - Update task status
 - `DELETE /api/tasks/{idx}` - Delete task
 
+### Proactive Suggestions
+- `GET /api/suggestions` - Get 3 proactive suggestions based on context.
+
 ### Utilities
 - `GET /api/search-web?q=query` - Web search via DuckDuckGo
 - `POST /api/scrape` - Scrape URL content

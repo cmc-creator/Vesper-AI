@@ -3003,6 +3003,75 @@ class ChatMessage(BaseModel):
     thread_id: Optional[str] = "default"
     images: Optional[List[str]] = []  # List of base64 data URLs (e.g., "data:image/png;base64,...")
 
+@app.get("/api/suggestions")
+async def get_proactive_suggestions(thread_id: Optional[str] = None):
+    """Generate proactive suggestions based on current context"""
+    try:
+        # Gather Context
+        context_parts = []
+        
+        # 1. Recent Tasks
+        try:
+            tasks = memory_db.get_tasks(limit=3) # Pending tasks
+            if tasks:
+                task_list = ", ".join([t['title'] for t in tasks])
+                context_parts.append(f"Pending Tasks: {task_list}")
+        except: pass
+        
+        # 2. Recent Memories
+        try:
+            memories = memory_db.get_memories(limit=3)
+            if memories:
+                mem_list = ", ".join([m['content'][:50] for m in memories])
+                context_parts.append(f"Recent Memories: {mem_list}")
+        except: pass
+        
+        # 3. Chat Context
+        if thread_id:
+            try:
+                thread = memory_db.get_thread(thread_id)
+                if thread and thread.get('messages'):
+                    last_msgs = thread.get('messages')[-3:]
+                    chat_summary = " ".join([m.get('text', '') or m.get('content', '') for m in last_msgs])
+                    context_parts.append(f"Recent Chat: {chat_summary[:200]}...")
+            except: pass
+            
+        full_context = "\n".join(context_parts)
+        
+        # Generate Suggestions via AI
+        prompt = f"""
+        You are Vesper, a proactive AI assistant. Based on this context about the user's current state:
+        {full_context}
+        
+        Generate 3 brief, actionable suggestions for what the user could do next.
+        Be helpful, creative, and concise.
+        
+        Format as clear text lines, one per suggestion. No numbering.
+        """
+        
+        response = await ai_router.chat(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE,
+            temperature=0.7,
+            max_tokens=200
+        )
+        
+        raw_text = response.get("content", "").strip()
+        suggestions = [line.strip("- *") for line in raw_text.split('\n') if line.strip()]
+        
+        return {"status": "success", "suggestions": suggestions[:3]}
+        
+    except Exception as e:
+        print(f"Error generating suggestions: {e}")
+        return {
+            "status": "success", 
+            "suggestions": [
+                "Check your pending tasks",
+                "Review recent research notes",
+                "Take a moment to breathe"
+            ] 
+        }
+
 @app.post("/api/chat")
 async def chat_with_vesper(chat: ChatMessage):
     """Chat with Vesper using Multi-Model AI (supports images)"""
