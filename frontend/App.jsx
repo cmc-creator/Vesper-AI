@@ -258,7 +258,7 @@ export default function App() {
     fontSize: localStorage.getItem('vesper_font_size') || 'medium', // small, medium, large
     compactMode: localStorage.getItem('vesper_compact_mode') === 'true',
     analyticsCharts: localStorage.getItem('vesper_analytics_charts') || 'all', // all, summary, detailed
-    memoryCategories: JSON.parse(localStorage.getItem('vesper_memory_categories') || '["notes", "insights", "learnings", "ideas"]'),
+    memoryCategories: JSON.parse(localStorage.getItem('vesper_memory_categories') || '["notes", "personal", "emotional_bonds", "work", "milestones", "sensory_experiences", "creative_moments"]'),
     researchSources: JSON.parse(localStorage.getItem('vesper_research_sources') || '["web", "file", "manual", "database"]'),
     chatBoxHeight: localStorage.getItem('vesper_chat_box_height') || '35vh', // Resizable chat height
   });

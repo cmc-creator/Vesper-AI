@@ -42,7 +42,7 @@ Write-Host "[+] Ensuring data directories exist..." -ForegroundColor Cyan
     }
 }
 
-@("notes", "conversations", "sensory_experiences", "creative_moments", "emotional_bonds", "threads") | ForEach-Object {
+@("notes", "conversations", "sensory_experiences", "creative_moments", "emotional_bonds", "threads", "personal", "work", "milestones") | ForEach-Object {
     $path = "vesper-ai\memory\$_.json"
     if (-not (Test-Path $path)) {
         Set-Content -Path $path -Value "[]"
