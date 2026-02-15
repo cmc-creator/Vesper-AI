@@ -1825,6 +1825,18 @@ export default function App() {
     const isUser = message.role === 'user';
     const ts = formatTime(message.timestamp || Date.now());
 
+    // Extract thoughts
+    let thoughts = null;
+    let content = message.content;
+    
+    if (!isUser && content && typeof content === 'string') {
+      const thoughtMatch = content.match(/<thought>([\s\S]*?)<\/thought>/);
+      if (thoughtMatch) {
+        thoughts = thoughtMatch[1].trim();
+        content = content.replace(/<thought>[\s\S]*?<\/thought>/, '').trim();
+      }
+    }
+
     // Handle Charts
     if (message.type === 'chart' && message.chartData) {
       return (
@@ -1853,8 +1865,38 @@ export default function App() {
         initial={{ opacity: 0, x: isUser ? 20 : -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.25 }}
-        style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', marginBottom: '16px' }}
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: isUser ? 'flex-end' : 'flex-start', 
+          marginBottom: '16px' 
+        }}
       >
+        {/* Render Thoughts if present */}
+        {thoughts && (
+          <Box 
+            sx={{ 
+              maxWidth: '80%', 
+              mb: 1, 
+              borderLeft: '2px solid rgba(0,255,255,0.3)', 
+              pl: 1.5, 
+              py: 0.5
+            }}
+          >
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: 'rgba(255,255,255,0.5)', 
+                fontStyle: 'italic', 
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'monospace'
+              }}
+            >
+              {thoughts}
+            </Typography>
+          </Box>
+        )}
+
         <Box
           className="message-bubble glass-card"
           sx={{
@@ -1961,7 +2003,7 @@ export default function App() {
               },
             }}
           >
-            {message.content}
+            {content}
           </ReactMarkdown>
         </Box>
       </motion.div>
