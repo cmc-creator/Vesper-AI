@@ -185,26 +185,26 @@ export default function VideoCreator({ apiBase, onClose }) {
         </Stack>
 
         <Stack direction="row" spacing={1}>
-        <Button
-          onClick={createPlan}
-          disabled={loading || !prompt.trim()}
-          variant="outlined"
-          startIcon={loading ? <CircularProgress size={18} /> : <MovieIcon fontSize="small" />}
-          sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-        >
-          {loading ? 'Thinking...' : 'Start Plan'}
-        </Button>
-        <Button
-          onClick={generateVideo}
-          disabled={loading || !prompt.trim()}
-          variant="contained"
-          startIcon={loading ? <CircularProgress size={18} /> : <MovieIcon fontSize="small" />}
-          sx={{ bgcolor: 'var(--accent)', color: '#000' }}
-        >
-          {loading ? 'Creating...' : 'Gen Video'}
-        </Button>
+          <Button
+            onClick={createPlan}
+            disabled={loading || !prompt.trim()}
+            variant="outlined"
+            startIcon={loading ? <CircularProgress size={18} /> : <MovieIcon fontSize="small" />}
+            sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+          >
+            {loading ? 'Thinking...' : 'Start Plan'}
+          </Button>
+          <Button
+            onClick={generateVideo}
+            disabled={loading || !prompt.trim()}
+            variant="contained"
+            startIcon={loading ? <CircularProgress size={18} /> : <MovieIcon fontSize="small" />}
+            sx={{ bgcolor: 'var(--accent)', color: '#000' }}
+          >
+            {loading ? 'Creating...' : 'Gen Video'}
+          </Button>
         </Stack>
-      </Box>
+      </Stack>
 
       {error && (
         <Box sx={{ color: '#ff6b6b', mb: 2, fontSize: '0.9rem' }}>{error}</Box>
