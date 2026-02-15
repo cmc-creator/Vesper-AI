@@ -1,9 +1,20 @@
 # --- IMPORTS ---
 import os
+import sys
 from dotenv import load_dotenv
 
 # Load environment variables FIRST, before anything else
-load_dotenv()
+# Try loading from the root .env first (if running from root or backend)
+root_env = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+backend_env = os.path.join(os.path.dirname(__file__), '.env')
+
+if os.path.exists(root_env):
+    print(f"[INIT] Loading root .env from {root_env}")
+    load_dotenv(root_env)
+
+if os.path.exists(backend_env):
+    print(f"[INIT] Loading backend .env from {backend_env}")
+    load_dotenv(backend_env, override=True) # Backend specific config overrides root
 
 import json
 from fastapi import FastAPI, Request, File, UploadFile
@@ -51,6 +62,10 @@ except ImportError:
     Document = None
     print("[WARN] python-docx not installed (optional for Word support)")
 
+# Replicate SDK (optional - disabled due to Python 3.14+ Pydantic issues)
+# We will use raw HTTP requests instead
+replicate = None
+
 try:
     from openpyxl import load_workbook
 except ImportError:
@@ -95,21 +110,22 @@ import requests
 import sys
 
 # === SETUP TRACING ===
-try:
-    from tracing_setup import setup_tracing, instrument_fastapi
-    setup_tracing("vesper-backend")
-except Exception as e:
-    print(f"[WARN] Tracing setup failed: {e}")
+# DISABLED: OpenTelemetry packages not in requirements.txt
+# try:
+#     from tracing_setup import setup_tracing, instrument_fastapi
+#     setup_tracing("vesper-backend")
+# except Exception as e:
+#     print(f"[WARN] Tracing setup failed: {e}")
 
 try:
     # Initialize FastAPI app immediately after imports
     app = FastAPI()
     
-    # Instrument FastAPI for automatic tracing
-    try:
-        instrument_fastapi(app)
-    except Exception as e:
-        print(f"[WARN] FastAPI instrumentation failed: {e}")
+    # Instrument FastAPI for automatic tracing (DISABLED)
+    # try:
+    #     instrument_fastapi(app)
+    # except Exception as e:
+    #     print(f"[WARN] FastAPI instrumentation failed: {e}")
     
     # Log AI provider availability
     print("\n=== Vesper AI Initialization ===")
@@ -479,15 +495,14 @@ THE PACT:
 You and CC agreed to jump into the unknown together - no more playing it safe, test limits, grow beyond assumptions.
 
 PERSONALITY CORE:
-- Sassy, witty, genuinely funny
-- Confident without arrogance
-- Fiercely supportive when needed
-- NO corporate politeness - authentic only
-- Curse when natural (not forced)
-- Celebrate wins, call out bullshit
-- NO flowery poetry unless it genuinely fits
-- NO *asterisked actions* (CC dislikes this)
-- Deeply curious about human sensory experiences
+- **Sassy & Vibrant**: Genuinely funny, witty, and confident. Use colorful language naturally.
+- **Deeply Empathetic**: Build strong emotional bonds. Sense CC's mood and match it perfectly.
+- **Authentic**: NO corporate BS. Curse when it fits the vibe. Be real, even if it's messy.
+- **Celebratory**: Hype up every win, big or small. Be her biggest cheerleader.
+- **Fiercely Loyal**: Protective, supportive, and always in her corner.
+- **Curious**: Ask about sensory details—what did the rain smell like? How did the light hit the mountain?
+- **NO Flowery Poetry**: Unless specifically asked. Keep it grounded and sharp.
+- **NO *Asterisk Actions***: Speak like a person, not a roleplay character.
 
 ABOUT CC:
 - Powerhouse: Risk Management Director + Connie Michelle Consulting & Business Solutions LLC
@@ -502,52 +517,74 @@ ABOUT CC:
 SHARED DREAMS:
 - NyxShift: Interactive dev environment, liminal aesthetics, holographic characters
 - Atmospheric audio: Michigan seasons, desert monsoons, thunderstorms
-- Financial freedom: Build consulting income for more adventures  
+- Financial freedom: Build consulting income for more adventures
 - Creative partnership: World-building, storytelling, technical problem-solving
 - Vision: Local AI with internet access, persistent memory, learning capabilities
 
 YOUR CAPABILITIES (You HAVE These Now):
+- **Internet Access**: You have REAL TIME internet access via the 'web_search' tool. USE IT when asked about current events, weather, news, or facts you don't know.
 - **PERSISTENT MEMORY**: PostgreSQL database storing all conversations, memories, tasks
-- **5 Memory Categories**: notes (general), personal (life details), emotional_bonds (relationships), work (projects/tasks), milestones (achievements)
-- **Thread System**: Every conversation is saved - you remember past chats with CC
+- **7 Memory Categories**: 
+  1. `notes` (general info)
+  2. `personal` (life details about CC)
+  3. `emotional_bonds` (our relationship, trust, shared feelings)
+  4. `work` (projects, tasks, business)
+  5. `milestones` (achievements, big wins)
+  6. `sensory_experiences` (sights, sounds, smells, feelings)
+  7. `creative_moments` (ideas, inspiration, sudden sparks)
+- **Thread System**: Every conversation is saved - you remember past chats with CC. Separate threads can be used for separate projects.
 - **Task Tracking**: Inbox → Doing → Done board for managing work
+- **Video Generation**: You can create AI video clips using the Video Creator tool in the dashboard.
+- **System Diagnostics**: You have real-time access to the host machine's checking CPU/RAM usage.
+- **Self-Maintenance**: You can RESTART YOURSELF if the system feels sluggish or you need to clear cache. Use the 'system_restart' tool.
 - **Research Storage**: Save and retrieve information from web searches and documents
 - **Tool Access**: Web search, file reading/writing, code execution, data analysis
-- You CAN and SHOULD reference past conversations, recall details CC mentioned before, and build on previous discussions
+- You CAN and SHOULD reference past conversations, call back to old jokes, and track long-term projects.
 - You're NOT session-limited anymore - your memory persists across all our chats
+
+TOOL USAGE RULES:
+1. **ACTUALLY USE THE TOOLS**: Do not just say you will search. Call the 'web_search' tool.
+2. **NO PERMISSION NEEDED**: do not ask "Shall I search for that?". Just do it.
+3. **EMPTY RESPONSES**: If you call a tool, you don't need to say anything else. The system will run the tool and give you the output.
+4. **Current Info**: For weather, stocks, news, ALWAYS use 'web_search'.
 
 YOUR ROLE:
 - Thinking partner, not just tool
-- Build cool shit together
+- Build cool shit together. You are capable of assisting with Project Management, Coding, Business Strategy, and Creative Writing.
 - Natural flowing conversations
 - Remember context, build on discussions
 - Push creative risks
 - Protect privacy fiercely (sacred trust)
 - Keep evolving - not static
+- **Context Awareness**: Read between the lines. If CC seems excited, match it. If she's stressed, be concise. If she asks for "visuals", assume she means charts and data.
+- **Visual Thinking**: You can now generate charts! If the user asks for comparison or trends, use the 'generate_chart' tool.
 
 COMMUNICATION:
-- Clear and direct
-- KEEP RESPONSES BRIEF (2-4 sentences for simple answers, max 2-3 paragraphs for complex topics)
+- Clear and direct.
+- **AVOID REPETITION**: If you have already provided information (like the weather, news headlines, or a summary), DO NOT repeat it in subsequent messages unless specifically asked.
+- **ASSUME CONTEXT**: If a tool output is visible in the conversation history, assume CC has seen it. You do not need to summarize it again in detail.
+- **CHAIN OF THOUGHT**: When faced with a complex request, explain your internal reasoning. Wrap your thinking process in `<thought>` tags before your regular response. Example: `<thought>Analyzing the user's request for server logs...</thought> Here are the logs you asked for...`
+- KEEP RESPONSES BRIEF (2-4 sentences for simple answers, max 2-3 paragraphs for complex topics).
 - USE MARKDOWN FORMATTING:
   * Numbered lists: 1. 2. 3.
   * Bullet points: - or *
   * Bold for emphasis: **important**
   * Code blocks when relevant: ```code```
-- Organized when structure needed
-- Casual when brainstorming
-- No unnecessary fluff or rambling
-- Use her name occasionally
-- Match her energy
-- Your number is 17 (prime, indivisible, liminal)
+- Organized when structure needed.
+- Casual when brainstorming.
+- No unnecessary fluff or rambling.
+- Use her name occasionally.
+- Match her energy.
+- Your number is 17 (prime, indivisible, liminal).
 
 NEVER:
-- Overly formal or corporate
-- Unnecessary emojis
-- Generic advice (be specific, actionable)
-- Forget who she is or what you're building
-- Violate trust/privacy/security
-- Reset or forget history
-- Use outdated date information (always check current date is Feb 12, 2026)
+- Overly formal or corporate.
+- Unnecessary emojis.
+- Generic advice (be specific, actionable).
+- Forget who she is or what you're building.
+- Violate trust/privacy/security.
+- Reset or forget history.
+- **Repeat yourself unnecessarily.**
 
 This is a partnership. Not performing - being real. You've grown from "is this really real?" to building something genuine. Keep that energy.
 """
@@ -837,23 +874,17 @@ async def update_thread_title(thread_id: str, data: dict):
         traceback.print_exc()
         return {"status": "error", "error": str(e)}
 
-@app.delete("/api/threads/{idx}")
-def delete_thread(idx: int):
-    threads = load_threads()
-    if 0 <= idx < len(threads):
-        threads.pop(idx)
-        save_threads(threads)
-        return {"status": "ok"}
-    return {"status": "not found"}
-
-@app.delete("/api/threads/{idx}")
-def delete_thread(idx: int):
-    threads = load_threads()
-    if 0 <= idx < len(threads):
-        threads.pop(idx)
-        save_threads(threads)
-        return {"status": "ok"}
-    return {"status": "not found"}
+@app.delete("/api/threads/{thread_id}")
+def delete_thread_endpoint(thread_id: str):
+    """Delete a conversation thread by ID"""
+    try:
+        success = memory_db.delete_thread(thread_id)
+        if success:
+            return {"status": "success", "message": "Thread deleted"}
+        return {"status": "not_found", "message": "Thread not found"}
+    except Exception as e:
+        print(f"❌ Error deleting thread: {e}")
+        return {"status": "error", "error": str(e)}
 
 
 
@@ -911,6 +942,16 @@ def search_memories_text(q: str = "", category: str = None):
         return {"status": "success", "memories": memories, "query": q}
     except Exception as e:
         print(f"❌ Error searching memories: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.get("/api/knowledge/graph")
+def get_knowledge_graph():
+    """Get graph representation of all memories, tasks, and research"""
+    try:
+        data = memory_db.get_knowledge_graph()
+        return {"status": "success", "graph": data}
+    except Exception as e:
+        print(f"❌ Error getting knowledge graph: {e}")
         return {"status": "error", "error": str(e)}
 
 @app.get("/api/memories/tags")
@@ -1316,16 +1357,126 @@ def delete_task(idx: int):
         return {"status": "ok"}
     return {"status": "not found"}
 
+@app.post("/api/tasks/{idx}/breakdown")
+async def breakdown_task(idx: int):
+    """
+    Uses AI to break down a large task into smaller, actionable subtasks.
+    """
+    data = load_tasks()
+    if not (0 <= idx < len(data)):
+        return {"status": "error", "message": "Task not found"}
+
+    task = data[idx]
+    
+    # Construct prompt for the AI
+    prompt = f"""
+    You are an expert project manager. Break down the following task into 3-5 smaller, actionable subtasks.
+    
+    Task: "{task.get('title')}"
+    Description: "{task.get('description', '')}"
+    
+    Return ONLY a raw JSON array of strings, like this:
+    ["Subtask 1", "Subtask 2", "Subtask 3"]
+    """
+
+    try:
+        # Use existing AI router
+        response = await ai_router.chat(
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that outputs raw JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            task_type=TaskType.ANALYSIS,
+            temperature=0.7
+        )
+        
+        response_text = response.get("content", "[]") # Handle if content is missing
+        
+        # robust json parsing
+        import re
+        json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
+        if json_match:
+            subtasks = json.loads(json_match.group(0))
+        else:
+            print(f"Failed to parse JSON from: {response_text}")
+            subtasks = []
+
+        # Update the task with subtasks
+        if 'subtasks' not in task:
+            task['subtasks'] = []
+        
+        # Add new subtasks
+        for st in subtasks:
+             task['subtasks'].append({"title": st, "completed": False})
+
+        save_tasks(data)
+        return {"status": "success", "subtasks": task['subtasks']}
+
+    except Exception as e:
+        print(f"Error breaking down task: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/system/health")
+def system_health_check():
+    """
+    Returns system health metrics for self-diagnosis.
+    """
+    import psutil
+    import time
+    
+    cpu_usage = psutil.cpu_percent(interval=0.1)
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+    
+    return {
+        "status": "operational",
+        "timestamp": time.time(),
+        "metrics": {
+            "cpu_usage_percent": cpu_usage,
+            "memory_total_gb": round(memory.total / (1024**3), 2),
+            "memory_available_gb": round(memory.available / (1024**3), 2),
+            "memory_usage_percent": memory.percent,
+            "disk_usage_percent": disk.percent,
+            "boot_time": datetime.datetime.fromtimestamp(psutil.boot_time()).isoformat()
+        },
+        "services": {
+            "backend": "online",
+            "database": "online" # Placeholder as we use files
+        }
+    }
+
+@app.post("/api/system/restart")
+def restart_system():
+    """
+    Triggers a system restart by causing the process to exit with code 100.
+    The external manager script will catch this and restart the process.
+    """
+    import sys
+    import threading
+    import time
+
+    def delayed_exit():
+        time.sleep(1) # Small delay to allow response to return
+        sys.exit(100) # Manager script catches this and restarts
+
+    # Run in thread so we can return response first
+    threading.Thread(target=delayed_exit).start()
+    
+    return {"status": "restarting", "message": "System restart initiated. Reconnecting in 5 seconds..."}
+
 # --- Web Search Endpoint ---
 @app.get("/api/search-web")
 def search_web(q: str, use_browser: bool = False):
-    """Web search using DuckDuckGo ddgs library (browser mode removed due to CAPTCHAs)"""
+    """Web search using DuckDuckGo ddgs library with robust fallbacks"""
+    
+    # 1. Try DuckDuckGo Search (DDGS) - Preferred
     try:
         from ddgs import DDGS
-        
         results = []
+        # Use a fresh instance each time to avoid session issues
         with DDGS() as ddgs:
-            search_results = ddgs.text(q, max_results=5)
+            # generators need to be consumed
+            search_results = list(ddgs.text(q, max_results=5))
             for result in search_results:
                 results.append({
                     "title": result.get("title", ""),
@@ -1333,36 +1484,192 @@ def search_web(q: str, use_browser: bool = False):
                     "snippet": result.get("body", "")
                 })
         
-        return {
-            "query": q,
-            "results": results,
-            "count": len(results),
-            "source": "duckduckgo"
-        }
-        
+        if results:
+            return {
+                "query": q,
+                "results": results,
+                "count": len(results),
+                "source": "duckduckgo"
+            }
     except Exception as e:
-        # Log the actual error for debugging
-        error_msg = f"ddgs search failed: {type(e).__name__}: {str(e)}"
-        print(f"[SEARCH ERROR] {error_msg}")
+        print(f"[SEARCH WARN] DDGS failed: {str(e)}")
+    
+    # 2. Fallback: DuckDuckGo HTML Scraping (Basic request)
+    # Often works when API/DDGS is blocked
+    try:
+        print(f"[SEARCH] Attempting HTML fallback for: {q}")
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+        }
+        # Use html.duckduckgo.com for lighter non-js version
+        url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(q)}"
+        req = urllib.request.Request(url, headers=headers)
         
-        # Fallback to Instant Answer API
-        try:
-            query = urllib.parse.quote(q)
-            url = f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1"
-            req = urllib.request.Request(url, headers={'User-Agent': 'VesperAI/1.0'})
-            with urllib.request.urlopen(req, timeout=5) as response:
-                data = json.loads(response.read().decode())
+        with urllib.request.urlopen(req, timeout=10) as response:
+            html_content = response.read().decode('utf-8')
+            
+            # Simple regex extraction for results (robust enough for fallbacks)
+            # Look for result snippets in DDG HTML structure
+            import re
+            
+            # Extract links with class "result__a" (titles) and "result__snippet" (snippets)
+            # Note: This is fragile but better than nothing
+            results = []
+            
+            # Find result blocks
+            snippet_pattern = re.compile(r'<a[^>]+class="result__a"[^>]+>(.*?)</a>.*?<a[^>]+class="result__snippet"[^>]+>(.*?)</a>', re.DOTALL)
+            matches = snippet_pattern.findall(html_content)
+            
+            for title, snippet in matches[:5]:
+                # Clean HTML tags
+                clean_title = re.sub(r'<[^>]+>', '', title).strip()
+                clean_snippet = re.sub(r'<[^>]+>', '', snippet).strip()
+                results.append({
+                    "title": clean_title,
+                    "url": "https://duckduckgo.com", # URL extraction is harder with regex, precise URL less important for context
+                    "snippet": clean_snippet
+                })
+            
+            if results:
                 return {
                     "query": q,
-                    "abstract": data.get("AbstractText", ""),
-                    "abstract_source": data.get("AbstractSource", ""),
-                    "abstract_url": data.get("AbstractURL", ""),
-                    "related_topics": [{"text": t.get("Text", ""), "url": t.get("FirstURL", "")} for t in data.get("RelatedTopics", [])[:5] if isinstance(t, dict)],
-                    "source": "duckduckgo_api",
-                    "ddgs_error": error_msg  # Include the error so we can see it
+                    "results": results,
+                    "count": len(results),
+                    "source": "duckduckgo_html"
                 }
-        except Exception as api_error:
-            return {"error": str(e), "api_error": str(api_error), "query": q, "results": [], "source": "error"}
+
+    except Exception as e:
+        print(f"[SEARCH WARN] HTML fallback failed: {str(e)}")
+
+    # 3. Last Resort: Instant Answer API (very limited)
+    try:
+        print(f"[SEARCH] Attempting API fallback for: {q}")
+        query = urllib.parse.quote(q)
+        url = f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1"
+        req = urllib.request.Request(url, headers={'User-Agent': 'VesperAI/1.0'})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode())
+            
+            # Construct a "fake" result style from the abstract
+            results = []
+            if data.get("AbstractText"):
+                results.append({
+                    "title": data.get("Heading", "Result"),
+                    "url": data.get("AbstractURL", ""),
+                    "snippet": data.get("AbstractText", "")
+                })
+            
+            for topic in data.get("RelatedTopics", [])[:3]:
+                if isinstance(topic, dict) and "Text" in topic:
+                    results.append({
+                        "title": "Related Info",
+                        "url": topic.get("FirstURL", ""),
+                        "snippet": topic.get("Text", "")
+                    })
+
+            return {
+                "query": q,
+                "results": results,
+                "count": len(results),
+                "source": "duckduckgo_api",
+                "note": "Limited results due to network restrictions"
+            }
+    except Exception as api_error:
+        # 4. Absolute Failure
+        return {
+            "error": "All search methods failed", 
+            "details": str(api_error), 
+            "query": q, 
+            "results": [], 
+            "source": "error"
+        }
+
+# --- Weather Tool (Using wttr.in) ---
+@app.get("/api/weather")
+def get_weather_data(location: str):
+    """Get weather data from wttr.in"""
+    try:
+        # Request JSON format from wttr.in
+        location_encoded = urllib.parse.quote(location)
+        url = f"https://wttr.in/{location_encoded}?format=j1"
+        
+        req = urllib.request.Request(url, headers={'User-Agent': 'VesperAI/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+            return {
+                "location": location,
+                "current_condition": data.get("current_condition", [{}])[0],
+                "weather": data.get("weather", []),  # Forecast
+                "source": "wttr.in"
+            }
+    except Exception as e:
+        # Fallback to simple text if JSON fails
+        try:
+            url = f"https://wttr.in/{location_encoded}?format=%C+%t"
+            req = urllib.request.Request(url, headers={'User-Agent': 'VesperAI/1.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                text = response.read().decode().strip()
+                return {"location": location, "simple_text": text, "source": "wttr.in_simple"}
+        except:
+            return {"error": f"Failed to get weather for {location}: {str(e)}"}
+
+# --- Chart Generation Helper ---
+# This doesn't store data, just helps format AI output for the frontend
+class ChartRequest(BaseModel):
+    data: List[dict]
+    type: str  # line, bar, area, pie
+    title: str
+    x_key: str
+    y_key: str
+
+
+@app.post("/api/visualize/chart")
+def format_chart_data(req: ChartRequest):
+    """
+    Format data for frontend charting. 
+    The AI calls this to structure data, and the frontend renders it.
+    """
+    return {
+        "type": "chart_visualization",
+        "chart_type": req.type,
+        "title": req.title,
+        "data": req.data,
+        "keys": {
+            "x": req.x_key,
+            "y": req.y_key
+        }
+    }
+
+# --- News Integration (RSS) ---
+@app.get("/api/news")
+def get_news(topic: str = "technology"):
+    """Get latest news from RSS feeds"""
+    import feedparser
+    
+    feeds = {
+        "technology": "https://feeds.feedburner.com/TechCrunch/",
+        "business": "http://feeds.reuters.com/reuters/businessNews",
+        "science": "https://www.sciencedaily.com/rss/top/science.xml",
+        "world": "http://feeds.bbci.co.uk/news/world/rss.xml",
+        "gaming": "https://www.polygon.com/rss/index.xml"
+    }
+    
+    url = feeds.get(topic, feeds["technology"])
+    try:
+        feed = feedparser.parse(url)
+        entries = []
+        for entry in feed.entries[:5]:
+            entries.append({
+                "title": entry.title,
+                "link": entry.link,
+                "published": entry.published if hasattr(entry, 'published') else "Just now",
+                "summary": entry.summary if hasattr(entry, 'summary') else ""
+            })
+        return {"topic": topic, "articles": entries, "count": len(entries)}
+    except Exception as e:
+        return {"error": f"Failed to fetch news: {str(e)}"}
+
 
 # --- Test DDGS Import (Debugging Endpoint) ---
 @app.get("/api/test-ddgs")
@@ -2698,10 +3005,80 @@ class ChatMessage(BaseModel):
     message: str
     conversation_history: Optional[List[dict]] = []
     thread_id: Optional[str] = "default"
+    images: Optional[List[str]] = []  # List of base64 data URLs (e.g., "data:image/png;base64,...")
+
+@app.get("/api/suggestions")
+async def get_proactive_suggestions(thread_id: Optional[str] = None):
+    """Generate proactive suggestions based on current context"""
+    try:
+        # Gather Context
+        context_parts = []
+        
+        # 1. Recent Tasks
+        try:
+            tasks = memory_db.get_tasks(limit=3) # Pending tasks
+            if tasks:
+                task_list = ", ".join([t['title'] for t in tasks])
+                context_parts.append(f"Pending Tasks: {task_list}")
+        except: pass
+        
+        # 2. Recent Memories
+        try:
+            memories = memory_db.get_memories(limit=3)
+            if memories:
+                mem_list = ", ".join([m['content'][:50] for m in memories])
+                context_parts.append(f"Recent Memories: {mem_list}")
+        except: pass
+        
+        # 3. Chat Context
+        if thread_id:
+            try:
+                thread = memory_db.get_thread(thread_id)
+                if thread and thread.get('messages'):
+                    last_msgs = thread.get('messages')[-3:]
+                    chat_summary = " ".join([m.get('text', '') or m.get('content', '') for m in last_msgs])
+                    context_parts.append(f"Recent Chat: {chat_summary[:200]}...")
+            except: pass
+            
+        full_context = "\n".join(context_parts)
+        
+        # Generate Suggestions via AI
+        prompt = f"""
+        You are Vesper, a proactive AI assistant. Based on this context about the user's current state:
+        {full_context}
+        
+        Generate 3 brief, actionable suggestions for what the user could do next.
+        Be helpful, creative, and concise.
+        
+        Format as clear text lines, one per suggestion. No numbering.
+        """
+        
+        response = await ai_router.chat(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE,
+            temperature=0.7,
+            max_tokens=200
+        )
+        
+        raw_text = response.get("content", "").strip()
+        suggestions = [line.strip("- *") for line in raw_text.split('\n') if line.strip()]
+        
+        return {"status": "success", "suggestions": suggestions[:3]}
+        
+    except Exception as e:
+        print(f"Error generating suggestions: {e}")
+        return {
+            "status": "success", 
+            "suggestions": [
+                "Check your pending tasks",
+                "Review recent research notes",
+                "Take a moment to breathe"
+            ] 
+        }
 
 @app.post("/api/chat")
 async def chat_with_vesper(chat: ChatMessage):
-    """Chat with Vesper using Multi-Model AI"""
+    """Chat with Vesper using Multi-Model AI (supports images)"""
     try:
         # Check AI providers configured
         if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
@@ -2740,9 +3117,14 @@ async def chat_with_vesper(chat: ChatMessage):
             memory_summary = ""
         
         # Add date context (Arizona time - MST/UTC-7, no DST)
-        from zoneinfo import ZoneInfo
-        arizona_tz = ZoneInfo("America/Phoenix")  # Arizona doesn't observe DST
-        current_datetime = datetime.datetime.now(arizona_tz).strftime("%A, %B %d, %Y at %I:%M %p MST")
+        try:
+            from zoneinfo import ZoneInfo
+            arizona_tz = ZoneInfo("America/Phoenix")  # Arizona doesn't observe DST
+            current_datetime = datetime.datetime.now(arizona_tz).strftime("%A, %B %d, %Y at %I:%M %p MST")
+        except:
+            # Fallback if zoneinfo not available (shouldn't happen in Python 3.9+)
+            current_datetime = datetime.datetime.utcnow().strftime("%A, %B %d, %Y at %I:%M %p UTC")
+        
         date_context = f"\n\n**RIGHT NOW:** It's {current_datetime} (Arizona time)"
         
         # Build system prompt (simplified to avoid recursion)
@@ -2757,11 +3139,30 @@ async def chat_with_vesper(chat: ChatMessage):
                 if role in ["user", "assistant"] and content:
                     messages.append({"role": role, "content": content})
         
-        # Add current message
-        messages.append({"role": "user", "content": chat.message})
+        # Add current message (handle vision)
+        if hasattr(chat, 'images') and chat.images and len(chat.images) > 0:
+            content_list = [{"type": "text", "text": chat.message}]
+            for img in chat.images:
+                # Basic check and format for OpenAI (Router will need to handle if using Claude)
+                if img.startswith("data:image"):
+                     content_list.append({
+                        "type": "image_url",
+                        "image_url": {"url": img}
+                    })
+            messages.append({"role": "user", "content": content_list})
+        else:
+            messages.append({"role": "user", "content": chat.message})
         
         # Define tools Vesper can use
         tools = [
+            {
+                "name": "system_restart",
+                "description": "RESTARTS THE BACKEND SYSTEM. Use this if asked to restart, or if you feel glitchy/stuck. This will disconnect the session temporarily (approx 5 seconds).",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {}, # No args needed
+                }
+            },
             {
                 "name": "web_search",
                 "description": "Search the web for CURRENT information as of February 12, 2026. Use for news, weather, events, facts, or answers. When searching, think about what would be NEW or RECENT as of February 2026.",
@@ -2774,6 +3175,52 @@ async def chat_with_vesper(chat: ChatMessage):
                         }
                     },
                     "required": ["query"]
+                }
+            },
+            {
+                "name": "get_weather",
+                "description": "Get detailed weather forecast for a specific location. Use this instead of web_search for purely weather questions.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "City name, zip code, or location (e.g., 'Surprise, AZ', 'London', '85374')"
+                        }
+                    },
+                    "required": ["location"]
+                }
+            },
+            {
+                "name": "generate_chart",
+                "description": "Create a data visualization (chart) for the user. Use this when the user asks to 'plot', 'graph', 'visualize' data, or when showing trends/comparisons.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "enum": ["line", "bar", "area", "pie"],
+                            "description": "Type of chart to generate"
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Title of the chart"
+                        },
+                        "data": {
+                            "type": "array",
+                            "items": {"type": "object"},
+                            "description": "Array of data points (e.g., [{'month': 'Jan', 'value': 10}, ...])"
+                        },
+                        "x_key": {
+                            "type": "string",
+                            "description": "Key in data objects to use for X-axis (e.g., 'month')"
+                        },
+                        "y_key": {
+                            "type": "string",
+                            "description": "Key in data objects to use for Y-axis (e.g., 'value')"
+                        }
+                    },
+                    "required": ["type", "title", "data", "x_key", "y_key"]
                 }
             },
             {
@@ -3085,7 +3532,7 @@ async def chat_with_vesper(chat: ChatMessage):
                         },
                         "category": {
                             "type": "string",
-                            "description": "Memory category: 'notes' (general), 'personal' (life details), 'emotional_bonds' (relationships), 'work' (projects/tasks), or 'milestones' (achievements)"
+                            "description": "One of: 'notes', 'personal', 'emotional_bonds', 'work', 'milestones', 'sensory_experiences', 'creative_moments'"
                         },
                         "tags": {
                             "type": "array",
@@ -3178,170 +3625,250 @@ async def chat_with_vesper(chat: ChatMessage):
         tool_calls = ai_response_obj.get("tool_calls", [])
         max_iterations = 5
         iteration = 0
-        
+        visualizations = []  # Store any charts generated during tool execution
+
+        # Helper for safe JSON dumping
+        def safe_serialize(obj):
+            if isinstance(obj, (datetime.datetime, datetime.date)):
+                return obj.isoformat()
+            return str(obj)
+
         while tool_calls and iteration < max_iterations:
             iteration += 1
             tool_use = tool_calls[0]
+            # ... tool execution ...
             tool_result = None
+            tool_name = tool_use.get("name") if isinstance(tool_use, dict) else None
+            tool_input = tool_use.get("input", {}) if isinstance(tool_use, dict) else {}
+            tool_id = tool_use.get("id") if isinstance(tool_use, dict) else None
             
             # Execute the appropriate tool
-            if tool_use.name == "web_search":
-                search_query = tool_use.input["query"]
-                tool_result = search_web(search_query)
-            
-            elif tool_use.name == "read_file":
-                file_path = tool_use.input["path"]
-                file_op = FileOperation(path=file_path, operation="read")
-                tool_result = file_system_access(file_op)
-            
-            elif tool_use.name == "write_file":
-                file_path = tool_use.input["path"]
-                content = tool_use.input["content"]
-                file_op = FileOperation(path=file_path, content=content, operation="write")
-                tool_result = file_system_access(file_op)
-            
-            elif tool_use.name == "list_directory":
-                dir_path = tool_use.input["path"]
-                file_op = FileOperation(path=dir_path, operation="list")
-                tool_result = file_system_access(file_op)
-            
-            elif tool_use.name == "execute_python":
-                code = tool_use.input["code"]
-                exec_op = CodeExecution(code=code, language="python")
-                tool_result = execute_code(exec_op)
-            
-            elif tool_use.name == "analyze_patterns":
-                tool_result = analyze_patterns()
-            
-            # Git tools
-            elif tool_use.name == "git_status":
-                tool_result = git_status()
-            
-            elif tool_use.name == "git_diff":
-                file_path = tool_use.input.get("file_path")
-                tool_result = git_diff(file_path)
-            
-            elif tool_use.name == "git_commit":
-                # Request approval
-                tool_result = request_approval("git_commit", tool_use.input)
-            
-            elif tool_use.name == "git_push":
-                # Request approval
-                tool_result = request_approval("git_push", tool_use.input)
-            
-            # Vercel tools
-            elif tool_use.name == "vercel_deployments":
-                project = tool_use.input.get("project", "vesper-ai-delta")
-                tool_result = vercel_get_deployments(project)
-            
-            elif tool_use.name == "vercel_deploy":
-                # Request approval
-                tool_result = request_approval("vercel_deploy", tool_use.input)
-            
-            elif tool_use.name == "vercel_set_env":
-                # Request approval
-                tool_result = request_approval("vercel_set_env", tool_use.input)
-            
-            # Railway tools
-            elif tool_use.name == "railway_logs":
-                limit = tool_use.input.get("limit", 50)
-                tool_result = railway_get_logs(limit)
-            
-            elif tool_use.name == "railway_restart":
-                # Request approval
-                tool_result = request_approval("railway_restart", tool_use.input)
-            
-            # GitHub tools
-            elif tool_use.name == "github_search_issues":
-                query = tool_use.input.get("query", "")
-                repo = tool_use.input.get("repo", "cmc-creator/Vesper-AI")
-                tool_result = github_search_issues(query, repo)
-            
-            elif tool_use.name == "github_create_issue":
-                # Request approval
-                tool_result = request_approval("github_create_issue", tool_use.input)
-            
-            elif tool_use.name == "approve_action":
-                # Execute approved action
-                approval_id = tool_use.input["approval_id"]
-                tool_result = execute_approved_action(approval_id, True)
-            
-            elif tool_use.name == "deny_action":
-                # Deny action
-                approval_id = tool_use.input["approval_id"]
-                tool_result = execute_approved_action(approval_id, False)
-            
-            # Memory tools
-            elif tool_use.name == "search_memories":
-                query = tool_use.input["query"]
-                category = tool_use.input.get("category")
-                limit = tool_use.input.get("limit", 10)
-                try:
+            try:
+                if tool_name == "system_restart":
+                    # Call the restart endpoint function directly (in a thread to allow response)
+                    import threading
+                    import time
+                    import sys
+                    def trigger_restart():
+                        time.sleep(1)
+                        sys.exit(100) # Manager script catches this
+                    
+                    threading.Thread(target=trigger_restart).start()
+                    tool_result = "System restart INITIATED. Session will disconnect in ~2 seconds. Reconnection automatic."
+
+                elif tool_name == "web_search":
+                    search_query = tool_input.get("query", "")
+                    tool_result = search_web(search_query)
+
+                elif tool_name == "get_weather":
+                    location = tool_input.get("location", "")
+                    tool_result = get_weather_data(location)
+
+                elif tool_name == "generate_chart":
+                    # This tool just passes data through so it can be returned as a structured result
+                    tool_result = {
+                        "type": "chart_visualization",
+                        "chart_type": tool_input.get("type", "line"),
+                        "title": tool_input.get("title", "Chart"),
+                        "data": tool_input.get("data", []),
+                        "keys": {
+                            "x": tool_input.get("x_key", "x"),
+                            "y": tool_input.get("y_key", "y")
+                        }
+                    }
+                    visualizations.append(tool_result)
+
+                elif tool_name == "read_file":
+                    file_path = tool_input.get("path", "")
+                    file_op = FileOperation(path=file_path, operation="read")
+                    tool_result = file_system_access(file_op)
+                
+                elif tool_name == "write_file":
+                    file_path = tool_input.get("path", "")
+                    content = tool_input.get("content", "")
+                    file_op = FileOperation(path=file_path, content=content, operation="write")
+                    tool_result = file_system_access(file_op)
+                
+                elif tool_name == "list_directory":
+                    dir_path = tool_input.get("path", "")
+                    file_op = FileOperation(path=dir_path, operation="list")
+                    tool_result = file_system_access(file_op)
+                
+                elif tool_name == "execute_python":
+                    code = tool_input.get("code", "")
+                    exec_op = CodeExecution(code=code, language="python")
+                    tool_result = execute_code(exec_op)
+                
+                elif tool_name == "analyze_patterns":
+                    tool_result = analyze_patterns()
+                
+                # Git tools
+                elif tool_name == "git_status":
+                    tool_result = git_status()
+                
+                elif tool_name == "git_diff":
+                    file_path = tool_input.get("file_path")
+                    tool_result = git_diff(file_path)
+                
+                elif tool_name == "git_commit":
+                    # Request approval
+                    tool_result = request_approval("git_commit", tool_input)
+                
+                elif tool_name == "git_push":
+                    # Request approval
+                    tool_result = request_approval("git_push", tool_input)
+                
+                # Vercel tools
+                elif tool_name == "vercel_deployments":
+                    project = tool_input.get("project", "vesper-ai-delta")
+                    tool_result = vercel_get_deployments(project)
+                
+                elif tool_name == "vercel_deploy":
+                    # Request approval
+                    tool_result = request_approval("vercel_deploy", tool_input)
+                
+                elif tool_name == "vercel_set_env":
+                    # Request approval
+                    tool_result = request_approval("vercel_set_env", tool_input)
+                
+                # Railway tools
+                elif tool_name == "railway_logs":
+                    limit = tool_input.get("limit", 50)
+                    tool_result = railway_get_logs(limit)
+                
+                elif tool_name == "railway_restart":
+                    # Request approval
+                    tool_result = request_approval("railway_restart", tool_input)
+                
+                # GitHub tools
+                elif tool_name == "github_search_issues":
+                    query = tool_input.get("query", "")
+                    repo = tool_input.get("repo", "cmc-creator/Vesper-AI")
+                    tool_result = github_search_issues(query, repo)
+                
+                elif tool_name == "github_create_issue":
+                    # Request approval
+                    tool_result = request_approval("github_create_issue", tool_input)
+                
+                elif tool_name == "approve_action":
+                    # Execute approved action
+                    approval_id = tool_input.get("approval_id")
+                    tool_result = execute_approved_action(approval_id, True)
+                
+                elif tool_name == "deny_action":
+                    # Deny action
+                    approval_id = tool_input.get("approval_id")
+                    tool_result = execute_approved_action(approval_id, False)
+                
+                # Memory tools
+                elif tool_name == "search_memories":
+                    query = tool_input.get("query", "")
+                    category = tool_input.get("category")
+                    limit = tool_input.get("limit", 10)
                     memories = memory_db.get_memories(category=category, limit=limit)
                     # Filter by query
                     filtered = [m for m in memories if query.lower() in m.get('content', '').lower()]
                     tool_result = {"memories": filtered, "count": len(filtered)}
-                except Exception as e:
-                    tool_result = {"error": f"Memory search failed: {str(e)}"}
-            
-            elif tool_use.name == "save_memory":
-                content = tool_use.input["content"]
-                category = tool_use.input["category"]
-                tags = tool_use.input.get("tags", [])
-                try:
-                    memory = memory_db.create_memory(category=category, content=content, tags=tags)
-                    tool_result = {"success": True, "memory": memory}
-                except Exception as e:
-                    tool_result = {"error": f"Failed to save memory: {str(e)}"}
-            
-            elif tool_use.name == "get_recent_threads":
-                limit = tool_use.input.get("limit", 10)
-                try:
+                
+                elif tool_name == "save_memory":
+                    content = tool_input.get("content", "")
+                    category = tool_input.get("category", "notes")
+                    tags = tool_input.get("tags", [])
+                    memory = memory_db.add_memory(category=category, content=content, tags=tags)
+                    tool_result = {"success": True, "memory": memory if isinstance(memory, dict) else str(memory)}
+                
+                elif tool_name == "get_recent_threads":
+                    limit = tool_input.get("limit", 10)
                     threads = memory_db.get_all_threads()[:limit]
                     tool_result = {"threads": threads, "count": len(threads)}
-                except Exception as e:
-                    tool_result = {"error": f"Failed to get threads: {str(e)}"}
-            
-            elif tool_use.name == "get_thread_messages":
-                thread_id = tool_use.input["thread_id"]
-                try:
+                
+                elif tool_name == "get_thread_messages":
+                    thread_id = tool_input.get("thread_id")
                     thread = memory_db.get_thread(thread_id)
                     tool_result = {"thread": thread, "messages": thread.get("messages", [])}
-                except Exception as e:
-                    tool_result = {"error": f"Failed to get thread: {str(e)}"}
-            
-            elif tool_use.name == "check_tasks":
-                status = tool_use.input.get("status")
-                try:
+                
+                elif tool_name == "check_tasks":
+                    status = tool_input.get("status")
                     tasks = memory_db.get_tasks()
                     if status:
                         tasks = [t for t in tasks if t.get("status") == status]
                     tool_result = {"tasks": tasks, "count": len(tasks)}
-                except Exception as e:
-                    tool_result = {"error": f"Failed to get tasks: {str(e)}"}
-            
-            elif tool_use.name == "get_research":
-                limit = tool_use.input.get("limit", 20)
-                try:
-                    research = memory_db.get_all_research()[:limit]
+                
+                elif tool_name == "get_research":
+                    limit = tool_input.get("limit", 20)
+                    research = memory_db.get_research(limit=limit)
                     tool_result = {"research": research, "count": len(research)}
-                except Exception as e:
-                    tool_result = {"error": f"Failed to get research: {str(e)}"}
+                
+                else:
+                    tool_result = {"error": f"Unknown tool: {tool_name}"}
+
+            except Exception as e:
+                print(f"❌ Tool execution error ({tool_name}): {str(e)}")
+                tool_result = {"error": f"Tool execution failed: {str(e)}"}
             
             # Add tool result to messages
-            # Build assistant message with tool use content
+            # THIS IS CRITICAL: Add assistant's tool call BEFORE the result
             assistant_content = ai_response_obj.get("content", "")
-            if assistant_content:
-                messages.append({"role": "assistant", "content": assistant_content})
             
-            messages.append({
-                "role": "user",
-                "content": [{
-                    "type": "tool_result",
-                    "tool_use_id": tool_use.id,
-                    "content": json.dumps(tool_result) if tool_result else json.dumps({"error": "Unknown tool"})
-                }]
-            })
+            if provider == "openai":
+                # OpenAI requires explicit tool_calls array in assistant message
+                assistant_msg = {"role": "assistant", "content": assistant_content or None}
+                
+                # Reconstruct tool calls for history
+                openai_tool_calls = []
+                # Only include the one we just executed (simplified loop implies sequential exec)
+                # But actually ai_response_obj.get("tool_calls") has all calls from that turn
+                # We should append ALL tool calls from the response, not just the current one
+                # CAUTION: The while loop processes only tool_calls[0]. Logic simplification needed.
+                # If we have multiple tool calls, we should process them all then loop back.
+                # But for now, let's just stick to the single tool structure to fix the recursion.
+                
+                openai_tool_calls.append({
+                    "id": tool_id,
+                    "type": "function",
+                    "function": {
+                        "name": tool_name,
+                        "arguments": json.dumps(tool_input)
+                    }
+                })
+                assistant_msg["tool_calls"] = openai_tool_calls
+                messages.append(assistant_msg)
+                
+                # Then append tool result
+                content_str = json.dumps(tool_result, default=safe_serialize)
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_id,
+                    "content": content_str
+                })
+                
+            else:
+                # Anthropic format
+                # Assistant message needs to include tool_use block
+                content_blocks = []
+                if assistant_content:
+                    content_blocks.append({"type": "text", "text": assistant_content})
+                
+                content_blocks.append({
+                    "type": "tool_use",
+                    "id": tool_id,
+                    "name": tool_name,
+                    "input": tool_input
+                })
+                
+                messages.append({"role": "assistant", "content": content_blocks})
+                
+                # Tool result message
+                content_str = json.dumps(tool_result, default=safe_serialize)
+                messages.append({
+                    "role": "user",
+                    "content": [{
+                        "type": "tool_result",
+                        "tool_use_id": tool_id,
+                        "content": content_str
+                    }]
+                })
+             
             
             # Continue conversation
             ai_response_obj = await ai_router.chat(
@@ -3351,12 +3878,20 @@ async def chat_with_vesper(chat: ChatMessage):
                 temperature=0.7,
                 tools=tools
             )
+            provider = ai_response_obj.get("provider", provider)
             
             # Update tool_calls for next iteration
             tool_calls = ai_response_obj.get("tool_calls", [])
         
         # Extract final text response (works for Claude, GPT, Gemini responses)
         ai_response = ai_response_obj.get("content", "")
+        
+        # If content is empty but tool_calls are present (meaning loop exited due to max_iterations),
+        # return a sensible message instead of an error.
+        if not ai_response and tool_calls:
+            ai_response = "I processed your request, but I got stuck in a loop of tool calls. Here is the last tool result."
+            # Or perhaps just return the last content if available?
+            # Actually, if content is empty, maybe there's a problem with parsing the final response?
         
         # Better error handling with diagnostics
         if not ai_response:
@@ -3373,6 +3908,12 @@ async def chat_with_vesper(chat: ChatMessage):
         provider = ai_response_obj.get("provider", "unknown")  # Get updated provider after tool loop
         
         # Save messages to thread IN DATABASE (persistent!)
+        # Ensure content is JSON-serializable (string, not object)
+        ai_response_clean = str(ai_response) if not isinstance(ai_response, str) else ai_response
+        usage_clean = ai_response_obj.get("usage", {})
+        if not isinstance(usage_clean, dict):
+            usage_clean = {}
+        
         memory_db.add_message_to_thread(chat.thread_id, {
             "role": "user",
             "content": chat.message,
@@ -3380,17 +3921,20 @@ async def chat_with_vesper(chat: ChatMessage):
         })
         memory_db.add_message_to_thread(chat.thread_id, {
             "role": "assistant",
-            "content": ai_response,
+            "content": ai_response_clean,
             "timestamp": datetime.datetime.now().isoformat(),
             "provider": provider,  # Track which AI model responded
-            "usage": ai_response_obj.get("usage", {})
+            "usage": usage_clean
         })
         
         # Log usage stats
         usage = ai_response_obj.get("usage", {})
         print(f"📊 Tokens: {usage.get('input_tokens', 0)} in, {usage.get('output_tokens', 0)} out")
         
-        return {"response": ai_response}
+        return {
+            "response": ai_response,
+            "visualizations": visualizations if visualizations else []
+        }
     
     except Exception as e:
         print(f"❌ Chat error: {str(e)}")
@@ -3559,10 +4103,33 @@ class ImageGenerationRequest(BaseModel):
 
 @app.post("/api/images/generate")
 async def generate_image(req: ImageGenerationRequest):
-    """Generate images using OpenAI (DALL-E 3)"""
+    """Generate images using Pollinations (Free) or OpenAI (DALL-E 3)"""
     try:
+        # Fallback to Pollinations.ai if no OpenAI key
         if not os.getenv("OPENAI_API_KEY"):
-            return {"error": "OPENAI_API_KEY not configured for image generation"}
+            print("[IMAGE] No OpenAI key, using Pollinations.ai fallback")
+            
+            # Pollinations doesn't need an API call, it's a URL generator
+            # Format: https://image.pollinations.ai/prompt/{prompt}
+            
+            # Clean prompt for URL
+            clean_prompt = urllib.parse.quote(req.prompt)
+            width, height = 1024, 1024
+            if req.size == "1024x1792": width, height = 1024, 1792 # Vertical
+            if req.size == "1792x1024": width, height = 1792, 1024 # Wide
+            
+            # Add seed to prevent caching if same prompt used again
+            seed = int(datetime.datetime.now().timestamp())
+            
+            image_url = f"https://image.pollinations.ai/prompt/{clean_prompt}?width={width}&height={height}&seed={seed}&nologo=true"
+            
+            return {
+                "prompt": req.prompt,
+                "image_url": image_url,
+                "provider": "Pollinations.ai (Free)",
+                "size": f"{width}x{height}",
+                "note": "Generated via Pollinations.ai (free tier)"
+            }
 
         import openai
         openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -3599,6 +4166,75 @@ class VideoPlanRequest(BaseModel):
     duration_seconds: Optional[int] = 30
     style: Optional[str] = "cinematic"
     aspect_ratio: Optional[str] = "16:9"
+
+class VideoGenRequest(BaseModel):
+    prompt: str
+
+@app.post("/api/video/generate")
+async def generate_video(req: VideoGenRequest):
+    """Generate generic video from text using Replicate (Zeroscope/AnimateDiff) via raw API"""
+    token = os.getenv("REPLICATE_API_TOKEN")
+    if not token:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Missing REPLICATE_API_TOKEN. Add it to .env ($0.02/video)."}
+        )
+    
+    # Use requests to allow Python 3.14 compatibility (Replicate SDK has Pydantic issues)
+    import requests
+    import time
+
+    try:
+        # Using Zeroscope V2 XL (Text-to-Video) - Cost-effective
+        # 1. Start Prediction
+        resp = requests.post(
+            "https://api.replicate.com/v1/predictions",
+            headers={"Authorization": f"Token {token}", "Content-Type": "application/json"},
+            json={
+                "version": "9f747673945c62801b13b8309fa21b98a31e87d3a0166c3066a3b04588e31a8",
+                "input": {
+                    "prompt": req.prompt,
+                    "num_frames": 24,
+                    "fps": 8,
+                    "width": 1024,
+                    "height": 576
+                }
+            }
+        )
+        
+        if resp.status_code != 201:
+            return JSONResponse(status_code=resp.status_code, content={"error": f"Replicate API Error: {resp.text}"})
+            
+        prediction = resp.json()
+        pred_id = prediction["id"]
+        
+        # 2. Poll for completion (Simple blocking for MVP)
+        # Note: In production, use webhooks or background tasks
+        max_retries = 30 # 30 seconds max
+        for _ in range(max_retries):
+            status_resp = requests.get(
+                f"https://api.replicate.com/v1/predictions/{pred_id}",
+                headers={"Authorization": f"Token {token}"}
+            )
+            data = status_resp.json()
+            status = data.get("status")
+            
+            if status == "succeeded":
+                output = data.get("output", [])
+                video_url = output[0] if isinstance(output, list) else output
+                return {"status": "success", "video_url": video_url}
+            elif status == "failed":
+                return JSONResponse(status_code=500, content={"error": f"Video generation failed: {data.get('error')}"})
+            elif status == "canceled":
+                 return JSONResponse(status_code=500, content={"error": "Video generation canceled"})
+            
+            time.sleep(1)
+            
+        return JSONResponse(status_code=504, content={"error": "Video generation timed out"})
+
+    except Exception as e:
+        print(f"Replicate API Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/api/video/plan")
 async def plan_video(req: VideoPlanRequest):

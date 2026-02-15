@@ -30,6 +30,7 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Download as DownloadIcon,
+  AutoFixHigh,
   PushPin as PinIcon,
   PushPinOutlined as PinOutlinedIcon,
   HistoryRounded,
@@ -77,8 +78,12 @@ import Canvas from './src/components/Canvas';
 import DeepResearch from './src/components/DeepResearch';
 import ImageGenerator from './src/components/ImageGenerator';
 import VideoCreator from './src/components/VideoCreator';
+import KnowledgeGraph from './src/components/KnowledgeGraph';
 import GuidedLearning from './src/components/GuidedLearning';
+import ChartComponent from './src/components/ChartComponent';
 import Game from './src/game/Game';
+import SystemDiagnostics from './src/components/SystemDiagnostics';
+import SystemStatusCard from './src/components/SystemStatusCard';
 
 // Styles
 import './App.css';
@@ -151,6 +156,9 @@ function App() {
   const [memoryText, setMemoryText] = useState('');
   const [memoryView, setMemoryView] = useState('history'); // 'history' or 'notes'
   const [threads, setThreads] = useState([]);
+  const [selectedThreadIds, setSelectedThreadIds] = useState([]); // Array of IDs for bulk operations
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Controls the confirmation dialog
+  const [deleteTargetId, setDeleteTargetId] = useState(null); // 'bulk' or specific ID when confirm dialog is open
   const [threadsLoading, setThreadsLoading] = useState(false);
   const [currentThreadId, setCurrentThreadId] = useState(null);
   const [currentThreadTitle, setCurrentThreadTitle] = useState('');
@@ -170,16 +178,38 @@ function App() {
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [abortController, setAbortController] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(() => safeStorageGet('vesper_sound_enabled', 'true') === 'true');
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   
   // Tools
   const [toolsExpanded, setToolsExpanded] = useState(true);
   const [canvasOpen, setCanvasOpen] = useState(false);
+  const [canvasAppCode, setCanvasAppCode] = useState(`import React, { useState } from "react";
+import { Button, Container } from "react-bootstrap";
+import { MoveRight } from "lucide-react";
+
+export default function App() {
+  const [count, setCount] = useState(0);
+  return (
+    <Container className="p-5 text-white bg-dark min-vh-100 d-flex flex-column align-items-center justify-content-center">
+      <h1 className="mb-4 display-4 fw-bold">Built with Vesper</h1>
+      <p className="lead mb-4">I can build real React apps for you.</p>
+      <Button variant="info" size="lg" onClick={() => setCount(c => c + 1)}>
+        Count is {count}
+      </Button>
+    </Container>
+  );
+}`);
+  const [canvasActiveTab, setCanvasActiveTab] = useState(0); // 0=Drawing, 1=AppBuilder
   const [researchOpen, setResearchOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
+  const [graphOpen, setGraphOpen] = useState(false);
   const [learningOpen, setLearningOpen] = useState(false);
   const TOOLS = [
     { id: 'research', label: 'Deep Research', icon: '🔬' },
+    { id: 'graph', label: 'Knowledge Graph', icon: '🕸️' },
     { id: 'videos', label: 'Create videos', icon: '🎬' },
     { id: 'images', label: 'Create images', icon: '🎨' },
     { id: 'canvas', label: 'Canvas', icon: '📐' },
@@ -233,7 +263,7 @@ function App() {
     fontSize: localStorage.getItem('vesper_font_size') || 'medium', // small, medium, large
     compactMode: localStorage.getItem('vesper_compact_mode') === 'true',
     analyticsCharts: localStorage.getItem('vesper_analytics_charts') || 'all', // all, summary, detailed
-    memoryCategories: JSON.parse(localStorage.getItem('vesper_memory_categories') || '["notes", "insights", "learnings", "ideas"]'),
+    memoryCategories: JSON.parse(localStorage.getItem('vesper_memory_categories') || '["notes", "personal", "emotional_bonds", "work", "milestones", "sensory_experiences", "creative_moments"]'),
     researchSources: JSON.parse(localStorage.getItem('vesper_research_sources') || '["web", "file", "manual", "database"]'),
     chatBoxHeight: localStorage.getItem('vesper_chat_box_height') || '35vh', // Resizable chat height
   });
@@ -351,9 +381,13 @@ function App() {
     return 'https://vesper-backend-production-b486.up.railway.app';
   }, []);
 
-  const disableFirebaseAuth = useMemo(
-    () => String(import.meta.env.VITE_DISABLE_FIREBASE_AUTH).toLowerCase() === 'true',
+  const firebaseAuthEnabled = useMemo(
+    () => String(import.meta.env.VITE_FIREBASE_AUTH_ENABLED).toLowerCase() === 'true',
     []
+  );
+  const disableFirebaseAuth = useMemo(
+    () => !firebaseAuthEnabled || String(import.meta.env.VITE_DISABLE_FIREBASE_AUTH).toLowerCase() === 'true',
+    [firebaseAuthEnabled]
   );
 
   const chatBase = useMemo(() => {
@@ -363,13 +397,14 @@ function App() {
     return 'https://vesper-backend-production-b486.up.railway.app';
   }, []);
 
-  const addLocalMessage = async (role, content) => {
+  const addLocalMessage = async (role, content, extras = {}) => {
     const message = {
       id: `${Date.now()}-${Math.random()}`,
       userId: userId || 'local',
       role,
       content,
       timestamp: new Date().toISOString(),
+      ...extras
     };
     setMessages((prev) => [...prev, message]);
 
@@ -471,7 +506,7 @@ function App() {
   }, [messages, currentThreadId]);
 
   const saveMessageToThread = async (role, content) => {
-    if (!apiBase) return;
+    if (!apiBase) return null;
     try {
       let threadId = currentThreadId;
       
@@ -503,6 +538,7 @@ function App() {
         // CRITICAL: Refresh thread list after creating
         fetchThreads();
         console.log('✅ Thread created:', threadId);
+        return threadId;
       } else {
         // Add message to existing thread
         console.log('💬 Adding message to thread:', threadId);
@@ -514,10 +550,12 @@ function App() {
         });
         
         if (!addRes.ok) throw new Error(`HTTP ${addRes.status}: ${addRes.statusText}`);
+        return threadId;
       }
     } catch (error) {
       console.error('❌ Failed to save message to thread:', error);
       setToast(`Memory save failed: ${error.message}`);
+      return currentThreadId;
     }
   };
 
@@ -531,10 +569,30 @@ function App() {
     }
   };
 
+  const fetchSuggestions = async () => {
+    setSuggestionsLoading(true);
+    try {
+      const response = await fetch(`${apiBase}/suggestions?thread_id=${currentThreadId || ''}`);
+      if (!response.ok) throw new Error('Failed to fetch suggestions');
+      const data = await response.json();
+      if (data.suggestions) {
+        setSuggestions(data.suggestions);
+      }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+      setToast('⚠️ Could not load suggestions');
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if ((!input.trim() && uploadedImages.length === 0) || loading) return;
     const userMessage = input.trim();
+    const currentImages = [...uploadedImages]; // Capture images
+    
     setInput('');
+    setUploadedImages([]); // Clear UI immediately
     setLoading(true);
     setThinking(true);
     
@@ -545,19 +603,29 @@ function App() {
     setAbortController(controller);
     
     console.log('📤 Sending message:', userMessage.substring(0, 50));
-    console.log('🎯 Current thread ID:', currentThreadId || 'default');
     
-    addLocalMessage('user', userMessage);
-    await saveMessageToThread('user', userMessage);
+    // Add local message with images
+    const localMsg = { role: 'user', content: userMessage };
+    if (currentImages.length > 0) {
+      localMsg.images = currentImages.map(img => img.dataUrl);
+      localMsg.content = userMessage || '[Image Attached]';
+    }
+    
+    addLocalMessage('user', localMsg.content, localMsg); // Pass full obj as metadata if needed
+    
+    const savedThreadId = await saveMessageToThread('user', userMessage);
     
     try {
+      const payload = { 
+        message: userMessage,
+        thread_id: savedThreadId || currentThreadId || 'default',
+        images: currentImages.length > 0 ? currentImages.map(img => img.dataUrl) : []
+      };
+
       const response = await fetch(`${chatBase}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: userMessage,
-          thread_id: currentThreadId || 'default'
-        }),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
       
@@ -567,9 +635,28 @@ function App() {
       console.log('🤖 Received response:', data.response?.substring(0, 50));
       
       addLocalMessage('assistant', data.response);
-      await saveMessageToThread('assistant', data.response);
+      
+      // Save assistant response to the same thread using the valid ID
+      await saveMessageToThread('assistant', data.response, savedThreadId);
+      
       speak(data.response);
       playSound('notification'); // Sound on response received
+
+      // Handle Visualizations (Charts)
+      if (data.visualizations && data.visualizations.length > 0) {
+        data.visualizations.forEach(viz => {
+          if (viz.type === 'chart_visualization') {
+            const chartMsg = {
+               role: 'assistant',
+               content: 'Generated Chart', // Hidden content, just for structure
+               type: 'chart',
+               chartData: viz
+            };
+            addLocalMessage(chartMsg.role, chartMsg.content, chartMsg);
+            // We don't save charts to thread DB yet, simpler to keep ephemeral or enhance DB schema later
+          }
+        });
+      }
       
       // CRITICAL: Refetch threads to update sidebar with new messages
       fetchThreads();
@@ -1280,9 +1367,15 @@ function App() {
     setToast('New conversation started');
   };
 
-  const deleteThread = async (threadId) => {
+  const deleteThread = async (threadId, skipConfirm = false) => {
     if (!apiBase) return;
-    if (!confirm('Delete this conversation? This cannot be undone.')) return;
+    if (!skipConfirm) {
+      // Use custom dialog instead of window.confirm
+      setDeleteTargetId(threadId);
+      setShowDeleteConfirm(true);
+      return;
+    }
+    
     try {
       const res = await fetch(`${apiBase}/api/threads/${threadId}`, {
         method: 'DELETE',
@@ -1298,6 +1391,49 @@ function App() {
     } catch (error) {
       console.error('Delete failed:', error);
       setToast('Failed to delete conversation');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setDeleteTargetId('bulk');
+    setShowDeleteConfirm(true);
+  };
+  
+  const executeDelete = async () => {
+    if (deleteTargetId === 'bulk') {
+      let count = 0;
+      for (const id of selectedThreadIds) {
+        // Direct delete call without confirm
+        try {
+          const res = await fetch(`${apiBase}/api/threads/${id}`, { method: 'DELETE' });
+          if (res.ok) {
+            setThreads(prev => prev.filter(t => t.id !== id));
+            count++;
+          }
+        } catch (e) { console.error(e); }
+      }
+      setToast(`Deleted ${count} conversations`);
+      setSelectedThreadIds([]);
+      if (selectedThreadIds.includes(currentThreadId)) startNewChat();
+    } else {
+      await deleteThread(deleteTargetId, true);
+    }
+    setShowDeleteConfirm(false);
+    setDeleteTargetId(null);
+  };
+
+  const handleSelectThread = (id) => {
+    setSelectedThreadIds(prev => {
+      if (prev.includes(id)) return prev.filter(tid => tid !== id);
+      return [...prev, id];
+    });
+  };
+
+  const handleSelectAllThreads = (filteredThreads) => {
+    if (selectedThreadIds.length === filteredThreads.length) {
+      setSelectedThreadIds([]);
+    } else {
+      setSelectedThreadIds(filteredThreads.map(t => t.id));
     }
   };
 
@@ -1449,8 +1585,30 @@ function App() {
     try {
       await fetch(`${apiBase}/api/tasks/${idx}`, { method: 'DELETE' });
       fetchTasks();
+      setToast('Task deleted');
     } catch (error) {
       console.error('Delete task failed:', error);
+    }
+  };
+
+  const breakdownTask = async (idx, task) => {
+    if (!apiBase) return;
+    setThinking(true);
+    setToast('Analyzing task structure...');
+    try {
+      const res = await fetch(`${apiBase}/api/tasks/${idx}/breakdown`, { method: 'POST' });
+      const data = await res.json();
+      if (data.status === 'success') {
+        fetchTasks();
+        setToast('Subtasks created!');
+      } else {
+        setToast('AI Breakdown failed');
+      }
+    } catch (error) {
+      console.error('Breakdown task failed:', error);
+      setToast('Error connecting to AI');
+    } finally {
+      setThinking(false);
     }
   };
 
@@ -1523,55 +1681,17 @@ function App() {
     const fileName = file.name;
 
     if (isImage) {
-      setAnalyzingImage(true);
-      setToast('Analyzing image with AI vision...');
-      
-      try {
-        // Upload and analyze image
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('prompt', 'Describe this image in detail. What do you see? What stands out? Any text or important details?');
-        
-        const response = await fetch(`${apiBase}/api/image/analyze`, {
-          method: 'POST',
-          body: formData,
-        });
-        
-        const data = await response.json();
-        
-        if (data.error) {
-          setToast(`Vision error: ${data.error}`);
-          setInput((prev) => (prev ? prev + ` 📎 [Image: ${fileName} - Analysis failed]` : `📎 [Image: ${fileName} - Analysis failed]`));
-        } else {
-          // Add image analysis to uploaded images
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const imagePreview = {
-              name: fileName,
-              dataUrl: e.target.result,
-              analysis: data.analysis,
-              provider: data.provider,
-              metadata: data.metadata
-            };
-            setUploadedImages(prev => [...prev, imagePreview]);
-            
-            // Add image reference to input
-            setInput((prev) => {
-              const imageRef = `📸 [Analyzed: ${fileName}]\n${data.provider}: ${data.analysis}`;
-              return prev ? prev + '\n' + imageRef : imageRef;
-            });
-            
-            setToast(`Image analyzed by ${data.provider}!`);
-          };
-          reader.readAsDataURL(file);
-        }
-      } catch (error) {
-        console.error('Image analysis error:', error);
-        setToast('Failed to analyze image');
-        setInput((prev) => (prev ? prev + ` 📎 [Image: ${fileName}]` : `📎 [Image: ${fileName}]`));
-      } finally {
-        setAnalyzingImage(false);
-      }
+      // Modern: Attach image for true multimodal chat
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setUploadedImages(prev => [...prev, {
+          name: fileName,
+          dataUrl: e.target.result,
+          type: 'image'
+        }]);
+        setToast('Image attached');
+      };
+      reader.readAsDataURL(file);
     } else {
       // Non-image file - just add reference
       const fileRef = `📎 [File: ${fileName}]`;
@@ -1595,50 +1715,16 @@ function App() {
         const blob = item.getAsFile();
         if (blob) {
           const fileName = `pasted-image-${Date.now()}.png`;
-          
-          setAnalyzingImage(true);
-          setToast('Analyzing pasted image...');
-          
-          try {
-            const formData = new FormData();
-            formData.append('file', blob, fileName);
-            formData.append('prompt', 'Describe this image in detail. What do you see? What stands out? Any text or important details?');
-            
-            const response = await fetch(`${apiBase}/api/image/analyze`, {
-              method: 'POST',
-              body: formData,
-            });
-            
-            const data = await response.json();
-            
-            if (data.error) {
-              setToast(`Vision error: ${data.error}`);
-              setInput((prev) => (prev ? prev + `\n📎 [Pasted Image - Analysis failed]` : `📎 [Pasted Image - Analysis failed]`));
-            } else {
-              // Create preview from blob
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                const imagePreview = {
-                  name: fileName,
-                  dataUrl: e.target.result,
-                  analysis: data.analysis,
-                  provider: data.provider,
-                  metadata: data.metadata
-                };
-                setUploadedImages(prev => [...prev, imagePreview]);
-                
-                const imageRef = `📸 [Pasted Image]\n${data.provider}: ${data.analysis}`;
-                setInput((prev) => (prev ? prev + '\n' + imageRef : imageRef));
-                setToast(`Image analyzed by ${data.provider}!`);
-              };
-              reader.readAsDataURL(blob);
-            }
-          } catch (error) {
-            console.error('Paste image analysis error:', error);
-            setToast('Failed to analyze pasted image');
-          } finally {
-            setAnalyzingImage(false);
-          }
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            setUploadedImages(prev => [...prev, {
+              name: fileName,
+              dataUrl: e.target.result,
+              type: 'image'
+            }]);
+            setToast('Image attached from clipboard');
+          };
+          reader.readAsDataURL(blob);
         }
         break;
       }
@@ -1701,13 +1787,79 @@ function App() {
   const renderMessage = (message) => {
     const isUser = message.role === 'user';
     const ts = formatTime(message.timestamp || Date.now());
+
+    // Extract thoughts
+    let thoughts = null;
+    let content = message.content;
+    
+    if (!isUser && content && typeof content === 'string') {
+      const thoughtMatch = content.match(/<thought>([\s\S]*?)<\/thought>/);
+      if (thoughtMatch) {
+        thoughts = thoughtMatch[1].trim();
+        content = content.replace(/<thought>[\s\S]*?<\/thought>/, '').trim();
+      }
+    }
+
+    // Handle Charts
+    if (message.type === 'chart' && message.chartData) {
+      return (
+        <motion.div
+           initial={{ opacity: 0, y: 10 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.3 }}
+           style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }} // Centered
+           key={message.id}
+        >
+           <Box sx={{ width: '90%', maxWidth: '800px' }}>
+              <ChartComponent
+                 type={message.chartData.chart_type}
+                 title={message.chartData.title}
+                 data={message.chartData.data}
+                 xKey={message.chartData.keys.x}
+                 yKey={message.chartData.keys.y}
+              />
+           </Box>
+        </motion.div>
+      );
+    }
+
     return (
       <motion.div
         initial={{ opacity: 0, x: isUser ? 20 : -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.25 }}
-        style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', marginBottom: '16px' }}
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: isUser ? 'flex-end' : 'flex-start', 
+          marginBottom: '16px' 
+        }}
       >
+        {/* Render Thoughts if present */}
+        {thoughts && (
+          <Box 
+            sx={{ 
+              maxWidth: '80%', 
+              mb: 1, 
+              borderLeft: '2px solid rgba(0,255,255,0.3)', 
+              pl: 1.5, 
+              py: 0.5
+            }}
+          >
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: 'rgba(255,255,255,0.5)', 
+                fontStyle: 'italic', 
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'monospace'
+              }}
+            >
+              {thoughts}
+            </Typography>
+          </Box>
+        )}
+
         <Box
           className="message-bubble glass-card"
           sx={{
@@ -1746,6 +1898,28 @@ function App() {
               />
             )}
           </Box>
+
+          {/* Render Attached Images */}
+          {message.images && message.images.length > 0 && (
+            <Box sx={{ mb: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {message.images.map((img, idx) => (
+                <img 
+                  key={idx} 
+                  src={img} 
+                  alt="Attachment" 
+                  style={{ 
+                    maxHeight: 200, 
+                    borderRadius: 8, 
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    objectFit: 'contain',
+                    cursor: 'pointer'
+                  }} 
+                  onClick={() => window.open(img)}
+                />
+              ))}
+            </Box>
+          )}
+
           <ReactMarkdown
             components={{
               code: ({ inline, className, children, ...props }) => {
@@ -1758,6 +1932,16 @@ function App() {
                     console.error(e);
                   }
                 };
+                const isReact = match && ['js', 'jsx', 'javascript', 'tsx', 'ts', 'react'].includes(match[1]);
+                
+                const openInAppBuilder = () => {
+                   setCanvasAppCode(codeString);
+                   setCanvasActiveTab(1); // Switch to App Builder tab
+                   setCanvasOpen(true);
+                   setToast('Code loaded into App Builder');
+                   playSound('click');
+                };
+
                 return !inline && match ? (
                   <Box
                     sx={{
@@ -1770,9 +1954,20 @@ function App() {
                       whiteSpace: 'pre-wrap',
                     }}
                   >
-                    <IconButton size="small" onClick={copy} sx={{ position: 'absolute', top: 4, right: 4, color: 'var(--accent)' }}>
-                      <ContentCopyRounded fontSize="small" />
-                    </IconButton>
+                    <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 4, right: 4 }}>
+                        {isReact && (
+                            <Tooltip title="Preview in App Builder">
+                                <IconButton size="small" onClick={openInAppBuilder} sx={{ color: 'var(--accent)', bgcolor: 'rgba(0, 255, 255, 0.1)', '&:hover': { bgcolor: 'rgba(0, 255, 255, 0.2)' } }}>
+                                    <BoltRounded fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                        <Tooltip title="Copy Code">
+                            <IconButton size="small" onClick={copy} sx={{ color: 'var(--accent)' }}>
+                                <ContentCopyRounded fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
                     <code className={className}>{codeString}</code>
                   </Box>
                 ) : (
@@ -1793,7 +1988,7 @@ function App() {
               },
             }}
           >
-            {message.content}
+            {content}
           </ReactMarkdown>
         </Box>
       </motion.div>
@@ -2151,6 +2346,40 @@ function App() {
             )}
             {memoryView === 'history' ? (
               <Box className="board-list">
+                {selectedThreadIds.length > 0 && (
+                  <Box sx={{ p: 1, mb: 1, bgcolor: 'rgba(255, 68, 68, 0.1)', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" sx={{ color: 'white' }}>{selectedThreadIds.length} selected</Typography>
+                    <Button 
+                      size="small" 
+                      color="error" 
+                      startIcon={<DeleteIcon />} 
+                      onClick={() => {
+                        setDeleteTargetId('bulk');
+                        setShowDeleteConfirm(true);
+                      }}
+                      sx={{ textTransform: 'none', py: 0 }}
+                    >
+                      Delete Selected
+                    </Button>
+                  </Box>
+                )}
+                {/* Select All Checkbox */}
+                <Box sx={{ display: 'flex', alignItems: 'center', px: 1, mb: 1, borderBottom: '1px solid rgba(255,255,255,0.1)', pb: 1 }}>
+                  <Checkbox 
+                    size="small" 
+                    checked={filteredThreads.length > 0 && selectedThreadIds.length === filteredThreads.length}
+                    indeterminate={selectedThreadIds.length > 0 && selectedThreadIds.length < filteredThreads.length}
+                    onChange={() => {
+                      if (selectedThreadIds.length === filteredThreads.length) {
+                        setSelectedThreadIds([]);
+                      } else {
+                        setSelectedThreadIds(filteredThreads.map(t => t.id));
+                      }
+                    }}
+                    sx={{ p: 0.5, mr: 1, color: 'rgba(255,255,255,0.5)' }} 
+                  />
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Select All ({filteredThreads.length})</Typography>
+                </Box>
                 {threadsLoading ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     {[1, 2, 3, 4].map((i) => (
@@ -2173,8 +2402,25 @@ function App() {
                     <Box 
                       key={thread.id} 
                       className="board-row" 
-                      sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' } }}
+                      sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        gap: 1, 
+                        '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' },
+                        borderLeft: selectedThreadIds.includes(thread.id) ? '2px solid var(--accent)' : 'none',
+                        pl: selectedThreadIds.includes(thread.id) ? 1.75 : 2
+                      }}
                     >
+                      <Checkbox 
+                        size="small" 
+                        checked={selectedThreadIds.includes(thread.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleSelectThread(thread.id);
+                        }}
+                        sx={{ p: 0.5, mr: 0.5, color: 'rgba(255,255,255,0.3)' }}
+                      />
                       {editingThreadId === thread.id ? (
                         <TextField
                           value={editingThreadTitle}
@@ -2489,8 +2735,26 @@ function App() {
                                     </Typography>
                                   )}
                                 </Box>
+                                {task.subtasks && task.subtasks.length > 0 && (
+                                  <Box sx={{ mt: 1, pl: 1, borderLeft: '2px solid rgba(255,255,255,0.1)' }}>
+                                    {task.subtasks.map((st, i) => (
+                                      <Typography key={i} variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.6)' }}>
+                                        • {st.title}
+                                      </Typography>
+                                    ))}
+                                  </Box>
+                                )}
                               </Box>
                               <Stack direction="row" spacing={1}>
+                                <Tooltip title="AI Breakdown">
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => breakdownTask(idx, task)}
+                                    sx={{ color: 'var(--accent)' }}
+                                  >
+                                    <AutoFixHigh fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
                                 <Tooltip title="Advance status">
                                   <IconButton
                                     size="small"
@@ -2803,6 +3067,21 @@ function App() {
                         },
                       }}
                     />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>System Diagnostics</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Check health & performance</Typography>
+                    </Box>
+                    <Button 
+                      onClick={() => setDiagnosticsOpen(true)}
+                      size="small"
+                      variant="outlined"
+                      sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                      startIcon={<SpeedIcon />}
+                    >
+                      Run Check
+                    </Button>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
@@ -3540,6 +3819,61 @@ function App() {
               <Box sx={{ width: '30px', height: '2px', bgcolor: 'rgba(0,255,255,0.4)' }} />
             </Box>
 
+            {/* Image Preview Area */}
+            {uploadedImages.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 1, p: 1, overflowX: 'auto', mb: 1, bgcolor: 'rgba(0,0,0,0.3)', borderRadius: 2 }}>
+                {uploadedImages.map((img, index) => (
+                  <Box key={index} sx={{ position: 'relative', width: 60, height: 60, flexShrink: 0 }}>
+                    <img 
+                      src={img.dataUrl} 
+                      alt={img.name} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--accent)' }} 
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={() => setUploadedImages(prev => prev.filter((_, i) => i !== index))}
+                      sx={{ 
+                        position: 'absolute', 
+                        top: -8, 
+                        right: -8, 
+                        width: 20, 
+                        height: 20, 
+                        bgcolor: '#ff4444', 
+                        color: '#fff', 
+                        '&:hover': { bgcolor: '#cc0000' } 
+                      }}
+                    >
+                      <CloseIcon sx={{ fontSize: 12 }} />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+            )}
+
+            {/* Proactive Suggestions */}
+            {suggestions.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 1, mb: 1, overflowX: 'auto', px: 1 }}>
+                {suggestions.map((s, i) => (
+                  <Chip 
+                    key={i} 
+                    label={s} 
+                    onClick={() => {
+                        setInput(s);
+                        setSuggestions([]); // Clear after selection
+                    }}
+                    onDelete={() => setSuggestions(prev => prev.filter((_, idx) => idx !== i))}
+                    sx={{ 
+                      bgcolor: 'rgba(0,255,255,0.1)', 
+                      backdropFilter: 'blur(5px)',
+                      border: '1px solid rgba(0,255,255,0.3)',
+                      color: 'var(--accent)',
+                      '&:hover': { bgcolor: 'rgba(0,255,255,0.2)' }
+                    }} 
+                  />
+                ))}
+              </Box>
+            )}
+
             <Paper
               component="form"
               onSubmit={(e) => {
@@ -3564,6 +3898,16 @@ function App() {
                   disabled={analyzingImage}
                 >
                   {analyzingImage ? <CircularProgress size={20} sx={{ color: 'var(--accent)' }} /> : <AddIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Get Proactive Suggestions" placement="top">
+                <IconButton
+                  onClick={fetchSuggestions}
+                  className="ghost-button"
+                  size="small"
+                  disabled={suggestionsLoading}
+                >
+                  {suggestionsLoading ? <CircularProgress size={20} sx={{ color: 'var(--accent)' }} /> : <AutoFixHigh fontSize="small" />}
                 </IconButton>
               </Tooltip>
               <VoiceInput onTranscript={handleVoiceTranscript} />
@@ -3605,7 +3949,7 @@ function App() {
               ) : (
                 <Tooltip title="Send (Enter)" placement="top">
                   <span>
-                    <IconButton onClick={sendMessage} disabled={!input.trim()} className="cta-button" size="small">
+                    <IconButton type="submit" disabled={!input.trim()} className="cta-button" size="small">
                       <SendIcon />
                     </IconButton>
                   </span>
@@ -3633,6 +3977,8 @@ function App() {
                       setCanvasOpen(true);
                     } else if (tool.id === 'research') {
                       setResearchOpen(true);
+                    } else if (tool.id === 'graph') {
+                      setGraphOpen(true);
                     } else if (tool.id === 'images') {
                       setImageOpen(true);
                     } else if (tool.id === 'videos') {
@@ -3701,43 +4047,9 @@ function App() {
               </Paper>
 
               {/* System Status Card */}
-              <Paper className="ops-card glass-card">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--accent)' }}>System Status</Typography>
-                  <CircularProgress 
-                    variant="determinate" 
-                    value={100} 
-                    size={32} 
-                    sx={{ 
-                      color: '#00ff88',
-                      '& .MuiCircularProgress-circle': { strokeLinecap: 'round' }
-                    }} 
-                  />
-                </Box>
-                <Stack spacing={1}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>Backend</Typography>
-                    <Chip label="Online" size="small" sx={{ bgcolor: 'rgba(0,255,136,0.2)', color: '#00ff88', fontSize: '10px', height: '20px' }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>Memory</Typography>
-                    <Chip label="Synced" size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)', fontSize: '10px', height: '20px' }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>TTS</Typography>
-                    <Chip 
-                      label={ttsEnabled ? 'Enabled' : 'Disabled'} 
-                      size="small" 
-                      sx={{ 
-                        bgcolor: ttsEnabled ? 'rgba(0,255,255,0.2)' : 'rgba(255,255,255,0.1)', 
-                        color: ttsEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.5)', 
-                        fontSize: '10px', 
-                        height: '20px' 
-                      }} 
-                    />
-                  </Box>
-                </Stack>
-              </Paper>
+              <div onClick={() => setDiagnosticsOpen(true)} style={{ cursor: 'pointer' }}>
+                <SystemStatusCard apiBase={apiBase} />
+              </div>
 
               {/* Quick Actions Card */}
               <Paper className="ops-card glass-card">
@@ -3926,7 +4238,44 @@ function App() {
       
       {/* Canvas Modal */}
       <Dialog open={canvasOpen} onClose={() => setCanvasOpen(false)} maxWidth="lg" fullWidth fullScreen>
-        <Canvas onClose={() => setCanvasOpen(false)} onShare={() => setToast('Canvas shared!')} />
+        <Canvas 
+            onClose={() => setCanvasOpen(false)} 
+            onShare={() => setToast('Canvas shared!')} 
+            initialCode={canvasAppCode}
+            initialTab={canvasActiveTab}
+        />
+      </Dialog>
+
+      {/* Knowledge Graph Modal */}
+      <Dialog 
+        open={graphOpen} 
+        onClose={() => setGraphOpen(false)} 
+        maxWidth="xl" 
+        fullWidth 
+        fullScreen
+        PaperProps={{
+          style: {
+            backgroundColor: 'rgba(0,0,0,0.92)',
+          },
+        }}
+      >
+        <Box sx={{ position: 'relative', width: '100vw', height: '100vh' }}>
+            <KnowledgeGraph apiBase={apiBase} />
+            <IconButton
+              onClick={() => setGraphOpen(false)}
+              sx={{
+                position: 'absolute',
+                top: 20,
+                right: 20,
+                color: '#fff',
+                bgcolor: 'rgba(0,0,0,0.5)',
+                '&:hover': { bgcolor: 'rgba(255,0,0,0.5)' },
+                zIndex: 1000
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+        </Box>
       </Dialog>
 
       {/* Deep Research Modal */}
@@ -3947,6 +4296,57 @@ function App() {
       {/* Guided Learning Modal */}
       <Dialog open={learningOpen} onClose={() => setLearningOpen(false)} maxWidth="md" fullWidth>
         <GuidedLearning apiBase={apiBase} onClose={() => setLearningOpen(false)} />
+      </Dialog>
+      
+      {/* System Diagnostics Modal */}
+      <SystemDiagnostics 
+        open={diagnosticsOpen} 
+        onClose={() => setDiagnosticsOpen(false)} 
+        apiBase={apiBase} 
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog 
+        open={showDeleteConfirm} 
+        onClose={() => setShowDeleteConfirm(false)}
+        PaperProps={{
+          style: {
+            backgroundColor: 'rgba(10, 10, 20, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 68, 68, 0.3)',
+            borderRadius: '16px',
+            minWidth: '300px'
+          },
+        }}
+      >
+        <Box sx={{ p: 3, textAlign: 'center' }}>
+          <DeleteIcon sx={{ fontSize: 48, color: '#ff4444', mb: 2, opacity: 0.8 }} />
+          <Typography variant="h6" sx={{ color: '#fff', mb: 1, fontWeight: 700 }}>
+            {deleteTargetId === 'bulk' 
+              ? `Delete ${selectedThreadIds.length} Conversations?` 
+              : 'Delete Conversation?'}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 3 }}>
+            This action cannot be undone. All messages and data will be permanently removed.
+          </Typography>
+          <Stack direction="row" spacing={2} justifyContent="center">
+            <Button 
+              onClick={() => setShowDeleteConfirm(false)}
+              sx={{ color: 'rgba(255,255,255,0.6)', '&:hover': { color: '#fff' } }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="contained" 
+              color="error" 
+              onClick={executeDelete}
+              startIcon={<DeleteIcon />}
+              sx={{ bgcolor: '#ff4444', '&:hover': { bgcolor: '#ff0000' } }}
+            >
+              Delete
+            </Button>
+          </Stack>
+        </Box>
       </Dialog>
     </ThemeProvider>
   );

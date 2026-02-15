@@ -5,6 +5,7 @@ Routes tasks to the best model based on type and availability
 """
 
 import os
+import json
 from typing import Dict, List, Optional, Any
 from enum import Enum
 
@@ -118,81 +119,87 @@ class AIRouter:
     
     def _setup_routing_strategy(self):
         """Setup routing strategy: which provider to use for each task"""
-        # Prioritize Ollama for local, Gemini for cloud
+        # Prioritize Cloud (Quality/Speed) for everything, Ollama as fallback
         if self.is_local:
-            # LOCAL: Ollama first (free, private, fast)
+            # LOCAL: Prioritize cheap/fast cloud models first
             self.routing_strategy = {
                 TaskType.CODE: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.ANTHROPIC,  # Claude fallback for code
-                    ModelProvider.OPENAI,
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini (Best/Cheap)
+                    ModelProvider.GOOGLE,     # Gemini (Free)
+                    ModelProvider.ANTHROPIC,  # Claude (Premium)
+                    ModelProvider.OLLAMA      # Fallback
                 ],
                 TaskType.CHAT: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.GOOGLE,     # Gemini fallback
-                    ModelProvider.OPENAI,
-                    ModelProvider.ANTHROPIC
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini
+                    ModelProvider.ANTHROPIC,  # Claude
+                    ModelProvider.OLLAMA      # Fallback
                 ],
                 TaskType.SEARCH: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.GOOGLE,     # Gemini has grounding
-                    ModelProvider.OPENAI,
-                    ModelProvider.ANTHROPIC
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini
+                    ModelProvider.ANTHROPIC,  # Claude
+                    ModelProvider.OLLAMA      # Fallback
                 ],
                 TaskType.ANALYSIS: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.OPENAI,     # GPT-4o for complex analysis
-                    ModelProvider.ANTHROPIC,
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini
+                    ModelProvider.ANTHROPIC,  # Claude
+                    ModelProvider.OLLAMA      # Fallback
                 ],
                 TaskType.CREATIVE: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.ANTHROPIC,  # Claude creative fallback
-                    ModelProvider.OPENAI,
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini
+                    ModelProvider.ANTHROPIC,  # Claude
+                    ModelProvider.OLLAMA      # Fallback
                 ]
             }
         else:
-            # PRODUCTION/CLOUD: OpenAI gpt-5.1-chat (primary), Claude Haiku (fallback)
+            # PRODUCTION/CLOUD: OpenAI gpt-4o-mini (primary), Google Gemini (fallback), Claude (last resort)
             self.routing_strategy = {
                 TaskType.CODE: [
-                    ModelProvider.OPENAI,     # gpt-5.1-chat for code
-                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini for code
+                    ModelProvider.GOOGLE,     # Gemini Flash fallback
+                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.CHAT: [
-                    ModelProvider.OPENAI,     # gpt-5.1-chat primary
-                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback (fast)
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini primary
+                    ModelProvider.GOOGLE,     # Gemini Flash fallback
+                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.SEARCH: [
-                    ModelProvider.OPENAI,     # gpt-5.1-chat
-                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback
-                    ModelProvider.GOOGLE      # Gemini for grounding
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini for grounding
+                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.ANALYSIS: [
-                    ModelProvider.OPENAI,     # gpt-5.1-chat for analysis
-                    ModelProvider.ANTHROPIC,  # Claude Haiku fallback
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini for analysis
+                    ModelProvider.GOOGLE,     # Gemini Flash fallback
+                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.CREATIVE: [
-                    ModelProvider.ANTHROPIC,  # Claude Haiku for creative
-                    ModelProvider.OPENAI,     # gpt-5.1-chat fallback
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini Flash
+                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ]
             }
         
         # Model selection per provider - BUDGET FOCUSED
         self.models = {
-            ModelProvider.ANTHROPIC: "claude-haiku-4-5",  # Fast & cheap ($2/M tokens)
-            ModelProvider.OPENAI: "gpt-5.1-chat",  # Primary ($3.44/M tokens) - great value
+            # Move Claude to last priority by adjusting routing_strategy above
+            # Keep cheap models:
+            ModelProvider.OPENAI: "gpt-4o-mini",  # Budget model ($0.15/M input, $0.60/M output)
             ModelProvider.GOOGLE: "gemini-1.5-flash",  # Fallback (free tier)
+            ModelProvider.ANTHROPIC: "claude-3-haiku-20240307",  # Claude 3 Haiku (fast & cheap)
             ModelProvider.OLLAMA: "llama3.1:70b"  # Free local
         }
     
     def get_available_provider(self, task_type: TaskType) -> Optional[ModelProvider]:
         """Get first available provider for task type"""
+        # CRITCAL FIX: Prioritize Anthropic if available (user preference for personality)
+        if self.is_provider_available(ModelProvider.ANTHROPIC):
+            return ModelProvider.ANTHROPIC
+            
         for provider in self.routing_strategy[task_type]:
             if self.is_provider_available(provider):
                 return provider
@@ -267,7 +274,37 @@ class AIRouter:
         """Chat with Anthropic Claude"""
         # Convert messages to Claude format
         system_msg = next((m["content"] for m in messages if m["role"] == "system"), None)
-        claude_messages = [m for m in messages if m["role"] != "system"]
+        
+        # Prepare messages, converting OpenAI-style image content to Anthropic format if needed
+        claude_messages = []
+        for m in messages:
+            if m["role"] != "system":
+                content = m["content"]
+                if isinstance(content, list):
+                    new_content = []
+                    for item in content:
+                        if isinstance(item, dict) and item.get("type") == "image_url":
+                            url = item["image_url"]["url"]
+                            if url.startswith("data:"):
+                                # Convert data URI to Anthropic source
+                                try:
+                                    header, data = url.split(",", 1)
+                                    media_type = header.split(":")[1].split(";")[0]
+                                    new_content.append({
+                                        "type": "image", 
+                                        "source": {
+                                            "type": "base64", 
+                                            "media_type": media_type, 
+                                            "data": data
+                                        }
+                                    })
+                                except:
+                                    pass # Skip malformed
+                        else:
+                            new_content.append(item)
+                    content = new_content
+                
+                claude_messages.append({"role": m["role"], "content": content})
         
         kwargs = {
             "model": model,
@@ -283,15 +320,25 @@ class AIRouter:
         
         response = self.anthropic_client.messages.create(**kwargs)
         
+        # Extract content (join all text blocks)
+        content_text = ""
+        if hasattr(response, "content") and response.content:
+            text_blocks = [c.text for c in response.content if hasattr(c, "type") and c.type == "text"]
+            content_text = "\n".join(text_blocks)
+        
         # Extract tool calls safely
         tool_calls = []
         if hasattr(response, "content") and response.content:
             for c in response.content:
                 if hasattr(c, "type") and c.type == "tool_use":
-                    tool_calls.append(c)
+                    tool_calls.append({
+                        "id": getattr(c, "id", None),
+                        "name": getattr(c, "name", None),
+                        "input": getattr(c, "input", {})
+                    })
         
         return {
-            "content": response.content[0].text if response.content else "",
+            "content": content_text,
             "provider": ModelProvider.ANTHROPIC.value,
             "model": model,
             "usage": {
@@ -317,7 +364,19 @@ class AIRouter:
         
         response = self.openai_client.chat.completions.create(**kwargs)
         
-        tool_calls = response.choices[0].message.tool_calls if response.choices[0].message.tool_calls else []
+        tool_calls = []
+        raw_tool_calls = response.choices[0].message.tool_calls or []
+        for tc in raw_tool_calls:
+            args = getattr(tc.function, "arguments", "")
+            try:
+                parsed_args = json.loads(args) if isinstance(args, str) else (args or {})
+            except Exception:
+                parsed_args = {"raw": args}
+            tool_calls.append({
+                "id": getattr(tc, "id", None),
+                "name": getattr(tc.function, "name", None),
+                "input": parsed_args
+            })
         
         return {
             "content": response.choices[0].message.content or "",
