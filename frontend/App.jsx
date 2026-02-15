@@ -3857,7 +3857,7 @@ export default function App() {
               ) : (
                 <Tooltip title="Send (Enter)" placement="top">
                   <span>
-                    <IconButton onClick={sendMessage} disabled={!input.trim()} className="cta-button" size="small">
+                    <IconButton type="submit" disabled={!input.trim()} className="cta-button" size="small">
                       <SendIcon />
                     </IconButton>
                   </span>
