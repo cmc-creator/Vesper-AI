@@ -4263,10 +4263,6 @@ async def generate_video(req: VideoGenRequest):
                  return JSONResponse(status_code=500, content={"error": "Video generation canceled"})
         
         return JSONResponse(status_code=408, content={"error": "Video generation timed out (takes > 2 mins sometimes). Check Replicate dashboard."})
-            
-            time.sleep(1)
-            
-        return JSONResponse(status_code=504, content={"error": "Video generation timed out"})
 
     except Exception as e:
         print(f"Replicate API Error: {e}")

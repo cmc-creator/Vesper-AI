@@ -188,7 +188,8 @@ function App() {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-  
+  const [uiScale, setUiScale] = useState(() => parseFloat(safeStorageGet('vesper_ui_scale', '1')));
+
   // Tools
   const [toolsExpanded, setToolsExpanded] = useState(true);
   const [canvasOpen, setCanvasOpen] = useState(false);
@@ -3397,6 +3398,14 @@ export default function App() {
   return (
     <ThemeProvider theme={baseTheme}>
       <CssBaseline />
+      <Box sx={{ 
+        transform: `scale(${uiScale})`,
+        transformOrigin: 'top left',
+        width: `${100 / uiScale}%`,
+        height: `${100 / uiScale}vh`,
+        overflowX: 'hidden',
+        overflowY: 'hidden'
+      }}>
       <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} onCommand={handleCommand} />
       <FloatingActionButton onAction={handleCommand} />
 
@@ -4044,8 +4053,20 @@ export default function App() {
               <WeatherWidget />
 
               {/* System Status Card */}
-              <div onClick={() => setDiagnosticsOpen(true)} style={{ cursor: 'pointer' }}>
-                <SystemStatusCard apiBase={apiBase} />
+              <div onClick={(e) => {
+                // Only open diagnostics if not interacting with the slider
+                if (!e.target.closest('.MuiSlider-root')) {
+                  setDiagnosticsOpen(true);
+                }
+              }} style={{ cursor: 'pointer' }}>
+                <SystemStatusCard 
+                  apiBase={apiBase} 
+                  currentScale={uiScale} 
+                  onScaleChange={(val) => {
+                    setUiScale(val);
+                    localStorage.setItem('vesper_ui_scale', val.toString());
+                  }} 
+                />
               </div>
 
               {/* Quick Actions Card */}
@@ -4345,6 +4366,7 @@ export default function App() {
           </Stack>
         </Box>
       </Dialog>
+      </Box>
     </ThemeProvider>
   );
 }

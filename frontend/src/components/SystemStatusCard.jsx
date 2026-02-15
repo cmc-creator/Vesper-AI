@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography, CircularProgress, Stack, Chip, LinearProgress } from '@mui/material';
+import { Box, Paper, Typography, CircularProgress, Stack, Chip, LinearProgress, Slider } from '@mui/material';
 
-const SystemStatusCard = ({ apiBase }) => {
+const SystemStatusCard = ({ apiBase, onScaleChange, currentScale = 1 }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -74,6 +74,32 @@ const SystemStatusCard = ({ apiBase }) => {
               height: '20px',
               fontWeight: 700
             }} 
+          />
+        </Box>
+
+        {/* UI Scale Slider */}
+        <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>UI Scale ({Math.round(currentScale * 100)}%)</Typography>
+          </Box>
+          <Slider
+            size="small"
+            value={currentScale}
+            min={0.5}
+            max={1.5}
+            step={0.1}
+            onChange={(_, val) => onScaleChange && onScaleChange(val)}
+            sx={{
+              color: 'var(--accent, #00ffff)',
+              height: 4,
+              '& .MuiSlider-thumb': {
+                width: 12,
+                height: 12,
+                transition: '0.3s cubic-bezier(.47,1.64,.41,.8)',
+                '&:hover': { boxShadow: '0 0 0 8px rgba(0, 255, 255, 0.1)' },
+              },
+              '& .MuiSlider-rail': { opacity: 0.2 },
+            }}
           />
         </Box>
 

@@ -14,8 +14,9 @@ import {
   MeshReflectorMaterial,
   PerformanceMonitor
 } from '@react-three/drei';
+import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing';
 import Character from './Character';
-import Terrain from './Terrain';
+import Plaza from './Plaza';
 import Castle from './Castle';
 import Weather from './Weather';
 import GameUI from './GameUI';
@@ -123,26 +124,50 @@ export default function Game({ onExitGame, onChatWithNPC }) {
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <Canvas camera={{ position: [0, 5, 10], fov: 60 }} gl={{ antialias: true }}>
+      <Canvas camera={{ position: [0, 5, 10], fov: 60 }} gl={{ antialias: true }} shadows>
         <Suspense fallback={null}>
-          {/* === LIGHTING === */}
-          <ambientLight intensity={0.8} />
-          <pointLight position={[20, 20, 20]} intensity={0.8} />
-          <directionalLight position={[100, 100, 100]} intensity={0.5} castShadow />
+          {/* === MAGICAL ATMOSPHERE & LIGHTING === */}
+          <ambientLight intensity={0.4} color="#a080ff" />
+          <pointLight position={[20, 20, 20]} intensity={1.5} color="#ffaaee" castShadow />
+          <directionalLight 
+            position={[50, 80, 50]} 
+            intensity={0.8} 
+            color="#ffddaa" 
+            castShadow 
+            shadow-mapSize={[2048, 2048]}
+          />
+          <fog attach="fog" args={['#201040', 10, 60]} />
 
           {/* === ENVIRONMENT & SKY === */}
-          <Sky sunPosition={[100, 20, 100]} turbidity={10} rayleigh={2} mieCoefficient={0.005} mieDirectionalG={0.7} />
-          <Stars radius={100} depth={20} count={800} factor={4} saturation={0} fade speed={1} />
-          <Environment preset="sunset" />
+          <Sky 
+            sunPosition={[100, 10, 100]} 
+            turbidity={8} 
+            rayleigh={4} 
+            mieCoefficient={0.005} 
+            mieDirectionalG={0.8}
+            inclination={0.6}
+            azimuth={0.25}
+          />
+          <Stars radius={100} depth={50} count={2000} factor={6} saturation={1} fade speed={0.5} />
           
-          {/* === CORE WORLD LAYER === */}
-          <Terrain position={[0, -1, 0]} />
+          {/* === POST PROCESSING === */}
+          <EffectComposer>
+            <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} height={300} intensity={1.5} />
+            <Vignette eskil={false} offset={0.1} darkness={0.4} />
+            <Noise opacity={0.02} />
+          </EffectComposer>
+          
+          {/* === CORE WORLD LAYER (ZONE 1: PLAZA) === */}
+          {/* Replaces the old procedural terrain with a Gray Box Plaza */}
+          <Plaza />
           <Grass position={[0, 0, 0]} />
-          <Castle position={[0, 0, -8]} />
+          <Castle position={[0, 0, -25]} /> {/* Moved castle back */}
           <Weather season={currentSeason} />
           
           {/* === INTERACTIVE ELEMENTS === */}
           <VesperNPC position={[5, 0, 5]} onChat={onChatWithNPC} />
+          {/* USER MODELS: Add your custom models here */}
+          {/* <primitive object={customModel} scale={2} position={[0, 0, 0]} /> */}
           <Horses position={[8, 0, 2]} onMount={() => {}} />
           <Butterflies count={30} />
           
