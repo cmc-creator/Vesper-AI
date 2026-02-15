@@ -78,6 +78,7 @@ import Canvas from './src/components/Canvas';
 import DeepResearch from './src/components/DeepResearch';
 import ImageGenerator from './src/components/ImageGenerator';
 import VideoCreator from './src/components/VideoCreator';
+import KnowledgeGraph from './src/components/KnowledgeGraph';
 import GuidedLearning from './src/components/GuidedLearning';
 import ChartComponent from './src/components/ChartComponent';
 import Game from './src/game/Game';
@@ -202,9 +203,11 @@ export default function App() {
   const [researchOpen, setResearchOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
+  const [graphOpen, setGraphOpen] = useState(false);
   const [learningOpen, setLearningOpen] = useState(false);
   const TOOLS = [
     { id: 'research', label: 'Deep Research', icon: '🔬' },
+    { id: 'graph', label: 'Knowledge Graph', icon: '🕸️' },
     { id: 'videos', label: 'Create videos', icon: '🎬' },
     { id: 'images', label: 'Create images', icon: '🎨' },
     { id: 'canvas', label: 'Canvas', icon: '📐' },
@@ -3921,6 +3924,8 @@ export default function App() {
                       setCanvasOpen(true);
                     } else if (tool.id === 'research') {
                       setResearchOpen(true);
+                    } else if (tool.id === 'graph') {
+                      setGraphOpen(true);
                     } else if (tool.id === 'images') {
                       setImageOpen(true);
                     } else if (tool.id === 'videos') {
@@ -4186,6 +4191,38 @@ export default function App() {
             initialCode={canvasAppCode}
             initialTab={canvasActiveTab}
         />
+      </Dialog>
+
+      {/* Knowledge Graph Modal */}
+      <Dialog 
+        open={graphOpen} 
+        onClose={() => setGraphOpen(false)} 
+        maxWidth="xl" 
+        fullWidth 
+        fullScreen
+        PaperProps={{
+          style: {
+            backgroundColor: 'rgba(0,0,0,0.92)',
+          },
+        }}
+      >
+        <Box sx={{ position: 'relative', width: '100vw', height: '100vh' }}>
+            <KnowledgeGraph apiBase={apiBase} />
+            <IconButton
+              onClick={() => setGraphOpen(false)}
+              sx={{
+                position: 'absolute',
+                top: 20,
+                right: 20,
+                color: '#fff',
+                bgcolor: 'rgba(0,0,0,0.5)',
+                '&:hover': { bgcolor: 'rgba(255,0,0,0.5)' },
+                zIndex: 1000
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+        </Box>
       </Dialog>
 
       {/* Deep Research Modal */}

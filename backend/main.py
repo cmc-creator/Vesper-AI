@@ -944,6 +944,16 @@ def search_memories_text(q: str = "", category: str = None):
         print(f"❌ Error searching memories: {e}")
         return {"status": "error", "error": str(e)}
 
+@app.get("/api/knowledge/graph")
+def get_knowledge_graph():
+    """Get graph representation of all memories, tasks, and research"""
+    try:
+        data = memory_db.get_knowledge_graph()
+        return {"status": "success", "graph": data}
+    except Exception as e:
+        print(f"❌ Error getting knowledge graph: {e}")
+        return {"status": "error", "error": str(e)}
+
 @app.get("/api/memories/tags")
 def get_all_memory_tags(category: str = None):
     """Get all unique tags used in memories"""

@@ -1304,6 +1304,104 @@ class PersistentMemoryDB:
             style += "Uses minimal emojis. "
         
         return style.strip()
+    
+    def get_knowledge_graph(self):
+        """Build a graph representation of all memories, tasks, and research"""
+        session = self.get_session()
+        nodes = []
+        links = []
+        try:
+            # 1. Fetch data
+            memories = session.query(Memory).all()
+            tasks = session.query(Task).all()
+            research = session.query(ResearchItem).all()
+            
+            # 2. Build Nodes
+            # Type colors (frontend will use these or map them):
+            # Memory: 1 (Blue/Cyan), Task: 2 (Green/Red), Research: 3 (Purple/Magenta)
+            
+            for m in memories:
+                nodes.append({
+                    "id": f"mem-{m.id}",
+                    "name": m.content[:50] + "..." if len(m.content) > 50 else m.content,
+                    "full_text": m.content,
+                    "group": 1, # Memory
+                    "val": m.importance * 2 or 5,
+                    "tags": m.tags or [],
+                    "category": m.category
+                })
+                
+            for t in tasks:
+                val = 5
+                if t.priority == 'high': val = 15
+                elif t.priority == 'medium': val = 10
+                
+                nodes.append({
+                    "id": f"task-{t.id}",
+                    "name": t.title,
+                    "full_text": t.description,
+                    "group": 2, # Task
+                    "val": val,
+                    "tags": t.tags or [],
+                    "status": t.status
+                })
+                
+            for r in research:
+                nodes.append({
+                    "id": f"res-{r.id}",
+                    "name": r.title,
+                    "full_text": r.content[:100],
+                    "group": 3, # Research
+                    "val": (r.confidence or 0.5) * 20,
+                    "tags": r.tags or [],
+                    "source": r.source
+                })
+                
+            # 3. Build Links based on shared tags
+            # Complexity: O(N^2) - can be optimized but fine for <1000 items
+            # Better strategy: Map tags to items, then link items sharing tags
+            
+            tag_map = {}
+            for node in nodes:
+                for tag in (node.get("tags") or []):
+                    tag = tag.lower().strip()
+                    if tag not in tag_map:
+                        tag_map[tag] = []
+                    tag_map[tag].append(node["id"])
+                    
+            # Create links based on co-occurrence in tags
+            linked_pairs = set()
+            
+            for tag, item_ids in tag_map.items():
+                if len(item_ids) > 1:
+                    # Link all items sharing this tag
+                    for i in range(len(item_ids)):
+                        for j in range(i + 1, len(item_ids)):
+                            pair = tuple(sorted((item_ids[i], item_ids[j])))
+                            if pair not in linked_pairs:
+                                links.append({
+                                    "source": item_ids[i],
+                                    "target": item_ids[j],
+                                    "value": 1, # Strength
+                                    "type": "tag",
+                                    "tag": tag
+                                })
+                                linked_pairs.add(pair)
+                            else:
+                                # Increase strength if already linked
+                                for link in links:
+                                    if (link["source"] == item_ids[i] and link["target"] == item_ids[j]) or \
+                                       (link["source"] == item_ids[j] and link["target"] == item_ids[i]):
+                                        link["value"] += 1
+                                        break
+                                        
+            return {"nodes": nodes, "links": links}
+            
+        except Exception as e:
+            print(f"Error building graph: {e}")
+            return {"nodes": [], "links": []}
+        finally:
+            session.close()
 
 
 # Global database instance
