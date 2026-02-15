@@ -1557,7 +1557,8 @@ export default function App() {
 
   const breakdownTask = async (idx, task) => {
     if (!apiBase) return;
-    setToast('Breaking down task w/ AI...');
+    setThinking(true);
+    setToast('Analyzing task structure...');
     try {
       const res = await fetch(`${apiBase}/api/tasks/${idx}/breakdown`, { method: 'POST' });
       const data = await res.json();
@@ -1570,6 +1571,8 @@ export default function App() {
     } catch (error) {
       console.error('Breakdown task failed:', error);
       setToast('Error connecting to AI');
+    } finally {
+      setThinking(false);
     }
   };
 

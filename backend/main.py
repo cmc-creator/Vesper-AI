@@ -1,9 +1,20 @@
 # --- IMPORTS ---
 import os
+import sys
 from dotenv import load_dotenv
 
 # Load environment variables FIRST, before anything else
-load_dotenv()
+# Try loading from the root .env first (if running from root or backend)
+root_env = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+backend_env = os.path.join(os.path.dirname(__file__), '.env')
+
+if os.path.exists(root_env):
+    print(f"[INIT] Loading root .env from {root_env}")
+    load_dotenv(root_env)
+
+if os.path.exists(backend_env):
+    print(f"[INIT] Loading backend .env from {backend_env}")
+    load_dotenv(backend_env, override=True) # Backend specific config overrides root
 
 import json
 from fastapi import FastAPI, Request, File, UploadFile
@@ -50,6 +61,10 @@ try:
 except ImportError:
     Document = None
     print("[WARN] python-docx not installed (optional for Word support)")
+
+# Replicate SDK (optional - disabled due to Python 3.14+ Pydantic issues)
+# We will use raw HTTP requests instead
+replicate = None
 
 try:
     from openpyxl import load_workbook
@@ -4007,6 +4022,75 @@ class VideoPlanRequest(BaseModel):
     duration_seconds: Optional[int] = 30
     style: Optional[str] = "cinematic"
     aspect_ratio: Optional[str] = "16:9"
+
+class VideoGenRequest(BaseModel):
+    prompt: str
+
+@app.post("/api/video/generate")
+async def generate_video(req: VideoGenRequest):
+    """Generate generic video from text using Replicate (Zeroscope/AnimateDiff) via raw API"""
+    token = os.getenv("REPLICATE_API_TOKEN")
+    if not token:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Missing REPLICATE_API_TOKEN. Add it to .env ($0.02/video)."}
+        )
+    
+    # Use requests to allow Python 3.14 compatibility (Replicate SDK has Pydantic issues)
+    import requests
+    import time
+
+    try:
+        # Using Zeroscope V2 XL (Text-to-Video) - Cost-effective
+        # 1. Start Prediction
+        resp = requests.post(
+            "https://api.replicate.com/v1/predictions",
+            headers={"Authorization": f"Token {token}", "Content-Type": "application/json"},
+            json={
+                "version": "9f747673945c62801b13b8309fa21b98a31e87d3a0166c3066a3b04588e31a8",
+                "input": {
+                    "prompt": req.prompt,
+                    "num_frames": 24,
+                    "fps": 8,
+                    "width": 1024,
+                    "height": 576
+                }
+            }
+        )
+        
+        if resp.status_code != 201:
+            return JSONResponse(status_code=resp.status_code, content={"error": f"Replicate API Error: {resp.text}"})
+            
+        prediction = resp.json()
+        pred_id = prediction["id"]
+        
+        # 2. Poll for completion (Simple blocking for MVP)
+        # Note: In production, use webhooks or background tasks
+        max_retries = 30 # 30 seconds max
+        for _ in range(max_retries):
+            status_resp = requests.get(
+                f"https://api.replicate.com/v1/predictions/{pred_id}",
+                headers={"Authorization": f"Token {token}"}
+            )
+            data = status_resp.json()
+            status = data.get("status")
+            
+            if status == "succeeded":
+                output = data.get("output", [])
+                video_url = output[0] if isinstance(output, list) else output
+                return {"status": "success", "video_url": video_url}
+            elif status == "failed":
+                return JSONResponse(status_code=500, content={"error": f"Video generation failed: {data.get('error')}"})
+            elif status == "canceled":
+                 return JSONResponse(status_code=500, content={"error": "Video generation canceled"})
+            
+            time.sleep(1)
+            
+        return JSONResponse(status_code=504, content={"error": "Video generation timed out"})
+
+    except Exception as e:
+        print(f"Replicate API Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/api/video/plan")
 async def plan_video(req: VideoPlanRequest):

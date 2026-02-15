@@ -2,35 +2,33 @@
 # Vesper AI - Development Server Launcher
 # Starts both backend (FastAPI) and frontend (Vite) in parallel
 
-Write-Host "🚀 Starting Vesper AI Development Environment..." -ForegroundColor Cyan
+Write-Host ">>> Starting Vesper AI Development Environment..." -ForegroundColor Cyan
 Write-Host ""
 
 # Check if Python virtual environment exists
 if (-not (Test-Path ".venv\Scripts\Activate.ps1")) {
-    Write-Host "⚠️  Python virtual environment not found. Creating..." -ForegroundColor Yellow
+    Write-Host "[!] Python virtual environment not found. Creating..." -ForegroundColor Yellow
     python -m venv .venv
-    & .\.venv\Scripts\Activate.ps1
-    Write-Host "📦 Installing Python dependencies..." -ForegroundColor Yellow
-    pip install -r requirements.txt
-} else {
-    & .\.venv\Scripts\Activate.ps1
+    # Cannot dot-source in same scope easily in script, so we just run pip directly after
+    Write-Host "[+] Installing Python dependencies..." -ForegroundColor Yellow
+    & .\.venv\Scripts\pip install -r requirements.txt
 }
 
-Write-Host "✓ Python environment activated" -ForegroundColor Green
+Write-Host "[OK] Python environment check complete" -ForegroundColor Green
 
 # Check if Node modules exist
 if (-not (Test-Path "frontend\node_modules")) {
-    Write-Host "📦 Installing Node.js dependencies..." -ForegroundColor Yellow
-    Set-Location frontend
+    Write-Host "[+] Installing Node.js dependencies..." -ForegroundColor Yellow
+    Push-Location frontend
     npm install
-    Set-Location ..
+    Pop-Location
 }
 
-Write-Host "✓ Node modules ready" -ForegroundColor Green
+Write-Host "[OK] Node modules ready" -ForegroundColor Green
 Write-Host ""
 
 # Ensure data directories exist
-Write-Host "📁 Ensuring data directories exist..." -ForegroundColor Cyan
+Write-Host "[+] Ensuring data directories exist..." -ForegroundColor Cyan
 @("vesper-ai\knowledge", "vesper-ai\memory") | ForEach-Object {
     if (-not (Test-Path $_)) {
         New-Item -ItemType Directory -Path $_ -Force | Out-Null
@@ -51,28 +49,28 @@ Write-Host "📁 Ensuring data directories exist..." -ForegroundColor Cyan
     }
 }
 
-Write-Host "✓ Data directories ready" -ForegroundColor Green
+Write-Host "[OK] Data directories ready" -ForegroundColor Green
 Write-Host ""
 
 # Check for .env files
 if (-not (Test-Path ".env")) {
-    Write-Host "⚠️  Root .env not found - copying from example" -ForegroundColor Yellow
+    Write-Host "[!] Root .env not found - copying from example" -ForegroundColor Yellow
     if (Test-Path ".env.example") {
         Copy-Item ".env.example" ".env"
     }
 }
 
 if (-not (Test-Path "frontend\.env")) {
-    Write-Host "⚠️  Frontend .env not found - copying from example" -ForegroundColor Yellow
+    Write-Host "[!] Frontend .env not found - copying from example" -ForegroundColor Yellow
     if (Test-Path "frontend\.env.example") {
         Copy-Item "frontend\.env.example" "frontend\.env"
     }
 }
 
 Write-Host ""
-Write-Host "════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "  🌌 VESPER AI - Developer Console" -ForegroundColor Cyan
-Write-Host "════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "====================================================" -ForegroundColor Cyan
+Write-Host "  VESPER AI - Developer Console" -ForegroundColor Cyan
+Write-Host "====================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Backend (FastAPI):  http://localhost:8000" -ForegroundColor White
 Write-Host "  Frontend (Vite):    http://localhost:5173" -ForegroundColor White
@@ -80,37 +78,37 @@ Write-Host "  Chat API:           http://localhost:3000" -ForegroundColor White
 Write-Host ""
 Write-Host "  Press Ctrl+C to stop all servers" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "====================================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Start backend in background
-Write-Host "🔷 Starting Backend Server (Port 8000)..." -ForegroundColor Blue
+Write-Host "[+] Starting Backend Server (Port 8000)..." -ForegroundColor Blue
 $backend = Start-Process powershell -ArgumentList "-NoExit", "-Command", "& {
     `$host.UI.RawUI.WindowTitle = 'Vesper AI - Backend'
     Set-Location '$PWD'
     & .\.venv\Scripts\Activate.ps1
-    Write-Host '🔷 Backend Server Starting...' -ForegroundColor Blue
-    cd backend
+    Write-Host '[+] Backend Server Starting...' -ForegroundColor Blue
+    Set-Location backend
     uvicorn main:app --reload --host 0.0.0.0 --port 8000
 }" -PassThru
 
 Start-Sleep -Seconds 2
 
 # Start frontend in background
-Write-Host "🟢 Starting Frontend Server (Port 5173)..." -ForegroundColor Green
+Write-Host "[+] Starting Frontend Server (Port 5173)..." -ForegroundColor Green
 $frontend = Start-Process powershell -ArgumentList "-NoExit", "-Command", "& {
     `$host.UI.RawUI.WindowTitle = 'Vesper AI - Frontend'
     Set-Location '$PWD\frontend'
-    Write-Host '🟢 Frontend Server Starting...' -ForegroundColor Green
+    Write-Host '[+] Frontend Server Starting...' -ForegroundColor Green
     npm run dev
 }" -PassThru
 
 Start-Sleep -Seconds 2
 
 Write-Host ""
-Write-Host "✓ All servers launched!" -ForegroundColor Green
+Write-Host "[OK] All servers launched!" -ForegroundColor Green
 Write-Host ""
-Write-Host "🌐 Opening browser in 3 seconds..." -ForegroundColor Cyan
+Write-Host "[*] Opening browser in 3 seconds..." -ForegroundColor Cyan
 Start-Sleep -Seconds 3
 
 # Open browser
@@ -127,8 +125,8 @@ try {
     }
 } finally {
     Write-Host ""
-    Write-Host "🛑 Stopping all servers..." -ForegroundColor Red
+    Write-Host "[!] Stopping all servers..." -ForegroundColor Red
     Stop-Process -Id $backend.Id -ErrorAction SilentlyContinue
     Stop-Process -Id $frontend.Id -ErrorAction SilentlyContinue
-    Write-Host "✓ Servers stopped" -ForegroundColor Green
+    Write-Host "[OK] Servers stopped" -ForegroundColor Green
 }

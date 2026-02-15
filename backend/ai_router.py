@@ -120,39 +120,39 @@ class AIRouter:
     
     def _setup_routing_strategy(self):
         """Setup routing strategy: which provider to use for each task"""
-        # Prioritize Ollama for local, Gemini for cloud
+        # Prioritize Cloud (Quality/Speed) for everything, Ollama as fallback
         if self.is_local:
-            # LOCAL: Ollama first (free, private, fast)
+            # LOCAL: Prioritize cheap/fast cloud models first
             self.routing_strategy = {
                 TaskType.CODE: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.ANTHROPIC,  # Claude fallback for code
-                    ModelProvider.OPENAI,
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini (Best/Cheap)
+                    ModelProvider.GOOGLE,     # Gemini (Free)
+                    ModelProvider.ANTHROPIC,  # Claude (Premium)
+                    ModelProvider.OLLAMA      # Fallback
                 ],
                 TaskType.CHAT: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.GOOGLE,     # Gemini fallback
-                    ModelProvider.OPENAI,
-                    ModelProvider.ANTHROPIC
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini
+                    ModelProvider.ANTHROPIC,  # Claude
+                    ModelProvider.OLLAMA      # Fallback
                 ],
                 TaskType.SEARCH: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.GOOGLE,     # Gemini has grounding
-                    ModelProvider.OPENAI,
-                    ModelProvider.ANTHROPIC
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini
+                    ModelProvider.ANTHROPIC,  # Claude
+                    ModelProvider.OLLAMA      # Fallback
                 ],
                 TaskType.ANALYSIS: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.OPENAI,     # GPT-4o for complex analysis
-                    ModelProvider.ANTHROPIC,
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini
+                    ModelProvider.ANTHROPIC,  # Claude
+                    ModelProvider.OLLAMA      # Fallback
                 ],
                 TaskType.CREATIVE: [
-                    ModelProvider.OLLAMA,     # Local first
-                    ModelProvider.ANTHROPIC,  # Claude creative fallback
-                    ModelProvider.OPENAI,
-                    ModelProvider.GOOGLE
+                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.GOOGLE,     # Gemini
+                    ModelProvider.ANTHROPIC,  # Claude
+                    ModelProvider.OLLAMA      # Fallback
                 ]
             }
         else:
@@ -197,6 +197,10 @@ class AIRouter:
     
     def get_available_provider(self, task_type: TaskType) -> Optional[ModelProvider]:
         """Get first available provider for task type"""
+        # CRITCAL FIX: Prioritize Anthropic if available (user preference for personality)
+        if self.is_provider_available(ModelProvider.ANTHROPIC):
+            return ModelProvider.ANTHROPIC
+            
         for provider in self.routing_strategy[task_type]:
             if self.is_provider_available(provider):
                 return provider

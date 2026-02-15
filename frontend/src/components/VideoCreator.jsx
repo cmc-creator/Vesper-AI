@@ -28,6 +28,29 @@ export default function VideoCreator({ apiBase, onClose }) {
   const [error, setError] = useState('');
   const [plan, setPlan] = useState(null);
   const [raw, setRaw] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+
+  const generateVideo = async () => {
+    if (!prompt.trim()) return;
+    setLoading(true);
+    setError('');
+    setVideoUrl('');
+
+    try {
+      const response = await fetch(`${apiBase}/api/video/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      if (data.video_url) setVideoUrl(data.video_url);
+    } catch (err) {
+      setError(err.message || 'Video generation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const createPlan = async () => {
     if (!prompt.trim()) return;
@@ -161,19 +184,39 @@ export default function VideoCreator({ apiBase, onClose }) {
           </Select>
         </Stack>
 
+        <Stack direction="row" spacing={1}>
         <Button
           onClick={createPlan}
+          disabled={loading || !prompt.trim()}
+          variant="outlined"
+          startIcon={loading ? <CircularProgress size={18} /> : <MovieIcon fontSize="small" />}
+          sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+        >
+          {loading ? 'Thinking...' : 'Start Plan'}
+        </Button>
+        <Button
+          onClick={generateVideo}
           disabled={loading || !prompt.trim()}
           variant="contained"
           startIcon={loading ? <CircularProgress size={18} /> : <MovieIcon fontSize="small" />}
           sx={{ bgcolor: 'var(--accent)', color: '#000' }}
         >
-          {loading ? 'Planning...' : 'Create Plan'}
+          {loading ? 'Creating...' : 'Gen Video'}
         </Button>
-      </Stack>
+        </Stack>
+      </Box>
 
       {error && (
         <Box sx={{ color: '#ff6b6b', mb: 2, fontSize: '0.9rem' }}>{error}</Box>
+      )}
+
+      {videoUrl && (
+        <Box sx={{ mt: 2, mb: 2, border: '1px solid var(--accent)', borderRadius: 2, overflow: 'hidden' }}>
+          <video src={videoUrl} controls autoPlay loop style={{ width: '100%', display: 'block' }} />
+          <Typography variant="caption" sx={{ p: 1, display: 'block', color: 'rgba(255,255,255,0.6)' }}>
+            AI Generated Video Preview (Cost: ~$0.02)
+          </Typography>
+        </Box>
       )}
 
       <Box sx={{ flex: 1, overflowY: 'auto', mb: 2 }}>

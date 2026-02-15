@@ -274,7 +274,8 @@ class PersistentMemoryDB:
             if not thread:
                 return None
             
-            messages = thread.messages or []
+            # Force new list copy to ensure SQLAlchemy detects change
+            messages = list(thread.messages) if thread.messages else []
             messages.append(message)
             thread.messages = messages
             thread.updated_at = datetime.datetime.utcnow()

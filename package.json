@@ -6,6 +6,8 @@
     "install": "npm install --prefix frontend --legacy-peer-deps",
     "build": "npm run build --prefix frontend",
     "dev": "npm run dev --prefix frontend"
+  },
+  "dependencies": {
+    "@codesandbox/sandpack-react": "^2.20.0"
   }
 }
-
