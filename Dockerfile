@@ -1,5 +1,5 @@
-# Use Python 3.10 slim image
-FROM python:3.10-slim
+# Use Python 3.12 slim image
+FROM python:3.12-slim
 
 # Set working directory
 WORKDIR /app
@@ -16,5 +16,5 @@ COPY backend/ /app/backend/
 # Expose port (Railway sets $PORT)
 EXPOSE 8000
 
-# Start command
-CMD cd backend && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Start command (JSON format for proper signal handling)
+CMD ["sh", "-c", "cd backend && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
