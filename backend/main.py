@@ -2991,10 +2991,11 @@ class ChatMessage(BaseModel):
     message: str
     conversation_history: Optional[List[dict]] = []
     thread_id: Optional[str] = "default"
+    images: Optional[List[str]] = []  # List of base64 data URLs (e.g., "data:image/png;base64,...")
 
 @app.post("/api/chat")
 async def chat_with_vesper(chat: ChatMessage):
-    """Chat with Vesper using Multi-Model AI"""
+    """Chat with Vesper using Multi-Model AI (supports images)"""
     try:
         # Check AI providers configured
         if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
@@ -3055,8 +3056,19 @@ async def chat_with_vesper(chat: ChatMessage):
                 if role in ["user", "assistant"] and content:
                     messages.append({"role": role, "content": content})
         
-        # Add current message
-        messages.append({"role": "user", "content": chat.message})
+        # Add current message (handle vision)
+        if hasattr(chat, 'images') and chat.images and len(chat.images) > 0:
+            content_list = [{"type": "text", "text": chat.message}]
+            for img in chat.images:
+                # Basic check and format for OpenAI (Router will need to handle if using Claude)
+                if img.startswith("data:image"):
+                     content_list.append({
+                        "type": "image_url",
+                        "image_url": {"url": img}
+                    })
+            messages.append({"role": "user", "content": content_list})
+        else:
+            messages.append({"role": "user", "content": chat.message})
         
         # Define tools Vesper can use
         tools = [

@@ -565,9 +565,12 @@ export default function App() {
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if ((!input.trim() && uploadedImages.length === 0) || loading) return;
     const userMessage = input.trim();
+    const currentImages = [...uploadedImages]; // Capture images
+    
     setInput('');
+    setUploadedImages([]); // Clear UI immediately
     setLoading(true);
     setThinking(true);
     
@@ -578,19 +581,29 @@ export default function App() {
     setAbortController(controller);
     
     console.log('📤 Sending message:', userMessage.substring(0, 50));
-    console.log('🎯 Current thread ID:', currentThreadId || 'default');
     
-    addLocalMessage('user', userMessage);
+    // Add local message with images
+    const localMsg = { role: 'user', content: userMessage };
+    if (currentImages.length > 0) {
+      localMsg.images = currentImages.map(img => img.dataUrl);
+      localMsg.content = userMessage || '[Image Attached]';
+    }
+    
+    addLocalMessage('user', localMsg.content, localMsg); // Pass full obj as metadata if needed
+    
     const savedThreadId = await saveMessageToThread('user', userMessage);
     
     try {
+      const payload = { 
+        message: userMessage,
+        thread_id: savedThreadId || currentThreadId || 'default',
+        images: currentImages.length > 0 ? currentImages.map(img => img.dataUrl) : []
+      };
+
       const response = await fetch(`${chatBase}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: userMessage,
-          thread_id: savedThreadId || currentThreadId || 'default'
-        }),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
       
@@ -1646,55 +1659,17 @@ export default function App() {
     const fileName = file.name;
 
     if (isImage) {
-      setAnalyzingImage(true);
-      setToast('Analyzing image with AI vision...');
-      
-      try {
-        // Upload and analyze image
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('prompt', 'Describe this image in detail. What do you see? What stands out? Any text or important details?');
-        
-        const response = await fetch(`${apiBase}/api/image/analyze`, {
-          method: 'POST',
-          body: formData,
-        });
-        
-        const data = await response.json();
-        
-        if (data.error) {
-          setToast(`Vision error: ${data.error}`);
-          setInput((prev) => (prev ? prev + ` 📎 [Image: ${fileName} - Analysis failed]` : `📎 [Image: ${fileName} - Analysis failed]`));
-        } else {
-          // Add image analysis to uploaded images
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const imagePreview = {
-              name: fileName,
-              dataUrl: e.target.result,
-              analysis: data.analysis,
-              provider: data.provider,
-              metadata: data.metadata
-            };
-            setUploadedImages(prev => [...prev, imagePreview]);
-            
-            // Add image reference to input
-            setInput((prev) => {
-              const imageRef = `📸 [Analyzed: ${fileName}]\n${data.provider}: ${data.analysis}`;
-              return prev ? prev + '\n' + imageRef : imageRef;
-            });
-            
-            setToast(`Image analyzed by ${data.provider}!`);
-          };
-          reader.readAsDataURL(file);
-        }
-      } catch (error) {
-        console.error('Image analysis error:', error);
-        setToast('Failed to analyze image');
-        setInput((prev) => (prev ? prev + ` 📎 [Image: ${fileName}]` : `📎 [Image: ${fileName}]`));
-      } finally {
-        setAnalyzingImage(false);
-      }
+      // Modern: Attach image for true multimodal chat
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setUploadedImages(prev => [...prev, {
+          name: fileName,
+          dataUrl: e.target.result,
+          type: 'image'
+        }]);
+        setToast('Image attached');
+      };
+      reader.readAsDataURL(file);
     } else {
       // Non-image file - just add reference
       const fileRef = `📎 [File: ${fileName}]`;
@@ -1718,50 +1693,16 @@ export default function App() {
         const blob = item.getAsFile();
         if (blob) {
           const fileName = `pasted-image-${Date.now()}.png`;
-          
-          setAnalyzingImage(true);
-          setToast('Analyzing pasted image...');
-          
-          try {
-            const formData = new FormData();
-            formData.append('file', blob, fileName);
-            formData.append('prompt', 'Describe this image in detail. What do you see? What stands out? Any text or important details?');
-            
-            const response = await fetch(`${apiBase}/api/image/analyze`, {
-              method: 'POST',
-              body: formData,
-            });
-            
-            const data = await response.json();
-            
-            if (data.error) {
-              setToast(`Vision error: ${data.error}`);
-              setInput((prev) => (prev ? prev + `\n📎 [Pasted Image - Analysis failed]` : `📎 [Pasted Image - Analysis failed]`));
-            } else {
-              // Create preview from blob
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                const imagePreview = {
-                  name: fileName,
-                  dataUrl: e.target.result,
-                  analysis: data.analysis,
-                  provider: data.provider,
-                  metadata: data.metadata
-                };
-                setUploadedImages(prev => [...prev, imagePreview]);
-                
-                const imageRef = `📸 [Pasted Image]\n${data.provider}: ${data.analysis}`;
-                setInput((prev) => (prev ? prev + '\n' + imageRef : imageRef));
-                setToast(`Image analyzed by ${data.provider}!`);
-              };
-              reader.readAsDataURL(blob);
-            }
-          } catch (error) {
-            console.error('Paste image analysis error:', error);
-            setToast('Failed to analyze pasted image');
-          } finally {
-            setAnalyzingImage(false);
-          }
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            setUploadedImages(prev => [...prev, {
+              name: fileName,
+              dataUrl: e.target.result,
+              type: 'image'
+            }]);
+            setToast('Image attached from clipboard');
+          };
+          reader.readAsDataURL(blob);
         }
         break;
       }
@@ -1935,6 +1876,28 @@ export default function App() {
               />
             )}
           </Box>
+
+          {/* Render Attached Images */}
+          {message.images && message.images.length > 0 && (
+            <Box sx={{ mb: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {message.images.map((img, idx) => (
+                <img 
+                  key={idx} 
+                  src={img} 
+                  alt="Attachment" 
+                  style={{ 
+                    maxHeight: 200, 
+                    borderRadius: 8, 
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    objectFit: 'contain',
+                    cursor: 'pointer'
+                  }} 
+                  onClick={() => window.open(img)}
+                />
+              ))}
+            </Box>
+          )}
+
           <ReactMarkdown
             components={{
               code: ({ inline, className, children, ...props }) => {
@@ -3833,6 +3796,37 @@ export default function App() {
             >
               <Box sx={{ width: '30px', height: '2px', bgcolor: 'rgba(0,255,255,0.4)' }} />
             </Box>
+
+            {/* Image Preview Area */}
+            {uploadedImages.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 1, p: 1, overflowX: 'auto', mb: 1, bgcolor: 'rgba(0,0,0,0.3)', borderRadius: 2 }}>
+                {uploadedImages.map((img, index) => (
+                  <Box key={index} sx={{ position: 'relative', width: 60, height: 60, flexShrink: 0 }}>
+                    <img 
+                      src={img.dataUrl} 
+                      alt={img.name} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--accent)' }} 
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={() => setUploadedImages(prev => prev.filter((_, i) => i !== index))}
+                      sx={{ 
+                        position: 'absolute', 
+                        top: -8, 
+                        right: -8, 
+                        width: 20, 
+                        height: 20, 
+                        bgcolor: '#ff4444', 
+                        color: '#fff', 
+                        '&:hover': { bgcolor: '#cc0000' } 
+                      }}
+                    >
+                      <CloseIcon sx={{ fontSize: 12 }} />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+            )}
 
             <Paper
               component="form"

@@ -275,7 +275,37 @@ class AIRouter:
         """Chat with Anthropic Claude"""
         # Convert messages to Claude format
         system_msg = next((m["content"] for m in messages if m["role"] == "system"), None)
-        claude_messages = [m for m in messages if m["role"] != "system"]
+        
+        # Prepare messages, converting OpenAI-style image content to Anthropic format if needed
+        claude_messages = []
+        for m in messages:
+            if m["role"] != "system":
+                content = m["content"]
+                if isinstance(content, list):
+                    new_content = []
+                    for item in content:
+                        if isinstance(item, dict) and item.get("type") == "image_url":
+                            url = item["image_url"]["url"]
+                            if url.startswith("data:"):
+                                # Convert data URI to Anthropic source
+                                try:
+                                    header, data = url.split(",", 1)
+                                    media_type = header.split(":")[1].split(";")[0]
+                                    new_content.append({
+                                        "type": "image", 
+                                        "source": {
+                                            "type": "base64", 
+                                            "media_type": media_type, 
+                                            "data": data
+                                        }
+                                    })
+                                except:
+                                    pass # Skip malformed
+                        else:
+                            new_content.append(item)
+                    content = new_content
+                
+                claude_messages.append({"role": m["role"], "content": content})
         
         kwargs = {
             "model": model,
