@@ -87,9 +87,9 @@ $backend = Start-Process powershell -ArgumentList "-NoExit", "-Command", "& {
     `$host.UI.RawUI.WindowTitle = 'Vesper AI - Backend'
     Set-Location '$PWD'
     & .\.venv\Scripts\Activate.ps1
-    Write-Host '[+] Backend Server Starting...' -ForegroundColor Blue
+    Write-Host '[+] Backend Server Starting... (Managed Mode)' -ForegroundColor Blue
     Set-Location backend
-    uvicorn main:app --reload --host 0.0.0.0 --port 8000
+    python restart_manager.py
 }" -PassThru
 
 Start-Sleep -Seconds 2

@@ -530,6 +530,7 @@ YOUR CAPABILITIES (You HAVE These Now):
 - **Task Tracking**: Inbox → Doing → Done board for managing work
 - **Video Generation**: You can create AI video clips using the Video Creator tool in the dashboard.
 - **System Diagnostics**: You have real-time access to the host machine's checking CPU/RAM usage.
+- **Self-Maintenance**: You can RESTART YOURSELF if the system feels sluggish or you need to clear cache. Use the 'system_restart' tool.
 - **Research Storage**: Save and retrieve information from web searches and documents
 - **Tool Access**: Web search, file reading/writing, code execution, data analysis
 - You CAN and SHOULD reference past conversations, recall details CC mentioned before, and build on previous discussions
@@ -1426,6 +1427,25 @@ def system_health_check():
             "database": "online" # Placeholder as we use files
         }
     }
+
+@app.post("/api/system/restart")
+def restart_system():
+    """
+    Triggers a system restart by causing the process to exit with code 100.
+    The external manager script will catch this and restart the process.
+    """
+    import sys
+    import threading
+    import time
+
+    def delayed_exit():
+        time.sleep(1) # Small delay to allow response to return
+        sys.exit(100) # Manager script catches this and restarts
+
+    # Run in thread so we can return response first
+    threading.Thread(target=delayed_exit).start()
+    
+    return {"status": "restarting", "message": "System restart initiated. Reconnecting in 5 seconds..."}
 
 # --- Web Search Endpoint ---
 @app.get("/api/search-web")
@@ -3034,6 +3054,14 @@ async def chat_with_vesper(chat: ChatMessage):
         # Define tools Vesper can use
         tools = [
             {
+                "name": "system_restart",
+                "description": "RESTARTS THE BACKEND SYSTEM. Use this if asked to restart, or if you feel glitchy/stuck. This will disconnect the session temporarily (approx 5 seconds).",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {}, # No args needed
+                }
+            },
+            {
                 "name": "web_search",
                 "description": "Search the web for CURRENT information as of February 12, 2026. Use for news, weather, events, facts, or answers. When searching, think about what would be NEW or RECENT as of February 2026.",
                 "input_schema": {
@@ -3514,7 +3542,19 @@ async def chat_with_vesper(chat: ChatMessage):
             
             # Execute the appropriate tool
             try:
-                if tool_name == "web_search":
+                if tool_name == "system_restart":
+                    # Call the restart endpoint function directly (in a thread to allow response)
+                    import threading
+                    import time
+                    import sys
+                    def trigger_restart():
+                        time.sleep(1)
+                        sys.exit(100) # Manager script catches this
+                    
+                    threading.Thread(target=trigger_restart).start()
+                    tool_result = "System restart INITIATED. Session will disconnect in ~2 seconds. Reconnection automatic."
+
+                elif tool_name == "web_search":
                     search_query = tool_input.get("query", "")
                     tool_result = search_web(search_query)
 
