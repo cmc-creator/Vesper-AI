@@ -12,14 +12,12 @@ import {
   Sparkles,
   Float,
   MeshReflectorMaterial,
-  PerformanceMonitor,
-  useGLTF
+  PerformanceMonitor
 } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing';
 import Character from './Character';
 import Plaza from './Plaza';
 import Castle from './Castle';
-import HohenzollernCastle from './HohenzollernCastle';
 import Weather from './Weather';
 import GameUI from './GameUI';
 import VesperNPC from './VesperNPC';
@@ -163,12 +161,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           {/* Replaces the old procedural terrain with a Gray Box Plaza */}
           <Plaza />
           <Grass position={[0, 0, 0]} />
-          {/* <Castle position={[0, 0, -25]} /> OLD CASTLE */}
-          
-          {/* THE NEW HOHENZOLLERN CASTLE */}
-          {/* Scaling down significantly because Sketchfab models are often huge */}
-          <HohenzollernCastle position={[0, 0, -40]} scale={0.05} rotation={[0, Math.PI, 0]} />
-          
+          <Castle position={[0, 0, -25]} /> {/* Moved castle back */}
           <Weather season={currentSeason} />
           
           {/* === INTERACTIVE ELEMENTS === */}
