@@ -82,6 +82,7 @@ import GuidedLearning from './src/components/GuidedLearning';
 import ChartComponent from './src/components/ChartComponent';
 import Game from './src/game/Game';
 import SystemDiagnostics from './src/components/SystemDiagnostics';
+import SystemStatusCard from './src/components/SystemStatusCard';
 
 // Styles
 import './App.css';
@@ -3952,43 +3953,9 @@ export default function App() {
               </Paper>
 
               {/* System Status Card */}
-              <Paper className="ops-card glass-card">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--accent)' }}>System Status</Typography>
-                  <CircularProgress 
-                    variant="determinate" 
-                    value={100} 
-                    size={32} 
-                    sx={{ 
-                      color: '#00ff88',
-                      '& .MuiCircularProgress-circle': { strokeLinecap: 'round' }
-                    }} 
-                  />
-                </Box>
-                <Stack spacing={1}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>Backend</Typography>
-                    <Chip label="Online" size="small" sx={{ bgcolor: 'rgba(0,255,136,0.2)', color: '#00ff88', fontSize: '10px', height: '20px' }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>Memory</Typography>
-                    <Chip label="Synced" size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)', fontSize: '10px', height: '20px' }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>TTS</Typography>
-                    <Chip 
-                      label={ttsEnabled ? 'Enabled' : 'Disabled'} 
-                      size="small" 
-                      sx={{ 
-                        bgcolor: ttsEnabled ? 'rgba(0,255,255,0.2)' : 'rgba(255,255,255,0.1)', 
-                        color: ttsEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.5)', 
-                        fontSize: '10px', 
-                        height: '20px' 
-                      }} 
-                    />
-                  </Box>
-                </Stack>
-              </Paper>
+              <div onClick={() => setDiagnosticsOpen(true)} style={{ cursor: 'pointer' }}>
+                <SystemStatusCard apiBase={apiBase} />
+              </div>
 
               {/* Quick Actions Card */}
               <Paper className="ops-card glass-card">
