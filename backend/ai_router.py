@@ -354,7 +354,9 @@ class AIRouter:
             "model": model,
             "messages": messages,
             "max_tokens": max_tokens,
-            "temperature": temperature
+            "temperature": temperature,
+            "frequency_penalty": 0.5,  # Reduce repetition of tokens
+            "presence_penalty": 0.5    # Encourage new topics
         }
         
         if tools:
