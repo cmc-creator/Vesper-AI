@@ -28,3 +28,6 @@ build/
 Thumbs.db
 .vercel
 .env*.local
+
+# GLB 3D models (too large for GitHub)
+frontend/public/models/*.glb

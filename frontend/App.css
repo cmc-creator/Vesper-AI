@@ -7,7 +7,8 @@ body {
   font-feature-settings: 'kern' 1;
   background: #000;
   color: #e8f6ff;
-  overflow: hidden;
+  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-x: hidden;
 }
 
 .gradient-background {
@@ -334,6 +335,7 @@ canvas {
   padding: 12px;
   gap: 12px;
   color: #e8f6ff;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -427,7 +429,9 @@ canvas {
   grid-template-columns: minmax(350px, 1fr) 1fr;
   gap: 12px;
   align-items: start;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: calc(100vh - 24px);
 }
 
 .chat-panel {
@@ -447,7 +451,7 @@ canvas {
 .chat-window {
   flex: 1;
   max-height: 35vh;
-  overflow-y: scroll;
+  overflow-y: auto;
   overflow-x: hidden;
   padding: 12px;
   border-radius: 14px 14px 0 0;
@@ -456,7 +460,6 @@ canvas {
   box-shadow: inset 0 0 30px rgba(0, 255, 255, 0.05);
   min-height: 0;
   scroll-behavior: smooth;
-  transition: max-height 0.1s ease;
 }
 
 .chat-resize-handle {

@@ -11,17 +11,18 @@ export default function Plaza() {
         {/* === MAIN GROUND (GRASS + PAVEMENT) === */}
         {/* The large base grass area */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]} receiveShadow>
-            <planeGeometry args={[100, 100]} />
+            <planeGeometry args={[400, 400]} />
             <meshStandardMaterial color="#5c9e42" roughness={1} />
         </mesh>
 
         {/* The Central Paved Circle (Town Square) */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-            <circleGeometry args={[15, 64]} />
+            <circleGeometry args={[30, 64]} />
             <meshStandardMaterial color="#e0ded8"  roughness={0.8} />
         </mesh>
 
-        {/* === CENTRAL FOUNTAIN PLACEHOLDER === */}
+        {/* === CENTRAL FOUNTAIN REMOVED (Too much clutter) === */}
+        {/*
         <group position={[0, 0.5, 0]}>
             <mesh castShadow receiveShadow position={[0, 0.5, 0]}>
                 <cylinderGeometry args={[4, 4, 1, 32]} />
@@ -36,36 +37,37 @@ export default function Plaza() {
                 <meshStandardMaterial color="#63b3ed" emissive="#4299e1" emissiveIntensity={0.5} opacity={0.8} transparent />
             </mesh>
         </group>
+        */}
 
         {/* === ZONES FOR BUILDINGS (GRAY BOXING) === */}
         {/* Player Home Plot */}
-        <group position={[20, 0.1, -10]}>
+        <group position={[40, 0.1, -20]}>
             <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[12, 12]} />
+                <planeGeometry args={[14, 14]} />
                 <meshStandardMaterial color="#cbd5e0" transparent opacity={0.5} />
             </mesh>
             <mesh position={[0, 2, 0]}>
-                <boxGeometry args={[10, 4, 10]} />
+                <boxGeometry args={[12, 4, 12]} />
                 <meshStandardMaterial color="#ed8936" wireframe />
             </mesh>
         </group>
 
         {/* Shop Plot */}
-        <group position={[-20, 0.1, -5]}>
+        <group position={[-40, 0.1, -15]}>
             <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[12, 8]} />
+                <planeGeometry args={[14, 10]} />
                 <meshStandardMaterial color="#cbd5e0" transparent opacity={0.5} />
             </mesh>
             <mesh position={[0, 2, 0]}>
-                <boxGeometry args={[10, 4, 6]} />
+                <boxGeometry args={[12, 4, 8]} />
                 <meshStandardMaterial color="#4299e1" wireframe />
             </mesh>
         </group>
 
         {/* Garden Plot */}
-        <group position={[0, 0.1, 20]}>
+        <group position={[0, 0.1, 40]}>
              <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <circleGeometry args={[8, 32]} />
+                <circleGeometry args={[10, 32]} />
                 <meshStandardMaterial color="#f6ad55" transparent opacity={0.5} />
             </mesh>
         </group>

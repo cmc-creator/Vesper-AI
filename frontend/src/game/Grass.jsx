@@ -2,7 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export default function Grass({ count = 50000, spread = 80 }) {
+export default function Grass({ count = 15000, spread = 150 }) {
   const meshRef = useRef();
 
   // Create instanced grass blades
@@ -16,11 +16,8 @@ export default function Grass({ count = 50000, spread = 80 }) {
       const x = (Math.random() - 0.5) * spread;
       const z = (Math.random() - 0.5) * spread;
       
-      // Calculate terrain height (matching Terrain.jsx logic)
-      const height = 
-        Math.sin(x * 0.1) * Math.cos(z * 0.1) * 2 +
-        Math.sin(x * 0.05) * Math.cos(z * 0.05) * 1.5 +
-        Math.sin(x * 0.2) * Math.cos(z * 0.2) * 0.5;
+      // Flat ground — grass sits on the y=0 plane
+      const height = 0;
       
       positions.push(x, height + 0.1, z);
       

@@ -2,7 +2,10 @@ import React from 'react';
 
 export default function Minimap({ playerPosition, crystalsCollected, horsePosition, unicornPos = [35, 0, 35] }) {
   const mapSize = 100; // World size
-  const minimapSize = 150; // Minimap pixel size
+  // React-controlled hover state
+  const [isHovered, setIsHovered] = React.useState(false);
+  
+  const minimapSize = isHovered ? 200 : 75; // 75px collapsed, 200px expanded
   const scale = minimapSize / mapSize;
   
   // Convert 3D world position to 2D minimap position
@@ -16,19 +19,25 @@ export default function Minimap({ playerPosition, crystalsCollected, horsePositi
   const unicornMapPos = worldToMinimap(unicornPos);
 
   return (
-    <div style={{
-      position: 'absolute',
-      top: '20px',
-      right: '20px',
-      width: `${minimapSize}px`,
-height: `${minimapSize}px`,
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      border: '3px solid rgba(167, 139, 250, 0.8)',
-      borderRadius: '10px',
-      backdropFilter: 'blur(10px)',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-      overflow: 'hidden',
-      zIndex: 100
+    <div 
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        width: `${minimapSize}px`,
+        height: `${minimapSize}px`,
+        pointerEvents: 'auto', // Needs to capture mouse for hover
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        border: '3px solid rgba(167, 139, 250, 0.8)',
+        borderRadius: '10px',
+        backdropFilter: 'blur(10px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+        overflow: 'hidden',
+        zIndex: 100,
+        transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        cursor: 'crosshair'
     }}>
       {/* Compass directions */}
       <div style={{

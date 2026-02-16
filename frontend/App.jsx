@@ -49,6 +49,7 @@ import {
   Person,
   AutoStories,
   Checkroom,
+  Speed as SpeedIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -75,7 +76,7 @@ import { signInAnonymously } from 'firebase/auth';
 import AIAvatar from './src/components/AIAvatar';
 import CommandPalette from './src/components/CommandPalette';
 import VoiceInput from './src/components/VoiceInput';
-import FloatingActionButton from './src/components/FloatingActionButton';
+// FloatingActionButton removed - actions now in tools grid
 import Canvas from './src/components/Canvas';
 import DeepResearch from './src/components/DeepResearch';
 import ImageGenerator from './src/components/ImageGenerator';
@@ -83,7 +84,8 @@ import VideoCreator from './src/components/VideoCreator';
 import KnowledgeGraph from './src/components/KnowledgeGraph';
 import GuidedLearning from './src/components/GuidedLearning';
 import ChartComponent from './src/components/ChartComponent';
-import Game from './src/game/Game';
+// Game is lazy-loaded when user enters the world
+const GameLazy = React.lazy(() => import('./src/game/Game'));
 import SystemDiagnostics from './src/components/SystemDiagnostics';
 import SystemStatusCard from './src/components/SystemStatusCard';
 import WeatherWidget from './src/components/WeatherWidget';
@@ -223,6 +225,11 @@ export default function App() {
     { id: 'images', label: 'Create images', icon: '🎨' },
     { id: 'canvas', label: 'Canvas', icon: '📐' },
     { id: 'learning', label: 'Guided Learning', icon: '📚' },
+    { id: 'enterWorld', label: 'Enter World', icon: '🏰' },
+    { id: 'newChat', label: 'New Chat', icon: '💬' },
+    { id: 'clearHistory', label: 'Clear History', icon: '🗑️' },
+    { id: 'mindmap', label: 'Mind Map', icon: '🧠' },
+    { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
   
   // Smart Memory Tags
@@ -506,7 +513,7 @@ export default function App() {
   }, [userId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages]);
 
   // Auto-focus input after sending message or loading thread
@@ -3403,12 +3410,12 @@ export default function App() {
         transform: `scale(${uiScale})`,
         transformOrigin: 'top left',
         width: `${100 / uiScale}%`,
-        height: `${100 / uiScale}vh`,
+        minHeight: `${100 / uiScale}vh`,
         overflowX: 'hidden',
-        overflowY: 'hidden'
+        overflowY: 'auto'
       }}>
       <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} onCommand={handleCommand} />
-      <FloatingActionButton onAction={handleCommand} />
+
 
       {/* Background layers */}
       <div className="bg-layer gradient-background" />
@@ -3994,7 +4001,7 @@ export default function App() {
             {/* Tools Section - Below Input */}
             <Box sx={{ 
               display: 'grid',
-              gridTemplateColumns: 'repeat(5, 1fr)',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
               gap: 0.8,
               mt: 1
             }}>
@@ -4014,6 +4021,16 @@ export default function App() {
                       setVideoOpen(true);
                     } else if (tool.id === 'learning') {
                       setLearningOpen(true);
+                    } else if (tool.id === 'enterWorld') {
+                      setGameMode(true);
+                    } else if (tool.id === 'newChat') {
+                      startNewChat();
+                    } else if (tool.id === 'clearHistory') {
+                      clearHistory();
+                    } else if (tool.id === 'mindmap') {
+                      setActiveSection('research');
+                    } else if (tool.id === 'settings') {
+                      setActiveSection('settings');
                     } else {
                       setToast(`${tool.label} feature coming soon`);
                     }
@@ -4201,29 +4218,76 @@ export default function App() {
 
             </Box>
 
-            {/* Vesper World Panel */}
-            <Paper className="world-panel glass-card" sx={{ mt: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Vesper World</Typography>
-                <Stack direction="row" spacing={1}>
-                  <Chip label="Press C" size="small" className="chip-soft" />
-                  <Chip label="Right rail" size="small" className="chip-soft" />
-                </Stack>
-              </Box>
-              {gameMode ? (
-                <Game onExitGame={() => setGameMode(false)} onChatWithNPC={() => {}} />
-              ) : (
-                <Box className="world-placeholder">
-                  <Typography variant="body1" sx={{ fontWeight: 700 }}>World viewport is ready.</Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                    Chat stays slim on the left. Toggle the world to explore and keep talking.
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-                    <button className="primary-btn" onClick={() => setGameMode(true)}>Enter World</button>
-                  </Box>
+            {/* Vesper World - Entry Card */}
+            <Box sx={{ 
+              mt: 2, 
+              width: '100%',
+              position: 'relative',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              border: '1px solid rgba(0, 255, 255, 0.2)',
+              boxShadow: '0 0 20px rgba(0, 0, 0, 0.5)'
+            }}>
+              <Box sx={{
+                width: '100%',
+                minHeight: 180,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, rgba(20,10,40,0.95) 0%, rgba(10,5,30,0.98) 100%)',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                py: 3,
+                '&:hover': {
+                  background: 'linear-gradient(135deg, rgba(30,15,60,0.95) 0%, rgba(15,8,40,0.98) 100%)',
+                  '& .enter-icon': { transform: 'scale(1.1)', filter: 'drop-shadow(0 0 20px var(--accent))' },
+                },
+              }}
+              onClick={() => setGameMode(true)}
+              >
+                <Box className="enter-icon" sx={{
+                  width: 64, height: 64, borderRadius: '50%',
+                  border: '2px solid var(--accent)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  mb: 1.5, transition: 'all 0.3s ease',
+                  boxShadow: '0 0 30px rgba(0,255,255,0.15)',
+                }}>
+                  <Typography sx={{ fontSize: 28 }}>🌐</Typography>
                 </Box>
-              )}
-            </Paper>
+                <Typography variant="subtitle1" sx={{ color: '#fff', fontWeight: 700, mb: 0.5 }}>
+                  Enter Vesper World
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                  Explore the 3D world
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Fullscreen 3D World Overlay */}
+            {gameMode && (
+              <Box sx={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                zIndex: 9999,
+                background: '#000',
+              }}>
+                <React.Suspense fallback={
+                  <Box sx={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,5,30,1)' }}>
+                    <CircularProgress sx={{ color: 'var(--accent)' }} />
+                    <Typography sx={{ ml: 2, color: 'rgba(255,255,255,0.6)' }}>Loading world...</Typography>
+                  </Box>
+                }>
+                  <GameLazy 
+                    onExitGame={() => setGameMode(false)} 
+                    onChatWithNPC={() => {}} 
+                  />
+                </React.Suspense>
+              </Box>
+            )}
 
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
               <div key={activeSection} className="page-transition">

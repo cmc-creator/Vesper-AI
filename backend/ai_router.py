@@ -191,7 +191,7 @@ class AIRouter:
             ModelProvider.OPENAI: "gpt-4o-mini",  # Budget model ($0.15/M input, $0.60/M output)
             ModelProvider.GOOGLE: "gemini-1.5-flash",  # Fallback (free tier)
             ModelProvider.ANTHROPIC: "claude-3-haiku-20240307",  # Claude 3 Haiku (fast & cheap)
-            ModelProvider.OLLAMA: "llama3.1:70b"  # Free local
+            ModelProvider.OLLAMA: "llama3.2:latest"  # Free local
         }
     
     def get_available_provider(self, task_type: TaskType) -> Optional[ModelProvider]:
