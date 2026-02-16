@@ -2,7 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export default function Grass({ count = 15000, spread = 150 }) {
+export default function Grass({ count = 8000, spread = 150 }) {
   const meshRef = useRef();
 
   // Create instanced grass blades
@@ -76,11 +76,13 @@ export default function Grass({ count = 15000, spread = 150 }) {
       {/* Grass blade geometry - thin triangle */}
       <coneGeometry args={[0.05, 0.8, 3, 1]} />
       
-      {/* Grass material */}
+      {/* Dark ethereal grass / void wisps */}
       <meshStandardMaterial
-        color="#3a5a1a"
-        roughness={0.95}
-        metalness={0.0}
+        color="#0a0a20"
+        emissive="#201040"
+        emissiveIntensity={0.15}
+        roughness={0.8}
+        metalness={0.1}
         flatShading={false}
         side={THREE.DoubleSide}
       />

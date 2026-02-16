@@ -176,6 +176,20 @@
       "rayleigh": 5,
       "inclination": 0.5,
       "azimuth": 0.2
+    },
+    "void": {
+      "sunPosition": [10, -5, 100],
+      "turbidity": 20,
+      "rayleigh": 0.3,
+      "inclination": 0.47,
+      "azimuth": 0.1
+    },
+    "neon-night": {
+      "sunPosition": [5, -10, 50],
+      "turbidity": 25,
+      "rayleigh": 0.1,
+      "inclination": 0.44,
+      "azimuth": 0.05
     }
   },
   "howToAddMore": {

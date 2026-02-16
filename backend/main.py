@@ -1652,7 +1652,6 @@ async def full_system_diagnostics():
         ("/health", "GET"),
         ("/api/system/health", "GET"),
         ("/api/threads", "GET"),
-        ("/api/memories/notes", "GET"),
         ("/api/tasks", "GET"),
         ("/api/research", "GET"),
     ]

@@ -281,34 +281,42 @@ export default function Game({ onExitGame, onChatWithNPC }) {
               />
 
               <ContactShadows position={[0, 0, 0]} opacity={0.3} scale={100} blur={2.5} far={40} resolution={256} color="#000000" />
+
+              {/* Atmospheric Post-Processing for environments too */}
+              <EffectComposer>
+                <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.9} intensity={1.0} mipmapBlur />
+                <Vignette eskil={false} offset={0.15} darkness={0.6} />
+              </EffectComposer>
             </>
           ) : (
             /* ============================================================
-               CLASSIC MODE — The original hand-built world
+               CLASSIC MODE — Second World: Dark Fantasy / Cyberpunk Nexus
                ============================================================ */
             <>
-              {/* === MAGICAL ATMOSPHERE & LIGHTING === */}
-              <ambientLight intensity={0.4} color="#a080ff" />
-              <pointLight position={[20, 20, 20]} intensity={1.5} color="#ffaaee" castShadow />
+              {/* === SECOND WORLD ATMOSPHERE === */}
+              <ambientLight intensity={0.15} color="#201040" />
+              <pointLight position={[0, 30, 0]} intensity={2} color="#8040ff" castShadow distance={100} decay={1} />
+              <pointLight position={[50, 15, 50]} intensity={0.8} color="#00ffff" castShadow distance={80} decay={2} />
+              <pointLight position={[-50, 15, -50]} intensity={0.6} color="#ff40ff" distance={80} decay={2} />
               <directionalLight 
-                position={[50, 80, 50]} 
-                intensity={0.8} 
-                color="#ffddaa" 
+                position={[30, 60, 30]} 
+                intensity={0.3} 
+                color="#4020a0" 
                 castShadow 
                 shadow-mapSize={[2048, 2048]}
               />
-              <fog attach="fog" args={['#201040', 30, 250]} />
+              <fog attach="fog" args={['#08041a', 15, 180]} />
 
               <Sky 
-                sunPosition={[100, 10, 100]} 
-                turbidity={8} 
-                rayleigh={4} 
-                mieCoefficient={0.005} 
-                mieDirectionalG={0.8}
-                inclination={0.6}
+                sunPosition={[10, -5, 100]} 
+                turbidity={20} 
+                rayleigh={0.5} 
+                mieCoefficient={0.01} 
+                mieDirectionalG={0.99}
+                inclination={0.48}
                 azimuth={0.25}
               />
-              <Stars radius={100} depth={50} count={2000} factor={6} saturation={1} fade speed={0.5} />
+              <Stars radius={100} depth={50} count={4000} factor={8} saturation={0.8} fade speed={0.3} />
               
               <Plaza />
               <Grass position={[0, 0, 0]} />
@@ -328,6 +336,13 @@ export default function Game({ onExitGame, onChatWithNPC }) {
               />
 
               <ContactShadows position={[0, 0, 0]} opacity={0.35} scale={100} blur={2.5} far={40} resolution={256} color="#000000" />
+
+              {/* Second World Post-Processing */}
+              <EffectComposer>
+                <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} intensity={1.5} mipmapBlur />
+                <Vignette eskil={false} offset={0.2} darkness={0.8} />
+                <Noise opacity={0.03} />
+              </EffectComposer>
             </>
           )}
 
