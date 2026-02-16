@@ -150,7 +150,7 @@ export default function Plaza() {
       <group position={[40, 0.02, -20]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[8, 32]} />
-          <meshStandardMaterial color="#ff880044" emissive="#ff8800" emissiveIntensity={0.3} transparent opacity={0.1} toneMapped={false} />
+          <meshStandardMaterial color="#ff8800" emissive="#ff8800" emissiveIntensity={0.3} transparent opacity={0.1} toneMapped={false} />
         </mesh>
         <pointLight position={[0, 2, 0]} color="#ff8800" intensity={0.5} distance={12} decay={2} />
       </group>
@@ -159,7 +159,7 @@ export default function Plaza() {
       <group position={[-40, 0.02, -15]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[7, 32]} />
-          <meshStandardMaterial color="#00ff8844" emissive="#00ff88" emissiveIntensity={0.3} transparent opacity={0.1} toneMapped={false} />
+          <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={0.3} transparent opacity={0.1} toneMapped={false} />
         </mesh>
         <pointLight position={[0, 2, 0]} color="#00ff88" intensity={0.5} distance={12} decay={2} />
       </group>
@@ -168,7 +168,7 @@ export default function Plaza() {
       <group position={[0, 0.02, 40]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[10, 32]} />
-          <meshStandardMaterial color="#ff40ff22" emissive="#ff40ff" emissiveIntensity={0.2} transparent opacity={0.08} toneMapped={false} />
+          <meshStandardMaterial color="#ff40ff" emissive="#ff40ff" emissiveIntensity={0.2} transparent opacity={0.08} toneMapped={false} />
         </mesh>
         <Sparkles count={30} scale={[20, 5, 20]} position={[0, 2, 0]} size={1.5} speed={0.1} opacity={0.4} color="#ff40ff" />
       </group>

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useCallback } from 'react';
+import React, { useMemo, useRef, useCallback, Suspense } from 'react';
 import { useGLTF, Html, Float } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -23,6 +23,27 @@ export function saveWorldLayout(models) {
 
 export function resetWorldLayout() {
   localStorage.removeItem(STORAGE_KEY);
+}
+
+/* ============================================================
+   Error Boundary for individual 3D models — prevents one
+   broken model from crashing the entire scene
+   ============================================================ */
+class ModelErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error) {
+    console.warn(`[WorldModels] Failed to load "${this.props.label || 'model'}":`, error.message);
+  }
+  render() {
+    if (this.state.hasError) return null; // Silently skip broken models
+    return this.props.children;
+  }
 }
 
 /* ============================================================
@@ -133,24 +154,29 @@ export default function WorldModels({ layout, selectedId, onSelectModel }) {
         const isSelected = selectedId === m.id;
 
         const modelElement = (
-          <ModelComp
-            key={m.id}
-            url={m.url}
-            position={m.position}
-            rotation={m.rotation}
-            scale={scaleVal}
-            label={m.label}
-            labelColor={m.labelColor}
-            selected={isSelected}
-            onClick={(e) => handleClick(e, m.id)}
-          />
+          <ModelErrorBoundary key={m.id} label={m.label || m.id}>
+            <Suspense fallback={null}>
+              <ModelComp
+                url={m.url}
+                position={m.position}
+                rotation={m.rotation}
+                scale={scaleVal}
+                label={m.label}
+                labelColor={m.labelColor}
+                selected={isSelected}
+                onClick={(e) => handleClick(e, m.id)}
+              />
+            </Suspense>
+          </ModelErrorBoundary>
         );
 
         if (m.flying) {
           return (
-            <Float key={m.id} speed={1.5} rotationIntensity={0.3} floatIntensity={3} floatingRange={[5, 15]}>
-              {modelElement}
-            </Float>
+            <ModelErrorBoundary key={`fly-${m.id}`} label={m.label || m.id}>
+              <Float key={m.id} speed={1.5} rotationIntensity={0.3} floatIntensity={3} floatingRange={[5, 15]}>
+                {modelElement}
+              </Float>
+            </ModelErrorBoundary>
           );
         }
 
