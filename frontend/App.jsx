@@ -3955,11 +3955,17 @@ export default function App() {
                 )}
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Tooltip title={ttsEnabled ? "Voice enabled (right-click to pick voice)" : "Voice disabled"} placement="left">
+                <Tooltip title={ttsEnabled ? "Click to pick voice · Right-click to disable" : "Click to enable voice"} placement="left">
                   <IconButton 
                     size="small" 
-                    onClick={toggleTTS}
-                    onContextMenu={(e) => { e.preventDefault(); setShowVoiceSelector(!showVoiceSelector); }}
+                    onClick={() => {
+                      if (ttsEnabled) {
+                        setShowVoiceSelector(!showVoiceSelector);
+                      } else {
+                        toggleTTS();
+                      }
+                    }}
+                    onContextMenu={(e) => { e.preventDefault(); if (ttsEnabled) toggleTTS(); }}
                     sx={{ 
                       color: ttsEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.4)',
                       '&:hover': { color: 'var(--accent)' }
@@ -3968,17 +3974,7 @@ export default function App() {
                     {ttsEnabled ? <VolumeUpIcon fontSize="small" /> : <VolumeOffIcon fontSize="small" />}
                   </IconButton>
                 </Tooltip>
-                {ttsEnabled && (
-                  <Tooltip title="Choose Vesper's voice" placement="left">
-                    <IconButton 
-                      size="small" 
-                      onClick={() => setShowVoiceSelector(!showVoiceSelector)}
-                      sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'var(--accent)' } }}
-                    >
-                      <SettingsRounded sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
+
                 {isSpeaking && (
                   <Chip 
                     label="Speaking..." 
@@ -4016,7 +4012,7 @@ export default function App() {
                   VESPER'S VOICE — pick "Online" or "Natural" voices for best quality
                 </Typography>
                 {availableVoices
-                  .filter(v => v.lang.startsWith('en'))
+                  .filter(v => v.lang.startsWith('en') && !v.name.startsWith('Google'))
                   .sort((a, b) => {
                     // Sort: Online/Natural voices first, then alphabetical
                     const aHQ = /online|natural/i.test(a.name) ? 0 : 1;
@@ -4068,7 +4064,7 @@ export default function App() {
                     </Box>
                     );
                   })}
-                {availableVoices.filter(v => v.lang.startsWith('en')).length === 0 && (
+                {availableVoices.filter(v => v.lang.startsWith('en') && !v.name.startsWith('Google')).length === 0 && (
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
                     No voices loaded yet. Try toggling TTS off and on.
                   </Typography>
