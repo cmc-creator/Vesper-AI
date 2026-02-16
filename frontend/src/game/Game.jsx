@@ -1,10 +1,10 @@
-import React, { useState, useEffect, Suspense, useRef, lazy, useMemo } from 'react';
+import React, { useState, useEffect, Suspense, useRef, lazy, useMemo, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { 
   Sky, 
   Stars, 
-  OrbitControls as DreiOrbitControls, // Renamed to avoid confusion if we use it manually
+  OrbitControls as DreiOrbitControls,
   PerspectiveCamera,
   Environment,
   ContactShadows,
@@ -26,6 +26,9 @@ import Horses from './Horses';
 import Grass from './Grass';
 import Butterflies from './Butterflies';
 import WorldModels from './WorldModels';
+import EnvironmentScene, { EnvironmentLighting } from './EnvironmentScene';
+import EnvironmentBrowser, { AddEnvironmentDialog } from './EnvironmentBrowser';
+import environmentCatalog from './environmentCatalog.json';
 
 // Lazy load the world editor
 const WorldEditor = lazy(() => import('./WorldEditor'));
@@ -68,6 +71,14 @@ export default function Game({ onExitGame, onChatWithNPC }) {
   const [photoModeActive, setPhotoModeActive] = useState(false);
   const [editorMode, setEditorMode] = useState(false);
   
+  // Environment System
+  const [showEnvironmentBrowser, setShowEnvironmentBrowser] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [activeEnvironmentId, setActiveEnvironmentId] = useState(() => {
+    return localStorage.getItem('vesper_active_environment') || null;
+  });
+  const [environmentLoading, setEnvironmentLoading] = useState(false);
+  
   // Player State
   const [playerHealth, setPlayerHealth] = useState(100);
   const [playerMaxHealth] = useState(100);
@@ -94,6 +105,37 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     const saved = localStorage.getItem('unlocked_recipes');
     return saved ? JSON.parse(saved) : ['iron_sword', 'health_potion', 'torch', 'wooden_chair', 'leather_armor'];
   });
+
+  // Active environment data
+  const activeEnvironment = useMemo(() => {
+    if (!activeEnvironmentId) return null;
+    return environmentCatalog.environments.find(e => e.id === activeEnvironmentId) || null;
+  }, [activeEnvironmentId]);
+
+  const activeSkyPreset = useMemo(() => {
+    if (!activeEnvironment) return null;
+    return environmentCatalog.skyPresets[activeEnvironment.skyPreset] || null;
+  }, [activeEnvironment]);
+
+  const handleSelectEnvironment = useCallback((envId) => {
+    setEnvironmentLoading(true);
+    setActiveEnvironmentId(envId);
+    localStorage.setItem('vesper_active_environment', envId);
+    const env = environmentCatalog.environments.find(e => e.id === envId);
+    if (env) {
+      setPlayerPosition(env.playerSpawn || [0, 2, 10]);
+    }
+    setShowEnvironmentBrowser(false);
+    // Loading state cleared when scene's onLoaded fires
+    setTimeout(() => setEnvironmentLoading(false), 2000);
+  }, []);
+
+  const handleBackToClassic = useCallback(() => {
+    setActiveEnvironmentId(null);
+    localStorage.removeItem('vesper_active_environment');
+    setPlayerPosition([0, 0, 0]);
+    setShowEnvironmentBrowser(false);
+  }, []);
 
   // Keyboard controls configuration for 3D world (WASD)
   const keyboardMap = useMemo(() => [
@@ -123,6 +165,13 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       if (e.key === 'F8') {
         e.preventDefault();
         setEditorMode(prev => !prev);
+        return;
+      }
+
+      // F9 to toggle environment browser
+      if (e.key === 'F9') {
+        e.preventDefault();
+        setShowEnvironmentBrowser(prev => !prev);
         return;
       }
 
@@ -161,89 +210,182 @@ export default function Game({ onExitGame, onChatWithNPC }) {
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <KeyboardControls map={keyboardMap}>
-        <Canvas camera={{ position: [0, 30, 40], fov: 50 }} gl={{ antialias: true }} shadows>
+        <Canvas 
+          camera={{ 
+            position: activeEnvironment 
+              ? [activeEnvironment.playerSpawn[0], activeEnvironment.playerSpawn[1] + 10, activeEnvironment.playerSpawn[2] + (activeEnvironment.cameraDistance || 20)] 
+              : [0, 30, 40], 
+            fov: 50 
+          }} 
+          gl={{ antialias: true }} 
+          shadows
+        >
           <Suspense fallback={null}>
-          {/* === MAGICAL ATMOSPHERE & LIGHTING === */}
-          <ambientLight intensity={0.4} color="#a080ff" />
-          <pointLight position={[20, 20, 20]} intensity={1.5} color="#ffaaee" castShadow />
-          <directionalLight 
-            position={[50, 80, 50]} 
-            intensity={0.8} 
-            color="#ffddaa" 
-            castShadow 
-            shadow-mapSize={[2048, 2048]}
-          />
-          <fog attach="fog" args={['#201040', 30, 250]} />
 
-          {/* === ENVIRONMENT & SKY === */}
-          <Sky 
-            sunPosition={[100, 10, 100]} 
-            turbidity={8} 
-            rayleigh={4} 
-            mieCoefficient={0.005} 
-            mieDirectionalG={0.8}
-            inclination={0.6}
-            azimuth={0.25}
-          />
-          <Stars radius={100} depth={50} count={2000} factor={6} saturation={1} fade speed={0.5} />
-          
-          {/* === POST PROCESSING (Disabled for Stability) === */}
-          {/* 
-          <EffectComposer>
-            <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} height={300} intensity={1.5} />
-            <Vignette eskil={false} offset={0.1} darkness={0.4} />
-            <Noise opacity={0.02} />
-          </EffectComposer> 
-          */}
-          
-          {/* === CORE WORLD LAYER (ZONE 1: PLAZA) === */}
-          {/* Replaces the old procedural terrain with a Gray Box Plaza */}
-          <Plaza />
-          <Grass position={[0, 0, 0]} />
-          <Castle position={[0, 0, -50]} scale={6} />
-          <Weather season={currentSeason} />
-          
-          {/* === INTERACTIVE ELEMENTS === */}
-          <VesperNPC position={[25, 0, 25]} onChat={onChatWithNPC} />
-          {/* USER MODELS: Add your custom models here */}
-          {/* <primitive object={customModel} scale={2} position={[0, 0, 0]} /> */}
-          <Horses position={[45, 0, -20]} onMount={() => {}} />
-          <Butterflies count={30} />
-          
-          {/* === DOWNLOADED 3D MODELS === */}
-          <WorldModels />
-          
-          {/* === PLAYER CHARACTER (Third Person Controller) === */}
-          <PlayerController 
-            startPosition={playerPosition}
-            onPositionChange={handlePlayerTeleport} 
-            cameraDistance={25} /* Move camera further back for giant scale feel */
-          />
+          {activeEnvironment ? (
+            /* ============================================================
+               ENVIRONMENT MODE — Load a complete pre-made 3D scene
+               ============================================================ */
+            <>
+              {/* Environment-matched lighting */}
+              <EnvironmentLighting 
+                preset={activeEnvironment.skyPreset || 'forest'} 
+                ambientColor={activeEnvironment.ambientColor}
+              />
+              
+              {/* Environment-matched fog */}
+              <fog attach="fog" args={[
+                activeEnvironment.fogColor || '#201040', 
+                activeEnvironment.fogNear || 20, 
+                activeEnvironment.fogFar || 150
+              ]} />
 
-          {/* === LIGHTING EFFECTS === */}
-          <ContactShadows position={[0, 0, 0]} opacity={0.35} scale={100} blur={2.5} far={40} resolution={256} color="#000000" />
-        </Suspense>
+              {/* Sky matched to environment */}
+              {activeSkyPreset && (
+                <Sky 
+                  sunPosition={activeSkyPreset.sunPosition}
+                  turbidity={activeSkyPreset.turbidity}
+                  rayleigh={activeSkyPreset.rayleigh}
+                  mieCoefficient={0.005}
+                  mieDirectionalG={0.8}
+                  inclination={activeSkyPreset.inclination}
+                  azimuth={activeSkyPreset.azimuth}
+                />
+              )}
+              <Stars radius={100} depth={50} count={1500} factor={6} saturation={1} fade speed={0.5} />
+
+              {/* THE COMPLETE 3D ENVIRONMENT */}
+              <EnvironmentScene 
+                url={activeEnvironment.file}
+                scale={activeEnvironment.scale || 1}
+                autoCenter={true}
+                enableAnimations={true}
+                onLoaded={(info) => {
+                  setEnvironmentLoading(false);
+                  console.log(`[Environment] Loaded "${activeEnvironment.name}"`, info);
+                }}
+              />
+
+              {/* Vesper NPC follows you into any environment */}
+              <VesperNPC position={[
+                (activeEnvironment.playerSpawn[0] || 0) + 5,
+                (activeEnvironment.playerSpawn[1] || 0),
+                (activeEnvironment.playerSpawn[2] || 0) + 5
+              ]} onChat={onChatWithNPC} />
+
+              {/* Player */}
+              <PlayerController 
+                startPosition={activeEnvironment.playerSpawn || [0, 2, 10]}
+                onPositionChange={handlePlayerTeleport} 
+                cameraDistance={activeEnvironment.cameraDistance || 15}
+              />
+
+              <ContactShadows position={[0, 0, 0]} opacity={0.3} scale={100} blur={2.5} far={40} resolution={256} color="#000000" />
+            </>
+          ) : (
+            /* ============================================================
+               CLASSIC MODE — The original hand-built world
+               ============================================================ */
+            <>
+              {/* === MAGICAL ATMOSPHERE & LIGHTING === */}
+              <ambientLight intensity={0.4} color="#a080ff" />
+              <pointLight position={[20, 20, 20]} intensity={1.5} color="#ffaaee" castShadow />
+              <directionalLight 
+                position={[50, 80, 50]} 
+                intensity={0.8} 
+                color="#ffddaa" 
+                castShadow 
+                shadow-mapSize={[2048, 2048]}
+              />
+              <fog attach="fog" args={['#201040', 30, 250]} />
+
+              <Sky 
+                sunPosition={[100, 10, 100]} 
+                turbidity={8} 
+                rayleigh={4} 
+                mieCoefficient={0.005} 
+                mieDirectionalG={0.8}
+                inclination={0.6}
+                azimuth={0.25}
+              />
+              <Stars radius={100} depth={50} count={2000} factor={6} saturation={1} fade speed={0.5} />
+              
+              <Plaza />
+              <Grass position={[0, 0, 0]} />
+              <Castle position={[0, 0, -50]} scale={6} />
+              <Weather season={currentSeason} />
+              
+              <VesperNPC position={[25, 0, 25]} onChat={onChatWithNPC} />
+              <Horses position={[45, 0, -20]} onMount={() => {}} />
+              <Butterflies count={30} />
+              
+              <WorldModels />
+              
+              <PlayerController 
+                startPosition={playerPosition}
+                onPositionChange={handlePlayerTeleport} 
+                cameraDistance={25}
+              />
+
+              <ContactShadows position={[0, 0, 0]} opacity={0.35} scale={100} blur={2.5} far={40} resolution={256} color="#000000" />
+            </>
+          )}
+
+          </Suspense>
         </Canvas>
       </KeyboardControls>
 
       {/* === GAME UI LAYER === */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
-        {/* Editor toggle button */}
+        {/* Top bar buttons */}
         <div style={{
           position: 'absolute',
           top: 12,
           left: 12,
           pointerEvents: 'auto',
           zIndex: 50,
+          display: 'flex',
+          gap: 8,
         }}>
+          {/* Editor button (classic mode only) */}
+          {!activeEnvironment && (
+            <button
+              onClick={() => setEditorMode(true)}
+              title="Open World Editor (F8)"
+              style={{
+                padding: '6px 12px',
+                background: 'rgba(0, 255, 255, 0.1)',
+                border: '1px solid #00ffff44',
+                color: '#00ffff',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: 11,
+                fontWeight: 600,
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(0, 255, 255, 0.25)';
+                e.currentTarget.style.borderColor = '#00ffff';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(0, 255, 255, 0.1)';
+                e.currentTarget.style.borderColor = '#00ffff44';
+              }}
+            >
+              EDITOR (F8)
+            </button>
+          )}
+
+          {/* Environment Browser button */}
           <button
-            onClick={() => setEditorMode(true)}
-            title="Open World Editor (F8)"
+            onClick={() => setShowEnvironmentBrowser(true)}
+            title="Browse Environments (F9)"
             style={{
               padding: '6px 12px',
-              background: 'rgba(0, 255, 255, 0.1)',
-              border: '1px solid #00ffff44',
-              color: '#00ffff',
+              background: activeEnvironment ? 'rgba(0, 255, 136, 0.15)' : 'rgba(0, 255, 255, 0.1)',
+              border: `1px solid ${activeEnvironment ? '#00ff8844' : '#00ffff44'}`,
+              color: activeEnvironment ? '#00ff88' : '#00ffff',
               borderRadius: 6,
               cursor: 'pointer',
               fontFamily: '"JetBrains Mono", monospace',
@@ -252,19 +394,88 @@ export default function Game({ onExitGame, onChatWithNPC }) {
               transition: 'all 0.2s',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(0, 255, 255, 0.25)';
-              e.currentTarget.style.borderColor = '#00ffff';
+              e.currentTarget.style.background = activeEnvironment ? 'rgba(0, 255, 136, 0.3)' : 'rgba(0, 255, 255, 0.25)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(0, 255, 255, 0.1)';
-              e.currentTarget.style.borderColor = '#00ffff44';
+              e.currentTarget.style.background = activeEnvironment ? 'rgba(0, 255, 136, 0.15)' : 'rgba(0, 255, 255, 0.1)';
             }}
           >
-            EDITOR (F8)
+            🌍 WORLDS (F9)
           </button>
+
+          {/* Back to classic button (when in environment mode) */}
+          {activeEnvironment && (
+            <button
+              onClick={handleBackToClassic}
+              title="Back to classic world"
+              style={{
+                padding: '6px 12px',
+                background: 'rgba(255, 170, 0, 0.1)',
+                border: '1px solid rgba(255, 170, 0, 0.3)',
+                color: '#ffaa00',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: 11,
+                fontWeight: 600,
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 170, 0, 0.2)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 170, 0, 0.1)'}
+            >
+              ← CLASSIC
+            </button>
+          )}
         </div>
+
+        {/* Active environment name badge */}
+        {activeEnvironment && (
+          <div style={{
+            position: 'absolute',
+            top: 12,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            pointerEvents: 'none',
+            zIndex: 40,
+            padding: '6px 16px',
+            background: 'rgba(0, 0, 0, 0.5)',
+            border: '1px solid rgba(0, 255, 136, 0.2)',
+            borderRadius: 20,
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: 12,
+            fontWeight: 600,
+            color: '#00ff88',
+            textShadow: '0 0 10px rgba(0,255,136,0.5)',
+          }}>
+            🌍 {activeEnvironment.name}
+          </div>
+        )}
+
+        {/* Loading overlay */}
+        {environmentLoading && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(5, 5, 15, 0.8)',
+            pointerEvents: 'auto',
+            zIndex: 100,
+          }}>
+            <div style={{
+              fontFamily: '"JetBrains Mono", monospace',
+              color: '#00ffff',
+              fontSize: 18,
+              fontWeight: 700,
+              animation: 'pulse 1.5s ease-in-out infinite',
+            }}>
+              Loading environment...
+            </div>
+          </div>
+        )}
+
         <Suspense fallback={null}>
-          {/* HUD & Stats (Add pointer events allow on UI container children if needed, handled in GameUI) */}
           <GameUI 
             health={playerHealth}
             maxHealth={playerMaxHealth}
@@ -277,12 +488,10 @@ export default function Game({ onExitGame, onChatWithNPC }) {
             onCustomize={() => {}} 
           />
           
-          {/* Persistent UI Systems - Ensure all have pointerEvents: 'auto' */}
           <div style={{ pointerEvents: 'auto' }}>
             <AchievementSystem />
           </div>
           
-          {/* Conditional Panels - Only render when active */}
           <div style={{ pointerEvents: 'auto' }}>
             {photoModeActive && <PhotoMode active={true} />}
             {showInventory && <InventorySystem onClose={() => setShowInventory(false)} />}
@@ -292,6 +501,22 @@ export default function Game({ onExitGame, onChatWithNPC }) {
           </div>
         </Suspense>
       </div>
+
+      {/* Environment Browser Overlay */}
+      {showEnvironmentBrowser && (
+        <EnvironmentBrowser
+          environments={environmentCatalog.environments}
+          activeEnvironmentId={activeEnvironmentId}
+          onSelect={handleSelectEnvironment}
+          onClose={() => setShowEnvironmentBrowser(false)}
+          onAddNew={() => setShowAddDialog(true)}
+        />
+      )}
+
+      {/* Add Environment Dialog */}
+      {showAddDialog && (
+        <AddEnvironmentDialog onClose={() => setShowAddDialog(false)} />
+      )}
     </div>
   );
 

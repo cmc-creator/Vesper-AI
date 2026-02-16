@@ -1,0 +1,222 @@
+{
+  "environments": [
+    {
+      "id": "forest-loner",
+      "name": "Forest Loner",
+      "description": "A peaceful forest diorama with tall trees, a winding path, and soft lighting. Perfect for exploration.",
+      "file": "/models/dae_diorama_-_forest_loner.glb",
+      "thumbnail": null,
+      "category": "nature",
+      "scale": 1,
+      "playerSpawn": [0, 2, 10],
+      "cameraDistance": 15,
+      "ambientColor": "#4a7a4a",
+      "fogColor": "#2a4a2a",
+      "fogNear": 20,
+      "fogFar": 150,
+      "skyPreset": "forest",
+      "sizeMB": 52,
+      "source": "local"
+    },
+    {
+      "id": "grandmas-house",
+      "name": "Grandma's House",
+      "description": "A cozy cottage diorama with a warm atmosphere, garden, and charming details.",
+      "file": "/models/dae_diorama_-_grandmas_house.glb",
+      "thumbnail": null,
+      "category": "building",
+      "scale": 1,
+      "playerSpawn": [0, 2, 15],
+      "cameraDistance": 20,
+      "ambientColor": "#8a6a4a",
+      "fogColor": "#4a3a2a",
+      "fogNear": 30,
+      "fogFar": 200,
+      "skyPreset": "cottage",
+      "sizeMB": 44,
+      "source": "local"
+    },
+    {
+      "id": "after-the-rain",
+      "name": "After the Rain (VR)",
+      "description": "A stunning VR environment with wet surfaces, reflections, and atmospheric rain effects. Very detailed.",
+      "file": "/models/after_the_rain..._-_vr__sound.glb",
+      "thumbnail": null,
+      "category": "atmospheric",
+      "scale": 1,
+      "playerSpawn": [0, 2, 5],
+      "cameraDistance": 10,
+      "ambientColor": "#6080a0",
+      "fogColor": "#304050",
+      "fogNear": 15,
+      "fogFar": 100,
+      "skyPreset": "rainy",
+      "sizeMB": 207,
+      "source": "local"
+    },
+    {
+      "id": "sea-keep",
+      "name": "Sea Keep - Lonely Watcher",
+      "description": "A solitary lighthouse or watchtower perched on coastal rocks overlooking the sea.",
+      "file": "/models/sea_keep_lonely_watcher.glb",
+      "thumbnail": null,
+      "category": "building",
+      "scale": 1,
+      "playerSpawn": [0, 5, 20],
+      "cameraDistance": 25,
+      "ambientColor": "#4a6a8a",
+      "fogColor": "#2a3a5a",
+      "fogNear": 30,
+      "fogFar": 200,
+      "skyPreset": "ocean",
+      "sizeMB": 18,
+      "source": "local"
+    },
+    {
+      "id": "haunted-castle",
+      "name": "Haunted Castle",
+      "description": "A dark, ominous castle with gothic architecture. Small but atmospheric.",
+      "file": "/models/haunted_castle.glb",
+      "thumbnail": null,
+      "category": "dark",
+      "scale": 3,
+      "playerSpawn": [0, 2, 20],
+      "cameraDistance": 25,
+      "ambientColor": "#3a2040",
+      "fogColor": "#1a1020",
+      "fogNear": 10,
+      "fogFar": 100,
+      "skyPreset": "dark",
+      "sizeMB": 3,
+      "source": "local"
+    },
+    {
+      "id": "hohenzollern",
+      "name": "Hohenzollern Castle",
+      "description": "A majestic German hilltop castle with detailed architecture and grounds. Your current main castle.",
+      "file": "/models/hohenzollern_castle.glb",
+      "thumbnail": null,
+      "category": "building",
+      "scale": 4,
+      "playerSpawn": [0, 5, 40],
+      "cameraDistance": 40,
+      "ambientColor": "#a080ff",
+      "fogColor": "#201040",
+      "fogNear": 30,
+      "fogFar": 250,
+      "skyPreset": "fantasy",
+      "sizeMB": 62,
+      "source": "local"
+    },
+    {
+      "id": "castle-byers",
+      "name": "Castle Byers (Stranger Things)",
+      "description": "Will's iconic hideout from Stranger Things. Detailed scene with forest surroundings.",
+      "file": "/models/castle_byers.glb",
+      "thumbnail": null,
+      "category": "pop-culture",
+      "scale": 1,
+      "playerSpawn": [0, 2, 15],
+      "cameraDistance": 20,
+      "ambientColor": "#6a8a4a",
+      "fogColor": "#2a3a1a",
+      "fogNear": 20,
+      "fogFar": 150,
+      "skyPreset": "overcast",
+      "sizeMB": 318,
+      "source": "local"
+    }
+  ],
+  "skyPresets": {
+    "forest": {
+      "sunPosition": [50, 30, 50],
+      "turbidity": 4,
+      "rayleigh": 2,
+      "inclination": 0.55,
+      "azimuth": 0.3
+    },
+    "cottage": {
+      "sunPosition": [80, 40, 60],
+      "turbidity": 3,
+      "rayleigh": 1.5,
+      "inclination": 0.6,
+      "azimuth": 0.25
+    },
+    "rainy": {
+      "sunPosition": [30, 5, 50],
+      "turbidity": 10,
+      "rayleigh": 6,
+      "inclination": 0.48,
+      "azimuth": 0.15
+    },
+    "ocean": {
+      "sunPosition": [100, 20, 80],
+      "turbidity": 5,
+      "rayleigh": 3,
+      "inclination": 0.52,
+      "azimuth": 0.4
+    },
+    "dark": {
+      "sunPosition": [10, 2, 50],
+      "turbidity": 15,
+      "rayleigh": 0.5,
+      "inclination": 0.45,
+      "azimuth": 0.1
+    },
+    "fantasy": {
+      "sunPosition": [100, 10, 100],
+      "turbidity": 8,
+      "rayleigh": 4,
+      "inclination": 0.6,
+      "azimuth": 0.25
+    },
+    "overcast": {
+      "sunPosition": [40, 10, 40],
+      "turbidity": 12,
+      "rayleigh": 5,
+      "inclination": 0.5,
+      "azimuth": 0.2
+    }
+  },
+  "howToAddMore": {
+    "instructions": "To add more environments, download complete scene GLB files and add them to this catalog.",
+    "freeSources": [
+      {
+        "name": "Sketchfab",
+        "url": "https://sketchfab.com/search?q=diorama&type=models&downloadable=true&sort_by=-likeCount",
+        "notes": "Search for 'diorama', 'environment', 'scene' - download as GLTF/GLB. Look for CC licenses."
+      },
+      {
+        "name": "Poly Pizza",
+        "url": "https://poly.pizza",
+        "notes": "Free low-poly 3D models. Great for environments. CC0 licensed."
+      },
+      {
+        "name": "Kenney Assets",
+        "url": "https://kenney.nl/assets",
+        "notes": "Free game assets including complete scene kits. CC0."
+      },
+      {
+        "name": "Quaternius",
+        "url": "https://quaternius.com",
+        "notes": "Free animated low-poly packs. Rivers, trees, buildings, characters."
+      },
+      {
+        "name": "CGTrader Free",
+        "url": "https://www.cgtrader.com/free-3d-models?file_types[]=69",
+        "notes": "Filter by GLB/GLTF format. Check licenses."
+      },
+      {
+        "name": "Three.js Examples",
+        "url": "https://threejs.org/examples/",
+        "notes": "Some example scenes can be repurposed."
+      }
+    ],
+    "steps": [
+      "1. Download a complete scene/diorama as GLB format",
+      "2. Place it in frontend/public/models/ (or frontend/public/environments/)",
+      "3. Add an entry to this file with position, scale, and atmosphere settings",
+      "4. The environment browser will pick it up automatically"
+    ]
+  }
+}
