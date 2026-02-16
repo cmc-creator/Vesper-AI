@@ -4012,26 +4012,43 @@ export default function App() {
                   </Box>
                 )}
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Tooltip title={ttsEnabled ? "Click to pick voice · Right-click to disable" : "Click to enable voice"} placement="left">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {/* Voice ON/OFF Toggle */}
+                <Tooltip title={ttsEnabled ? "Turn voice OFF" : "Turn voice ON"} placement="left">
                   <IconButton 
                     size="small" 
-                    onClick={() => {
-                      if (ttsEnabled) {
-                        setShowVoiceSelector(!showVoiceSelector);
-                      } else {
-                        toggleTTS();
-                      }
-                    }}
-                    onContextMenu={(e) => { e.preventDefault(); if (ttsEnabled) toggleTTS(); }}
+                    onClick={toggleTTS}
                     sx={{ 
-                      color: ttsEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.4)',
-                      '&:hover': { color: 'var(--accent)' }
+                      color: ttsEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.3)',
+                      bgcolor: ttsEnabled ? 'rgba(0,255,255,0.1)' : 'transparent',
+                      border: ttsEnabled ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.15)',
+                      '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(0,255,255,0.15)' },
+                      width: 32, height: 32,
                     }}
                   >
-                    {ttsEnabled ? <VolumeUpIcon fontSize="small" /> : <VolumeOffIcon fontSize="small" />}
+                    {ttsEnabled ? <VolumeUpIcon sx={{ fontSize: 18 }} /> : <VolumeOffIcon sx={{ fontSize: 18 }} />}
                   </IconButton>
                 </Tooltip>
+
+                {/* Voice Picker Button (only when TTS is on) */}
+                {ttsEnabled && (
+                  <Tooltip title="Choose voice" placement="top">
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowVoiceSelector(!showVoiceSelector)}
+                      sx={{
+                        color: showVoiceSelector ? '#000' : 'rgba(255,255,255,0.6)',
+                        bgcolor: showVoiceSelector ? 'var(--accent)' : 'transparent',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        '&:hover': { bgcolor: 'rgba(0,255,255,0.15)', color: 'var(--accent)' },
+                        width: 32, height: 32,
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      🎙
+                    </IconButton>
+                  </Tooltip>
+                )}
 
                 {isSpeaking && (
                   <Chip 
@@ -4430,116 +4447,7 @@ export default function App() {
                 </Button>
               )}
 
-              {/* Quick Actions Card */}
-              <Paper className="ops-card glass-card">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--accent)' }}>Quick Actions</Typography>
-                  <HubRounded sx={{ color: 'var(--accent)' }} />
-                </Box>
-                <Stack spacing={1}>
-                  <Button 
-                    fullWidth 
-                    variant="outlined" 
-                    size="small"
-                    onClick={startNewChat}
-                    startIcon={<AddIcon />}
-                    sx={{ 
-                      borderColor: 'var(--accent)', 
-                      color: 'var(--accent)', 
-                      textTransform: 'none',
-                      '&:hover': { bgcolor: 'rgba(0,255,255,0.1)', borderColor: 'var(--accent)' }
-                    }}
-                  >
-                    New Chat
-                  </Button>
-                  <Button 
-                    fullWidth 
-                    variant="outlined" 
-                    size="small"
-                    onClick={() => setCommandPaletteOpen(true)}
-                    startIcon={<BoltRounded />}
-                    sx={{ 
-                      borderColor: 'rgba(255,255,255,0.2)', 
-                      color: '#fff', 
-                      textTransform: 'none',
-                      '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.3)' }
-                    }}
-                  >
-                    Command Palette
-                  </Button>
-                  <Button 
-                    fullWidth 
-                    variant="outlined" 
-                    size="small"
-                    onClick={() => setGameMode(true)}
-                    startIcon={<PublicRounded />}
-                    sx={{ 
-                      borderColor: 'rgba(255,255,255,0.2)', 
-                      color: '#fff', 
-                      textTransform: 'none',
-                      '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.3)' }
-                    }}
-                  >
-                    Enter World
-                  </Button>
-                </Stack>
-              </Paper>
-
-              {/* Active Session Card  */}
-              <Paper className="ops-card glass-card">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--accent)' }}>Active Session</Typography>
-                  <HistoryRounded sx={{ color: 'var(--accent)' }} />
-                </Box>
-                {currentThreadId ? (
-                  <Box>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1, fontWeight: 600 }}>
-                      {currentThreadTitle || 'Current Conversation'}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>
-                      {messages.length} messages in this chat
-                    </Typography>
-                    <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-                      <Button 
-                        variant="text" 
-                        size="small"
-                        onClick={startNewChat}
-                        sx={{ color: 'var(--accent)', textTransform: 'none', fontSize: '11px' }}
-                      >
-                        New Thread
-                      </Button>
-                      <Button 
-                        variant="text" 
-                        size="small"
-                        onClick={clearHistory}
-                        sx={{ color: '#ff4444', textTransform: 'none', fontSize: '11px' }}
-                      >
-                        Clear
-                      </Button>
-                    </Box>
-                  </Box>
-                ) : (
-                  <Box sx={{ textAlign: 'center', py: 2 }}>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 2 }}>
-                      No active conversation
-                    </Typography>
-                    <Button 
-                      variant="outlined" 
-                      size="small"
-                      onClick={startNewChat}
-                      startIcon={<AddIcon />}
-                      sx={{ 
-                        borderColor: 'var(--accent)', 
-                        color: 'var(--accent)', 
-                        textTransform: 'none',
-                        fontSize: '11px'
-                      }}
-                    >
-                      Start Chatting
-                    </Button>
-                  </Box>
-                )}
-              </Paper>
+              {/* Quick Actions and Active Session removed — these are accessible from sidebar and tools grid */}
 
             </Box>
 
