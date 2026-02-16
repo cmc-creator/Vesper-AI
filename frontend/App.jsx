@@ -183,6 +183,9 @@ function App() {
   const [toast, setToast] = useState('');
   const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'false') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [selectedVoiceName, setSelectedVoiceName] = useState(() => safeStorageGet('vesper_tts_voice', ''));
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [abortController, setAbortController] = useState(null);
@@ -588,7 +591,7 @@ export default function App() {
   const fetchSuggestions = async () => {
     setSuggestionsLoading(true);
     try {
-      const response = await fetch(`${apiBase}/suggestions?thread_id=${currentThreadId || ''}`);
+      const response = await fetch(`${apiBase}/api/suggestions?thread_id=${currentThreadId || ''}`);
       if (!response.ok) throw new Error('Failed to fetch suggestions');
       const data = await response.json();
       if (data.suggestions) {
@@ -1755,6 +1758,18 @@ export default function App() {
     }
   };
 
+  // Load available voices (must wait for voiceschanged event on Chromium)
+  useEffect(() => {
+    if (!window.speechSynthesis) return;
+    const loadVoices = () => {
+      const v = window.speechSynthesis.getVoices();
+      if (v.length > 0) setAvailableVoices(v);
+    };
+    loadVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+  }, []);
+
   // Text-to-Speech Functions
   const speak = (text) => {
     if (!ttsEnabled || !window.speechSynthesis) return;
@@ -1764,16 +1779,41 @@ export default function App() {
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1.0;
-    utterance.pitch = 1.1;
+    utterance.pitch = 1.05;
     utterance.volume = 0.9;
     
-    // Try to find a good voice (prefer female voice if available)
+    // Use saved voice, or find best match
     const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v => 
-      v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Victoria')
-    ) || voices.find(v => v.lang.startsWith('en'));
+    let voice = null;
     
-    if (preferredVoice) utterance.voice = preferredVoice;
+    // 1. Try user's saved choice
+    if (selectedVoiceName) {
+      voice = voices.find(v => v.name === selectedVoiceName);
+    }
+    
+    // 2. Fallback: find a good modern female voice (Windows-compatible names)
+    if (!voice) {
+      const preferred = [
+        'Microsoft Zira', 'Microsoft Jenny', 'Microsoft Aria',
+        'Google US English', 'Google UK English Female',
+        'Samantha', 'Karen', 'Moira', 'Tessa', 'Victoria',
+        'Microsoft Eva', 'Microsoft Elsa'
+      ];
+      for (const name of preferred) {
+        voice = voices.find(v => v.name.includes(name));
+        if (voice) break;
+      }
+    }
+    
+    // 3. Last resort: any English female-sounding voice, then any English
+    if (!voice) {
+      voice = voices.find(v => v.lang.startsWith('en') && (/female|girl|woman|zira|jenny|aria|samantha|karen/i).test(v.name));
+    }
+    if (!voice) {
+      voice = voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en'));
+    }
+    
+    if (voice) utterance.voice = voice;
     
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
@@ -1798,6 +1838,26 @@ export default function App() {
       console.warn('Failed to save TTS preference', e);
     }
     if (!newValue) stopSpeaking();
+  };
+
+  const handleVoiceChange = (voiceName) => {
+    setSelectedVoiceName(voiceName);
+    try {
+      localStorage.setItem('vesper_tts_voice', voiceName);
+    } catch (e) {}
+    // Preview the voice
+    if (window.speechSynthesis && voiceName) {
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance("Hey CC, this is how I sound now.");
+      const voice = availableVoices.find(v => v.name === voiceName);
+      if (voice) utt.voice = voice;
+      utt.rate = 1.0;
+      utt.pitch = 1.05;
+      utt.volume = 0.9;
+      utt.onstart = () => setIsSpeaking(true);
+      utt.onend = () => setIsSpeaking(false);
+      window.speechSynthesis.speak(utt);
+    }
   };
 
   const renderMessage = (message) => {
@@ -3772,10 +3832,11 @@ export default function App() {
                 )}
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Tooltip title={ttsEnabled ? "Voice enabled" : "Voice disabled"} placement="left">
+                <Tooltip title={ttsEnabled ? "Voice enabled (right-click to pick voice)" : "Voice disabled"} placement="left">
                   <IconButton 
                     size="small" 
                     onClick={toggleTTS}
+                    onContextMenu={(e) => { e.preventDefault(); setShowVoiceSelector(!showVoiceSelector); }}
                     sx={{ 
                       color: ttsEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.4)',
                       '&:hover': { color: 'var(--accent)' }
@@ -3784,6 +3845,17 @@ export default function App() {
                     {ttsEnabled ? <VolumeUpIcon fontSize="small" /> : <VolumeOffIcon fontSize="small" />}
                   </IconButton>
                 </Tooltip>
+                {ttsEnabled && (
+                  <Tooltip title="Choose Vesper's voice" placement="left">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => setShowVoiceSelector(!showVoiceSelector)}
+                      sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'var(--accent)' } }}
+                    >
+                      <SettingsRounded sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 {isSpeaking && (
                   <Chip 
                     label="Speaking..." 
@@ -3804,6 +3876,60 @@ export default function App() {
                 <Box className="status-dot" />
               </Box>
             </Box>
+
+            {/* Voice Selector Dropdown */}
+            {showVoiceSelector && ttsEnabled && (
+              <Box sx={{
+                mb: 1, p: 1.5,
+                background: 'rgba(10,10,30,0.95)',
+                border: '1px solid var(--accent)',
+                borderRadius: 2,
+                maxHeight: 200,
+                overflowY: 'auto',
+                '&::-webkit-scrollbar': { width: 4 },
+                '&::-webkit-scrollbar-thumb': { background: 'var(--accent)', borderRadius: 2 },
+              }}>
+                <Typography variant="caption" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1, display: 'block' }}>
+                  VESPER'S VOICE ({availableVoices.filter(v => v.lang.startsWith('en')).length} English voices)
+                </Typography>
+                {availableVoices
+                  .filter(v => v.lang.startsWith('en'))
+                  .map((v) => (
+                    <Box
+                      key={v.name}
+                      onClick={() => { handleVoiceChange(v.name); setShowVoiceSelector(false); }}
+                      sx={{
+                        p: 0.75, px: 1,
+                        cursor: 'pointer',
+                        borderRadius: 1,
+                        mb: 0.25,
+                        background: selectedVoiceName === v.name ? 'rgba(0,255,136,0.15)' : 'transparent',
+                        borderLeft: selectedVoiceName === v.name ? '2px solid #00ff88' : '2px solid transparent',
+                        '&:hover': { background: 'rgba(255,255,255,0.05)' },
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Typography variant="caption" sx={{ 
+                        color: selectedVoiceName === v.name ? '#00ff88' : 'rgba(255,255,255,0.7)',
+                        fontWeight: selectedVoiceName === v.name ? 700 : 400,
+                        fontSize: '0.75rem',
+                      }}>
+                        {v.name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', ml: 1 }}>
+                        {v.lang}
+                      </Typography>
+                    </Box>
+                  ))}
+                {availableVoices.filter(v => v.lang.startsWith('en')).length === 0 && (
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+                    No voices loaded yet. Try toggling TTS off and on.
+                  </Typography>
+                )}
+              </Box>
+            )}
 
             <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.5, flexShrink: 0 }}>
               {['Summarize the scene', 'Generate a quest', 'Give me a hint', 'Explain controls'].map((label) => (
