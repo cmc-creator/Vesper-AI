@@ -1797,10 +1797,11 @@ export default function App() {
     }
 
     // 2. Prefer high-quality "Online" / "Natural" neural voices (sound human)
+    //    NOTE: Google Chrome voices ("Google US English" etc.) sound choppy and robotic — EXCLUDED.
     const premiumKeywords = [
       'Jenny Online', 'Aria Online', 'Jenny Natural', 'Aria Natural',
       'Ana Online', 'Sonia Online', 'Libby Online',
-      'Google US English', 'Google UK English Female',
+      'Microsoft Jenny', 'Microsoft Aria',
     ];
     for (const kw of premiumKeywords) {
       const v = voices.find(v => v.name.includes(kw));
@@ -1808,9 +1809,9 @@ export default function App() {
     }
 
     // 3. Good-quality local voices (still decent on Windows 11)
+    //    Avoid Google voices — they're the choppy robotic ones.
     const goodLocal = [
-      'Microsoft Jenny', 'Microsoft Aria', 'Microsoft Ana',
-      'Samantha', 'Karen', 'Moira', 'Tessa', 'Victoria',
+      'Microsoft Ana', 'Samantha', 'Karen', 'Moira', 'Tessa', 'Victoria',
       'Microsoft Zira', 'Microsoft Eva', 'Microsoft Elsa',
     ];
     for (const name of goodLocal) {
@@ -1818,9 +1819,12 @@ export default function App() {
       if (v) return v;
     }
 
-    // 4. Any English female-sounding, then any English
-    const female = voices.find(v => v.lang.startsWith('en') && (/female|girl|woman|zira|jenny|aria|samantha|karen/i).test(v.name));
+    // 4. Any English female-sounding voice, but EXCLUDE Google voices (they're the robotic ones)
+    const female = voices.find(v => v.lang.startsWith('en') && !v.name.startsWith('Google') && (/female|girl|woman|zira|jenny|aria|samantha|karen/i).test(v.name));
     if (female) return female;
+    // 5. Any non-Google English voice, then absolutely any English as last resort
+    const nonGoogle = voices.find(v => v.lang.startsWith('en-US') && !v.name.startsWith('Google'));
+    if (nonGoogle) return nonGoogle;
     return voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en')) || null;
   };
 
@@ -3233,12 +3237,17 @@ export default function App() {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>Text-to-Speech</Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>AI responses read aloud</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                        {ttsEnabled ? 'Pick a voice in the chat panel (gear icon)' : 'AI responses read aloud'}
+                      </Typography>
                     </Box>
                     <Switch 
                       checked={ttsEnabled} 
                       onChange={(e) => {
-                        setTtsEnabled(e.target.checked);
+                        const newVal = e.target.checked;
+                        setTtsEnabled(newVal);
+                        try { localStorage.setItem('vesper_tts_enabled', String(newVal)); } catch(err) {}
+                        if (!newVal) stopSpeaking();
                         playSound('click');
                       }}
                       sx={{

@@ -188,7 +188,7 @@ class AIRouter:
         self.models = {
             ModelProvider.OPENAI: "gpt-4o-mini",  # Budget model ($0.15/M input, $0.60/M output)
             ModelProvider.GOOGLE: "gemini-2.0-flash",  # Updated to 2.0 flash (better system prompt following)
-            ModelProvider.ANTHROPIC: "claude-3-5-haiku-20241022",  # Claude 3.5 Haiku (much better personality than old 3 Haiku)
+            ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",  # Claude Sonnet 4 — strong personality, great conversation quality
             ModelProvider.OLLAMA: "llama3.2:latest"  # Free local
         }
     
