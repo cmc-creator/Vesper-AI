@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, useRef, lazy, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, Suspense, useRef, lazy, useMemo, useCallback, Component } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { 
@@ -16,6 +16,14 @@ import {
   KeyboardControls
 } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing';
+
+// Safe wrapper: if postprocessing crashes (version mismatch, GPU issues), world still renders
+class SafeEffects extends Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(err) { console.warn('[SafeEffects] Postprocessing disabled:', err.message); }
+  render() { return this.state.hasError ? null : this.props.children; }
+}
 import PlayerController from './PlayerController';
 import Plaza from './Plaza';
 import Castle from './Castle';
@@ -324,10 +332,12 @@ export default function Game({ onExitGame, onChatWithNPC }) {
               <ContactShadows position={[0, 0, 0]} opacity={0.3} scale={100} blur={2.5} far={40} resolution={256} color="#000000" />
 
               {/* Atmospheric Post-Processing for environments too */}
-              <EffectComposer>
-                <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.9} intensity={1.0} mipmapBlur />
-                <Vignette eskil={false} offset={0.15} darkness={0.6} />
-              </EffectComposer>
+              <SafeEffects>
+                <EffectComposer>
+                  <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.9} intensity={1.0} mipmapBlur />
+                  <Vignette eskil={false} offset={0.15} darkness={0.6} />
+                </EffectComposer>
+              </SafeEffects>
             </>
           ) : (
             /* ============================================================
@@ -385,11 +395,13 @@ export default function Game({ onExitGame, onChatWithNPC }) {
               <ContactShadows position={[0, 0, 0]} opacity={0.35} scale={100} blur={2.5} far={40} resolution={256} color="#000000" />
 
               {/* Second World Post-Processing */}
-              <EffectComposer>
-                <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} intensity={1.5} mipmapBlur />
-                <Vignette eskil={false} offset={0.2} darkness={0.8} />
-                <Noise opacity={0.03} />
-              </EffectComposer>
+              <SafeEffects>
+                <EffectComposer>
+                  <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} intensity={1.5} mipmapBlur />
+                  <Vignette eskil={false} offset={0.2} darkness={0.8} />
+                  <Noise opacity={0.03} />
+                </EffectComposer>
+              </SafeEffects>
             </>
           )}
 

@@ -293,17 +293,30 @@ export default function App() {
     // Audio context for UI sounds
   const audioContextRef = useRef(null);
   
-  // Initialize Web Audio API
-  useEffect(() => {
-    if (soundEnabled && !audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+  // Initialize Web Audio API (lazy — only created once, never closed until unmount)
+  const getAudioContext = useCallback(() => {
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+      try {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) {
+        return null;
+      }
     }
+    // Resume if suspended (Chrome autoplay policy)
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume().catch(() => {});
+    }
+    return audioContextRef.current;
+  }, []);
+  
+  // Cleanup on unmount only
+  useEffect(() => {
     return () => {
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(() => {});
       }
     };
-  }, [soundEnabled]);
+  }, []);
   
   // Draggable board positions - load from localStorage
   const [boardPositions, setBoardPositions] = useState(() => {
@@ -778,9 +791,12 @@ export default function App() {
   };
 
   const playSound = useCallback((type) => {
-    if (!soundEnabled || !audioContextRef.current) return;
+    if (!soundEnabled) return;
     
-    const ctx = audioContextRef.current;
+    const ctx = getAudioContext();
+    if (!ctx || ctx.state === 'closed') return;
+    
+    try {
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
     
@@ -824,7 +840,10 @@ export default function App() {
         oscillator.start(ctx.currentTime);
         oscillator.stop(ctx.currentTime + 0.1);
     }
-  }, [soundEnabled]);
+    } catch (e) {
+      // Silently handle audio errors (context closed, etc.)
+    }
+  }, [soundEnabled, getAudioContext]);
 
   const fetchResearch = useCallback(async () => {
     if (!apiBase) return;
