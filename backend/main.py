@@ -4777,21 +4777,20 @@ async def generate_video(req: VideoGenRequest):
     try:
         # Using Zeroscope V2 XL (Text-to-Video) - Cost-effective
         # 1. Start Prediction
+        # Use the official model endpoint (no version hash needed)
         resp = requests.post(
-            "https://api.replicate.com/v1/predictions",
-            headers={"Authorization": f"Token {token}", "Content-Type": "application/json"},
+            "https://api.replicate.com/v1/models/minimax/video-01-live/predictions",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
             json={
-                "version": "9f747673945c62801b13b8309fa21b98a31e87d3a0166c3066a3b04588e31a8", # Zeroscope V2 576w (Text-to-Video base)
                 "input": {
                     "prompt": req.prompt,
-                    "num_frames": 24,
-                    "fps": 8,
-                    "width": 576,
-                    "height": 320,
-                    "model": "xl"
+                    "prompt_optimizer": True,
                 }
             }
         )
+        
+        if resp.status_code == 402:
+            return JSONResponse(status_code=402, content={"error": "Replicate account has no credit. Add billing at replicate.com/account/billing"})
         
         if resp.status_code != 201:
             return JSONResponse(status_code=resp.status_code, content={"error": f"Replicate API Error: {resp.text}"})
@@ -4806,7 +4805,7 @@ async def generate_video(req: VideoGenRequest):
             time.sleep(2)  # Wait 2 seconds between checks
             status_resp = requests.get(
                 f"https://api.replicate.com/v1/predictions/{pred_id}",
-                headers={"Authorization": f"Token {token}"}
+                headers={"Authorization": f"Bearer {token}"}
             )
             data = status_resp.json()
             status = data.get("status")
