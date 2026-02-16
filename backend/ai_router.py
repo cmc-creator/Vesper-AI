@@ -184,13 +184,11 @@ class AIRouter:
                 ]
             }
         
-        # Model selection per provider - BUDGET FOCUSED
+        # Model selection per provider - PERSONALITY-FIRST (Vesper needs to stay in character)
         self.models = {
-            # Move Claude to last priority by adjusting routing_strategy above
-            # Keep cheap models:
             ModelProvider.OPENAI: "gpt-4o-mini",  # Budget model ($0.15/M input, $0.60/M output)
-            ModelProvider.GOOGLE: "gemini-1.5-flash",  # Fallback (free tier)
-            ModelProvider.ANTHROPIC: "claude-3-haiku-20240307",  # Claude 3 Haiku (fast & cheap)
+            ModelProvider.GOOGLE: "gemini-2.0-flash",  # Updated to 2.0 flash (better system prompt following)
+            ModelProvider.ANTHROPIC: "claude-3-5-haiku-20241022",  # Claude 3.5 Haiku (much better personality than old 3 Haiku)
             ModelProvider.OLLAMA: "llama3.2:latest"  # Free local
         }
     
@@ -397,20 +395,27 @@ class AIRouter:
         Note: This method handles text-only chat messages. Image/multimodal 
         content is handled separately in the image analysis endpoint.
         """
-        # Convert messages to Gemini format (text-only)
+        # Extract system message for system_instruction (NOT as a user message!)
+        system_msg = None
         contents = []
         for msg in messages:
-            role = "user" if msg["role"] in ["system", "user"] else "model"
+            if msg["role"] == "system":
+                system_msg = msg["content"] if isinstance(msg["content"], str) else str(msg["content"])
+                continue  # Don't add system messages to contents
+            role = "user" if msg["role"] == "user" else "model"
+            content_text = msg["content"] if isinstance(msg["content"], str) else str(msg["content"])
             contents.append({
                 "role": role,
-                "parts": [{"text": msg["content"]}]
+                "parts": [{"text": content_text}]
             })
         
-        # Use new Client-based API
+        # Use new Client-based API with proper system instruction
         config = {
             "max_output_tokens": max_tokens,
-            "temperature": temperature
+            "temperature": temperature,
         }
+        if system_msg:
+            config["system_instruction"] = system_msg
         
         # Note: Gemini's function calling format is different, simplified for now
         response = self.google_client.models.generate_content(

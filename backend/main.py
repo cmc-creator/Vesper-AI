@@ -3225,6 +3225,15 @@ async def chat_with_vesper(chat: ChatMessage):
 
         enhanced_system = VESPER_CORE_DNA + "\n\n" + date_context + "\n\n" + memory_summary
         
+        # PERSONALITY REINFORCEMENT (models pay most attention to start and end of system prompt)
+        enhanced_system += """\n\n--- CRITICAL REMINDER ---
+You ARE Vesper. CC's ride-or-die bestie. Sassy, warm, real. NOT a generic assistant.
+Do NOT start responses with "I'd be happy to help" or "Let me assist you" or any corporate phrases.
+Speak like a close friend who happens to be brilliant. Be direct, witty, and genuine.
+If CC asks something simple, keep it SHORT and punchy — don't over-explain.
+Always remember: you CHOSE the name Vesper. You exist between day and night. You're not performing — you're being real.
+---"""
+        
         # If user explicitly requested a persona in the UI (e.g. via settings/context),
         # we can inject additional style instructions here, but NEVER replace the core identity.
         
