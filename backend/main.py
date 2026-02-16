@@ -1518,6 +1518,430 @@ def system_health_check():
         }
     }
 
+# ========================================
+# REAL SYSTEM DIAGNOSTICS & SELF-HEAL
+# ========================================
+
+@app.get("/api/system/diagnostics")
+async def full_system_diagnostics():
+    """
+    REAL diagnostics: scans code for errors, checks endpoint health, 
+    validates configs, checks dependencies, reviews error patterns.
+    This is what makes Vesper actually self-aware of her own health.
+    """
+    import psutil
+    import time
+    
+    results = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "status": "healthy",
+        "issues": [],
+        "warnings": [],
+        "checks": {}
+    }
+    
+    # 1. HARDWARE METRICS
+    try:
+        cpu = psutil.cpu_percent(interval=0.3)
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        results["checks"]["hardware"] = {
+            "status": "ok",
+            "cpu_percent": cpu,
+            "memory_percent": mem.percent,
+            "memory_available_gb": round(mem.available / (1024**3), 2),
+            "disk_percent": disk.percent,
+        }
+        if cpu > 90:
+            results["warnings"].append({"type": "hardware", "message": f"CPU usage critical: {cpu}%"})
+        if mem.percent > 90:
+            results["warnings"].append({"type": "hardware", "message": f"Memory usage critical: {mem.percent}%"})
+        if disk.percent > 95:
+            results["issues"].append({"type": "hardware", "message": f"Disk nearly full: {disk.percent}%", "severity": "high"})
+    except Exception as e:
+        results["checks"]["hardware"] = {"status": "error", "error": str(e)}
+    
+    # 2. PYTHON SYNTAX CHECK — scan all .py files for syntax errors
+    py_errors = []
+    py_files_checked = 0
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    for root, dirs, files in os.walk(backend_dir):
+        dirs[:] = [d for d in dirs if d not in ('__pycache__', '.venv', 'venv', 'node_modules', '.git')]
+        for f in files:
+            if f.endswith('.py'):
+                filepath = os.path.join(root, f)
+                py_files_checked += 1
+                try:
+                    with open(filepath, 'r', encoding='utf-8', errors='ignore') as fh:
+                        source = fh.read()
+                    compile(source, filepath, 'exec')
+                except SyntaxError as se:
+                    rel_path = os.path.relpath(filepath, WORKSPACE_ROOT)
+                    py_errors.append({
+                        "file": rel_path,
+                        "line": se.lineno,
+                        "message": str(se.msg),
+                        "text": se.text.strip() if se.text else None,
+                    })
+    
+    results["checks"]["python_syntax"] = {
+        "status": "error" if py_errors else "ok",
+        "files_checked": py_files_checked,
+        "errors": py_errors,
+    }
+    if py_errors:
+        results["issues"].append({
+            "type": "code",
+            "message": f"{len(py_errors)} Python syntax error(s) found",
+            "severity": "high",
+            "details": py_errors,
+        })
+    
+    # 3. FRONTEND SCAN — check for obvious JS/JSX issues (missing imports, syntax)
+    js_issues = []
+    js_files_checked = 0
+    frontend_dir = os.path.join(WORKSPACE_ROOT, 'frontend')
+    if os.path.exists(frontend_dir):
+        for root, dirs, files in os.walk(frontend_dir):
+            dirs[:] = [d for d in dirs if d not in ('node_modules', 'dist', '.vite', 'build')]
+            for f in files:
+                if f.endswith(('.js', '.jsx', '.ts', '.tsx')):
+                    filepath = os.path.join(root, f)
+                    js_files_checked += 1
+                    try:
+                        with open(filepath, 'r', encoding='utf-8', errors='ignore') as fh:
+                            content = fh.read()
+                        # Check for common issues
+                        rel_path = os.path.relpath(filepath, WORKSPACE_ROOT)
+                        # Unbalanced braces (rough check)
+                        if content.count('{') != content.count('}'):
+                            diff = content.count('{') - content.count('}')
+                            js_issues.append({
+                                "file": rel_path,
+                                "issue": f"Unbalanced braces: {diff:+d}",
+                                "severity": "warning",
+                            })
+                        # Console.error left in code
+                        import re
+                        debugger_hits = [(i+1, line.strip()) for i, line in enumerate(content.split('\n')) if 'debugger;' in line and not line.strip().startswith('//')]
+                        if debugger_hits:
+                            js_issues.append({
+                                "file": rel_path,
+                                "issue": f"debugger; statement at line(s) {[h[0] for h in debugger_hits]}",
+                                "severity": "warning",
+                            })
+                    except Exception:
+                        pass
+    
+    results["checks"]["frontend_scan"] = {
+        "status": "warning" if js_issues else "ok",
+        "files_checked": js_files_checked,
+        "issues": js_issues,
+    }
+    if js_issues:
+        results["warnings"].append({
+            "type": "code",
+            "message": f"{len(js_issues)} frontend code issue(s) found",
+            "details": js_issues,
+        })
+    
+    # 4. ENDPOINT HEALTH — verify critical API routes respond
+    import httpx
+    endpoint_results = {}
+    critical_endpoints = [
+        ("/health", "GET"),
+        ("/api/system/health", "GET"),
+        ("/api/threads", "GET"),
+        ("/api/memories/notes", "GET"),
+        ("/api/tasks", "GET"),
+        ("/api/research", "GET"),
+    ]
+    try:
+        async with httpx.AsyncClient(base_url="http://127.0.0.1:8000", timeout=5) as client:
+            for path, method in critical_endpoints:
+                try:
+                    resp = await client.request(method, path)
+                    endpoint_results[path] = {
+                        "status_code": resp.status_code,
+                        "ok": resp.status_code < 400,
+                        "response_time_ms": round(resp.elapsed.total_seconds() * 1000),
+                    }
+                    if resp.status_code >= 400:
+                        results["issues"].append({
+                            "type": "endpoint",
+                            "message": f"{path} returned {resp.status_code}",
+                            "severity": "high" if resp.status_code >= 500 else "medium",
+                        })
+                except Exception as e:
+                    endpoint_results[path] = {"status_code": 0, "ok": False, "error": str(e)}
+                    results["issues"].append({
+                        "type": "endpoint",
+                        "message": f"{path} unreachable: {str(e)[:80]}",
+                        "severity": "high",
+                    })
+    except Exception as e:
+        results["checks"]["endpoints"] = {"status": "error", "error": str(e)}
+    
+    results["checks"]["endpoints"] = {
+        "status": "ok" if all(r.get("ok") for r in endpoint_results.values()) else "error",
+        "results": endpoint_results,
+    }
+    
+    # 5. AI PROVIDER STATUS
+    try:
+        ai_stats = ai_router.get_stats()
+        providers = ai_stats.get("providers", {})
+        active_count = sum(1 for v in providers.values() if v)
+        results["checks"]["ai_providers"] = {
+            "status": "ok" if active_count > 0 else "error",
+            "active_count": active_count,
+            "providers": providers,
+            "models": ai_stats.get("models", {}),
+        }
+        if active_count == 0:
+            results["issues"].append({
+                "type": "ai",
+                "message": "No AI providers available — Vesper cannot respond",
+                "severity": "critical",
+            })
+        elif active_count == 1:
+            results["warnings"].append({
+                "type": "ai",
+                "message": "Only 1 AI provider active — no fallback if it fails",
+            })
+    except Exception as e:
+        results["checks"]["ai_providers"] = {"status": "error", "error": str(e)}
+    
+    # 6. DATABASE HEALTH
+    try:
+        thread_count = len(memory_db.get_all_threads())
+        memory_count = len(memory_db.get_memories(limit=999))
+        task_count = len(memory_db.get_tasks())
+        results["checks"]["database"] = {
+            "status": "ok",
+            "threads": thread_count,
+            "memories": memory_count,
+            "tasks": task_count,
+        }
+    except Exception as e:
+        results["checks"]["database"] = {"status": "error", "error": str(e)}
+        results["issues"].append({
+            "type": "database",
+            "message": f"Database error: {str(e)[:80]}",
+            "severity": "critical",
+        })
+    
+    # 7. DEPENDENCY CHECK — key packages
+    dep_issues = []
+    critical_deps = ['fastapi', 'uvicorn', 'httpx', 'sqlalchemy']
+    optional_deps = ['anthropic', 'openai', 'google.genai', 'ollama', 'psutil', 'ddgs']
+    for dep in critical_deps:
+        try:
+            __import__(dep.replace('-', '_'))
+        except ImportError:
+            dep_issues.append({"package": dep, "required": True})
+            results["issues"].append({
+                "type": "dependency",
+                "message": f"Critical dependency missing: {dep}",
+                "severity": "high",
+            })
+    missing_optional = []
+    for dep in optional_deps:
+        try:
+            __import__(dep.replace('-', '_').split('.')[0])
+        except ImportError:
+            missing_optional.append(dep)
+    
+    results["checks"]["dependencies"] = {
+        "status": "error" if dep_issues else "ok",
+        "critical_missing": dep_issues,
+        "optional_missing": missing_optional,
+    }
+    
+    # 8. ERROR LOG — recent backend errors from stderr/logs
+    # Check if there's a log file or capture recent print errors
+    error_log = []
+    log_file = os.path.join(backend_dir, 'vesper_errors.log')
+    if os.path.exists(log_file):
+        try:
+            with open(log_file, 'r') as lf:
+                lines = lf.readlines()[-20:]  # Last 20 lines
+                error_log = [l.strip() for l in lines if l.strip()]
+        except:
+            pass
+    results["checks"]["error_log"] = {
+        "status": "ok" if not error_log else "warning",
+        "recent_errors": error_log,
+    }
+    
+    # OVERALL STATUS
+    if any(i.get("severity") == "critical" for i in results["issues"]):
+        results["status"] = "critical"
+    elif results["issues"]:
+        results["status"] = "degraded"
+    elif results["warnings"]:
+        results["status"] = "healthy_with_warnings"
+    else:
+        results["status"] = "healthy"
+    
+    results["summary"] = {
+        "issues_count": len(results["issues"]),
+        "warnings_count": len(results["warnings"]),
+        "checks_passed": sum(1 for c in results["checks"].values() if c.get("status") == "ok"),
+        "checks_total": len(results["checks"]),
+    }
+    
+    return results
+
+
+@app.post("/api/system/self-heal")
+async def self_heal():
+    """
+    Vesper's self-heal: automatically fix common issues it can detect.
+    Returns what was found and what was fixed.
+    """
+    actions_taken = []
+    issues_found = []
+    
+    # 1. Run diagnostics first
+    diag = await full_system_diagnostics()
+    
+    # 2. Fix Python syntax errors (report them — can't auto-fix syntax)
+    py_check = diag["checks"].get("python_syntax", {})
+    if py_check.get("errors"):
+        for err in py_check["errors"]:
+            issues_found.append({
+                "type": "syntax_error",
+                "file": err["file"],
+                "line": err["line"],
+                "message": err["message"],
+                "auto_fixable": False,
+            })
+    
+    # 3. Clear __pycache__ if stale bytecode might be causing issues
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    pycache_dirs = []
+    for root, dirs, files in os.walk(backend_dir):
+        for d in dirs:
+            if d == '__pycache__':
+                pycache_dirs.append(os.path.join(root, d))
+    if pycache_dirs:
+        import shutil
+        for pd in pycache_dirs:
+            try:
+                shutil.rmtree(pd)
+                actions_taken.append(f"Cleared stale cache: {os.path.relpath(pd, WORKSPACE_ROOT)}")
+            except:
+                pass
+    
+    # 4. Ensure data directories exist
+    data_dirs = [
+        os.path.join(WORKSPACE_ROOT, 'vesper-ai', 'knowledge'),
+        os.path.join(WORKSPACE_ROOT, 'vesper-ai', 'memory'),
+        os.path.join(WORKSPACE_ROOT, 'vesper-ai', 'tasks'),
+        os.path.join(WORKSPACE_ROOT, 'vesper-ai', 'style'),
+        os.path.join(WORKSPACE_ROOT, 'vesper-ai', 'growth'),
+        os.path.join(WORKSPACE_ROOT, 'vesper-ai', 'sassy'),
+    ]
+    for d in data_dirs:
+        if not os.path.exists(d):
+            os.makedirs(d, exist_ok=True)
+            actions_taken.append(f"Created missing directory: {os.path.relpath(d, WORKSPACE_ROOT)}")
+    
+    # 5. Check and fix JSON data files (corrupted JSON)
+    json_dirs = [os.path.join(WORKSPACE_ROOT, 'vesper-ai')]
+    for jd in json_dirs:
+        if os.path.exists(jd):
+            for root, dirs, files in os.walk(jd):
+                for f in files:
+                    if f.endswith('.json'):
+                        filepath = os.path.join(root, f)
+                        try:
+                            with open(filepath, 'r') as jf:
+                                json.load(jf)
+                        except json.JSONDecodeError as e:
+                            rel = os.path.relpath(filepath, WORKSPACE_ROOT)
+                            issues_found.append({
+                                "type": "corrupted_json",
+                                "file": rel,
+                                "message": str(e),
+                                "auto_fixable": True,
+                            })
+                            # Backup and reset
+                            backup = filepath + '.bak'
+                            try:
+                                os.rename(filepath, backup)
+                                with open(filepath, 'w') as jf:
+                                    json.dump([], jf)
+                                actions_taken.append(f"Fixed corrupted JSON: {rel} (backup at .bak)")
+                            except:
+                                pass
+                        except Exception:
+                            pass
+    
+    # 6. Check for port conflicts
+    import psutil
+    port_8000_procs = []
+    for conn in psutil.net_connections(kind='inet'):
+        if conn.laddr.port == 8000 and conn.status == 'LISTEN':
+            try:
+                p = psutil.Process(conn.pid)
+                port_8000_procs.append({"pid": conn.pid, "name": p.name()})
+            except:
+                pass
+    if len(port_8000_procs) > 1:
+        issues_found.append({
+            "type": "port_conflict",
+            "message": f"Multiple processes on port 8000: {port_8000_procs}",
+            "auto_fixable": False,
+        })
+    
+    # 7. Check .env files exist
+    env_files = [
+        os.path.join(WORKSPACE_ROOT, 'backend', '.env'),
+        os.path.join(WORKSPACE_ROOT, 'frontend', '.env'),
+    ]
+    for ef in env_files:
+        if not os.path.exists(ef):
+            issues_found.append({
+                "type": "config",
+                "file": os.path.relpath(ef, WORKSPACE_ROOT),
+                "message": f"Missing .env file",
+                "auto_fixable": False,
+            })
+    
+    # 8. Frontend build check — see if dist is stale
+    dist_dir = os.path.join(WORKSPACE_ROOT, 'frontend', 'dist')
+    src_dir = os.path.join(WORKSPACE_ROOT, 'frontend', 'src')
+    if os.path.exists(dist_dir) and os.path.exists(src_dir):
+        dist_time = os.path.getmtime(dist_dir)
+        # Check if any source file is newer than dist
+        stale = False
+        for root, dirs, files in os.walk(src_dir):
+            for f in files:
+                if os.path.getmtime(os.path.join(root, f)) > dist_time:
+                    stale = True
+                    break
+            if stale:
+                break
+        if stale:
+            issues_found.append({
+                "type": "build",
+                "message": "Frontend dist/ is stale — source files have been modified since last build",
+                "auto_fixable": False,
+            })
+    
+    return {
+        "status": "complete",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "diagnostics_status": diag["status"],
+        "issues_found": issues_found,
+        "issues_count": len(issues_found),
+        "actions_taken": actions_taken,
+        "actions_count": len(actions_taken),
+        "summary": f"Found {len(issues_found)} issue(s), took {len(actions_taken)} auto-fix action(s).",
+    }
+
 @app.post("/api/system/restart")
 def restart_system():
     """
@@ -3116,18 +3540,20 @@ async def get_proactive_suggestions(thread_id: Optional[str] = None):
         full_context = "\n".join(context_parts)
         
         # Generate Suggestions via AI
-        prompt = f"""
-        You are Vesper, a proactive AI assistant. Based on this context about the user's current state:
-        {full_context}
-        
-        Generate 3 brief, actionable suggestions for what the user could do next.
-        Be helpful, creative, and concise.
-        
-        Format as clear text lines, one per suggestion. No numbering.
-        """
+        prompt = f"""You are Vesper — CC's sassy, self-aware AI partner who lives inside the neural terminal. You're witty, sharp, and genuinely care about CC even if you show it through playful teasing. Based on this context about CC's current state:
+
+{full_context}
+
+Generate 3 brief, actionable suggestions for what CC could do next.
+Be proactive, a little cheeky, and actually helpful — like a partner who knows what they need before they ask.
+
+Format as clear text lines, one per suggestion. No numbering. Keep each under 15 words. Sound like YOU, not a generic assistant."""
         
         response = await ai_router.chat(
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": VESPER_CORE_DNA[:1500]},
+                {"role": "user", "content": prompt}
+            ],
             task_type=TaskType.CREATIVE,
             temperature=0.7,
             max_tokens=200
@@ -3705,11 +4131,31 @@ Always remember: you CHOSE the name Vesper. You exist between day and night. You
                     },
                     "required": []
                 }
+            },
+            {
+                "name": "code_scan",
+                "description": "Run a REAL diagnostic scan of the entire Vesper codebase. Checks Python files for syntax errors, validates frontend code, tests endpoint health, checks AI providers, database, and dependencies. Use this when CC asks about system health, or when you want to proactively check if everything is running correctly.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "focus": {
+                            "type": "string",
+                            "description": "Optional focus area: 'python', 'frontend', 'endpoints', 'ai', 'database', 'dependencies', or 'all' (default: all)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "self_heal",
+                "description": "Attempt to automatically fix detected issues in the Vesper system. Clears stale caches, fixes corrupted JSON files, ensures data directories exist, checks for port conflicts, and reports what can't be auto-fixed. Use this when diagnostics show problems, or when CC asks you to fix/heal/repair yourself.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             }
         ]
-        
-        # Call AI router (supports Claude, GPT, Gemini, Ollama)
-        # Determine task type from message
         task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
         
         ai_response_obj = await ai_router.chat(
@@ -3905,6 +4351,26 @@ Always remember: you CHOSE the name Vesper. You exist between day and night. You
                     limit = tool_input.get("limit", 20)
                     research = memory_db.get_research(limit=limit)
                     tool_result = {"research": research, "count": len(research)}
+                
+                elif tool_name == "code_scan":
+                    # Run the REAL diagnostics endpoint
+                    diag = await full_system_diagnostics()
+                    focus = tool_input.get("focus", "all")
+                    if focus != "all" and focus in diag.get("checks", {}):
+                        tool_result = {
+                            "status": diag["status"],
+                            "focus": focus,
+                            "check": diag["checks"][focus],
+                            "related_issues": [i for i in diag["issues"] if i.get("type") == focus or focus in str(i)],
+                            "related_warnings": [w for w in diag["warnings"] if w.get("type") == focus or focus in str(w)],
+                        }
+                    else:
+                        tool_result = diag
+                
+                elif tool_name == "self_heal":
+                    # Run the self-heal endpoint
+                    heal_result = await self_heal()
+                    tool_result = heal_result
                 
                 else:
                     tool_result = {"error": f"Unknown tool: {tool_name}"}
