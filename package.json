@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",
-    "@react-three/postprocessing": "^3.0.4"
+    "@react-three/postprocessing": "^3.0.4",
+    "three-stdlib": "^2.36.1"
   }
 }

@@ -65,7 +65,7 @@ const FloatingActionButton = ({ onAction }) => {
       sx={{
         position: 'fixed',
         bottom: 24,
-        right: 24,
+        left: 24, /* Moved to bottom-left to avoid right taskbar */
         zIndex: 1000,
       }}
     >
@@ -78,14 +78,14 @@ const FloatingActionButton = ({ onAction }) => {
             transitionDelay: isOpen ? `${index * 50}ms` : '0ms',
           }}
         >
-          <Tooltip title={action.label} placement="left">
+          <Tooltip title={action.label} placement="right">
             <Fab
               size="small"
               onClick={action.action}
               sx={{
                 position: 'absolute',
-                bottom: (index + 1) * 60,
-                right: 0,
+                bottom: (index + 1) * 60, /* Stack upwards */
+                left: 0,
                 background: `linear-gradient(135deg, ${action.color}, ${action.color}88)`,
                 border: `1px solid ${action.color}`,
                 boxShadow: `0 0 20px ${action.color}44`,

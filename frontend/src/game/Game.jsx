@@ -27,6 +27,9 @@ import Grass from './Grass';
 import Butterflies from './Butterflies';
 import WorldModels from './WorldModels';
 
+// Lazy load the world editor
+const WorldEditor = lazy(() => import('./WorldEditor'));
+
 // Lazy load RPG systems to avoid bundle errors
 const InventorySystem = lazy(() => import('./InventorySystem'));
 const QuestJournal = lazy(() => import('./QuestJournal'));
@@ -63,6 +66,7 @@ export default function Game({ onExitGame, onChatWithNPC }) {
   const [showPetSelector, setShowPetSelector] = useState(false);
   const [showingChat, setShowingChat] = useState(false);
   const [photoModeActive, setPhotoModeActive] = useState(false);
+  const [editorMode, setEditorMode] = useState(false);
   
   // Player State
   const [playerHealth, setPlayerHealth] = useState(100);
@@ -107,7 +111,20 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     const handleKeyDown = (e) => {
       const key = e.key.toLowerCase();
       // ESC handled by KeyboardControls or here? Let's keep ESC here for menu.
-      if (key === 'escape') onExitGame();
+      if (key === 'escape') {
+        if (editorMode) {
+          setEditorMode(false);
+          return;
+        }
+        onExitGame();
+      }
+
+      // F8 to toggle world editor
+      if (e.key === 'F8') {
+        e.preventDefault();
+        setEditorMode(prev => !prev);
+        return;
+      }
 
       // UI Toggles
       if (key === 'i') setShowInventory(!showInventory);
@@ -121,7 +138,25 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onExitGame, showInventory, showQuestJournal, showPetSelector, isFishing, showCrafting]);
+  }, [onExitGame, showInventory, showQuestJournal, showPetSelector, isFishing, showCrafting, editorMode]);
+
+  // If in editor mode, render WorldEditor overlay instead
+  if (editorMode) {
+    return (
+      <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+        <Suspense fallback={
+          <div style={{
+            width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: '#0a0a1e', color: '#00ffff', fontFamily: 'monospace', fontSize: 18,
+          }}>
+            Loading World Editor...
+          </div>
+        }>
+          <WorldEditor onExit={() => setEditorMode(false)} />
+        </Suspense>
+      </div>
+    );
+  }
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
@@ -193,6 +228,41 @@ export default function Game({ onExitGame, onChatWithNPC }) {
 
       {/* === GAME UI LAYER === */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
+        {/* Editor toggle button */}
+        <div style={{
+          position: 'absolute',
+          top: 12,
+          left: 12,
+          pointerEvents: 'auto',
+          zIndex: 50,
+        }}>
+          <button
+            onClick={() => setEditorMode(true)}
+            title="Open World Editor (F8)"
+            style={{
+              padding: '6px 12px',
+              background: 'rgba(0, 255, 255, 0.1)',
+              border: '1px solid #00ffff44',
+              color: '#00ffff',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: 11,
+              fontWeight: 600,
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(0, 255, 255, 0.25)';
+              e.currentTarget.style.borderColor = '#00ffff';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'rgba(0, 255, 255, 0.1)';
+              e.currentTarget.style.borderColor = '#00ffff44';
+            }}
+          >
+            EDITOR (F8)
+          </button>
+        </div>
         <Suspense fallback={null}>
           {/* HUD & Stats (Add pointer events allow on UI container children if needed, handled in GameUI) */}
           <GameUI 

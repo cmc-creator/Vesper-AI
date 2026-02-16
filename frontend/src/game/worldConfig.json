@@ -1,0 +1,186 @@
+{
+  "models": [
+    {
+      "id": "main-castle",
+      "url": "/models/hohenzollern_castle.glb",
+      "label": "Main Castle",
+      "position": [0, 0, -50],
+      "rotation": [0, 0, 0],
+      "scale": 6,
+      "animated": false,
+      "labelColor": "#00ffff"
+    },
+    {
+      "id": "haunted-castle",
+      "url": "/models/haunted_castle.glb",
+      "label": "Haunted Castle",
+      "position": [80, 1, -70],
+      "rotation": [0, -0.785, 0],
+      "scale": 4,
+      "animated": false,
+      "labelColor": "#ff4444"
+    },
+    {
+      "id": "sea-keep",
+      "url": "/models/sea_keep_lonely_watcher.glb",
+      "label": "Sea Keep",
+      "position": [-75, 1, -80],
+      "rotation": [0, 0.524, 0],
+      "scale": 3,
+      "animated": false,
+      "labelColor": "#5ad7ff"
+    },
+    {
+      "id": "castle-byers",
+      "url": "/models/castle_byers.glb",
+      "label": "Castle Byers",
+      "position": [-50, 1, 40],
+      "rotation": [0, 1.047, 0],
+      "scale": 3,
+      "animated": false,
+      "labelColor": "#ffd700"
+    },
+    {
+      "id": "wall-1",
+      "url": "/models/stone_castle_wall_material_01.glb",
+      "label": "Wall Segment",
+      "position": [12, 0.5, -38],
+      "rotation": [0, 0, 0],
+      "scale": 4,
+      "animated": false,
+      "labelColor": "#999999"
+    },
+    {
+      "id": "wall-2",
+      "url": "/models/stone_castle_wall_material_01.glb",
+      "label": "Wall Segment 2",
+      "position": [-12, 0.5, -38],
+      "rotation": [0, 3.14159, 0],
+      "scale": 4,
+      "animated": false,
+      "labelColor": "#999999"
+    },
+    {
+      "id": "grandmas-house",
+      "url": "/models/dae_diorama_-_grandmas_house.glb",
+      "label": "Grandma's House",
+      "position": [55, 1, 50],
+      "rotation": [0, 0, 0],
+      "scale": 3,
+      "animated": false,
+      "labelColor": "#ffaa55"
+    },
+    {
+      "id": "dark-forest",
+      "url": "/models/dae_diorama_-_forest_loner.glb",
+      "label": "Dark Forest",
+      "position": [-65, 1, 60],
+      "rotation": [0, 0, 0],
+      "scale": 3,
+      "animated": false,
+      "labelColor": "#44ff88"
+    },
+    {
+      "id": "forest-2",
+      "url": "/models/dae_diorama_-_forest_loner%20(1).glb",
+      "label": "Deep Forest",
+      "position": [-85, 1, 30],
+      "rotation": [0, 0, 0],
+      "scale": 3,
+      "animated": false,
+      "labelColor": "#44ff88"
+    },
+    {
+      "id": "rain-garden",
+      "url": "/models/after_the_rain..._-_vr__sound.glb",
+      "label": "Rain Garden",
+      "position": [35, 1, 65],
+      "rotation": [0, 0, 0],
+      "scale": 3,
+      "animated": false,
+      "labelColor": "#88ccff"
+    },
+    {
+      "id": "vesper-npc",
+      "url": "/models/scifi_girl_v.01.glb",
+      "label": "Vesper",
+      "position": [-18, 0.5, 18],
+      "rotation": [0, 0.785, 0],
+      "scale": 2,
+      "animated": true,
+      "labelColor": "#a78bfa"
+    },
+    {
+      "id": "truffle-man",
+      "url": "/models/truffle_man.glb",
+      "label": "Truffle Man",
+      "position": [30, 0.5, 25],
+      "rotation": [0, 0, 0],
+      "scale": 2,
+      "animated": true,
+      "labelColor": "#cd853f"
+    },
+    {
+      "id": "horse-1",
+      "url": "/models/realistic_animated_horse.glb",
+      "label": "Horse",
+      "position": [50, 0.5, -20],
+      "rotation": [0, 0, 0],
+      "scale": 2,
+      "animated": true,
+      "labelColor": "#8b6914"
+    },
+    {
+      "id": "horse-2",
+      "url": "/models/horse.glb",
+      "label": "Horse 2",
+      "position": [58, 0.5, -15],
+      "rotation": [0, -1.047, 0],
+      "scale": 2,
+      "animated": true,
+      "labelColor": "#8b6914"
+    },
+    {
+      "id": "horse-3",
+      "url": "/models/horse%20(1).glb",
+      "label": "Horse 3",
+      "position": [65, 0.5, -25],
+      "rotation": [0, 1.571, 0],
+      "scale": 2,
+      "animated": true,
+      "labelColor": "#8b6914"
+    },
+    {
+      "id": "dragon",
+      "url": "/models/black_dragon_with_idle_animation.glb",
+      "label": "Black Dragon",
+      "position": [70, 3, -75],
+      "rotation": [0, -1.571, 0],
+      "scale": 4,
+      "animated": true,
+      "labelColor": "#ff2222"
+    },
+    {
+      "id": "pterodactyl",
+      "url": "/models/animated_flying_pteradactal_dinosaur_loop.glb",
+      "label": "Pterodactyl",
+      "position": [0, 30, 0],
+      "rotation": [0, 0, 0],
+      "scale": 3,
+      "animated": true,
+      "flying": true,
+      "labelColor": "#ff8800"
+    },
+    {
+      "id": "mech-drone",
+      "url": "/models/mech_drone.glb",
+      "label": "Scout Drone",
+      "position": [-30, 8, -50],
+      "rotation": [0, 0, 0],
+      "scale": 2,
+      "animated": true,
+      "flying": true,
+      "labelColor": "#00ffff"
+    }
+  ]
+}
