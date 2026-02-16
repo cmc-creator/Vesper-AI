@@ -10,7 +10,6 @@ import {
   Stack,
   Tooltip,
   Divider,
-  Badge,
   Button,
   Grid,
   Snackbar,
@@ -197,7 +196,6 @@ function App() {
   const [showSystemStatus, setShowSystemStatus] = useState(true);
 
   // Tools
-  const [toolsExpanded, setToolsExpanded] = useState(true);
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [canvasAppCode, setCanvasAppCode] = useState(`import React, { useState } from "react";
 import { Button, Container } from "react-bootstrap";
@@ -231,7 +229,7 @@ export default function App() {
     { id: 'enterWorld', label: 'Enter World', icon: '🏰' },
     { id: 'newChat', label: 'New Chat', icon: '💬' },
     { id: 'clearHistory', label: 'Clear History', icon: '🗑️' },
-    { id: 'mindmap', label: 'Mind Map', icon: '🧠' },
+    { id: 'mindmap', label: 'Mind Map', icon: '🧠', description: 'Explore your research visually' },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
   
@@ -261,12 +259,9 @@ export default function App() {
   const [researchSearchResults, setResearchSearchResults] = useState([]);
   const [researchFilter, setResearchFilter] = useState('all'); // 'all', 'web', 'file', 'manual'
   const [selectedResearchId, setSelectedResearchId] = useState(null);
-  const [researchTags, setResearchTags] = useState([]);
-  const [researchCitations, setResearchCitations] = useState({});
   const [citationFormat, setCitationFormat] = useState('APA');
   
   // Better Export Options
-  const [exportMenuAnchorAdvanced, setExportMenuAnchorAdvanced] = useState(null);
   const [exportSelection, setExportSelection] = useState({
     memories: true,
     tasks: true,
@@ -274,7 +269,6 @@ export default function App() {
     documents: true,
     conversations: true,
   });
-  const [exportFormat, setExportFormat] = useState('markdown'); // markdown, json, csv
   
   // Advanced Customization Options
   const [customizations, setCustomizations] = useState({
@@ -1440,11 +1434,6 @@ export default function App() {
     }
   };
 
-  const handleBulkDelete = async () => {
-    setDeleteTargetId('bulk');
-    setShowDeleteConfirm(true);
-  };
-  
   const executeDelete = async () => {
     if (deleteTargetId === 'bulk') {
       let count = 0;
@@ -1473,14 +1462,6 @@ export default function App() {
       if (prev.includes(id)) return prev.filter(tid => tid !== id);
       return [...prev, id];
     });
-  };
-
-  const handleSelectAllThreads = (filteredThreads) => {
-    if (selectedThreadIds.length === filteredThreads.length) {
-      setSelectedThreadIds([]);
-    } else {
-      setSelectedThreadIds(filteredThreads.map(t => t.id));
-    }
   };
 
   const startRenameThread = (threadId, currentTitle) => {
@@ -2361,7 +2342,25 @@ export default function App() {
                           </Box>
                           {selectedResearchId === item.id && (
                             <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1, width: '100%' }}>
-                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 700, display: 'block', mb: 0.5 }}>Citation ({citationFormat}):</Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>Citation:</Typography>
+                                {['APA', 'MLA', 'Chicago'].map(fmt => (
+                                  <Chip
+                                    key={fmt}
+                                    label={fmt}
+                                    size="small"
+                                    onClick={() => setCitationFormat(fmt)}
+                                    sx={{
+                                      fontSize: '0.65rem',
+                                      height: 20,
+                                      bgcolor: citationFormat === fmt ? 'var(--accent)' : 'rgba(255,255,255,0.1)',
+                                      color: citationFormat === fmt ? '#000' : 'rgba(255,255,255,0.7)',
+                                      cursor: 'pointer',
+                                      '&:hover': { bgcolor: citationFormat === fmt ? 'var(--accent)' : 'rgba(255,255,255,0.2)' },
+                                    }}
+                                  />
+                                ))}
+                              </Box>
                               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'monospace', display: 'block', wordBreak: 'break-word' }}>
                                 {citations[citationFormat.toLowerCase()] || 'N/A'}
                               </Typography>
@@ -3162,6 +3161,65 @@ export default function App() {
                       </Stack>
                     </Box>
                   )}
+
+                  {/* Custom Personality Form */}
+                  <Box>
+                    <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 2 }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Custom Personality</Typography>
+                    <Stack spacing={1.5}>
+                      <TextField
+                        size="small"
+                        label="Name"
+                        value={personalityForm.name}
+                        onChange={(e) => setPersonalityForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="e.g. Scholarly Mentor"
+                        InputLabelProps={{ sx: { color: 'rgba(255,255,255,0.5)' } }}
+                        sx={{ '& .MuiOutlinedInput-root': { color: '#fff', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } } }}
+                      />
+                      <TextField
+                        size="small"
+                        label="Tone"
+                        value={personalityForm.tone}
+                        onChange={(e) => setPersonalityForm(prev => ({ ...prev, tone: e.target.value }))}
+                        placeholder="e.g. warm, encouraging, analytical"
+                        InputLabelProps={{ sx: { color: 'rgba(255,255,255,0.5)' } }}
+                        sx={{ '& .MuiOutlinedInput-root': { color: '#fff', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } } }}
+                      />
+                      <TextField
+                        size="small"
+                        label="Response Style"
+                        value={personalityForm.responseStyle}
+                        onChange={(e) => setPersonalityForm(prev => ({ ...prev, responseStyle: e.target.value }))}
+                        placeholder="e.g. detailed with examples"
+                        InputLabelProps={{ sx: { color: 'rgba(255,255,255,0.5)' } }}
+                        sx={{ '& .MuiOutlinedInput-root': { color: '#fff', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } } }}
+                      />
+                      <TextField
+                        size="small"
+                        label="System Prompt"
+                        value={personalityForm.systemPrompt}
+                        onChange={(e) => setPersonalityForm(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                        placeholder="Custom instructions for Vesper..."
+                        multiline
+                        rows={3}
+                        InputLabelProps={{ sx: { color: 'rgba(255,255,255,0.5)' } }}
+                        sx={{ '& .MuiOutlinedInput-root': { color: '#fff', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } } }}
+                      />
+                      <Button
+                        variant="contained"
+                        disabled={!personalityForm.name.trim() || personalityLoading}
+                        onClick={() => applyPersonality({
+                          name: personalityForm.name,
+                          system_prompt: personalityForm.systemPrompt,
+                          tone: personalityForm.tone,
+                          response_style: personalityForm.responseStyle,
+                        })}
+                        sx={{ bgcolor: 'var(--accent)', color: '#000', fontWeight: 700, '&:hover': { bgcolor: 'var(--accent)', opacity: 0.9 } }}
+                      >
+                        {personalityLoading ? <CircularProgress size={18} /> : 'Apply Custom Personality'}
+                      </Button>
+                    </Stack>
+                  </Box>
                 </Stack>
               )}
             </Paper>
@@ -4295,7 +4353,7 @@ export default function App() {
                     } else if (tool.id === 'clearHistory') {
                       clearHistory();
                     } else if (tool.id === 'mindmap') {
-                      setActiveSection('research');
+                      setGraphOpen(true);
                     } else if (tool.id === 'settings') {
                       setActiveSection('settings');
                     } else {
