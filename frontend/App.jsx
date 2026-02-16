@@ -181,7 +181,7 @@ function App() {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: '', description: '', status: 'inbox', priority: 'medium', dueDate: '' });
   const [toast, setToast] = useState('');
-  const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'false') === 'true');
+  const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'true') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [availableVoices, setAvailableVoices] = useState([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState(() => safeStorageGet('vesper_tts_voice', ''));
@@ -615,7 +615,9 @@ export default function App() {
     setLoading(true);
     setThinking(true);
     
-    playSound('click'); // Sound on send
+    try {
+      playSound('click'); // Sound on send
+    } catch(e) { /* ignore sound errors */ }
     
     // Create new abort controller for this request
     const controller = new AbortController();
@@ -632,7 +634,13 @@ export default function App() {
     
     addLocalMessage('user', localMsg.content, localMsg); // Pass full obj as metadata if needed
     
-    const savedThreadId = await saveMessageToThread('user', userMessage);
+    let savedThreadId;
+    try {
+      savedThreadId = await saveMessageToThread('user', userMessage);
+    } catch(e) {
+      console.warn('Thread save failed, continuing:', e);
+      savedThreadId = currentThreadId;
+    }
     
     try {
       const payload = { 
