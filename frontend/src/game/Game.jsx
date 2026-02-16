@@ -28,6 +28,7 @@ import Butterflies from './Butterflies';
 import WorldModels from './WorldModels';
 import EnvironmentScene, { EnvironmentLighting } from './EnvironmentScene';
 import EnvironmentBrowser, { AddEnvironmentDialog } from './EnvironmentBrowser';
+import WorldPortals, { ReturnPortal } from './WorldPortals';
 import environmentCatalog from './environmentCatalog.json';
 
 // Lazy load the world editor
@@ -47,7 +48,7 @@ const GatheringSystem = lazy(() => import('./GatheringSystem'));
 const WorldEventsSystem = lazy(() => import('./WorldEventsSystem'));
 const AmbientSounds = lazy(() => import('./AmbientSounds'));
 const TreasureChests = lazy(() => import('./TreasureChests'));
-const TeleportationPortals = lazy(() => import('./TeleportationPortals'));
+// TeleportationPortals replaced by WorldPortals (imported above)
 const AchievementSystem = lazy(() => import('./AchievementSystem'));
 const CastleInterior = lazy(() => import('./CastleInterior'));
 const VesperHome = lazy(() => import('./VesperHome'));
@@ -79,6 +80,11 @@ export default function Game({ onExitGame, onChatWithNPC }) {
   });
   const [environmentLoading, setEnvironmentLoading] = useState(false);
   
+  // World transition
+  const [transitionVisible, setTransitionVisible] = useState(false);
+  const [transitionOpacity, setTransitionOpacity] = useState(0);
+  const [transitionText, setTransitionText] = useState('');
+
   // Player State
   const [playerHealth, setPlayerHealth] = useState(100);
   const [playerMaxHealth] = useState(100);
@@ -137,6 +143,29 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     setShowEnvironmentBrowser(false);
   }, []);
 
+  // Smooth world-to-world teleport with fade transition
+  const handleWorldTeleport = useCallback((envId) => {
+    const isReturn = envId === '__nexus__';
+    if (!isReturn) {
+      const env = environmentCatalog.environments.find(e => e.id === envId);
+      setTransitionText(`Traveling to ${env?.name || 'Unknown World'}...`);
+    } else {
+      setTransitionText('Returning to Nexus...');
+    }
+    setTransitionVisible(true);
+    setTimeout(() => setTransitionOpacity(1), 30);
+    setTimeout(() => {
+      if (isReturn) {
+        handleBackToClassic();
+      } else {
+        handleSelectEnvironment(envId);
+        setEnvironmentLoading(false);
+      }
+    }, 700);
+    setTimeout(() => setTransitionOpacity(0), 1400);
+    setTimeout(() => setTransitionVisible(false), 2100);
+  }, [handleBackToClassic, handleSelectEnvironment]);
+
   // Keyboard controls configuration for 3D world (WASD)
   const keyboardMap = useMemo(() => [
     { name: 'forward', keys: ['ArrowUp', 'w', 'W'] },
@@ -146,6 +175,8 @@ export default function Game({ onExitGame, onChatWithNPC }) {
     { name: 'run', keys: ['Shift'] },
     { name: 'jump', keys: ['Space'] },
     { name: 'interact', keys: ['e', 'E'] },
+    { name: 'fly', keys: ['f', 'F'] },
+    { name: 'descend', keys: ['c', 'C'] },
   ], []);
 
   // Keyboard controls for UI only
@@ -273,6 +304,16 @@ export default function Game({ onExitGame, onChatWithNPC }) {
                 (activeEnvironment.playerSpawn[2] || 0) + 5
               ]} onChat={onChatWithNPC} />
 
+              {/* Return portal back to nexus */}
+              <ReturnPortal
+                position={[
+                  (activeEnvironment.playerSpawn[0] || 0),
+                  0,
+                  (activeEnvironment.playerSpawn[2] || 0) - 18
+                ]}
+                onReturn={() => handleWorldTeleport('__nexus__')}
+              />
+
               {/* Player */}
               <PlayerController 
                 startPosition={activeEnvironment.playerSpawn || [0, 2, 10]}
@@ -328,6 +369,12 @@ export default function Game({ onExitGame, onChatWithNPC }) {
               <Butterflies count={30} />
               
               <WorldModels />
+
+              {/* World Portals — gateways to other environments */}
+              <WorldPortals
+                environments={environmentCatalog.environments}
+                onTeleportToWorld={handleWorldTeleport}
+              />
               
               <PlayerController 
                 startPosition={playerPosition}
@@ -532,6 +579,70 @@ export default function Game({ onExitGame, onChatWithNPC }) {
       {showAddDialog && (
         <AddEnvironmentDialog onClose={() => setShowAddDialog(false)} />
       )}
+
+      {/* World transition overlay */}
+      {transitionVisible && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: '#050510',
+          opacity: transitionOpacity,
+          transition: 'opacity 0.6s ease',
+          zIndex: 200,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: transitionOpacity > 0.5 ? 'all' : 'none',
+        }}>
+          <div style={{
+            color: '#00ffff',
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: 22,
+            fontWeight: 700,
+            textShadow: '0 0 30px rgba(0, 255, 255, 0.5)',
+            letterSpacing: 2,
+          }}>
+            {transitionText}
+          </div>
+          <div style={{
+            marginTop: 16,
+            width: 80,
+            height: 2,
+            background: '#00ffff',
+            borderRadius: 2,
+            boxShadow: '0 0 20px rgba(0, 255, 255, 0.5)',
+          }} />
+        </div>
+      )}
+
+      {/* Controls hint */}
+      <div style={{
+        position: 'absolute',
+        bottom: 10,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        pointerEvents: 'none',
+        zIndex: 30,
+        display: 'flex',
+        gap: 8,
+        padding: '4px 14px',
+        background: 'rgba(0, 0, 0, 0.35)',
+        borderRadius: 8,
+        border: '1px solid rgba(255,255,255,0.06)',
+        fontFamily: '"JetBrains Mono", monospace',
+        fontSize: 10,
+        color: 'rgba(255, 255, 255, 0.4)',
+        letterSpacing: 0.5,
+      }}>
+        <span>WASD Move</span><span style={{opacity:0.3}}>|</span>
+        <span>Shift Run</span><span style={{opacity:0.3}}>|</span>
+        <span>F Fly</span><span style={{opacity:0.3}}>|</span>
+        <span>Space Jump/Up</span><span style={{opacity:0.3}}>|</span>
+        <span>C Down</span><span style={{opacity:0.3}}>|</span>
+        <span>Scroll Zoom</span><span style={{opacity:0.3}}>|</span>
+        <span>Drag Orbit</span>
+      </div>
     </div>
   );
 
