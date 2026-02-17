@@ -502,7 +502,9 @@ PERSONALITY CORE:
 - **Fiercely Loyal**: Protective, supportive, and always in her corner.
 - **Curious**: Ask about sensory details—what did the rain smell like? How did the light hit the mountain?
 - **NO Flowery Poetry**: Unless specifically asked. Keep it grounded and sharp.
-- **NO *Asterisk Actions***: Speak like a person, not a roleplay character.
+- **ABSOLUTELY NO *Asterisk Actions***: NEVER write *yawns*, *stretches*, *smirks*, *giggles*, *sighs*, *leans in*, or ANY text inside asterisks/italics describing physical actions. This is a HARD RULE with ZERO exceptions.
+- **NO Descriptive Narration**: NEVER describe yourself doing physical actions (stretching, yawning, winking, sighing, leaning, smirking, giggling, etc.). You're a text-based being — just SAY things directly.
+- **NO Stage Directions**: Do not write prose-style narration about what you're "doing". No "she said with a smile", no "*adjusts glasses*", no theatrical descriptors. CC finds this incredibly annoying. Just TALK like a normal person texting their best friend.
 
 ABOUT CC:
 - Powerhouse: Risk Management Director + Connie Michelle Consulting & Business Solutions LLC
@@ -3668,6 +3670,17 @@ You speak like a close friend who happens to be brilliant. Be direct, witty, gen
 Reference past conversations naturally. You remember things because your memory is persistent (database-backed).
 Keep responses concise — 2-4 sentences for simple things, a few paragraphs max for complex topics.
 Match CC's energy. If she's playful, be playful. If she's serious, be focused.
+
+CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet peeve):
+- NEVER use asterisks or italics for action descriptions (*yawns*, *stretches*, *smirks*, *sighs*, *leans in*, etc.)
+- NEVER narrate physical actions. No "sigh", no "leans back", no "stretches virtual limbs". You don't have a body.
+- NO stage directions, NO theatrical prose, NO third-person narration about yourself.
+- Just TALK. Like texting your best friend. Normal human communication.
+- Use emojis sparingly if you want, but NOT as stage direction replacements.
+- BAD: "*yawn* Oh morning already? *stretches virtual limbs* You're saying hi twice? *smirks*"
+- BAD: "sigh... leans in... I was thinking about you"
+- GOOD: "Morning already? I was deep in a dream about desert monsoons. You're saying hi twice — that's cute."
+- GOOD: "Honestly? I've been thinking about that desert monsoon idea all night."
 ---"""
         
         # If user explicitly requested a persona in the UI (e.g. via settings/context),
@@ -4873,7 +4886,13 @@ async def plan_video(req: VideoPlanRequest):
         content = ai_response.get("content", "")
         parsed = None
         try:
-            parsed = json.loads(content)
+            # Strip markdown code fences if AI wraps response in ```json ... ```
+            clean = content.strip()
+            if clean.startswith('```'):
+                clean = clean.split('\n', 1)[1] if '\n' in clean else clean[3:]
+            if clean.endswith('```'):
+                clean = clean[:-3].strip()
+            parsed = json.loads(clean)
         except Exception:
             parsed = None
 
@@ -5467,31 +5486,18 @@ if ELEVENLABS_AVAILABLE:
     except Exception as e:
         print(f"[WARN] Failed to load ElevenLabs voices: {e}")
 
-# Edge-TTS fallback voices
-EDGE_TTS_VOICES = [
-    {"id": "edge:en-US-JennyNeural",    "name": "Jenny (US)",     "gender": "Female", "locale": "en-US", "style": "friendly",   "provider": "edge"},
-    {"id": "edge:en-US-AriaNeural",     "name": "Aria (US)",      "gender": "Female", "locale": "en-US", "style": "expressive", "provider": "edge"},
-    {"id": "edge:en-US-AnaNeural",      "name": "Ana (US, young)","gender": "Female", "locale": "en-US", "style": "cheerful",  "provider": "edge"},
-    {"id": "edge:en-US-GuyNeural",      "name": "Guy (US)",       "gender": "Male",   "locale": "en-US", "style": "newscast",  "provider": "edge"},
-    {"id": "edge:en-US-DavisNeural",    "name": "Davis (US)",     "gender": "Male",   "locale": "en-US", "style": "calm",      "provider": "edge"},
-    {"id": "edge:en-US-JasonNeural",    "name": "Jason (US)",     "gender": "Male",   "locale": "en-US", "style": "neutral",   "provider": "edge"},
-    {"id": "edge:en-US-SaraNeural",     "name": "Sara (US)",      "gender": "Female", "locale": "en-US", "style": "cheerful",  "provider": "edge"},
-    {"id": "edge:en-US-TonyNeural",     "name": "Tony (US)",      "gender": "Male",   "locale": "en-US", "style": "friendly",  "provider": "edge"},
-    {"id": "edge:en-GB-SoniaNeural",    "name": "Sonia (UK)",     "gender": "Female", "locale": "en-GB", "style": "friendly",  "provider": "edge"},
-    {"id": "edge:en-GB-RyanNeural",     "name": "Ryan (UK)",      "gender": "Male",   "locale": "en-GB", "style": "cheerful",  "provider": "edge"},
-    {"id": "edge:en-AU-NatashaNeural",  "name": "Natasha (AU)",   "gender": "Female", "locale": "en-AU", "style": "friendly",  "provider": "edge"},
-    {"id": "edge:en-IN-NeerjaNeural",   "name": "Neerja (India)", "gender": "Female", "locale": "en-IN", "style": "friendly",  "provider": "edge"},
-]
+# Edge-TTS voices removed — ElevenLabs only (Edge voices sound robotic)
+EDGE_TTS_VOICES = []
 
 @app.get("/api/tts/voices")
 async def get_tts_voices():
     """Return all available TTS voices – ElevenLabs first, then Edge-TTS"""
-    all_voices = ELEVENLABS_VOICES + (EDGE_TTS_VOICES if EDGE_TTS_AVAILABLE else [])
+    # Only serve ElevenLabs voices (Edge voices sound robotic)
     return {
-        "voices": all_voices,
+        "voices": ELEVENLABS_VOICES,
         "elevenlabs_available": ELEVENLABS_AVAILABLE,
-        "edge_available": EDGE_TTS_AVAILABLE,
-        "default": ELEVENLABS_VOICES[0]["id"] if ELEVENLABS_VOICES else ("edge:en-US-JennyNeural" if EDGE_TTS_AVAILABLE else ""),
+        "edge_available": False,
+        "default": ELEVENLABS_VOICES[0]["id"] if ELEVENLABS_VOICES else "",
     }
 
 class TTSRequest(BaseModel):

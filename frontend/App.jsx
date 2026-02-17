@@ -200,25 +200,12 @@ function PersonaAssigner({ apiBase, cloudVoices, setToast }) {
                 cursor: 'pointer',
               }}
             >
-              <option value="" style={{ background: '#111', color: '#999' }}>Default (no override)</option>
-              {cloudVoices.filter(v => v.provider === 'elevenlabs').length > 0 && (
-                <optgroup label="★ ElevenLabs (Premium)" style={{ background: '#111' }}>
-                  {cloudVoices.filter(v => v.provider === 'elevenlabs').map(v => (
-                    <option key={v.id} value={v.id} style={{ background: '#111', color: '#ffbb44' }}>
-                      {v.name} — {v.style || 'neural'}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {cloudVoices.filter(v => v.provider !== 'elevenlabs').length > 0 && (
-                <optgroup label="Edge TTS (Free)" style={{ background: '#111' }}>
-                  {cloudVoices.filter(v => v.provider !== 'elevenlabs').map(v => (
-                    <option key={v.id} value={v.id} style={{ background: '#111', color: '#88ccff' }}>
-                      {v.name} — {v.gender} {v.locale}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
+              <option value="" style={{ background: '#111', color: '#999' }}>Default (uses main voice)</option>
+              {cloudVoices.map(v => (
+                <option key={v.id} value={v.id} style={{ background: '#111', color: '#ffbb44' }}>
+                  {v.name} — {v.locale || 'American'} • {v.style || 'neural'}
+                </option>
+              ))}
             </select>
           </Box>
         );
@@ -4330,25 +4317,7 @@ export default function App() {
                   </IconButton>
                 </Tooltip>
 
-                {/* Voice Picker Button (only when TTS is on) */}
-                {ttsEnabled && (
-                  <Tooltip title="Choose voice" placement="top">
-                    <IconButton
-                      size="small"
-                      onClick={() => setShowVoiceSelector(!showVoiceSelector)}
-                      sx={{
-                        color: showVoiceSelector ? '#000' : 'rgba(255,255,255,0.6)',
-                        bgcolor: showVoiceSelector ? 'var(--accent)' : 'transparent',
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        '&:hover': { bgcolor: 'rgba(0,255,255,0.15)', color: 'var(--accent)' },
-                        width: 32, height: 32,
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      🎙
-                    </IconButton>
-                  </Tooltip>
-                )}
+                {/* Voice picker moved to Voice Lab > Personas tab */}
 
                 {isSpeaking && (
                   <Chip 
@@ -4371,71 +4340,7 @@ export default function App() {
               </Box>
             </Box>
 
-            {/* Voice Selector Dropdown */}
-            {showVoiceSelector && ttsEnabled && (
-              <Box sx={{
-                mb: 1, p: 1.5,
-                background: 'rgba(10,10,30,0.95)',
-                border: '1px solid var(--accent)',
-                borderRadius: 2,
-                maxHeight: 200,
-                overflowY: 'auto',
-                '&::-webkit-scrollbar': { width: 4 },
-                '&::-webkit-scrollbar-thumb': { background: 'var(--accent)', borderRadius: 2 },
-              }}>
-                <Typography variant="caption" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1, display: 'block' }}>
-                  VESPER'S VOICE
-                </Typography>
-                {cloudVoices.length > 0 ? cloudVoices.map((v) => {
-                  const isEleven = v.provider === 'elevenlabs';
-                  const isActive = selectedVoiceName === v.id || (!selectedVoiceName && v.id === defaultVoiceId);
-                  return (
-                    <Box
-                      key={v.id}
-                      onClick={() => { handleVoiceChange(v.id); setShowVoiceSelector(false); }}
-                      sx={{
-                        p: 0.75, px: 1,
-                        cursor: 'pointer',
-                        borderRadius: 1,
-                        mb: 0.25,
-                        background: isActive ? 'rgba(0,255,136,0.15)' : isEleven ? 'rgba(255,180,50,0.06)' : 'rgba(0,255,255,0.04)',
-                        borderLeft: isActive ? '2px solid #00ff88' : isEleven ? '2px solid rgba(255,180,50,0.4)' : '2px solid rgba(0,255,255,0.3)',
-                        '&:hover': { background: 'rgba(255,255,255,0.08)' },
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                        <Typography variant="caption" sx={{
-                          color: isActive ? '#00ff88' : isEleven ? '#ffbb44' : '#00ddff',
-                          fontWeight: isActive ? 700 : 600,
-                          fontSize: '0.75rem',
-                        }}>
-                          {v.name}
-                        </Typography>
-                        <Typography variant="caption" sx={{
-                          fontSize: '0.55rem', px: 0.5, py: 0.1,
-                          borderRadius: 0.5,
-                          background: isEleven ? 'rgba(255,180,50,0.2)' : v.gender === 'Female' ? 'rgba(255,100,255,0.15)' : 'rgba(100,200,255,0.15)',
-                          color: isEleven ? '#ffcc55' : v.gender === 'Female' ? '#ff88ff' : '#88ccff',
-                          fontWeight: 700,
-                        }}>
-                          {isEleven ? '★ ElevenLabs' : `${v.gender === 'Female' ? '♀' : '♂'} Edge`}
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', ml: 1 }}>
-                        {v.style || v.locale}
-                      </Typography>
-                    </Box>
-                  );
-                }) : (
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-                    Start the backend to load HD voices. Falling back to browser voices.
-                  </Typography>
-                )}
-              </Box>
-            )}
+            {/* Voice selector moved to Voice Lab > Personas tab */}
 
             <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.5, flexShrink: 0 }}>
               {['Summarize the scene', 'Generate a quest', 'Give me a hint', 'Explain controls'].map((label) => (
@@ -4911,13 +4816,74 @@ export default function App() {
                   </Box>
                 )}
 
-                {/* ── Voice Personas Tab ── */}
+                {/* ── Voice Personas Tab (now includes main voice selector) ── */}
                 {voiceLabTab === 'personas' && (
                   <Box>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1.5 }}>
-                      Assign a different voice to each context. Vesper will automatically switch voices based on what's happening.
+                    {/* Main Voice Selector */}
+                    <Typography variant="caption" sx={{ color: '#ffbb44', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                      🎙️ VESPER’S VOICE
                     </Typography>
-                    <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} />
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
+                      Choose the default voice for all speech
+                    </Typography>
+                    <Box sx={{
+                      maxHeight: 180, overflowY: 'auto', mb: 2, borderRadius: 1,
+                      border: '1px solid rgba(255,180,50,0.2)', p: 1,
+                      '&::-webkit-scrollbar': { width: 4 },
+                      '&::-webkit-scrollbar-thumb': { background: '#ffbb44', borderRadius: 2 },
+                    }}>
+                      {cloudVoices.length > 0 ? cloudVoices.map((v) => {
+                        const isActive = selectedVoiceName === v.id || (!selectedVoiceName && v.id === defaultVoiceId);
+                        return (
+                          <Box
+                            key={v.id}
+                            onClick={() => handleVoiceChange(v.id)}
+                            sx={{
+                              p: 0.75, px: 1, cursor: 'pointer', borderRadius: 1, mb: 0.25,
+                              background: isActive ? 'rgba(0,255,136,0.15)' : 'rgba(255,180,50,0.04)',
+                              borderLeft: isActive ? '3px solid #00ff88' : '3px solid rgba(255,180,50,0.3)',
+                              '&:hover': { background: 'rgba(255,255,255,0.08)' },
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                              <Typography variant="caption" sx={{
+                                color: isActive ? '#00ff88' : '#ffbb44', fontWeight: isActive ? 700 : 600, fontSize: '0.75rem',
+                              }}>
+                                {v.name}
+                              </Typography>
+                              {v.gender && (
+                                <Typography variant="caption" sx={{
+                                  fontSize: '0.55rem', px: 0.5, py: 0.1, borderRadius: 0.5,
+                                  background: v.gender === 'Female' ? 'rgba(255,100,255,0.15)' : 'rgba(100,200,255,0.15)',
+                                  color: v.gender === 'Female' ? '#ff88ff' : '#88ccff', fontWeight: 700,
+                                }}>
+                                  {v.gender === 'Female' ? '♀' : '♂'}
+                                </Typography>
+                              )}
+                            </Box>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.65rem' }}>
+                              {v.locale || ''}{v.style ? ` • ${v.style}` : ''}
+                            </Typography>
+                          </Box>
+                        );
+                      }) : (
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+                          Start the backend to load voices.
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {/* Persona Assignments */}
+                    <Box sx={{ borderTop: '1px solid rgba(255,255,255,0.08)', pt: 1.5 }}>
+                      <Typography variant="caption" sx={{ color: 'var(--accent)', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                        🎭 PERSONA VOICES
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
+                        Override the voice for specific contexts (optional)
+                      </Typography>
+                      <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} />
+                    </Box>
                   </Box>
                 )}
               </Box>
