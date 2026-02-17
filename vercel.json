@@ -8,6 +8,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://vesper-ai-production.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/((?!assets/).*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
