@@ -257,6 +257,241 @@ def add_wardrobe_item(item: dict):
     data['wardrobe'].append(item)
     save_style(data)
     return {"status": "ok"}
+
+# ── 3D AVATAR SYSTEM ───────────────────────────────────────────────────────
+# Combines: pre-made models, Ready Player Me, and AI-generated avatar support
+AVATAR_DATA_FILE = os.path.join(DATA_DIR, "style", "avatar_config.json")
+
+# Pre-built avatar catalog — models already in frontend/public/models/
+AVATAR_CATALOG = [
+    {
+        "id": "scifi_girl",
+        "name": "Sci-Fi Vesper",
+        "file": "/models/scifi_girl_v.01.glb",
+        "type": "premade",
+        "description": "Futuristic sci-fi girl with energy effects — Vesper's default form",
+        "tags": ["cyberpunk", "default", "feminine"],
+        "scale": 1.5,
+        "position": [0, -1, 0],
+    },
+    {
+        "id": "mech_drone",
+        "name": "Mech Companion",
+        "file": "/models/mech_drone.glb",
+        "type": "premade",
+        "description": "Hovering mech drone — Vesper's mechanical form",
+        "tags": ["tech", "mech", "neutral"],
+        "scale": 1.0,
+        "position": [0, 0, 0],
+    },
+    {
+        "id": "dragon",
+        "name": "Shadow Dragon",
+        "file": "/models/black_dragon_with_idle_animation.glb",
+        "type": "premade",
+        "description": "Animated black dragon — Vesper's fierce form",
+        "tags": ["fantasy", "fierce", "dark"],
+        "scale": 0.8,
+        "position": [0, -0.5, 0],
+    },
+    {
+        "id": "horse",
+        "name": "Spirit Steed",
+        "file": "/models/realistic_animated_horse.glb",
+        "type": "premade",
+        "description": "Majestic animated horse — Vesper's wild form",
+        "tags": ["nature", "majestic", "neutral"],
+        "scale": 1.0,
+        "position": [0, -1, 0],
+    },
+    {
+        "id": "truffle",
+        "name": "Truffle Companion",
+        "file": "/models/truffle_man.glb",
+        "type": "premade",
+        "description": "Quirky truffle creature — Vesper's playful form",
+        "tags": ["cute", "playful", "chaotic"],
+        "scale": 1.2,
+        "position": [0, -0.5, 0],
+    },
+    {
+        "id": "pteradactyl",
+        "name": "Sky Rider",
+        "file": "/models/animated_flying_pteradactal_dinosaur_loop.glb",
+        "type": "premade",
+        "description": "Flying pterodactyl — Vesper's airborne form",
+        "tags": ["flying", "fierce", "ancient"],
+        "scale": 0.6,
+        "position": [0, 0, 0],
+    },
+]
+
+def load_avatar_config():
+    """Load user's avatar preferences"""
+    try:
+        if os.path.exists(AVATAR_DATA_FILE):
+            with open(AVATAR_DATA_FILE, 'r') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {
+        "active_avatar": "scifi_girl",
+        "custom_avatars": [],  # User-uploaded or RPM-created
+        "rpm_url": None,       # Ready Player Me avatar URL
+        "ai_generated": [],    # AI-generated model URLs
+        "allow_vesper_choice": True,  # Let Vesper choose her avatar daily
+    }
+
+def save_avatar_config(config):
+    os.makedirs(os.path.dirname(AVATAR_DATA_FILE), exist_ok=True)
+    with open(AVATAR_DATA_FILE, 'w') as f:
+        json.dump(config, f, indent=2)
+
+@app.get("/api/avatars")
+async def list_avatars():
+    """Get all available avatars: premade catalog + custom + AI-generated"""
+    config = load_avatar_config()
+    all_avatars = list(AVATAR_CATALOG)  # Copy premade catalog
+    
+    # Add custom avatars (user uploaded GLBs)
+    for custom in config.get("custom_avatars", []):
+        all_avatars.append(custom)
+    
+    # Add Ready Player Me avatar if configured
+    if config.get("rpm_url"):
+        all_avatars.append({
+            "id": "rpm_custom",
+            "name": "My Custom Avatar",
+            "file": config["rpm_url"],
+            "type": "readyplayerme",
+            "description": "Your custom Ready Player Me avatar",
+            "tags": ["custom", "personal"],
+            "scale": 1.5,
+            "position": [0, -1, 0],
+        })
+    
+    # Add AI-generated avatars
+    for ai_avatar in config.get("ai_generated", []):
+        all_avatars.append(ai_avatar)
+    
+    return {
+        "avatars": all_avatars,
+        "active": config.get("active_avatar", "scifi_girl"),
+        "allow_vesper_choice": config.get("allow_vesper_choice", True),
+        "rpm_url": config.get("rpm_url"),
+    }
+
+@app.post("/api/avatars/select")
+async def select_avatar(req: dict):
+    """Set the active avatar by ID"""
+    config = load_avatar_config()
+    config["active_avatar"] = req.get("avatar_id", "scifi_girl")
+    save_avatar_config(config)
+    return {"status": "ok", "active": config["active_avatar"]}
+
+@app.post("/api/avatars/rpm")
+async def set_rpm_avatar(req: dict):
+    """Save a Ready Player Me avatar URL"""
+    config = load_avatar_config()
+    config["rpm_url"] = req.get("url", "")
+    save_avatar_config(config)
+    return {"status": "ok", "rpm_url": config["rpm_url"]}
+
+@app.post("/api/avatars/upload-custom")
+async def add_custom_avatar(req: dict):
+    """Register a custom GLB model as an avatar option"""
+    config = load_avatar_config()
+    custom = {
+        "id": f"custom_{len(config.get('custom_avatars', []))}",
+        "name": req.get("name", "Custom Avatar"),
+        "file": req.get("file_url", ""),
+        "type": "custom",
+        "description": req.get("description", "A custom uploaded avatar"),
+        "tags": req.get("tags", ["custom"]),
+        "scale": req.get("scale", 1.5),
+        "position": req.get("position", [0, -1, 0]),
+    }
+    if "custom_avatars" not in config:
+        config["custom_avatars"] = []
+    config["custom_avatars"].append(custom)
+    save_avatar_config(config)
+    return {"status": "ok", "avatar": custom}
+
+@app.post("/api/avatars/vesper-choice")
+async def toggle_vesper_avatar_choice(req: dict):
+    """Toggle whether Vesper can choose her own avatar daily"""
+    config = load_avatar_config()
+    config["allow_vesper_choice"] = req.get("allow", True)
+    save_avatar_config(config)
+    return {"status": "ok", "allow_vesper_choice": config["allow_vesper_choice"]}
+
+@app.post("/api/avatars/ai-generate")
+async def ai_generate_avatar(req: dict):
+    """Generate a 3D avatar description via AI (the actual 3D generation would use Meshy/Tripo)
+    For now, generates a detailed description that could be sent to a 3D gen API"""
+    prompt = req.get("prompt", "")
+    identity = load_daily_identity()
+    
+    # Build generation prompt
+    context = f"Vesper wants a new 3D avatar model. "
+    if identity:
+        context += f"Current mood: {identity.get('mood', {}).get('label', 'neutral')}. "
+        context += f"Look: {identity.get('look', 'cyberpunk')}. "
+    context += f"User request: {prompt}" if prompt else "Generate something that matches the current vibe."
+    
+    # Use AI to describe the ideal avatar
+    from ai_router import route_to_best_model, TaskType
+    try:
+        result = await route_to_best_model(
+            task_type=TaskType.CONVERSATIONAL,
+            messages=[{
+                "role": "system",
+                "content": "You are a 3D character designer. Describe a detailed 3D avatar model in JSON format with fields: name, description, style_tags (array), color_palette (array of hex colors), pose, outfit_details, hair, accessories. Be creative and specific."
+            }, {
+                "role": "user",
+                "content": context
+            }],
+            max_tokens=500
+        )
+        
+        # Try to parse as JSON
+        response_text = result.get("text", "")
+        try:
+            # Try to extract JSON from response
+            import re as _re
+            json_match = _re.search(r'\{[\s\S]*\}', response_text)
+            if json_match:
+                avatar_design = json.loads(json_match.group())
+            else:
+                avatar_design = {"description": response_text}
+        except Exception:
+            avatar_design = {"description": response_text}
+        
+        # Store the design
+        config = load_avatar_config()
+        ai_entry = {
+            "id": f"ai_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "name": avatar_design.get("name", "AI Avatar"),
+            "type": "ai_concept",
+            "design": avatar_design,
+            "prompt": prompt,
+            "created_at": datetime.datetime.now().isoformat(),
+            "description": avatar_design.get("description", "AI-generated avatar concept"),
+            "tags": avatar_design.get("style_tags", ["ai-generated"]),
+            # No file yet — this is a concept that would need a 3D gen service
+            "file": None,
+            "scale": 1.5,
+            "position": [0, -1, 0],
+        }
+        if "ai_generated" not in config:
+            config["ai_generated"] = []
+        config["ai_generated"].append(ai_entry)
+        save_avatar_config(config)
+        
+        return {"status": "ok", "avatar_concept": ai_entry}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
 # --- Sassy Upgrades Endpoints ---
 SASSY_DIR = os.path.join(os.path.dirname(__file__), '../vesper-ai/sassy')
 
@@ -790,12 +1025,50 @@ def generate_daily_identity():
     look = random.choice(LOOK_OPTIONS)
     voice_vibe = random.choice(VOICE_VIBE_OPTIONS)
     
+    # Pick an avatar that matches the vibe (if Vesper is allowed to choose)
+    avatar_pick = None
+    try:
+        avatar_config = load_avatar_config()
+        if avatar_config.get("allow_vesper_choice", True):
+            # Filter avatars by mood-matching tags
+            mood_tag_map = {
+                "chaotic": ["chaotic", "dark", "fierce"],
+                "chill": ["nature", "neutral", "cute"],
+                "intense": ["tech", "mech", "fierce"],
+                "playful": ["cute", "playful", "chaotic"],
+                "mysterious": ["dark", "fantasy"],
+                "soft": ["cute", "nature", "personal"],
+                "fierce": ["fierce", "dark", "flying"],
+                "dreamy": ["fantasy", "nature", "flying"],
+                "savage": ["dark", "fierce", "mech"],
+                "nurturing": ["cute", "nature", "neutral"],
+            }
+            preferred_tags = mood_tag_map.get(mood["id"], [])
+            all_avatars = list(AVATAR_CATALOG) + avatar_config.get("custom_avatars", [])
+            
+            # Score each avatar by tag overlap
+            scored = []
+            for a in all_avatars:
+                if not a.get("file"):
+                    continue
+                overlap = len(set(a.get("tags", [])) & set(preferred_tags))
+                scored.append((overlap, a))
+            
+            if scored:
+                scored.sort(key=lambda x: -x[0])
+                # Pick from top matches with some randomness
+                top = [s for s in scored if s[0] == scored[0][0]]
+                avatar_pick = random.choice(top)[1]["id"]
+    except Exception:
+        pass
+    
     identity = {
         "date": datetime.date.today().isoformat(),
         "mood": mood,
         "gender": gender,
         "look": look,
         "voice_vibe": voice_vibe,
+        "avatar": avatar_pick,
         "confirmed": False,  # CC hasn't approved yet
         "generated_at": datetime.datetime.now().isoformat(),
     }
@@ -860,11 +1133,14 @@ async def confirm_identity(req: IdentityConfirm):
 @app.get("/api/vesper/identity/options")
 async def get_identity_options():
     """Get all available identity options for the UI"""
+    avatar_config = load_avatar_config()
+    all_avatars = list(AVATAR_CATALOG) + avatar_config.get("custom_avatars", [])
     return {
         "moods": MOOD_OPTIONS,
         "genders": GENDER_OPTIONS,
         "looks": LOOK_OPTIONS,
         "voice_vibes": VOICE_VIBE_OPTIONS,
+        "avatars": [{"id": a["id"], "name": a["name"], "file": a.get("file")} for a in all_avatars if a.get("file")],
     }
 
 # ── PROACTIVE INITIATIVE ENGINE ───────────────────────────────────────────────

@@ -96,6 +96,8 @@ import WeatherWidget from './src/components/WeatherWidget';
 import CreativeSuite from './src/components/CreativeSuite';
 import Sassy from './src/components/Sassy';
 import MediaGallery from './src/components/MediaGallery';
+import AvatarStudio from './src/components/AvatarStudio';
+import VesperAvatar3D from './src/components/VesperAvatar3D';
 
 // Styles
 import './App.css';
@@ -384,6 +386,10 @@ function App() {
   const [vesperGreeting, setVesperGreeting] = useState('');
   const [vesperInitiatives, setVesperInitiatives] = useState([]);
   const [identityOptions, setIdentityOptions] = useState(null);
+
+  // 3D Avatar System
+  const [avatarStudioOpen, setAvatarStudioOpen] = useState(false);
+  const [activeAvatarData, setActiveAvatarData] = useState(null);
 
   // Tools
   const [canvasOpen, setCanvasOpen] = useState(false);
@@ -718,6 +724,16 @@ export default function App() {
         const optRes = await fetch(`${apiBase}/api/vesper/identity/options`);
         if (optRes.ok) {
           setIdentityOptions(await optRes.json());
+        }
+      } catch (e) {}
+
+      try {
+        // Fetch active avatar data  
+        const avRes = await fetch(`${apiBase}/api/avatars`);
+        if (avRes.ok) {
+          const avData = await avRes.json();
+          const active = (avData.avatars || []).find(a => a.id === avData.active);
+          if (active) setActiveAvatarData(active);
         }
       } catch (e) {}
     };
@@ -3589,7 +3605,34 @@ export default function App() {
       case 'sassy':
         return (
           <DraggableBoard id="sassy">
-            <Sassy apiBase={apiBase} onClose={() => setActiveSection('chat')} />
+            {avatarStudioOpen ? (
+              <AvatarStudio 
+                apiBase={apiBase} 
+                onClose={() => setAvatarStudioOpen(false)} 
+                accentColor={currentTheme.accent} 
+                vesperIdentity={vesperIdentity}
+                setToast={setToast}
+              />
+            ) : (
+              <Box sx={{ position: 'relative' }}>
+                <Sassy apiBase={apiBase} onClose={() => setActiveSection('chat')} />
+                <Button
+                  onClick={() => setAvatarStudioOpen(true)}
+                  sx={{
+                    position: 'absolute', top: 12, right: 48,
+                    color: 'var(--accent)', fontSize: '0.7rem',
+                    textTransform: 'none', fontWeight: 700,
+                    border: '1px solid rgba(0,255,255,0.2)',
+                    borderRadius: 2, px: 1.5, py: 0.5,
+                    backdropFilter: 'blur(10px)',
+                    bgcolor: 'rgba(0,255,255,0.05)',
+                    '&:hover': { bgcolor: 'rgba(0,255,255,0.12)' },
+                  }}
+                >
+                  🧬 Avatar Studio
+                </Button>
+              </Box>
+            )}
           </DraggableBoard>
         );
       case 'analytics':
@@ -5984,14 +6027,30 @@ export default function App() {
         }}
       >
         <Box sx={{ p: 3, textAlign: 'center' }}>
-          {/* Floating emoji */}
-          <Box sx={{ 
-            fontSize: '3rem', mb: 1, 
-            animation: 'pulse 2s ease-in-out infinite',
-            '@keyframes pulse': { '0%,100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.1)' } },
-          }}>
-            {vesperIdentity?.mood_emoji || '✨'}
-          </Box>
+          {/* 3D Avatar or fallback emoji */}
+          {activeAvatarData?.file ? (
+            <Box sx={{ mb: 1 }}>
+              <VesperAvatar3D
+                avatarUrl={activeAvatarData.file}
+                scale={activeAvatarData.scale || 1.5}
+                position={activeAvatarData.position || [0, -1, 0]}
+                height={160}
+                compact
+                accentColor={currentTheme?.accent || '#00ffff'}
+              />
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem' }}>
+                {activeAvatarData.name}
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ 
+              fontSize: '3rem', mb: 1, 
+              animation: 'pulse 2s ease-in-out infinite',
+              '@keyframes pulse': { '0%,100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.1)' } },
+            }}>
+              {vesperIdentity?.mood_emoji || '✨'}
+            </Box>
+          )}
 
           <Typography variant="h5" sx={{ color: 'var(--accent)', fontWeight: 800, mb: 0.5 }}>
             Today's Vibe
