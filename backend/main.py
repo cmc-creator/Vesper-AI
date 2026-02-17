@@ -31,21 +31,30 @@ import urllib.request
 import anthropic
 from urllib.parse import urljoin, urlparse
 import re
-from sqlalchemy import create_engine, text, inspect# Import AI router and persistent memory
+from bs4 import BeautifulSoup
+from sqlalchemy import create_engine, text, inspect
+# Import AI router and persistent memory
 from ai_router import router as ai_router, TaskType, ModelProvider
 from memory_db import db as memory_db
 from sqlalchemy.pool import NullPool
 import pandas as pd
 
+# Firebase (optional)
+try:
+    import firebase_utils
+except Exception:
+    firebase_utils = None
+    print("[WARN] firebase_utils not available (optional for cloud sync)")
+
 # Optional imports for database drivers and file handling
 try:
-    import pymongo
+    import pymongo  # type: ignore
 except ImportError:
     pymongo = None
     print("[WARN] pymongo not installed (optional for MongoDB support)")
 
 try:
-    import mysql.connector
+    import mysql.connector  # type: ignore
 except ImportError:
     mysql = None
     print("[WARN] mysql.connector not installed (optional for MySQL support)")
@@ -79,7 +88,7 @@ except ImportError:
     print("[WARN] Pillow (PIL) not installed (optional for image support)")
 
 try:
-    import pytesseract
+    import pytesseract  # type: ignore
 except ImportError:
     pytesseract = None
     print("[WARN] pytesseract not installed (optional for OCR support)")
@@ -2143,7 +2152,10 @@ def format_chart_data(req: ChartRequest):
 @app.get("/api/news")
 def get_news(topic: str = "technology"):
     """Get latest news from RSS feeds"""
-    import feedparser
+    try:
+        import feedparser  # type: ignore
+    except ImportError:
+        return {"error": "feedparser not installed — run: pip install feedparser"}
     
     feeds = {
         "technology": "https://feeds.feedburner.com/TechCrunch/",
@@ -3368,26 +3380,31 @@ async def synthesize_research(task: ResearchTask):
             results['sources'].append(source_result)
         
         # Synthesize with AI if requested
-        if task.synthesis_prompt and client:
-            synthesis_data = "\n\n".join([
-                f"Source {i+1} ({s['type']}):\n{json.dumps(s['data'], indent=2) if s['data'] else 'Error: ' + str(s['error'])}"
-                for i, s in enumerate(results['sources'])
-            ])
-            
-            synthesis_message = [
-                {
-                    "role": "user",
-                    "content": f"{task.synthesis_prompt}\n\nData from sources:\n{synthesis_data}"
-                }
-            ]
-            
-            response = client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=4000,
-                messages=synthesis_message
-            )
-            
-            results['synthesis'] = response.content[0].text
+        if task.synthesis_prompt:
+            anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+            if not anthropic_key:
+                results['synthesis'] = "(Synthesis skipped — no ANTHROPIC_API_KEY configured)"
+            else:
+                synthesis_client = anthropic.Anthropic(api_key=anthropic_key)
+                synthesis_data = "\n\n".join([
+                    f"Source {i+1} ({s['type']}):\n{json.dumps(s['data'], indent=2) if s['data'] else 'Error: ' + str(s['error'])}"
+                    for i, s in enumerate(results['sources'])
+                ])
+                
+                synthesis_message = [
+                    {
+                        "role": "user",
+                        "content": f"{task.synthesis_prompt}\n\nData from sources:\n{synthesis_data}"
+                    }
+                ]
+                
+                response = synthesis_client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=4000,
+                    messages=synthesis_message
+                )
+                
+                results['synthesis'] = response.content[0].text
         
         return results
     
@@ -3491,6 +3508,8 @@ async def execute_workflow(workflow: dict):
 async def get_chat_history_endpoint(user_id: str = "default_user", limit: int = 50):
     """Get chat history for a user from Firebase"""
     try:
+        if firebase_utils is None:
+            return {"messages": []}
         history = await firebase_utils.get_chat_history(user_id, limit)
         # Reverse to get chronological order (newest last)
         history.reverse()
@@ -5792,6 +5811,9 @@ def _execute_github_create_issue(params):
 # --- SUPABASE STORAGE ---
 # Temporarily disabled to debug recursion issue
 STORAGE_ENABLED = False
+ensure_buckets = None
+upload_image = None
+upload_canvas = None
 print("[INFO] Supabase storage temporarily disabled")
 
 # try:

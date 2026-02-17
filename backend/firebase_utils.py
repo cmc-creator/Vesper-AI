@@ -8,8 +8,8 @@ Uncomment and use these functions once Firebase is configured.
 import os
 from datetime import datetime
 from typing import Dict, List, Optional
-import firebase_admin
-from firebase_admin import credentials, firestore
+import firebase_admin  # type: ignore
+from firebase_admin import credentials, firestore  # type: ignore
 from dotenv import load_dotenv
 
 load_dotenv()

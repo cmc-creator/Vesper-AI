@@ -8,14 +8,26 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Only run if Vercel secrets are configured
-    if: ${{ secrets.VERCEL_TOKEN != '' }}
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
     
+    - name: Check Vercel secrets
+      id: check
+      run: |
+        if [ -z "$VERCEL_TOKEN" ]; then
+          echo "configured=false" >> $GITHUB_OUTPUT
+          echo "⚠️ VERCEL_TOKEN not set — skipping deployment"
+          echo "To enable, add VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID to GitHub Secrets"
+        else
+          echo "configured=true" >> $GITHUB_OUTPUT
+        fi
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    
     - name: Deploy to Vercel
+      if: steps.check.outputs.configured == 'true'
       working-directory: ./frontend
       run: |
         npm install -g vercel
@@ -25,12 +37,3 @@ jobs:
       env:
         VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-  skip-deploy:
-    runs-on: ubuntu-latest
-    if: ${{ secrets.VERCEL_TOKEN == '' }}
-    steps:
-    - name: No Vercel secrets configured
-      run: |
-        echo "⚠️ Skipping Vercel deployment — VERCEL_TOKEN secret not set"
-        echo "To enable auto-deploy, add VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID to GitHub Secrets"

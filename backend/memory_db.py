@@ -112,7 +112,7 @@ class Personality(Base):
     __tablename__ = "personality"
     
     id = Column(Integer, primary_key=True)
-    name = Column(String, default="default")  # type: sassy, professional, casual, creative
+    name = Column(String, default="default")  # style: sassy, professional, casual, creative
     system_prompt = Column(Text)  # Custom system prompt
     tone = Column(String, default="balanced")  # formal, casual, friendly, technical
     response_style = Column(String, default="concise")  # concise, detailed, storytelling

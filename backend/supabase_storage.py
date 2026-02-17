@@ -16,7 +16,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 supabase = None
 try:
     if SUPABASE_KEY:
-        from supabase import create_client, Client
+        from supabase import create_client, Client  # type: ignore
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 except Exception as e:
     print(f"[WARN] Supabase storage initialization failed: {e}")
