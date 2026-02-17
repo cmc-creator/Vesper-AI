@@ -345,21 +345,21 @@ export default function Game({ onExitGame, onChatWithNPC }) {
                ============================================================ */
             <>
               {/* === SECOND WORLD ATMOSPHERE === */}
-              <ambientLight intensity={0.15} color="#201040" />
-              <pointLight position={[0, 30, 0]} intensity={2} color="#8040ff" castShadow distance={100} decay={1} />
-              <pointLight position={[50, 15, 50]} intensity={0.8} color="#00ffff" castShadow distance={80} decay={2} />
-              <pointLight position={[-50, 15, -50]} intensity={0.6} color="#ff40ff" distance={80} decay={2} />
+              <ambientLight intensity={0.45} color="#302060" />
+              <pointLight position={[0, 30, 0]} intensity={2.5} color="#8040ff" castShadow distance={120} decay={1} />
+              <pointLight position={[50, 15, 50]} intensity={1.2} color="#00ffff" castShadow distance={100} decay={2} />
+              <pointLight position={[-50, 15, -50]} intensity={1.0} color="#ff40ff" distance={100} decay={2} />
               <directionalLight 
                 position={[30, 60, 30]} 
-                intensity={0.3} 
-                color="#4020a0" 
+                intensity={0.7} 
+                color="#6040c0" 
                 castShadow 
                 shadow-mapSize={[2048, 2048]}
               />
-              <fog attach="fog" args={['#08041a', 15, 180]} />
+              <fog attach="fog" args={['#0c0828', 50, 220]} />
 
               <Sky 
-                sunPosition={[10, -5, 100]} 
+                sunPosition={[10, 2, 100]} 
                 turbidity={20} 
                 rayleigh={0.5} 
                 mieCoefficient={0.01} 
@@ -397,8 +397,8 @@ export default function Game({ onExitGame, onChatWithNPC }) {
               {/* Second World Post-Processing */}
               <SafeEffects>
                 <EffectComposer>
-                  <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} intensity={1.5} mipmapBlur />
-                  <Vignette eskil={false} offset={0.2} darkness={0.8} />
+                  <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.9} intensity={1.0} mipmapBlur />
+                  <Vignette eskil={false} offset={0.3} darkness={0.4} />
                   <Noise opacity={0.03} />
                 </EffectComposer>
               </SafeEffects>

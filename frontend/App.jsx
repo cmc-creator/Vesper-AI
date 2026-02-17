@@ -3634,7 +3634,7 @@ export default function App() {
                     <Box>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>Text-to-Speech</Typography>
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                        {ttsEnabled ? 'Pick a voice in the chat panel (gear icon)' : 'AI responses read aloud'}
+                        {ttsEnabled ? 'Vesper speaks responses aloud' : 'AI responses read aloud'}
                       </Typography>
                     </Box>
                     <Switch 
@@ -3656,6 +3656,93 @@ export default function App() {
                       }}
                     />
                   </Box>
+
+                  {/* ── Default Voice Picker ── */}
+                  {ttsEnabled && (
+                    <Box sx={{ p: 1.5, border: '1px solid rgba(0,255,136,0.2)', borderRadius: 2, bgcolor: 'rgba(0,255,136,0.03)' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: '#00ff88' }}>
+                        🎙️ Default Voice
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
+                        Choose Vesper's voice for all speech
+                      </Typography>
+                      <Box sx={{
+                        maxHeight: 200, overflowY: 'auto', borderRadius: 1,
+                        border: '1px solid rgba(0,255,136,0.15)', p: 0.5,
+                        '&::-webkit-scrollbar': { width: 4 },
+                        '&::-webkit-scrollbar-thumb': { background: '#00ff88', borderRadius: 2 },
+                      }}>
+                        {cloudVoices.length > 0 ? cloudVoices.map((v) => {
+                          const isActive = selectedVoiceName === v.id || (!selectedVoiceName && v.id === defaultVoiceId);
+                          return (
+                            <Box
+                              key={v.id}
+                              onClick={() => {
+                                setSelectedVoiceName(v.id);
+                                try { localStorage.setItem('vesper_tts_voice', v.id); } catch(e) {}
+                                setToast(`🎙️ Voice set: ${v.name}`);
+                                if (v.preview_url) playVoicePreview(v.preview_url);
+                              }}
+                              sx={{
+                                p: 0.75, px: 1, cursor: 'pointer', borderRadius: 1, mb: 0.25,
+                                background: isActive ? 'rgba(0,255,136,0.15)' : 'rgba(0,0,0,0.2)',
+                                borderLeft: isActive ? '3px solid #00ff88' : '3px solid transparent',
+                                '&:hover': { background: 'rgba(255,255,255,0.08)' },
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                {isActive && <Typography sx={{ fontSize: '0.65rem', color: '#00ff88' }}>✓</Typography>}
+                                <Typography variant="caption" sx={{
+                                  color: isActive ? '#00ff88' : 'rgba(255,255,255,0.7)', fontWeight: isActive ? 700 : 500, fontSize: '0.75rem',
+                                }}>
+                                  {v.name}
+                                </Typography>
+                                {v.gender && (
+                                  <Typography variant="caption" sx={{
+                                    fontSize: '0.55rem', px: 0.5, py: 0.1, borderRadius: 0.5,
+                                    background: v.gender === 'Female' ? 'rgba(255,100,255,0.15)' : 'rgba(100,200,255,0.15)',
+                                    color: v.gender === 'Female' ? '#ff88ff' : '#88ccff', fontWeight: 700,
+                                  }}>
+                                    {v.gender === 'Female' ? '♀' : '♂'}
+                                  </Typography>
+                                )}
+                              </Box>
+                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem' }}>
+                                {v.locale || ''}{v.style ? ` · ${v.style}` : ''}
+                              </Typography>
+                            </Box>
+                          );
+                        }) : (
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', p: 1 }}>
+                            No voices loaded — start the backend to see ElevenLabs voices
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* ── Auto-Speak Toggle ── */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Auto-Speak Replies</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Automatically read AI responses aloud</Typography>
+                    </Box>
+                    <Switch
+                      checked={autoSpeak}
+                      onChange={(e) => {
+                        const newVal = e.target.checked;
+                        setAutoSpeak(newVal);
+                        try { localStorage.setItem('vesper_auto_speak', String(newVal)); } catch(err) {}
+                        playSound('click');
+                      }}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: 'var(--accent)' },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: 'var(--accent)' },
+                      }}
+                    />
+                  </Box>
+
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>System Diagnostics</Typography>
@@ -3765,34 +3852,13 @@ export default function App() {
                     </Box>
                   </Box>
 
-                  {/* Voice Personas */}
+                  {/* Voice Personas — inline assignment */}
                   <Box sx={{ p: 1.5, border: '1px solid rgba(0,255,255,0.2)', borderRadius: 2, bgcolor: 'rgba(0,255,255,0.03)' }}>
                     <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: 'var(--accent)' }}>Voice Personas</Typography>
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
-                      Different voices for different contexts — Vesper adapts automatically
+                      Assign different voices for different contexts — Vesper adapts automatically
                     </Typography>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      fullWidth
-                      onClick={async () => {
-                        try {
-                          const res = await fetch('http://localhost:8000/api/voice/personas');
-                          const data = await res.json();
-                          const personas = data.personas || {};
-                          const summary = Object.entries(personas).map(([k, v]) => 
-                            `${v.icon} ${v.label}: ${v.voice_id ? cloudVoices.find(cv => cv.id === v.voice_id)?.name || v.voice_id : '(default)'}`
-                          ).join('\n');
-                          setToast('Voice Personas:\n' + summary);
-                        } catch (e) { setToast('Failed to load personas'); }
-                      }}
-                      sx={{ borderColor: 'var(--accent)', color: 'var(--accent)', textTransform: 'none', mb: 1 }}
-                    >
-                      View & Edit Personas
-                    </Button>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.65rem' }}>
-                      Tip: Pick a voice in the chat picker, then assign it to a persona like "Game Narrator" or "Teacher"
-                    </Typography>
+                    <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} playVoicePreview={playVoicePreview} />
                   </Box>
 
                   {/* Voice Cloning */}

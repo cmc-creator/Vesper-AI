@@ -24,10 +24,10 @@ jobs:
     
     - name: Check Python requirements
       run: |
-        echo "Checking requirements.txt..."
-        test -f requirements.txt || (echo "❌ requirements.txt missing" && exit 1)
-        grep -q "fastapi" requirements.txt || (echo "❌ fastapi not in requirements.txt" && exit 1)
-        grep -q "uvicorn" requirements.txt || (echo "❌ uvicorn not in requirements.txt" && exit 1)
+        echo "Checking backend/requirements.txt..."
+        test -f backend/requirements.txt || (echo "❌ backend/requirements.txt missing" && exit 1)
+        grep -q "fastapi" backend/requirements.txt || (echo "❌ fastapi not in requirements.txt" && exit 1)
+        grep -q "uvicorn" backend/requirements.txt || (echo "❌ uvicorn not in requirements.txt" && exit 1)
         echo "✅ Backend requirements OK"
     
     - name: Summary

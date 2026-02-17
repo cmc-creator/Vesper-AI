@@ -8,6 +8,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Only run if Vercel secrets are configured
+    if: ${{ secrets.VERCEL_TOKEN != '' }}
     
     steps:
     - name: Checkout code
@@ -23,3 +25,12 @@ jobs:
       env:
         VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  skip-deploy:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.VERCEL_TOKEN == '' }}
+    steps:
+    - name: No Vercel secrets configured
+      run: |
+        echo "⚠️ Skipping Vercel deployment — VERCEL_TOKEN secret not set"
+        echo "To enable auto-deploy, add VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID to GitHub Secrets"
