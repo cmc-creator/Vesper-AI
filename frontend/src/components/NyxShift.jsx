@@ -4,7 +4,8 @@ import {
   Chip, Card, CardContent, CardActions, Divider, Tabs, Tab,
   Dialog, DialogTitle, DialogContent, DialogActions, Fab, Stack
 } from '@mui/material';
-import { 
+import {
+  ArrowBack as ArrowBackIcon,
   Add as AddIcon, 
   Delete as DeleteIcon, 
   Edit as EditIcon,
@@ -97,12 +98,12 @@ export default function NyxShift({ apiBase, onClose }) {
       {/* Header */}
       <Box sx={{ p: 2, borderBottom: '1px solid rgba(0,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'rgba(0,0,0,0.5)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <IconButton onClick={onClose} sx={{ color: 'var(--accent)' }}><ArrowBackIcon /></IconButton>
           <AutoAwesomeIcon sx={{ color: 'var(--accent)', fontSize: 32 }} />
           <Typography variant="h5" sx={{ fontFamily: 'Orbitron, sans-serif', color: '#fff', letterSpacing: 2 }}>
-            NYXSHIFT <span style={{ fontSize: '0.6em', opacity: 0.7 }}>// CREATIVE SUITE</span>
+            NYXSHIFT
           </Typography>
         </Box>
-        <IconButton onClick={onClose} sx={{ color: '#fff' }}><CloseIcon /></IconButton>
       </Box>
 
       {/* Main Content */}

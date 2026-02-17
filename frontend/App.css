@@ -330,12 +330,12 @@ canvas {
   position: relative;
   display: grid;
   grid-template-columns: 200px 1fr;
-  height: 100vh;
+  min-height: 100vh;
   width: 100vw;
   padding: 12px;
   gap: 12px;
   color: #e8f6ff;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .sidebar {
@@ -348,6 +348,10 @@ canvas {
   flex-direction: column;
   overflow: visible;
   min-height: 0;
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  align-self: start;
 }
 
 .nav-item {
@@ -429,9 +433,9 @@ canvas {
   grid-template-columns: minmax(350px, 1fr) 1fr;
   gap: 12px;
   align-items: start;
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
-  max-height: calc(100vh - 24px);
+  min-height: calc(100vh - 24px);
 }
 
 .chat-panel {
@@ -450,7 +454,7 @@ canvas {
 
 .chat-window {
   flex: 1;
-  max-height: 35vh;
+  max-height: 55vh;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 12px;

@@ -53,6 +53,7 @@ import {
   SaveAlt as SaveAltIcon,
   RecordVoiceOver as RecordVoiceOverIcon,
   PhotoLibrary,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -92,7 +93,7 @@ const GameLazy = React.lazy(() => import('./src/game/Game'));
 import SystemDiagnostics from './src/components/SystemDiagnostics';
 import SystemStatusCard from './src/components/SystemStatusCard';
 import WeatherWidget from './src/components/WeatherWidget';
-import NyxShift from './src/components/NyxShift';
+import CreativeSuite from './src/components/CreativeSuite';
 import Sassy from './src/components/Sassy';
 import MediaGallery from './src/components/MediaGallery';
 
@@ -395,7 +396,7 @@ export default function App() {
     analyticsCharts: localStorage.getItem('vesper_analytics_charts') || 'all', // all, summary, detailed
     memoryCategories: JSON.parse(localStorage.getItem('vesper_memory_categories') || '["notes", "personal", "emotional_bonds", "work", "milestones", "sensory_experiences", "creative_moments"]'),
     researchSources: JSON.parse(localStorage.getItem('vesper_research_sources') || '["web", "file", "manual", "database"]'),
-    chatBoxHeight: localStorage.getItem('vesper_chat_box_height') || '35vh', // Resizable chat height
+    chatBoxHeight: localStorage.getItem('vesper_chat_box_height') || '55vh', // Resizable chat height
   });
   
   const [newMemoryCategory, setNewMemoryCategory] = useState('');
@@ -485,7 +486,7 @@ export default function App() {
 
     const handleMouseMove = (moveEvent) => {
       const deltaY = moveEvent.clientY - startY;
-      const newHeight = Math.max(150, Math.min(600, startHeight + deltaY)); // Min 150px, max 600px
+      const newHeight = Math.max(150, Math.min(window.innerHeight - 240, startHeight + deltaY)); // Min 150px, max viewport - 240px
       
       if (chatContainerRef.current) {
         chatContainerRef.current.style.maxHeight = `${newHeight}px`;
@@ -2529,9 +2530,11 @@ export default function App() {
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                   <Chip label={researchLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
-                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
+                  <Tooltip title="Back to Chat">
+                    <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                      <ArrowBackIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
               </Box>
             <Grid container spacing={2}>
@@ -2692,9 +2695,11 @@ export default function App() {
                     Upload PDFs and docs - Vesper learns from them
                   </Typography>
                 </Box>
-                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  <CloseIcon fontSize="small" />
-                </IconButton>
+                <Tooltip title="Back to Chat">
+                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                    <ArrowBackIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Box>
               <Stack spacing={2}>
                 {/* Upload Section */}
@@ -2783,9 +2788,11 @@ export default function App() {
               </Box>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                 <Chip label={memoryView === 'history' ? (threadsLoading ? 'Loading…' : 'Loaded') : (memoryLoading ? 'Syncing…' : 'Synced')} size="small" className="chip-soft" />
-                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  <CloseIcon fontSize="small" />
-                </IconButton>
+                <Tooltip title="Back to Chat">
+                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                    <ArrowBackIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Box>
             </Box>
             <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
@@ -3114,9 +3121,11 @@ export default function App() {
               </Box>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                 <Chip label={tasksLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
-                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  <CloseIcon fontSize="small" />
-                </IconButton>
+                <Tooltip title="Back to Chat">
+                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                    <ArrowBackIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Box>
             </Box>
             <Grid container spacing={2}>
@@ -3284,7 +3293,7 @@ export default function App() {
         );
       case 'nyxshift':
         return (
-          <NyxShift apiBase={apiBase} onClose={() => setActiveSection('chat')} />
+          <CreativeSuite apiBase={apiBase} onBack={() => setActiveSection('chat')} />
         );
       case 'gallery':
         return (
@@ -3323,9 +3332,11 @@ export default function App() {
                     sx={{ width: 80 }}
                     InputProps={{ sx: { color: '#fff' } }}
                   />
-                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
+                  <Tooltip title="Back to Chat">
+                    <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                      <ArrowBackIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
               </Box>
               {analyticsLoading ? (
@@ -3409,9 +3420,11 @@ export default function App() {
                     Customize Vesper's tone and response style
                   </Typography>
                 </Box>
-                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  <CloseIcon fontSize="small" />
-                </IconButton>
+                <Tooltip title="Back to Chat">
+                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                    <ArrowBackIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Box>
               
               {personalityLoading ? (
@@ -3540,9 +3553,11 @@ export default function App() {
                     Customize your Vesper AI experience
                 </Typography>
               </Box>
-              <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                <CloseIcon fontSize="small" />
-              </IconButton>
+              <Tooltip title="Back to Chat">
+                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                  <ArrowBackIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
             </Box>
             <Stack spacing={2.5}>
               {/* Appearance */}
