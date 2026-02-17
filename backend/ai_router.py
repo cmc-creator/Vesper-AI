@@ -94,7 +94,9 @@ class AIRouter:
             try:
                 ollama.list()
                 self.ollama_available = True
-                print(f"[OK] Ollama (local) available - {'PRIMARY' if self.is_local else 'fallback'}")
+                # Determine if Ollama is actually primary (only if no cloud providers available)
+                has_cloud = bool(self.anthropic_client or self.openai_client or self.google_client)
+                print(f"[OK] Ollama (local) available - {'FALLBACK' if has_cloud else 'PRIMARY (no cloud keys)'}")
             except Exception:
                 print("[WARN] Ollama not available (install: https://ollama.ai)")
         else:

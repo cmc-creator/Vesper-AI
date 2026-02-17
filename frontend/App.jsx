@@ -132,6 +132,101 @@ const NAV = [
   { id: 'settings', label: 'Settings', icon: SettingsRounded },
 ];
 
+// ─── Voice Persona Assigner Component ──────────────────────────────────
+function PersonaAssigner({ apiBase, cloudVoices, setToast }) {
+  const [personas, setPersonas] = React.useState(null);
+  const [saving, setSaving] = React.useState('');
+
+  React.useEffect(() => {
+    fetch(`${apiBase}/api/voice/personas`)
+      .then(r => r.json())
+      .then(d => setPersonas(d.personas || {}))
+      .catch(() => setToast('Failed to load personas'));
+  }, [apiBase]);
+
+  const assignVoice = async (personaId, voiceId) => {
+    setSaving(personaId);
+    try {
+      const res = await fetch(`${apiBase}/api/voice/personas`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persona_id: personaId, voice_id: voiceId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPersonas(prev => ({ ...prev, [personaId]: { ...prev[personaId], voice_id: voiceId } }));
+        const voiceName = voiceId ? (cloudVoices.find(v => v.id === voiceId)?.name || voiceId) : 'Default';
+        setToast(`✅ ${personas[personaId]?.label}: ${voiceName}`);
+      } else {
+        setToast('Failed: ' + (data.error || 'Unknown'));
+      }
+    } catch (e) { setToast('Error: ' + e.message); }
+    setSaving('');
+  };
+
+  if (!personas) return <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>Loading personas...</Typography>;
+
+  return (
+    <Stack spacing={1}>
+      {Object.entries(personas).map(([id, p]) => {
+        const currentVoice = cloudVoices.find(v => v.id === p.voice_id);
+        return (
+          <Box key={id} sx={{
+            p: 1.5, borderRadius: 2,
+            border: p.voice_id ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.1)',
+            bgcolor: p.voice_id ? 'rgba(0,255,136,0.04)' : 'rgba(255,255,255,0.02)',
+          }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: p.voice_id ? '#00ff88' : 'rgba(255,255,255,0.7)' }}>
+                {p.icon} {p.label}
+              </Typography>
+              {saving === id && <CircularProgress size={14} sx={{ color: 'var(--accent)' }} />}
+            </Box>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
+              {p.description}
+            </Typography>
+            <select
+              value={p.voice_id || ''}
+              onChange={(e) => assignVoice(id, e.target.value)}
+              style={{
+                width: '100%',
+                background: 'rgba(0,0,0,0.4)',
+                border: '1px solid rgba(0,255,255,0.3)',
+                borderRadius: 6,
+                padding: '6px 10px',
+                color: currentVoice ? '#00ff88' : 'rgba(255,255,255,0.5)',
+                fontSize: '0.8rem',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="" style={{ background: '#111', color: '#999' }}>Default (no override)</option>
+              {cloudVoices.filter(v => v.provider === 'elevenlabs').length > 0 && (
+                <optgroup label="★ ElevenLabs (Premium)" style={{ background: '#111' }}>
+                  {cloudVoices.filter(v => v.provider === 'elevenlabs').map(v => (
+                    <option key={v.id} value={v.id} style={{ background: '#111', color: '#ffbb44' }}>
+                      {v.name} — {v.style || 'neural'}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {cloudVoices.filter(v => v.provider !== 'elevenlabs').length > 0 && (
+                <optgroup label="Edge TTS (Free)" style={{ background: '#111' }}>
+                  {cloudVoices.filter(v => v.provider !== 'elevenlabs').map(v => (
+                    <option key={v.id} value={v.id} style={{ background: '#111', color: '#88ccff' }}>
+                      {v.name} — {v.gender} {v.locale}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </Box>
+        );
+      })}
+    </Stack>
+  );
+}
+
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -4819,49 +4914,10 @@ export default function App() {
                 {/* ── Voice Personas Tab ── */}
                 {voiceLabTab === 'personas' && (
                   <Box>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
-                      Vesper uses different voices for different situations. Assign voices to contexts like "Game Narrator" or "Teacher".
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1.5 }}>
+                      Assign a different voice to each context. Vesper will automatically switch voices based on what's happening.
                     </Typography>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      fullWidth
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(`${apiBase}/api/voice/personas`);
-                          const data = await res.json();
-                          const personas = data.personas || {};
-                          const lines = Object.entries(personas).map(([k, v]) => {
-                            const voiceName = v.voice_id ? (cloudVoices.find(cv => cv.id === v.voice_id)?.name || v.voice_id) : '(default voice)';
-                            return `${v.icon} ${v.label}: ${voiceName}`;
-                          });
-                          setToast('Voice Personas:\n' + lines.join('\n'));
-                        } catch (e) { setToast('Failed to load personas: ' + e.message); }
-                      }}
-                      sx={{ bgcolor: 'var(--accent)', color: '#000', fontWeight: 700, mb: 1.5, '&:hover': { opacity: 0.85 } }}
-                    >
-                      🎭 View Current Personas
-                    </Button>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
-                      Available persona slots:
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
-                      {[
-                        { icon: '🎮', label: 'Game Narrator' },
-                        { icon: '📖', label: 'Storyteller' },
-                        { icon: '🧑‍🏫', label: 'Teacher' },
-                        { icon: '💬', label: 'Casual Chat' },
-                        { icon: '⚔️', label: 'Battle' },
-                        { icon: '🔬', label: 'Research' },
-                      ].map(p => (
-                        <Chip key={p.label} label={`${p.icon} ${p.label}`} size="small"
-                          sx={{ fontSize: '0.7rem', height: 24, bgcolor: 'rgba(0,255,255,0.08)', color: 'var(--accent)', border: '1px solid rgba(0,255,255,0.2)' }}
-                        />
-                      ))}
-                    </Box>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.7rem' }}>
-                      Tip: Pick a voice from the voice selector dropdown (top right), then go to Settings → Voice Lab to assign it to a persona.
-                    </Typography>
+                    <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} />
                   </Box>
                 )}
               </Box>
