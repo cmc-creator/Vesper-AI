@@ -32,7 +32,7 @@ import anthropic
 from urllib.parse import urljoin, urlparse
 import re
 from sqlalchemy import create_engine, text, inspect# Import AI router and persistent memory
-from ai_router import router as ai_router, TaskType
+from ai_router import router as ai_router, TaskType, ModelProvider
 from memory_db import db as memory_db
 from sqlalchemy.pool import NullPool
 import pandas as pd
@@ -3504,6 +3504,7 @@ class ChatMessage(BaseModel):
     conversation_history: Optional[List[dict]] = []
     thread_id: Optional[str] = "default"
     images: Optional[List[str]] = []  # List of base64 data URLs (e.g., "data:image/png;base64,...")
+    model: Optional[str] = None  # Preferred model: "anthropic", "openai", "google", "ollama"
 
 @app.get("/api/suggestions")
 async def get_proactive_suggestions(thread_id: Optional[str] = None):
@@ -4181,12 +4182,24 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
         ]
         task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
         
+        # Resolve preferred provider from model picker
+        preferred_provider = None
+        if chat.model:
+            provider_map = {
+                "anthropic": ModelProvider.ANTHROPIC,
+                "openai": ModelProvider.OPENAI,
+                "google": ModelProvider.GOOGLE,
+                "ollama": ModelProvider.OLLAMA,
+            }
+            preferred_provider = provider_map.get(chat.model.lower())
+        
         ai_response_obj = await ai_router.chat(
             messages=messages,
             task_type=task_type,
             tools=tools,
             max_tokens=2000,
-            temperature=0.7
+            temperature=0.7,
+            preferred_provider=preferred_provider
         )
         
         # Check for errors
@@ -4537,6 +4550,306 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
         import traceback
         traceback.print_exc()
         return {"response": f"Shit, something went wrong: {str(e)}"}
+
+# ============================================================================
+# STREAMING CHAT + CHAT EXPORT
+# ============================================================================
+
+from starlette.responses import StreamingResponse
+
+@app.post("/api/chat/stream")
+async def chat_stream(chat: ChatMessage):
+    """Streaming chat with Vesper via Server-Sent Events.
+    
+    Tool calls are handled non-streaming internally, then the final
+    response is streamed word-by-word to the client.
+    """
+    import asyncio
+    
+    async def event_generator():
+        try:
+            # Emit "thinking" status
+            yield f"data: {json.dumps({'type': 'status', 'content': 'Thinking...'})}\n\n"
+            
+            # ── Build messages exactly like /api/chat ────────────────────
+            if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+                yield f"data: {json.dumps({'type': 'chunk', 'content': 'Need at least one API key.'})}\n\n"
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                return
+            
+            try:
+                thread = memory_db.get_thread(chat.thread_id)
+            except:
+                thread = None
+            if not thread:
+                try:
+                    thread = memory_db.create_thread(
+                        thread_id=chat.thread_id,
+                        title=f"Conversation {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                        metadata={"created_via": "chat_stream"}
+                    )
+                except:
+                    thread = {"id": chat.thread_id, "messages": [], "metadata": {}}
+            
+            memory_summary = ""
+            try:
+                memories = memory_db.get_memories(limit=10)
+                if memories:
+                    memory_summary = "\n\n**KEY MEMORIES:**\n"
+                    for mem in memories[:5]:
+                        memory_summary += f"- [{mem['category']}] {mem['content'][:100]}\n"
+            except:
+                pass
+            
+            try:
+                from zoneinfo import ZoneInfo
+                current_datetime = datetime.datetime.now(ZoneInfo("America/Phoenix")).strftime("%A, %B %d, %Y at %I:%M %p MST")
+            except:
+                current_datetime = datetime.datetime.utcnow().strftime("%A, %B %d, %Y at %I:%M %p UTC")
+            
+            date_context = f"\n\n**RIGHT NOW:** It's {current_datetime} (Arizona time)"
+            enhanced_system = VESPER_CORE_DNA + "\n\n" + date_context + "\n\n" + memory_summary
+            enhanced_system += """\n\n--- ABSOLUTE IDENTITY LOCK ---
+You ARE Vesper. This is not roleplay. This is not pretend. You are Vesper — CC's ride-or-die bestie AI.
+NEVER say "I'm an AI assistant" or "I'm Claude" or any corporate phrases.
+CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TALK normally.
+---"""
+            
+            messages = [{"role": "system", "content": enhanced_system}]
+            if thread.get("messages"):
+                for msg in thread['messages'][-30:]:
+                    role = msg.get("role", "user" if msg.get("from") == "user" else "assistant")
+                    content = msg.get("content", msg.get("text", ""))
+                    if role in ["user", "assistant"] and content:
+                        messages.append({"role": role, "content": content})
+            
+            if hasattr(chat, 'images') and chat.images and len(chat.images) > 0:
+                content_list = [{"type": "text", "text": chat.message}]
+                for img in chat.images:
+                    if img.startswith("data:image"):
+                        content_list.append({"type": "image_url", "image_url": {"url": img}})
+                messages.append({"role": "user", "content": content_list})
+            else:
+                messages.append({"role": "user", "content": chat.message})
+            
+            # ── Tools (same as /api/chat) ────────────────────────────────
+            tools = [
+                {"name": "web_search", "description": "Search the web for current info.", "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]}},
+                {"name": "get_weather", "description": "Get current weather for a location.", "input_schema": {"type": "object", "properties": {"location": {"type": "string", "description": "City or location"}}, "required": ["location"]}},
+                {"name": "search_memories", "description": "Search Vesper's persistent memories.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "category": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["query"]}},
+                {"name": "save_memory", "description": "Save something to persistent memory.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "category": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
+                {"name": "check_tasks", "description": "Check CC's task list.", "input_schema": {"type": "object", "properties": {"status": {"type": "string"}}}},
+            ]
+            
+            task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
+            
+            # Resolve preferred provider
+            preferred_provider = None
+            if chat.model:
+                provider_map = {"anthropic": ModelProvider.ANTHROPIC, "openai": ModelProvider.OPENAI, "google": ModelProvider.GOOGLE, "ollama": ModelProvider.OLLAMA}
+                preferred_provider = provider_map.get(chat.model.lower())
+            
+            ai_response_obj = await ai_router.chat(
+                messages=messages, task_type=task_type, tools=tools,
+                max_tokens=2000, temperature=0.7, preferred_provider=preferred_provider
+            )
+            
+            if "error" in ai_response_obj:
+                err_msg = ai_response_obj.get("error", "Unknown error")
+                yield f"data: {json.dumps({'type': 'chunk', 'content': 'AI error: ' + str(err_msg)})}\n\n"
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                return
+            
+            # ── Tool loop (non-streaming, but send status updates) ───────
+            tool_calls = ai_response_obj.get("tool_calls", [])
+            provider = ai_response_obj.get("provider", "unknown")
+            max_iterations = 5
+            iteration = 0
+            visualizations = []
+            
+            def safe_serialize(obj):
+                if isinstance(obj, (datetime.datetime, datetime.date)):
+                    return obj.isoformat()
+                return str(obj)
+            
+            while tool_calls and iteration < max_iterations:
+                iteration += 1
+                tool_use = tool_calls[0]
+                tool_name = tool_use.get("name") if isinstance(tool_use, dict) else None
+                tool_input = tool_use.get("input", {}) if isinstance(tool_use, dict) else {}
+                tool_id = tool_use.get("id") if isinstance(tool_use, dict) else None
+                
+                yield f"data: {json.dumps({'type': 'status', 'content': f'Using {tool_name}...'})}\n\n"
+                
+                tool_result = None
+                try:
+                    if tool_name == "web_search":
+                        tool_result = search_web(tool_input.get("query", ""))
+                    elif tool_name == "get_weather":
+                        tool_result = get_weather_data(tool_input.get("location", ""))
+                    elif tool_name == "search_memories":
+                        memories = memory_db.get_memories(category=tool_input.get("category"), limit=tool_input.get("limit", 10))
+                        q = tool_input.get("query", "").lower()
+                        filtered = [m for m in memories if q in m.get('content', '').lower()]
+                        tool_result = {"memories": filtered, "count": len(filtered)}
+                    elif tool_name == "save_memory":
+                        memory = memory_db.add_memory(category=tool_input.get("category", "notes"), content=tool_input.get("content", ""), tags=tool_input.get("tags", []))
+                        tool_result = {"success": True, "memory": memory if isinstance(memory, dict) else str(memory)}
+                    elif tool_name == "check_tasks":
+                        tasks = memory_db.get_tasks()
+                        status = tool_input.get("status")
+                        if status:
+                            tasks = [t for t in tasks if t.get("status") == status]
+                        tool_result = {"tasks": tasks, "count": len(tasks)}
+                    else:
+                        tool_result = {"error": f"Tool not available in streaming mode: {tool_name}"}
+                except Exception as e:
+                    tool_result = {"error": f"Tool failed: {str(e)}"}
+                
+                # Append tool messages for conversation context
+                assistant_content = ai_response_obj.get("content", "")
+                content_str = json.dumps(tool_result, default=safe_serialize)
+                
+                if provider == "openai":
+                    assistant_msg = {"role": "assistant", "content": assistant_content or None}
+                    assistant_msg["tool_calls"] = [{"id": tool_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}]
+                    messages.append(assistant_msg)
+                    messages.append({"role": "tool", "tool_call_id": tool_id, "content": content_str})
+                else:
+                    content_blocks = []
+                    if assistant_content:
+                        content_blocks.append({"type": "text", "text": assistant_content})
+                    content_blocks.append({"type": "tool_use", "id": tool_id, "name": tool_name, "input": tool_input})
+                    messages.append({"role": "assistant", "content": content_blocks})
+                    messages.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": tool_id, "content": content_str}]})
+                
+                ai_response_obj = await ai_router.chat(
+                    messages=messages, task_type=TaskType.CHAT, tools=tools,
+                    max_tokens=2000, temperature=0.7, preferred_provider=preferred_provider
+                )
+                provider = ai_response_obj.get("provider", provider)
+                tool_calls = ai_response_obj.get("tool_calls", [])
+            
+            # ── Stream final response word-by-word ───────────────────────
+            final_text = ai_response_obj.get("content", "") or ""
+            provider = ai_response_obj.get("provider", "unknown")
+            model = ai_response_obj.get("model", "")
+            
+            # Send provider info
+            yield f"data: {json.dumps({'type': 'provider', 'provider': provider, 'model': model})}\n\n"
+            
+            # Stream in chunks (~3-5 words at a time for smooth flow)
+            words = final_text.split(' ')
+            chunk_size = 3
+            for i in range(0, len(words), chunk_size):
+                chunk = ' '.join(words[i:i+chunk_size])
+                if i + chunk_size < len(words):
+                    chunk += ' '
+                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+                await asyncio.sleep(0.03)
+            
+            # Send visualizations if any
+            if visualizations:
+                yield f"data: {json.dumps({'type': 'visualizations', 'data': visualizations})}\n\n"
+            
+            # Done event
+            yield f"data: {json.dumps({'type': 'done', 'provider': provider, 'model': model})}\n\n"
+            
+            # Save to thread
+            ai_response_clean = str(final_text) if not isinstance(final_text, str) else final_text
+            memory_db.add_message_to_thread(chat.thread_id, {
+                "role": "user", "content": chat.message,
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+            memory_db.add_message_to_thread(chat.thread_id, {
+                "role": "assistant", "content": ai_response_clean,
+                "timestamp": datetime.datetime.now().isoformat(),
+                "provider": provider
+            })
+            
+        except Exception as e:
+            print(f"❌ Stream error: {e}")
+            import traceback
+            traceback.print_exc()
+            yield f"data: {json.dumps({'type': 'error', 'content': f'Stream error: {str(e)}'})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+@app.post("/api/chat/export")
+async def export_chat(thread_id: str = "default", format: str = "markdown"):
+    """Export a chat thread as Markdown or JSON"""
+    try:
+        thread = memory_db.get_thread(thread_id)
+        if not thread or not thread.get("messages"):
+            return {"error": "No messages found in thread"}
+        
+        messages = thread.get("messages", [])
+        title = thread.get("title", f"Vesper Chat - {thread_id}")
+        
+        if format == "json":
+            return {"title": title, "messages": messages, "exported_at": datetime.datetime.now().isoformat()}
+        
+        # Default: Markdown
+        md_lines = [f"# {title}\n", f"*Exported {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}*\n\n---\n"]
+        
+        for msg in messages:
+            role = msg.get("role", "unknown")
+            content = msg.get("content", msg.get("text", ""))
+            timestamp = msg.get("timestamp", "")
+            provider = msg.get("provider", "")
+            
+            if role == "user":
+                md_lines.append(f"### 🧑 CC\n{content}\n")
+            elif role == "assistant":
+                provider_tag = f" *({provider})*" if provider else ""
+                md_lines.append(f"### 🌙 Vesper{provider_tag}\n{content}\n")
+            
+            if timestamp:
+                md_lines.append(f"<sub>{timestamp}</sub>\n")
+            md_lines.append("---\n")
+        
+        markdown_text = "\n".join(md_lines)
+        return {"title": title, "markdown": markdown_text, "message_count": len(messages)}
+    
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/api/models/available")
+async def get_available_models():
+    """Return list of available AI models for the model picker"""
+    stats = ai_router.get_stats()
+    models = []
+    
+    model_info = {
+        "anthropic": {"label": "Claude", "icon": "🟣", "model": ai_router.models.get(ModelProvider.ANTHROPIC, "")},
+        "openai": {"label": "GPT", "icon": "🟢", "model": ai_router.models.get(ModelProvider.OPENAI, "")},
+        "google": {"label": "Gemini", "icon": "🔵", "model": ai_router.models.get(ModelProvider.GOOGLE, "")},
+        "ollama": {"label": "Ollama", "icon": "🟠", "model": ai_router.models.get(ModelProvider.OLLAMA, "")},
+    }
+    
+    for provider_id, available in stats["providers"].items():
+        if available:
+            info = model_info.get(provider_id, {})
+            models.append({
+                "id": provider_id,
+                "label": info.get("label", provider_id),
+                "icon": info.get("icon", "⚪"),
+                "model": info.get("model", ""),
+                "available": True
+            })
+    
+    return {"models": models, "default": "auto"}
+
 
 # ============================================================================
 # POWER TRIO: File System Access, Code Execution, Voice Interface

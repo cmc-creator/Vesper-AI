@@ -49,6 +49,9 @@ import {
   AutoStories,
   Checkroom,
   Speed as SpeedIcon,
+  PlayArrow as PlayArrowIcon,
+  SaveAlt as SaveAltIcon,
+  RecordVoiceOver as RecordVoiceOverIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -133,7 +136,7 @@ const NAV = [
 ];
 
 // ─── Voice Persona Assigner Component ──────────────────────────────────
-function PersonaAssigner({ apiBase, cloudVoices, setToast }) {
+function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview }) {
   const [personas, setPersonas] = React.useState(null);
   const [saving, setSaving] = React.useState('');
 
@@ -185,28 +188,42 @@ function PersonaAssigner({ apiBase, cloudVoices, setToast }) {
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
               {p.description}
             </Typography>
-            <select
-              value={p.voice_id || ''}
-              onChange={(e) => assignVoice(id, e.target.value)}
-              style={{
-                width: '100%',
-                background: 'rgba(0,0,0,0.4)',
-                border: '1px solid rgba(0,255,255,0.3)',
-                borderRadius: 6,
-                padding: '6px 10px',
-                color: currentVoice ? '#00ff88' : 'rgba(255,255,255,0.5)',
-                fontSize: '0.8rem',
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="" style={{ background: '#111', color: '#999' }}>Default (uses main voice)</option>
-              {cloudVoices.map(v => (
-                <option key={v.id} value={v.id} style={{ background: '#111', color: '#ffbb44' }}>
-                  {v.name} — {v.locale || 'American'} • {v.style || 'neural'}
-                </option>
-              ))}
-            </select>
+            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+              <select
+                value={p.voice_id || ''}
+                onChange={(e) => assignVoice(id, e.target.value)}
+                style={{
+                  flex: 1,
+                  background: 'rgba(0,0,0,0.4)',
+                  border: '1px solid rgba(0,255,255,0.3)',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  color: currentVoice ? '#00ff88' : 'rgba(255,255,255,0.5)',
+                  fontSize: '0.8rem',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="" style={{ background: '#111', color: '#999' }}>Default (uses main voice)</option>
+                {cloudVoices.map(v => (
+                  <option key={v.id} value={v.id} style={{ background: '#111', color: '#ffbb44' }}>
+                    {v.name} — {v.locale || 'American'} • {v.style || 'neural'}
+                  </option>
+                ))}
+              </select>
+              {currentVoice?.preview_url && playVoicePreview && (
+                <button
+                  onClick={() => playVoicePreview(currentVoice.preview_url)}
+                  title="Preview voice"
+                  style={{
+                    background: 'rgba(0,255,255,0.1)',
+                    border: '1px solid rgba(0,255,255,0.3)',
+                    borderRadius: 6, padding: '4px 8px',
+                    color: 'var(--accent)', cursor: 'pointer', fontSize: '0.9rem',
+                  }}
+                >▶</button>
+              )}
+            </Box>
           </Box>
         );
       })}
@@ -276,6 +293,15 @@ function App() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [uiScale, setUiScale] = useState(() => parseFloat(safeStorageGet('vesper_ui_scale', '1')));
   const [showSystemStatus, setShowSystemStatus] = useState(true);
+
+  // ── New features: Model Picker, Auto-speak, Export ─────────────
+  const [selectedModel, setSelectedModel] = useState(() => safeStorageGet('vesper_model', 'auto'));
+  const [availableModels, setAvailableModels] = useState([]);
+  const [autoSpeak, setAutoSpeak] = useState(() => safeStorageGet('vesper_auto_speak', 'true') === 'true');
+  const [streamingMessageId, setStreamingMessageId] = useState(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [thinkingStatus, setThinkingStatus] = useState('');
+  const previewAudioRef = useRef(null);
 
   // Tools
   const [canvasOpen, setCanvasOpen] = useState(false);
@@ -709,6 +735,7 @@ export default function App() {
     setUploadedImages([]); // Clear UI immediately
     setLoading(true);
     setThinking(true);
+    setThinkingStatus('Thinking...');
     
     try {
       playSound('click'); // Sound on send
@@ -727,7 +754,7 @@ export default function App() {
       localMsg.content = userMessage || '[Image Attached]';
     }
     
-    addLocalMessage('user', localMsg.content, localMsg); // Pass full obj as metadata if needed
+    addLocalMessage('user', localMsg.content, localMsg);
     
     let savedThreadId;
     try {
@@ -737,14 +764,20 @@ export default function App() {
       savedThreadId = currentThreadId;
     }
     
+    // Create a placeholder assistant message for streaming
+    const streamMsgId = `stream-${Date.now()}-${Math.random()}`;
+    setStreamingMessageId(streamMsgId);
+    
     try {
       const payload = { 
         message: userMessage,
         thread_id: savedThreadId || currentThreadId || 'default',
-        images: currentImages.length > 0 ? currentImages.map(img => img.dataUrl) : []
+        images: currentImages.length > 0 ? currentImages.map(img => img.dataUrl) : [],
+        model: selectedModel !== 'auto' ? selectedModel : null,
       };
 
-      const response = await fetch(`${chatBase}/api/chat`, {
+      // ── Use SSE streaming endpoint ──────────────────────────────
+      const response = await fetch(`${chatBase}/api/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -753,51 +786,192 @@ export default function App() {
       
       if (!response.ok) throw new Error('Backend call failed');
       
-      const data = await response.json();
-      console.log('🤖 Received response:', data.response?.substring(0, 50));
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulatedText = '';
+      let messageAdded = false;
+      let currentProvider = '';
+      let currentModel = '';
       
-      addLocalMessage('assistant', data.response);
-      
-      // Save assistant response to the same thread using the valid ID
-      await saveMessageToThread('assistant', data.response, savedThreadId);
-      
-      speak(data.response, activeSection === 'chat' ? 'chat' : activeSection === 'research' ? 'research' : 'default');
-      playSound('notification'); // Sound on response received
-
-      // Handle Visualizations (Charts)
-      if (data.visualizations && data.visualizations.length > 0) {
-        data.visualizations.forEach(viz => {
-          if (viz.type === 'chart_visualization') {
-            const chartMsg = {
-               role: 'assistant',
-               content: 'Generated Chart', // Hidden content, just for structure
-               type: 'chart',
-               chartData: viz
-            };
-            addLocalMessage(chartMsg.role, chartMsg.content, chartMsg);
-            // We don't save charts to thread DB yet, simpler to keep ephemeral or enhance DB schema later
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || ''; // Keep incomplete chunk
+        
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            
+            if (data.type === 'status') {
+              setThinkingStatus(data.content || 'Thinking...');
+            } else if (data.type === 'provider') {
+              currentProvider = data.provider;
+              currentModel = data.model;
+            } else if (data.type === 'chunk') {
+              accumulatedText += data.content;
+              if (!messageAdded) {
+                // Add the message on first chunk
+                addLocalMessage('assistant', accumulatedText, { id: streamMsgId });
+                messageAdded = true;
+                setThinking(false);
+                setThinkingStatus('');
+              } else {
+                // Update existing message content
+                setMessages(prev => prev.map(m => 
+                  m.id === streamMsgId ? { ...m, content: accumulatedText } : m
+                ));
+              }
+            } else if (data.type === 'visualizations' && data.data) {
+              data.data.forEach(viz => {
+                if (viz.type === 'chart_visualization') {
+                  addLocalMessage('assistant', 'Generated Chart', { type: 'chart', chartData: viz });
+                }
+              });
+            } else if (data.type === 'done') {
+              currentProvider = data.provider || currentProvider;
+              currentModel = data.model || currentModel;
+            } else if (data.type === 'error') {
+              if (!messageAdded) {
+                addLocalMessage('assistant', data.content || 'Something went wrong.');
+                messageAdded = true;
+              }
+            }
+          } catch (parseErr) {
+            // Skip malformed SSE chunks
           }
-        });
+        }
       }
       
-      // CRITICAL: Refetch threads to update sidebar with new messages
+      // Finalize
+      if (!messageAdded && accumulatedText) {
+        addLocalMessage('assistant', accumulatedText);
+      }
+      
+      console.log(`🤖 Streamed response from ${currentProvider} (${accumulatedText.length} chars)`);
+      
+      // Save assistant response to thread
+      if (accumulatedText) {
+        await saveMessageToThread('assistant', accumulatedText, savedThreadId);
+      }
+      
+      // Auto-speak the complete response
+      if (autoSpeak && accumulatedText) {
+        speak(accumulatedText, activeSection === 'chat' ? 'chat' : activeSection === 'research' ? 'research' : 'default');
+      }
+      playSound('notification');
+      
       fetchThreads();
     } catch (error) {
       if (error.name === 'AbortError') {
         console.log('🛑 Generation stopped by user');
-        return; // Don't show error message for user-initiated stops
+        return;
       }
       console.error('❌ Chat error:', error);
-      playSound('error'); // Error sound
+      playSound('error');
       const errorMsg = "I'm having trouble connecting right now, but I'm still here! Press C to jump into the world and I'll keep watch.";
       addLocalMessage('assistant', errorMsg);
       await saveMessageToThread('assistant', errorMsg);
-      speak(errorMsg);
+      if (autoSpeak) speak(errorMsg);
     } finally {
       setAbortController(null);
+      setStreamingMessageId(null);
       setLoading(false);
       setThinking(false);
+      setThinkingStatus('');
     }
+  };
+
+  // ── Chat Export (Markdown / Copy) ──────────────────────────────────
+  const exportChat = async (format = 'markdown') => {
+    try {
+      const threadId = currentThreadId || 'default';
+      const response = await fetch(`${apiBase}/api/chat/export?thread_id=${threadId}&format=${format}`);
+      const data = await response.json();
+      if (data.error) { setToast('⚠️ ' + data.error); return; }
+      
+      if (format === 'json') {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vesper-chat-${threadId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setToast('📄 Chat exported as JSON');
+      } else {
+        // Markdown — copy to clipboard and also download
+        const md = data.markdown || '';
+        await navigator.clipboard.writeText(md);
+        const blob = new Blob([md], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vesper-chat-${threadId}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setToast(`📋 Chat exported (${data.message_count} messages) & copied to clipboard`);
+      }
+    } catch (e) {
+      console.error('Export error:', e);
+      setToast('⚠️ Export failed');
+    }
+  };
+
+  // ── Voice Preview ─────────────────────────────────────────────────
+  const playVoicePreview = (previewUrl) => {
+    if (!previewUrl) { setToast('No preview available'); return; }
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current = null;
+    }
+    const audio = new Audio(previewUrl);
+    previewAudioRef.current = audio;
+    audio.onended = () => { previewAudioRef.current = null; };
+    audio.play().catch(() => setToast('Preview playback failed'));
+  };
+
+  // ── Drag & Drop File Handler ──────────────────────────────────────
+  const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingFile(true); };
+  const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingFile(false); };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+    files.forEach(file => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setUploadedImages(prev => [...prev, { name: file.name, dataUrl: ev.target.result }]);
+          setToast(`📎 ${file.name} attached`);
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.csv')) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const content = ev.target.result;
+          setInput(prev => prev + (prev ? '\n\n' : '') + `[File: ${file.name}]\n${content.slice(0, 3000)}`);
+          setToast(`📎 ${file.name} added to message`);
+        };
+        reader.readAsText(file);
+      } else {
+        setToast(`⚠️ Unsupported file type: ${file.type || file.name}`);
+      }
+    });
+  };
+
+  // ── Toggle Auto-speak ─────────────────────────────────────────────
+  const toggleAutoSpeak = () => {
+    const newVal = !autoSpeak;
+    setAutoSpeak(newVal);
+    try { localStorage.setItem('vesper_auto_speak', String(newVal)); } catch(e) {}
+    setToast(newVal ? '🔊 Auto-speak ON' : '🔇 Auto-speak OFF');
   };
 
   const clearHistory = async () => {
@@ -1885,6 +2059,16 @@ export default function App() {
         }
       });
   }, []);
+
+  // Fetch available AI models for model picker
+  useEffect(() => {
+    fetch(`${apiBase}/api/models/available`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.models) setAvailableModels(data.models);
+      })
+      .catch(() => {});
+  }, [apiBase]);
 
   // ─── Cloud Neural TTS Engine (Streaming + Personas) ───────────────────
   // ElevenLabs voices stream in real-time (starts speaking instantly).
@@ -4300,6 +4484,67 @@ export default function App() {
                 )}
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {/* Model Picker */}
+                {availableModels.length > 0 && (
+                  <Select
+                    size="small"
+                    value={selectedModel}
+                    onChange={(e) => {
+                      setSelectedModel(e.target.value);
+                      try { localStorage.setItem('vesper_model', e.target.value); } catch(ex) {}
+                    }}
+                    sx={{
+                      height: 32,
+                      minWidth: 100,
+                      fontSize: '0.75rem',
+                      color: 'var(--accent)',
+                      '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,255,255,0.25)' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--accent)' },
+                      '.MuiSvgIcon-root': { color: 'var(--accent)', fontSize: 16 },
+                      bgcolor: 'rgba(0,0,0,0.2)',
+                    }}
+                  >
+                    <MenuItem value="auto" sx={{ fontSize: '0.8rem' }}>🔄 Auto</MenuItem>
+                    {availableModels.map(m => (
+                      <MenuItem key={m.id} value={m.id} sx={{ fontSize: '0.8rem' }}>
+                        {m.icon} {m.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                )}
+
+                {/* Auto-speak Toggle */}
+                <Tooltip title={autoSpeak ? "Auto-speak ON (click to disable)" : "Auto-speak OFF (click to enable)"} placement="left">
+                  <IconButton
+                    size="small"
+                    onClick={toggleAutoSpeak}
+                    sx={{
+                      color: autoSpeak ? '#00ff88' : 'rgba(255,255,255,0.3)',
+                      bgcolor: autoSpeak ? 'rgba(0,255,136,0.1)' : 'transparent',
+                      border: autoSpeak ? '1px solid rgba(0,255,136,0.4)' : '1px solid rgba(255,255,255,0.15)',
+                      '&:hover': { color: '#00ff88', bgcolor: 'rgba(0,255,136,0.15)' },
+                      width: 32, height: 32,
+                    }}
+                  >
+                    <RecordVoiceOverIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+
+                {/* Export Chat */}
+                <Tooltip title="Export chat" placement="left">
+                  <IconButton
+                    size="small"
+                    onClick={() => exportChat('markdown')}
+                    sx={{
+                      color: 'rgba(255,255,255,0.4)',
+                      '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(0,255,255,0.1)' },
+                      width: 32, height: 32,
+                    }}
+                  >
+                    <SaveAltIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+
                 {/* Voice ON/OFF Toggle */}
                 <Tooltip title={ttsEnabled ? "Turn voice OFF" : "Turn voice ON"} placement="left">
                   <IconButton 
@@ -4350,7 +4595,27 @@ export default function App() {
               <Chip label="Hold V to speak" className="chip-ghost" />
             </Stack>
 
-            <Paper ref={chatContainerRef} className="chat-window glass-card">
+            <Paper 
+              ref={chatContainerRef} 
+              className="chat-window glass-card"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              sx={{ position: 'relative' }}
+            >
+              {/* Drag overlay */}
+              {isDraggingFile && (
+                <Box sx={{
+                  position: 'absolute', inset: 0, zIndex: 10,
+                  bgcolor: 'rgba(0,255,255,0.08)', border: '2px dashed var(--accent)',
+                  borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  backdropFilter: 'blur(4px)',
+                }}>
+                  <Typography sx={{ color: 'var(--accent)', fontWeight: 700, fontSize: '1.1rem' }}>
+                    📎 Drop files here
+                  </Typography>
+                </Box>
+              )}
               <AnimatePresence>
                 {messages.map((message) => (
                   <div key={message.id}>{renderMessage(message)}</div>
@@ -4363,6 +4628,11 @@ export default function App() {
                     <span />
                     <span />
                   </Box>
+                  {thinkingStatus && (
+                    <Typography variant="caption" sx={{ color: 'var(--accent)', opacity: 0.7, fontStyle: 'italic' }}>
+                      {thinkingStatus}
+                    </Typography>
+                  )}
                 </Box>
               )}
               <div ref={messagesEndRef} />
@@ -4862,9 +5132,20 @@ export default function App() {
                                 </Typography>
                               )}
                             </Box>
-                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.65rem' }}>
-                              {v.locale || ''}{v.style ? ` • ${v.style}` : ''}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.65rem' }}>
+                                {v.locale || ''}{v.style ? ` • ${v.style}` : ''}
+                              </Typography>
+                              {v.preview_url && (
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => { e.stopPropagation(); playVoicePreview(v.preview_url); }}
+                                  sx={{ p: 0.25, color: 'rgba(255,180,50,0.5)', '&:hover': { color: '#ffbb44' } }}
+                                >
+                                  <PlayArrowIcon sx={{ fontSize: 14 }} />
+                                </IconButton>
+                              )}
+                            </Box>
                           </Box>
                         );
                       }) : (
@@ -4882,7 +5163,7 @@ export default function App() {
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
                         Override the voice for specific contexts (optional)
                       </Typography>
-                      <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} />
+                      <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} playVoicePreview={playVoicePreview} />
                     </Box>
                   </Box>
                 )}
