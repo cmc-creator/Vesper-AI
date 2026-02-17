@@ -1768,11 +1768,13 @@ export default function App() {
 
   // Load available voices from cloud TTS endpoint (HD neural voices)
   const [cloudVoices, setCloudVoices] = useState([]);
+  const [defaultVoiceId, setDefaultVoiceId] = useState('');
   useEffect(() => {
     fetch('http://localhost:8000/api/tts/voices')
       .then(r => r.json())
       .then(data => {
         if (data.voices) setCloudVoices(data.voices);
+        if (data.default && !selectedVoiceName) setDefaultVoiceId(data.default);
         // Also load browser voices as fallback
         if (window.speechSynthesis) {
           const loadVoices = () => {
@@ -1834,7 +1836,7 @@ export default function App() {
       const controller = new AbortController();
       ttsAbortRef.current = controller;
 
-      const voice = selectedVoiceName || 'en-US-JennyNeural';
+      const voice = selectedVoiceName || defaultVoiceId || 'edge:en-US-JennyNeural';
       const response = await fetch('http://localhost:8000/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -4057,9 +4059,12 @@ export default function App() {
                 '&::-webkit-scrollbar-thumb': { background: 'var(--accent)', borderRadius: 2 },
               }}>
                 <Typography variant="caption" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1, display: 'block' }}>
-                  VESPER'S VOICE — HD Neural Voices
+                  VESPER'S VOICE
                 </Typography>
-                {cloudVoices.length > 0 ? cloudVoices.map((v) => (
+                {cloudVoices.length > 0 ? cloudVoices.map((v) => {
+                  const isEleven = v.provider === 'elevenlabs';
+                  const isActive = selectedVoiceName === v.id || (!selectedVoiceName && v.id === defaultVoiceId);
+                  return (
                     <Box
                       key={v.id}
                       onClick={() => { handleVoiceChange(v.id); setShowVoiceSelector(false); }}
@@ -4068,8 +4073,8 @@ export default function App() {
                         cursor: 'pointer',
                         borderRadius: 1,
                         mb: 0.25,
-                        background: selectedVoiceName === v.id ? 'rgba(0,255,136,0.15)' : 'rgba(0,255,255,0.04)',
-                        borderLeft: selectedVoiceName === v.id ? '2px solid #00ff88' : '2px solid rgba(0,255,255,0.3)',
+                        background: isActive ? 'rgba(0,255,136,0.15)' : isEleven ? 'rgba(255,180,50,0.06)' : 'rgba(0,255,255,0.04)',
+                        borderLeft: isActive ? '2px solid #00ff88' : isEleven ? '2px solid rgba(255,180,50,0.4)' : '2px solid rgba(0,255,255,0.3)',
                         '&:hover': { background: 'rgba(255,255,255,0.08)' },
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -4077,28 +4082,29 @@ export default function App() {
                       }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                        <Typography variant="caption" sx={{ 
-                          color: selectedVoiceName === v.id ? '#00ff88' : '#00ddff',
-                          fontWeight: selectedVoiceName === v.id ? 700 : 600,
+                        <Typography variant="caption" sx={{
+                          color: isActive ? '#00ff88' : isEleven ? '#ffbb44' : '#00ddff',
+                          fontWeight: isActive ? 700 : 600,
                           fontSize: '0.75rem',
                         }}>
                           {v.name}
                         </Typography>
                         <Typography variant="caption" sx={{
-                          fontSize: '0.6rem', px: 0.5, py: 0.1,
+                          fontSize: '0.55rem', px: 0.5, py: 0.1,
                           borderRadius: 0.5,
-                          background: v.gender === 'Female' ? 'rgba(255,100,255,0.15)' : 'rgba(100,200,255,0.15)',
-                          color: v.gender === 'Female' ? '#ff88ff' : '#88ccff',
+                          background: isEleven ? 'rgba(255,180,50,0.2)' : v.gender === 'Female' ? 'rgba(255,100,255,0.15)' : 'rgba(100,200,255,0.15)',
+                          color: isEleven ? '#ffcc55' : v.gender === 'Female' ? '#ff88ff' : '#88ccff',
                           fontWeight: 700,
                         }}>
-                          {v.gender === 'Female' ? '♀' : '♂'} Neural
+                          {isEleven ? '★ ElevenLabs' : `${v.gender === 'Female' ? '♀' : '♂'} Edge`}
                         </Typography>
                       </Box>
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', ml: 1 }}>
-                        {v.style}
+                        {v.style || v.locale}
                       </Typography>
                     </Box>
-                )) : (
+                  );
+                }) : (
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
                     Start the backend to load HD voices. Falling back to browser voices.
                   </Typography>
