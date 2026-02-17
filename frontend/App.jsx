@@ -5007,20 +5007,20 @@ export default function App() {
                   </Typography>
                   {vesperIdentity?.mood && (
                     <Chip
-                      label={`${vesperIdentity.mood_emoji || '✨'} ${vesperIdentity.mood}`}
+                      label={`${vesperIdentity.mood?.emoji || '✨'} ${vesperIdentity.mood?.label || vesperIdentity.mood?.id || ''}`}
                       size="small"
                       onClick={() => setIdentityDialogOpen(true)}
                       sx={{
-                        bgcolor: vesperIdentity.mood_color ? `${vesperIdentity.mood_color}22` : 'rgba(0,255,255,0.1)',
-                        color: vesperIdentity.mood_color || 'var(--accent)',
-                        border: `1px solid ${vesperIdentity.mood_color || 'var(--accent)'}44`,
+                        bgcolor: vesperIdentity.mood?.color ? `${vesperIdentity.mood.color}22` : 'rgba(0,255,255,0.1)',
+                        color: vesperIdentity.mood?.color || 'var(--accent)',
+                        border: `1px solid ${vesperIdentity.mood?.color || 'var(--accent)'}44`,
                         fontWeight: 600,
                         fontSize: '0.7rem',
                         height: 24,
                         cursor: 'pointer',
                         transition: 'all 0.3s ease',
                         '&:hover': {
-                          bgcolor: vesperIdentity.mood_color ? `${vesperIdentity.mood_color}44` : 'rgba(0,255,255,0.2)',
+                          bgcolor: vesperIdentity.mood?.color ? `${vesperIdentity.mood.color}44` : 'rgba(0,255,255,0.2)',
                           transform: 'scale(1.05)',
                         },
                       }}
@@ -6047,7 +6047,7 @@ export default function App() {
               animation: 'pulse 2s ease-in-out infinite',
               '@keyframes pulse': { '0%,100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.1)' } },
             }}>
-              {vesperIdentity?.mood_emoji || '✨'}
+              {vesperIdentity?.mood?.emoji || '✨'}
             </Box>
           )}
 
@@ -6061,10 +6061,10 @@ export default function App() {
           {/* Identity cards */}
           <Stack spacing={1.5} sx={{ mb: 2.5, textAlign: 'left' }}>
             {[
-              { label: 'Mood', value: vesperIdentity?.mood, emoji: vesperIdentity?.mood_emoji, color: vesperIdentity?.mood_color, key: 'mood_override', options: identityOptions?.moods },
-              { label: 'Vibe', value: vesperIdentity?.gender, emoji: vesperIdentity?.gender === 'feminine' ? '♀️' : vesperIdentity?.gender === 'masculine' ? '♂️' : '⚧️', color: '#ff66ff', key: 'gender_override', options: identityOptions?.genders },
-              { label: 'Look', value: vesperIdentity?.look, emoji: '👁️', color: '#66ffcc', key: 'look_override', options: identityOptions?.looks },
-              { label: 'Voice', value: vesperIdentity?.voice_vibe, emoji: '🎤', color: '#ffaa00', key: 'voice_vibe_override', options: identityOptions?.voice_vibes },
+              { label: 'Mood', value: vesperIdentity?.mood?.label || vesperIdentity?.mood?.id, idValue: vesperIdentity?.mood?.id, emoji: vesperIdentity?.mood?.emoji, color: vesperIdentity?.mood?.color, key: 'mood_override', options: identityOptions?.moods },
+              { label: 'Vibe', value: vesperIdentity?.gender?.label || vesperIdentity?.gender?.id, idValue: vesperIdentity?.gender?.id, emoji: vesperIdentity?.gender?.emoji || (vesperIdentity?.gender?.id === 'feminine' ? '♀️' : vesperIdentity?.gender?.id === 'masculine' ? '♂️' : '⚧️'), color: '#ff66ff', key: 'gender_override', options: identityOptions?.genders },
+              { label: 'Look', value: vesperIdentity?.look, idValue: vesperIdentity?.look, emoji: '👁️', color: '#66ffcc', key: 'look_override', options: identityOptions?.looks },
+              { label: 'Voice', value: vesperIdentity?.voice_vibe?.label || vesperIdentity?.voice_vibe?.id, idValue: vesperIdentity?.voice_vibe?.id, emoji: vesperIdentity?.voice_vibe?.emoji || '🎤', color: '#ffaa00', key: 'voice_vibe_override', options: identityOptions?.voice_vibes },
             ].map((item) => (
               <Box key={item.label} sx={{
                 display: 'flex', alignItems: 'center', gap: 1.5,
@@ -6080,8 +6080,11 @@ export default function App() {
                   </Typography>
                   {item.options ? (
                     <Select
-                      value={vesperIdentity?.[item.label.toLowerCase()] || item.value || ''}
-                      onChange={(e) => setVesperIdentity(prev => ({ ...prev, [item.label.toLowerCase()]: e.target.value }))}
+                      value={item.idValue || ''}
+                      onChange={(e) => {
+                        const selectedOpt = (Array.isArray(item.options) ? item.options : []).find(o => (typeof o === 'string' ? o : o.id) === e.target.value);
+                        setVesperIdentity(prev => ({ ...prev, [item.label.toLowerCase()]: selectedOpt || e.target.value }));
+                      }}
                       size="small"
                       fullWidth
                       sx={{
@@ -6104,9 +6107,10 @@ export default function App() {
                         }
                       }}
                     >
-                      {(Array.isArray(item.options) ? item.options : item.options?.map?.(o => o.name || o) || []).map((opt) => {
-                        const optName = typeof opt === 'string' ? opt : opt.name;
-                        return <MenuItem key={optName} value={optName}>{typeof opt === 'string' ? opt : `${opt.emoji || ''} ${opt.name}`}</MenuItem>;
+                      {(Array.isArray(item.options) ? item.options : []).map((opt) => {
+                        const optId = typeof opt === 'string' ? opt : opt.id;
+                        const optDisplay = typeof opt === 'string' ? opt : `${opt.emoji || ''} ${opt.label || opt.id}`;
+                        return <MenuItem key={optId} value={optId}>{optDisplay}</MenuItem>;
                       })}
                     </Select>
                   ) : (
@@ -6139,9 +6143,9 @@ export default function App() {
             <Button
               variant="contained"
               onClick={() => handleConfirmIdentity({
-                mood_override: vesperIdentity?.mood,
-                gender_override: vesperIdentity?.gender,
-                voice_vibe_override: vesperIdentity?.voice_vibe,
+                mood_override: vesperIdentity?.mood?.id || vesperIdentity?.mood,
+                gender_override: vesperIdentity?.gender?.id || vesperIdentity?.gender,
+                voice_vibe_override: vesperIdentity?.voice_vibe?.id || vesperIdentity?.voice_vibe,
               })}
               sx={{
                 bgcolor: 'var(--accent)',
