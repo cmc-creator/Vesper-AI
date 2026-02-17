@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography, CircularProgress, Stack, Chip, LinearProgress, Slider, IconButton, Collapse } from '@mui/material';
+import { Box, Paper, Typography, CircularProgress, Stack, Chip, LinearProgress, IconButton, Collapse } from '@mui/material';
 import { ExpandLess, ExpandMore, VisibilityOff } from '@mui/icons-material';
 
-const SystemStatusCard = ({ apiBase, onScaleChange, currentScale = 1, onHide }) => {
+const SystemStatusCard = ({ apiBase, onHide }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -73,9 +73,8 @@ const SystemStatusCard = ({ apiBase, onScaleChange, currentScale = 1, onHide }) 
       </Box>
 
       <Collapse in={expanded}>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-            {/* Stats Column */}
-            <Stack spacing={1.5} sx={{ flex: 1 }}>
+        <Box sx={{ maxHeight: 220, overflowY: 'auto', pr: 0.5, '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(0,255,255,0.2)', borderRadius: 2 }, '&::-webkit-scrollbar-track': { bgcolor: 'transparent' } }}>
+            <Stack spacing={1.5}>
                 {/* Backend Status */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>Backend</Typography>
@@ -155,31 +154,6 @@ const SystemStatusCard = ({ apiBase, onScaleChange, currentScale = 1, onHide }) 
         </Box>
 
             </Stack>
-
-            {/* Vertical Scale Slider */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 120 }}>
-               <Slider
-                  orientation="vertical"
-                  size="small"
-                  value={currentScale}
-                  min={0.5}
-                  max={1.5}
-                  step={0.1}
-                  onChange={(_, val) => onScaleChange && onScaleChange(val)}
-                  valueLabelDisplay="auto"
-                  sx={{
-                    color: 'var(--accent, #00ffff)',
-                    height: 100,
-                    '& .MuiSlider-thumb': {
-                      width: 12,
-                      height: 12,
-                      '&:hover': { boxShadow: '0 0 0 8px rgba(0, 255, 255, 0.1)' },
-                    },
-                    '& .MuiSlider-rail': { opacity: 0.2 },
-                  }}
-                />
-                <Typography variant="caption" sx={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', mt: 1, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>UI Scale</Typography>
-            </Box>
         </Box>
       </Collapse>
     </Paper>

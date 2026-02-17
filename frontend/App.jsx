@@ -54,6 +54,8 @@ import {
   RecordVoiceOver as RecordVoiceOverIcon,
   PhotoLibrary,
   ArrowBack as ArrowBackIcon,
+  ZoomIn as ZoomInIcon,
+  ZoomOut as ZoomOutIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -4654,10 +4656,12 @@ export default function App() {
     <ThemeProvider theme={baseTheme}>
       <CssBaseline />
       
-      {/* Background layers — OUTSIDE the transform Box so position:fixed works correctly */}
-      <div className="bg-layer gradient-background" style={{ background: activeTheme.bg || '#000' }} />
-      <div className="bg-layer hex-grid" style={activeTheme.bgImage ? { backgroundImage: activeTheme.bgImage, backgroundSize: activeTheme.bgSize || 'cover', backgroundPosition: 'center' } : {}} />
-      <div className="bg-layer scanlines" style={activeTheme.scanlines === false ? { display: 'none' } : {}} />
+      {/* Background layers — absolute positioned in a full-page wrapper */}
+      <Box sx={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+        <div className="bg-layer gradient-background" style={{ background: activeTheme.bg || '#000', position: 'absolute', inset: 0 }} />
+        <div className="bg-layer hex-grid" style={{ position: 'absolute', inset: 0, ...(activeTheme.bgImage ? { backgroundImage: activeTheme.bgImage, backgroundSize: activeTheme.bgSize || 'cover', backgroundPosition: 'center' } : {}) }} />
+        <div className="bg-layer scanlines" style={{ position: 'absolute', inset: 0, ...(activeTheme.scanlines === false ? { display: 'none' } : {}) }} />
+      </Box>
       
       <Box sx={{ 
         transform: `scale(${uiScale})`,
@@ -5798,11 +5802,6 @@ export default function App() {
                 >
                   <SystemStatusCard 
                     apiBase={apiBase} 
-                    currentScale={uiScale} 
-                    onScaleChange={(val) => {
-                      setUiScale(val);
-                      localStorage.setItem('vesper_ui_scale', val.toString());
-                    }} 
                     onHide={() => setShowSystemStatus(false)}
                   />
                 </div>
@@ -6211,6 +6210,35 @@ export default function App() {
           </Stack>
         </Box>
       </Dialog>
+
+      {/* Floating Zoom Control — bottom-right of screen */}
+      <Box sx={{
+        position: 'fixed', bottom: 16, right: 16, zIndex: 9999,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5,
+        bgcolor: 'rgba(8, 12, 24, 0.85)', backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2,
+        p: 0.5, opacity: 0.6, transition: 'opacity 0.2s ease',
+        '&:hover': { opacity: 1 },
+      }}>
+        <IconButton
+          size="small"
+          onClick={() => { const v = Math.min(uiScale + 0.1, 1.5); setUiScale(v); localStorage.setItem('vesper_ui_scale', v.toString()); }}
+          sx={{ color: 'var(--accent)', width: 28, height: 28, '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}
+        >
+          <ZoomInIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.55rem', lineHeight: 1, userSelect: 'none' }}>
+          {Math.round(uiScale * 100)}%
+        </Typography>
+        <IconButton
+          size="small"
+          onClick={() => { const v = Math.max(uiScale - 0.1, 0.5); setUiScale(v); localStorage.setItem('vesper_ui_scale', v.toString()); }}
+          sx={{ color: 'var(--accent)', width: 28, height: 28, '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}
+        >
+          <ZoomOutIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Box>
+
       </Box>
     </ThemeProvider>
   );

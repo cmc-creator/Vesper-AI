@@ -299,11 +299,11 @@ canvas {
 
 /* New high-tech shell layout */
 .bg-layer {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   z-index: 0;
 }
@@ -312,9 +312,8 @@ canvas {
   background-color: #000;
   background-image: url('/background.jpg');
   background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-position: center top;
+  background-repeat: repeat-y;
   opacity: 0.95;
 }
 
