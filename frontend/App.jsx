@@ -219,6 +219,8 @@ export default function App() {
   const [videoOpen, setVideoOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
   const [learningOpen, setLearningOpen] = useState(false);
+  const [voiceLabOpen, setVoiceLabOpen] = useState(false);
+  const [voiceLabTab, setVoiceLabTab] = useState('sfx');
   const TOOLS = [
     { id: 'research', label: 'Deep Research', icon: '🔬' },
     { id: 'graph', label: 'Knowledge Graph', icon: '🕸️' },
@@ -227,6 +229,10 @@ export default function App() {
     { id: 'canvas', label: 'Canvas', icon: '📐' },
     { id: 'learning', label: 'Guided Learning', icon: '📚' },
     { id: 'enterWorld', label: 'Enter World', icon: '🏰' },
+    { id: 'sfx', label: 'Sound Effects', icon: '🔊' },
+    { id: 'voiceClone', label: 'Voice Clone', icon: '🎙️' },
+    { id: 'voiceIsolate', label: 'Voice Isolate', icon: '🎛️' },
+    { id: 'voicePersonas', label: 'Voice Personas', icon: '🎭' },
     { id: 'newChat', label: 'New Chat', icon: '💬' },
     { id: 'clearHistory', label: 'Clear History', icon: '🗑️' },
     { id: 'mindmap', label: 'Mind Map', icon: '🧠', description: 'Explore your research visually' },
@@ -4560,6 +4566,14 @@ export default function App() {
                       clearHistory();
                     } else if (tool.id === 'mindmap') {
                       setGraphOpen(true);
+                    } else if (tool.id === 'sfx') {
+                      setVoiceLabOpen(true); setVoiceLabTab('sfx');
+                    } else if (tool.id === 'voiceClone') {
+                      setVoiceLabOpen(true); setVoiceLabTab('clone');
+                    } else if (tool.id === 'voiceIsolate') {
+                      setVoiceLabOpen(true); setVoiceLabTab('isolate');
+                    } else if (tool.id === 'voicePersonas') {
+                      setVoiceLabOpen(true); setVoiceLabTab('personas');
                     } else if (tool.id === 'settings') {
                       setActiveSection('settings');
                     } else {
@@ -4592,6 +4606,266 @@ export default function App() {
                 </Box>
               ))}
             </Box>
+
+            {/* ── Voice Lab Panel (ElevenLabs Tools) ───────────────────── */}
+            {voiceLabOpen && (
+              <Box sx={{
+                mt: 1, p: 2,
+                background: 'rgba(10,10,30,0.95)',
+                border: '1px solid rgba(255,180,50,0.4)',
+                borderRadius: 2,
+                backdropFilter: 'blur(12px)',
+                position: 'relative',
+              }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#ffbb44', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    ★ Voice Lab — ElevenLabs
+                  </Typography>
+                  <IconButton size="small" onClick={() => setVoiceLabOpen(false)} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+
+                {/* Tab Row */}
+                <Box sx={{ display: 'flex', gap: 0.5, mb: 1.5, flexWrap: 'wrap' }}>
+                  {[
+                    { key: 'sfx', label: '🔊 Sound FX', color: '#ffcc55' },
+                    { key: 'clone', label: '🎙️ Clone Voice', color: '#cc88ff' },
+                    { key: 'isolate', label: '🎛️ Isolate Voice', color: '#66ffbb' },
+                    { key: 'personas', label: '🎭 Personas', color: 'var(--accent)' },
+                  ].map(t => (
+                    <Chip
+                      key={t.key}
+                      label={t.label}
+                      size="small"
+                      onClick={() => setVoiceLabTab(t.key)}
+                      sx={{
+                        bgcolor: voiceLabTab === t.key ? `${t.color}22` : 'rgba(255,255,255,0.05)',
+                        color: voiceLabTab === t.key ? t.color : 'rgba(255,255,255,0.5)',
+                        border: voiceLabTab === t.key ? `1px solid ${t.color}` : '1px solid rgba(255,255,255,0.1)',
+                        fontWeight: voiceLabTab === t.key ? 700 : 500,
+                        cursor: 'pointer',
+                        '&:hover': { bgcolor: `${t.color}15` },
+                      }}
+                    />
+                  ))}
+                </Box>
+
+                {/* ── SFX Tab ── */}
+                {voiceLabTab === 'sfx' && (
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
+                      Generate any sound effect from a text description using ElevenLabs AI
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
+                      <input
+                        type="text"
+                        placeholder="e.g. cyberpunk door opening, laser blast, rain on a tin roof..."
+                        id="voicelab-sfx-input"
+                        style={{
+                          flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,180,50,0.3)',
+                          borderRadius: 6, padding: '8px 12px', color: '#fff', fontSize: '0.85rem', outline: 'none',
+                        }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') document.getElementById('voicelab-sfx-go')?.click(); }}
+                      />
+                      <Button
+                        id="voicelab-sfx-go"
+                        size="small"
+                        variant="contained"
+                        onClick={async () => {
+                          const input = document.getElementById('voicelab-sfx-input');
+                          if (!input?.value.trim()) return;
+                          setToast('⏳ Generating sound effect...');
+                          try {
+                            const res = await fetch(`${apiBase}/api/sfx/generate`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ prompt: input.value.trim(), duration: 5 }),
+                            });
+                            if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const audio = new Audio(url);
+                            audio.play();
+                            audio.onended = () => URL.revokeObjectURL(url);
+                            setToast('🔊 Playing sound effect!');
+                          } catch (e) {
+                            setToast('SFX Error: ' + e.message);
+                          }
+                        }}
+                        sx={{ bgcolor: '#ffbb44', color: '#000', fontWeight: 700, minWidth: 80, '&:hover': { bgcolor: '#ffcc66' } }}
+                      >
+                        Generate
+                      </Button>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                      {['Spaceship engine hum', 'Magical spell cast', 'Rain on cyberpunk city', 'Level up chime', 'Dramatic reveal', 'Laser beam charging', 'Digital glitch noise', 'Thunder rumble'].map(p => (
+                        <Chip key={p} label={p} size="small"
+                          onClick={() => { const i = document.getElementById('voicelab-sfx-input'); if (i) i.value = p; }}
+                          sx={{ fontSize: '0.65rem', height: 22, bgcolor: 'rgba(255,180,50,0.1)', color: '#ffbb44', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,180,50,0.2)' } }}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
+                {/* ── Clone Voice Tab ── */}
+                {voiceLabTab === 'clone' && (
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
+                      Upload audio samples to clone any voice. The cloned voice will appear in your voice picker.
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                      <input
+                        type="text"
+                        placeholder="Voice name (e.g. My Custom Voice)"
+                        id="voicelab-clone-name"
+                        defaultValue="VesperCustom"
+                        style={{
+                          flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(200,100,255,0.3)',
+                          borderRadius: 6, padding: '8px 12px', color: '#fff', fontSize: '0.85rem', outline: 'none',
+                        }}
+                      />
+                    </Box>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      component="label"
+                      fullWidth
+                      sx={{ bgcolor: '#cc88ff', color: '#fff', fontWeight: 700, mb: 1, '&:hover': { bgcolor: '#dd99ff' } }}
+                    >
+                      🎙️ Upload Voice Samples (audio files)
+                      <input type="file" hidden multiple accept="audio/*"
+                        onChange={async (e) => {
+                          const files = e.target.files;
+                          if (!files?.length) return;
+                          const name = document.getElementById('voicelab-clone-name')?.value || 'VesperCustom';
+                          setToast('⏳ Cloning voice... this takes a moment');
+                          const formData = new FormData();
+                          formData.append('name', name);
+                          formData.append('description', 'Custom cloned voice via Voice Lab');
+                          Array.from(files).forEach(f => formData.append('files', f));
+                          try {
+                            const res = await fetch(`${apiBase}/api/voice/clone?name=${encodeURIComponent(name)}`, {
+                              method: 'POST', body: formData,
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              setToast('✅ Voice cloned! Check the voice picker.');
+                              const vRes = await fetch(`${apiBase}/api/tts/voices`);
+                              const vData = await vRes.json();
+                              if (vData.voices) setCloudVoices(vData.voices);
+                            } else {
+                              setToast('Clone failed: ' + (data.error || 'Unknown error'));
+                            }
+                          } catch (err) { setToast('Clone error: ' + err.message); }
+                        }}
+                      />
+                    </Button>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.7rem' }}>
+                      Tip: Upload at least 1 minute of clear speech for best results. Multiple files OK.
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* ── Voice Isolation Tab ── */}
+                {voiceLabTab === 'isolate' && (
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
+                      Remove background noise, music, and other sounds — isolate just the voice from any audio.
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      component="label"
+                      fullWidth
+                      sx={{ bgcolor: '#66ffbb', color: '#000', fontWeight: 700, mb: 1, '&:hover': { bgcolor: '#88ffcc' } }}
+                    >
+                      🎛️ Upload Audio to Clean
+                      <input type="file" hidden accept="audio/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setToast('⏳ Isolating voice... removing background noise');
+                          const formData = new FormData();
+                          formData.append('file', file);
+                          try {
+                            const res = await fetch(`${apiBase}/api/voice/isolate`, {
+                              method: 'POST', body: formData,
+                            });
+                            if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `isolated_${file.name}`;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            const audio = new Audio(url);
+                            audio.play();
+                            audio.onended = () => URL.revokeObjectURL(url);
+                            setToast('🎛️ Playing isolated voice! (also downloaded)');
+                          } catch (err) { setToast('Isolation error: ' + err.message); }
+                        }}
+                      />
+                    </Button>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.7rem' }}>
+                      Supported: MP3, WAV, M4A, OGG. The cleaned audio will auto-play and download.
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* ── Voice Personas Tab ── */}
+                {voiceLabTab === 'personas' && (
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
+                      Vesper uses different voices for different situations. Assign voices to contexts like "Game Narrator" or "Teacher".
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      fullWidth
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`${apiBase}/api/voice/personas`);
+                          const data = await res.json();
+                          const personas = data.personas || {};
+                          const lines = Object.entries(personas).map(([k, v]) => {
+                            const voiceName = v.voice_id ? (cloudVoices.find(cv => cv.id === v.voice_id)?.name || v.voice_id) : '(default voice)';
+                            return `${v.icon} ${v.label}: ${voiceName}`;
+                          });
+                          setToast('Voice Personas:\n' + lines.join('\n'));
+                        } catch (e) { setToast('Failed to load personas: ' + e.message); }
+                      }}
+                      sx={{ bgcolor: 'var(--accent)', color: '#000', fontWeight: 700, mb: 1.5, '&:hover': { opacity: 0.85 } }}
+                    >
+                      🎭 View Current Personas
+                    </Button>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
+                      Available persona slots:
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
+                      {[
+                        { icon: '🎮', label: 'Game Narrator' },
+                        { icon: '📖', label: 'Storyteller' },
+                        { icon: '🧑‍🏫', label: 'Teacher' },
+                        { icon: '💬', label: 'Casual Chat' },
+                        { icon: '⚔️', label: 'Battle' },
+                        { icon: '🔬', label: 'Research' },
+                      ].map(p => (
+                        <Chip key={p.label} label={`${p.icon} ${p.label}`} size="small"
+                          sx={{ fontSize: '0.7rem', height: 24, bgcolor: 'rgba(0,255,255,0.08)', color: 'var(--accent)', border: '1px solid rgba(0,255,255,0.2)' }}
+                        />
+                      ))}
+                    </Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.7rem' }}>
+                      Tip: Pick a voice from the voice selector dropdown (top right), then go to Settings → Voice Lab to assign it to a persona.
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
           </section>
 
           <section className="ops-panel">
