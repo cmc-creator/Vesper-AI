@@ -40,7 +40,7 @@ export default function VideoCreator({ apiBase, onClose }) {
       const response = await fetch(`${apiBase}/api/video/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, aspect_ratio: aspectRatio }),
       });
       const data = await response.json();
       if (data.error) throw new Error(data.error);

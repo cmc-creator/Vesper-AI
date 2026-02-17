@@ -4752,10 +4752,12 @@ class VideoPlanRequest(BaseModel):
 
 class VideoGenRequest(BaseModel):
     prompt: str
+    aspect_ratio: Optional[str] = "16:9"
+    resolution: Optional[str] = "480p"
 
 @app.post("/api/video/generate")
 async def generate_video(req: VideoGenRequest):
-    """Generate generic video from text using Replicate (Zeroscope/AnimateDiff) via raw API"""
+    """Generate text-to-video using Replicate (Wan 2.2 T2V Fast) via raw API"""
     
     # Reload environment variables to ensure we pick up changes without full restart
     from dotenv import load_dotenv
@@ -4770,21 +4772,28 @@ async def generate_video(req: VideoGenRequest):
             content={"error": "Missing REPLICATE_API_TOKEN. Add it to backend/.env ($0.02/video)."}
         )
     
-    # Use requests to allow Python 3.14 compatibility (Replicate SDK has Pydantic issues)
     import requests
     import time
 
+    # Map aspect ratio from frontend format
+    aspect_map = {"16:9": "16:9", "9:16": "9:16", "1:1": "1:1"}
+    aspect = aspect_map.get(req.aspect_ratio, "16:9")
+
     try:
-        # Using Zeroscope V2 XL (Text-to-Video) - Cost-effective
-        # 1. Start Prediction
-        # Use the official model endpoint (no version hash needed)
+        # Wan 2.2 T2V Fast — text-to-video, 185k+ runs, fast & cheap
         resp = requests.post(
-            "https://api.replicate.com/v1/models/minimax/video-01-live/predictions",
+            "https://api.replicate.com/v1/models/wan-video/wan-2.2-t2v-fast/predictions",
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
             json={
                 "input": {
                     "prompt": req.prompt,
-                    "prompt_optimizer": True,
+                    "aspect_ratio": aspect,
+                    "resolution": req.resolution or "480p",
+                    "num_frames": 81,
+                    "go_fast": True,
+                    "frames_per_second": 16,
+                    "interpolate_output": True,
+                    "disable_safety_checker": True,
                 }
             }
         )
@@ -4793,16 +4802,17 @@ async def generate_video(req: VideoGenRequest):
             return JSONResponse(status_code=402, content={"error": "Replicate account has no credit. Add billing at replicate.com/account/billing"})
         
         if resp.status_code != 201:
+            print(f"[VIDEO] Replicate error {resp.status_code}: {resp.text}")
             return JSONResponse(status_code=resp.status_code, content={"error": f"Replicate API Error: {resp.text}"})
             
         prediction = resp.json()
         pred_id = prediction["id"]
+        print(f"[VIDEO] Prediction started: {pred_id}")
         
-        # 2. Poll for completion (Simple blocking for MVP)
-        # Note: In production, use webhooks or background tasks
-        max_retries = 60 # 60 attempts
-        for _ in range(max_retries):
-            time.sleep(2)  # Wait 2 seconds between checks
+        # Poll for completion (Wan 2.2 fast usually finishes in 30-60s)
+        max_retries = 90
+        for attempt in range(max_retries):
+            time.sleep(2)
             status_resp = requests.get(
                 f"https://api.replicate.com/v1/predictions/{pred_id}",
                 headers={"Authorization": f"Bearer {token}"}
@@ -4811,13 +4821,18 @@ async def generate_video(req: VideoGenRequest):
             status = data.get("status")
             
             if status == "succeeded":
-                output = data.get("output", [])
+                output = data.get("output")
+                # Wan 2.2 returns a single URI string (not a list)
                 video_url = output[0] if isinstance(output, list) else output
+                print(f"[VIDEO] Complete: {video_url}")
                 return {"status": "success", "video_url": video_url}
             elif status == "failed":
                 return JSONResponse(status_code=500, content={"error": f"Video generation failed: {data.get('error')}"})
             elif status == "canceled":
-                 return JSONResponse(status_code=500, content={"error": "Video generation canceled"})
+                return JSONResponse(status_code=500, content={"error": "Video generation canceled"})
+            
+            if attempt % 10 == 0 and attempt > 0:
+                print(f"[VIDEO] Still processing... attempt {attempt}/{max_retries}")
         
         return JSONResponse(status_code=408, content={"error": "Video generation timed out (takes > 2 mins sometimes). Check Replicate dashboard."})
 
