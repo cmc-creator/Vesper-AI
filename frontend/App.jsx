@@ -1766,72 +1766,47 @@ export default function App() {
     }
   };
 
-  // Load available voices (must wait for voiceschanged event on Chromium)
+  // Load available voices from cloud TTS endpoint (HD neural voices)
+  const [cloudVoices, setCloudVoices] = useState([]);
   useEffect(() => {
-    if (!window.speechSynthesis) return;
-    const loadVoices = () => {
-      const v = window.speechSynthesis.getVoices();
-      if (v.length > 0) setAvailableVoices(v);
-    };
-    loadVoices();
-    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
-    return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+    fetch('http://localhost:8000/api/tts/voices')
+      .then(r => r.json())
+      .then(data => {
+        if (data.voices) setCloudVoices(data.voices);
+        // Also load browser voices as fallback
+        if (window.speechSynthesis) {
+          const loadVoices = () => {
+            const v = window.speechSynthesis.getVoices();
+            if (v.length > 0) setAvailableVoices(v);
+          };
+          loadVoices();
+          window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+        }
+      })
+      .catch(() => {
+        // Fallback: load browser voices only
+        if (window.speechSynthesis) {
+          const loadVoices = () => {
+            const v = window.speechSynthesis.getVoices();
+            if (v.length > 0) setAvailableVoices(v);
+          };
+          loadVoices();
+          window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+        }
+      });
   }, []);
 
-  // ─── Natural Text-to-Speech Engine ───────────────────────────────────
-  // Splits text into sentence-sized chunks to avoid Chrome's ~15s cutoff bug,
-  // prioritizes high-quality "Online"/"Natural" voices, and keeps a resume
-  // timer alive so speech never stalls mid-paragraph.
+  // ─── Cloud Neural TTS Engine ──────────────────────────────────────────
+  // Uses Microsoft Edge neural voices via backend for human-quality speech.
+  // Falls back to browser SpeechSynthesis only if the backend is unavailable.
 
+  const ttsAudioRef = useRef(null);
+  const ttsAbortRef = useRef(null);
   const speechQueueRef = useRef([]);
-  const speechTimerRef = useRef(null);
 
-  const getBestVoice = () => {
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) return null;
-
-    // 1. User's explicit choice
-    if (selectedVoiceName) {
-      const saved = voices.find(v => v.name === selectedVoiceName);
-      if (saved) return saved;
-    }
-
-    // 2. Prefer high-quality "Online" / "Natural" neural voices (sound human)
-    //    NOTE: Google Chrome voices ("Google US English" etc.) sound choppy and robotic — EXCLUDED.
-    const premiumKeywords = [
-      'Jenny Online', 'Aria Online', 'Jenny Natural', 'Aria Natural',
-      'Ana Online', 'Sonia Online', 'Libby Online',
-      'Microsoft Jenny', 'Microsoft Aria',
-    ];
-    for (const kw of premiumKeywords) {
-      const v = voices.find(v => v.name.includes(kw));
-      if (v) return v;
-    }
-
-    // 3. Good-quality local voices (still decent on Windows 11)
-    //    Avoid Google voices — they're the choppy robotic ones.
-    const goodLocal = [
-      'Microsoft Ana', 'Samantha', 'Karen', 'Moira', 'Tessa', 'Victoria',
-      'Microsoft Zira', 'Microsoft Eva', 'Microsoft Elsa',
-    ];
-    for (const name of goodLocal) {
-      const v = voices.find(v => v.name.includes(name));
-      if (v) return v;
-    }
-
-    // 4. Any English female-sounding voice, but EXCLUDE Google voices (they're the robotic ones)
-    const female = voices.find(v => v.lang.startsWith('en') && !v.name.startsWith('Google') && (/female|girl|woman|zira|jenny|aria|samantha|karen/i).test(v.name));
-    if (female) return female;
-    // 5. Any non-Google English voice, then absolutely any English as last resort
-    const nonGoogle = voices.find(v => v.lang.startsWith('en-US') && !v.name.startsWith('Google'));
-    if (nonGoogle) return nonGoogle;
-    return voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en')) || null;
-  };
-
-  // Split text into natural sentence chunks (keeps punctuation pauses natural)
-  const splitIntoChunks = (text) => {
-    // Clean markdown / code artifacts
-    let clean = text
+  // Clean markdown artifacts from text
+  const cleanTextForSpeech = (text) => {
+    return text
       .replace(/```[\s\S]*?```/g, ' ... code block ... ')
       .replace(/`([^`]+)`/g, '$1')
       .replace(/\*\*([^*]+)\*\*/g, '$1')
@@ -1841,88 +1816,86 @@ export default function App() {
       .replace(/\n{2,}/g, '. ')
       .replace(/\n/g, ', ')
       .trim();
-
-    // Split on sentence boundaries but keep chunks a comfortable size
-    const raw = clean.match(/[^.!?]+[.!?]+[\s]*/g) || [clean];
-    const chunks = [];
-    let buf = '';
-
-    for (const seg of raw) {
-      if ((buf + seg).length > 200) {
-        if (buf) chunks.push(buf.trim());
-        buf = seg;
-      } else {
-        buf += seg;
-      }
-    }
-    if (buf.trim()) chunks.push(buf.trim());
-    return chunks.filter(c => c.length > 0);
   };
 
-  const speak = (text) => {
-    if (!ttsEnabled || !window.speechSynthesis) return;
+  const speak = async (text) => {
+    if (!ttsEnabled) return;
 
-    // Cancel anything in-flight
-    window.speechSynthesis.cancel();
-    clearInterval(speechTimerRef.current);
-    speechQueueRef.current = [];
+    // Stop any current speech
+    stopSpeaking();
 
-    const voice = getBestVoice();
-    const chunks = splitIntoChunks(text);
-    if (!chunks.length) return;
+    const clean = cleanTextForSpeech(text);
+    if (!clean) return;
 
-    speechQueueRef.current = [...chunks];
     setIsSpeaking(true);
 
-    const speakNext = () => {
-      if (speechQueueRef.current.length === 0) {
+    // Try cloud TTS first (HD neural voices)
+    try {
+      const controller = new AbortController();
+      ttsAbortRef.current = controller;
+
+      const voice = selectedVoiceName || 'en-US-JennyNeural';
+      const response = await fetch('http://localhost:8000/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: clean, voice }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) throw new Error('Cloud TTS failed');
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      ttsAudioRef.current = audio;
+
+      audio.onended = () => {
         setIsSpeaking(false);
-        clearInterval(speechTimerRef.current);
-        return;
-      }
-
-      const chunk = speechQueueRef.current.shift();
-      const utt = new SpeechSynthesisUtterance(chunk);
-      if (voice) utt.voice = voice;
-
-      // Natural-sounding settings — slightly slower for clarity
-      utt.rate = 0.95;
-      utt.pitch = 1.02;
-      utt.volume = 0.92;
-
-      utt.onend = () => speakNext();
-      utt.onerror = () => {
-        // If one chunk errors, skip to the next
-        speakNext();
+        URL.revokeObjectURL(audioUrl);
+        ttsAudioRef.current = null;
+      };
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+        ttsAudioRef.current = null;
       };
 
-      window.speechSynthesis.speak(utt);
-    };
+      await audio.play();
+      return; // Cloud TTS succeeded
+    } catch (e) {
+      if (e.name === 'AbortError') { setIsSpeaking(false); return; }
+      console.warn('[TTS] Cloud unavailable, falling back to browser:', e.message);
+    }
 
-    speakNext();
+    // Fallback: browser SpeechSynthesis
+    if (!window.speechSynthesis) { setIsSpeaking(false); return; }
 
-    // Chrome workaround: Chrome pauses synthesis after ~15s of a single
-    // utterance. We keep a watchdog that pokes resume() every 5s to
-    // prevent stalling even on shorter chunks that somehow freeze.
-    speechTimerRef.current = setInterval(() => {
-      if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-        // Pause-resume trick keeps Chrome alive
-        window.speechSynthesis.pause();
-        window.speechSynthesis.resume();
-      }
-      if (!window.speechSynthesis.speaking && speechQueueRef.current.length === 0) {
-        setIsSpeaking(false);
-        clearInterval(speechTimerRef.current);
-      }
-    }, 5000);
+    const voices = window.speechSynthesis.getVoices();
+    const voice = voices.find(v => v.name.includes('Zira')) || voices.find(v => v.lang.startsWith('en')) || null;
+    const utt = new SpeechSynthesisUtterance(clean.slice(0, 500));
+    if (voice) utt.voice = voice;
+    utt.rate = 0.95;
+    utt.pitch = 1.02;
+    utt.onend = () => setIsSpeaking(false);
+    utt.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utt);
   };
 
   const stopSpeaking = () => {
+    // Stop cloud TTS audio
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current = null;
+    }
+    if (ttsAbortRef.current) {
+      ttsAbortRef.current.abort();
+      ttsAbortRef.current = null;
+    }
+    // Stop browser fallback
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     speechQueueRef.current = [];
-    clearInterval(speechTimerRef.current);
     setIsSpeaking(false);
   };
 
@@ -4084,29 +4057,19 @@ export default function App() {
                 '&::-webkit-scrollbar-thumb': { background: 'var(--accent)', borderRadius: 2 },
               }}>
                 <Typography variant="caption" sx={{ color: 'var(--accent)', fontWeight: 700, mb: 1, display: 'block' }}>
-                  VESPER'S VOICE — pick "Online" or "Natural" voices for best quality
+                  VESPER'S VOICE — HD Neural Voices
                 </Typography>
-                {availableVoices
-                  .filter(v => v.lang.startsWith('en') && !v.name.startsWith('Google'))
-                  .sort((a, b) => {
-                    // Sort: Online/Natural voices first, then alphabetical
-                    const aHQ = /online|natural/i.test(a.name) ? 0 : 1;
-                    const bHQ = /online|natural/i.test(b.name) ? 0 : 1;
-                    return aHQ - bHQ || a.name.localeCompare(b.name);
-                  })
-                  .map((v) => {
-                    const isNeural = /online|natural/i.test(v.name);
-                    return (
+                {cloudVoices.length > 0 ? cloudVoices.map((v) => (
                     <Box
-                      key={v.name}
-                      onClick={() => { handleVoiceChange(v.name); setShowVoiceSelector(false); }}
+                      key={v.id}
+                      onClick={() => { handleVoiceChange(v.id); setShowVoiceSelector(false); }}
                       sx={{
                         p: 0.75, px: 1,
                         cursor: 'pointer',
                         borderRadius: 1,
                         mb: 0.25,
-                        background: selectedVoiceName === v.name ? 'rgba(0,255,136,0.15)' : isNeural ? 'rgba(0,255,255,0.04)' : 'transparent',
-                        borderLeft: selectedVoiceName === v.name ? '2px solid #00ff88' : isNeural ? '2px solid rgba(0,255,255,0.3)' : '2px solid transparent',
+                        background: selectedVoiceName === v.id ? 'rgba(0,255,136,0.15)' : 'rgba(0,255,255,0.04)',
+                        borderLeft: selectedVoiceName === v.id ? '2px solid #00ff88' : '2px solid rgba(0,255,255,0.3)',
                         '&:hover': { background: 'rgba(255,255,255,0.08)' },
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -4115,33 +4078,29 @@ export default function App() {
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                         <Typography variant="caption" sx={{ 
-                          color: selectedVoiceName === v.name ? '#00ff88' : isNeural ? '#00ddff' : 'rgba(255,255,255,0.7)',
-                          fontWeight: selectedVoiceName === v.name ? 700 : isNeural ? 600 : 400,
+                          color: selectedVoiceName === v.id ? '#00ff88' : '#00ddff',
+                          fontWeight: selectedVoiceName === v.id ? 700 : 600,
                           fontSize: '0.75rem',
                         }}>
                           {v.name}
                         </Typography>
-                        {isNeural && (
-                          <Typography variant="caption" sx={{
-                            fontSize: '0.6rem', px: 0.5, py: 0.1,
-                            borderRadius: 0.5,
-                            background: 'rgba(0,255,255,0.15)',
-                            color: '#00ffff',
-                            fontWeight: 700,
-                          }}>
-                            HD
-                          </Typography>
-                        )}
+                        <Typography variant="caption" sx={{
+                          fontSize: '0.6rem', px: 0.5, py: 0.1,
+                          borderRadius: 0.5,
+                          background: v.gender === 'Female' ? 'rgba(255,100,255,0.15)' : 'rgba(100,200,255,0.15)',
+                          color: v.gender === 'Female' ? '#ff88ff' : '#88ccff',
+                          fontWeight: 700,
+                        }}>
+                          {v.gender === 'Female' ? '♀' : '♂'} Neural
+                        </Typography>
                       </Box>
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', ml: 1 }}>
-                        {v.lang}
+                        {v.style}
                       </Typography>
                     </Box>
-                    );
-                  })}
-                {availableVoices.filter(v => v.lang.startsWith('en') && !v.name.startsWith('Google')).length === 0 && (
+                )) : (
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-                    No voices loaded yet. Try toggling TTS off and on.
+                    Start the backend to load HD voices. Falling back to browser voices.
                   </Typography>
                 )}
               </Box>

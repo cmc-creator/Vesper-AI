@@ -5406,6 +5406,85 @@ async def save_canvas_to_storage(req: SaveCanvasRequest):
         return {"error": str(e)}
 
 
+# ─── Cloud TTS (Microsoft Edge Neural Voices – free, high-quality) ───────────
+try:
+    import edge_tts
+    EDGE_TTS_AVAILABLE = True
+    print("[INIT] edge-tts loaded → neural voice TTS available")
+except ImportError:
+    EDGE_TTS_AVAILABLE = False
+    print("[WARN] edge-tts not installed → pip install edge-tts")
+
+import asyncio, io
+
+# Curated list of the best English neural voices
+EDGE_TTS_VOICES = [
+    {"id": "en-US-JennyNeural",    "name": "Jenny (US)",     "gender": "Female", "locale": "en-US", "style": "friendly"},
+    {"id": "en-US-AriaNeural",     "name": "Aria (US)",      "gender": "Female", "locale": "en-US", "style": "expressive"},
+    {"id": "en-US-AnaNeural",      "name": "Ana (US, young)","gender": "Female", "locale": "en-US", "style": "cheerful"},
+    {"id": "en-US-GuyNeural",      "name": "Guy (US)",       "gender": "Male",   "locale": "en-US", "style": "newscast"},
+    {"id": "en-US-DavisNeural",    "name": "Davis (US)",     "gender": "Male",   "locale": "en-US", "style": "calm"},
+    {"id": "en-US-JasonNeural",    "name": "Jason (US)",     "gender": "Male",   "locale": "en-US", "style": "neutral"},
+    {"id": "en-US-SaraNeural",     "name": "Sara (US)",      "gender": "Female", "locale": "en-US", "style": "cheerful"},
+    {"id": "en-US-TonyNeural",     "name": "Tony (US)",      "gender": "Male",   "locale": "en-US", "style": "friendly"},
+    {"id": "en-GB-SoniaNeural",    "name": "Sonia (UK)",     "gender": "Female", "locale": "en-GB", "style": "friendly"},
+    {"id": "en-GB-RyanNeural",     "name": "Ryan (UK)",      "gender": "Male",   "locale": "en-GB", "style": "cheerful"},
+    {"id": "en-AU-NatashaNeural",  "name": "Natasha (AU)",   "gender": "Female", "locale": "en-AU", "style": "friendly"},
+    {"id": "en-IN-NeerjaNeural",   "name": "Neerja (India)", "gender": "Female", "locale": "en-IN", "style": "friendly"},
+]
+
+@app.get("/api/tts/voices")
+async def get_tts_voices():
+    """Return available HD neural voices"""
+    return {"voices": EDGE_TTS_VOICES, "available": EDGE_TTS_AVAILABLE}
+
+class TTSRequest(BaseModel):
+    text: str
+    voice: Optional[str] = "en-US-JennyNeural"
+    rate: Optional[str] = "+0%"
+    pitch: Optional[str] = "+0Hz"
+
+@app.post("/api/tts")
+async def text_to_speech(req: TTSRequest):
+    """Generate natural speech audio from text using Microsoft neural voices"""
+    if not EDGE_TTS_AVAILABLE:
+        return JSONResponse({"error": "edge-tts not installed. Run: pip install edge-tts"}, status_code=503)
+
+    if not req.text or not req.text.strip():
+        return JSONResponse({"error": "No text provided"}, status_code=400)
+
+    # Limit text length to prevent abuse
+    text = req.text.strip()[:5000]
+
+    try:
+        communicate = edge_tts.Communicate(text, req.voice, rate=req.rate, pitch=req.pitch)
+
+        # Collect audio data into a buffer
+        audio_buffer = io.BytesIO()
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_buffer.write(chunk["data"])
+
+        audio_buffer.seek(0)
+        audio_bytes = audio_buffer.read()
+
+        if len(audio_bytes) == 0:
+            return JSONResponse({"error": "No audio generated"}, status_code=500)
+
+        from fastapi.responses import Response
+        return Response(
+            content=audio_bytes,
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": "inline; filename=tts.mp3",
+                "Cache-Control": "no-cache",
+            }
+        )
+    except Exception as e:
+        print(f"[TTS ERROR] {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # --- STARTUP ---
 if __name__ == "__main__":
     import uvicorn
