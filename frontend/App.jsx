@@ -110,19 +110,90 @@ const baseTheme = createTheme({
   typography: { fontFamily: '"Inter", "Segoe UI", -apple-system, sans-serif' },
 });
 
+// ─── Theme Categories & Massive Theme Catalog ─────────────────────────────
+const THEME_CATEGORIES = [
+  { id: 'tech', label: '⚡ Tech & Cyber', desc: 'High-tech neon vibes' },
+  { id: 'soft', label: '🌸 Soft & Minimal', desc: 'Clean, gentle aesthetics' },
+  { id: 'dark', label: '🖤 Dark & Moody', desc: 'Deep shadows, rich tones' },
+  { id: 'nature', label: '🌿 Nature & Landscape', desc: 'Earthy, organic hues' },
+  { id: 'season', label: '🍂 Seasons', desc: 'Seasonal color palettes' },
+  { id: 'holiday', label: '🎄 Holidays', desc: 'Festive celebrations' },
+  { id: 'retro', label: '📼 Retro & Vintage', desc: 'Nostalgic throwbacks' },
+  { id: 'cosmic', label: '🌌 Cosmic & Fantasy', desc: 'Otherworldly dreamscapes' },
+];
+
 const THEMES = [
-  { id: 'cyan', label: 'Cyan Matrix', accent: '#00ffff', glow: '#00fff2', sub: '#00ff88' },
-  { id: 'green', label: 'Neon Green', accent: '#00ff00', glow: '#00ff00', sub: '#00dd00' },
-  { id: 'purple', label: 'Purple Haze', accent: '#c084fc', glow: '#a855f7', sub: '#7c3aed' },
-  { id: 'blue', label: 'Electric Blue', accent: '#5ad7ff', glow: '#4ba3ff', sub: '#3b82f6' },
-  { id: 'pink', label: 'Cyber Pink', accent: '#ff6ad5', glow: '#ff8bd7', sub: '#ff4db8' },
-  { id: 'orange', label: 'Solar Flare', accent: '#ff8800', glow: '#ff9933', sub: '#ff6600' },
-  { id: 'red', label: 'Blood Moon', accent: '#ff0044', glow: '#ff3366', sub: '#cc0033' },
-  { id: 'gold', label: 'Golden Hour', accent: '#ffd700', glow: '#ffed4e', sub: '#ffb700' },
-  { id: 'ice', label: 'Arctic Frost', accent: '#e0f7ff', glow: '#b3e5fc', sub: '#81d4fa' },
-  { id: 'teal', label: 'Deep Ocean', accent: '#00d9ff', glow: '#00bcd4', sub: '#0097a7' },
-  { id: 'violet', label: 'Midnight Violet', accent: '#9d00ff', glow: '#b24bf3', sub: '#7b00cc' },
-  { id: 'lime', label: 'Toxic Waste', accent: '#c0ff00', glow: '#d4ff33', sub: '#a8cc00' },
+  // ── TECH & CYBER ──────────────────────────────────
+  { id: 'cyan', label: 'Cyan Matrix', accent: '#00ffff', glow: '#00fff2', sub: '#00ff88', category: 'tech', bg: 'linear-gradient(135deg, #000a0f, #001a1a)', panelBg: 'rgba(0,0,0,0.75)', sound: 'digital', scanlines: true },
+  { id: 'green', label: 'Neon Green', accent: '#00ff00', glow: '#00ff00', sub: '#00dd00', category: 'tech', bg: 'linear-gradient(135deg, #000800, #001a00)', panelBg: 'rgba(0,5,0,0.75)', sound: 'digital', scanlines: true },
+  { id: 'purple', label: 'Purple Haze', accent: '#c084fc', glow: '#a855f7', sub: '#7c3aed', category: 'tech', bg: 'linear-gradient(135deg, #0a0015, #150025)', panelBg: 'rgba(10,0,20,0.75)', sound: 'synth' },
+  { id: 'blue', label: 'Electric Blue', accent: '#5ad7ff', glow: '#4ba3ff', sub: '#3b82f6', category: 'tech', bg: 'linear-gradient(135deg, #000a1a, #001030)', panelBg: 'rgba(0,5,15,0.75)', sound: 'digital' },
+  { id: 'pink', label: 'Cyber Pink', accent: '#ff6ad5', glow: '#ff8bd7', sub: '#ff4db8', category: 'tech', bg: 'linear-gradient(135deg, #1a0012, #200018)', panelBg: 'rgba(15,0,10,0.75)', sound: 'synth' },
+  { id: 'orange', label: 'Solar Flare', accent: '#ff8800', glow: '#ff9933', sub: '#ff6600', category: 'tech', bg: 'linear-gradient(135deg, #1a0c00, #201000)', panelBg: 'rgba(10,5,0,0.75)', sound: 'digital' },
+  { id: 'red', label: 'Blood Moon', accent: '#ff0044', glow: '#ff3366', sub: '#cc0033', category: 'tech', bg: 'linear-gradient(135deg, #1a0008, #200010)', panelBg: 'rgba(15,0,5,0.75)', sound: 'dark' },
+  { id: 'lime', label: 'Toxic Waste', accent: '#c0ff00', glow: '#d4ff33', sub: '#a8cc00', category: 'tech', bg: 'linear-gradient(135deg, #0a0d00, #141a00)', panelBg: 'rgba(5,8,0,0.75)', sound: 'digital', scanlines: true },
+  { id: 'hacker', label: 'Hacker Terminal', accent: '#33ff33', glow: '#00ff00', sub: '#009900', category: 'tech', bg: '#000000', panelBg: 'rgba(0,0,0,0.9)', sound: 'digital', scanlines: true },
+  { id: 'vaporwave', label: 'Vaporwave', accent: '#ff71ce', glow: '#01cdfe', sub: '#b967ff', category: 'tech', bg: 'linear-gradient(180deg, #1a0033, #000033, #330033)', panelBg: 'rgba(10,0,20,0.7)', sound: 'synth' },
+
+  // ── SOFT & MINIMAL ────────────────────────────────
+  { id: 'rose', label: 'Rose Quartz', accent: '#f4a4b8', glow: '#f9c4d2', sub: '#e8849c', category: 'soft', bg: 'linear-gradient(135deg, #1a0f12, #1a1015)', panelBg: 'rgba(20,10,14,0.8)', sound: 'ambient', scanlines: false },
+  { id: 'lavender', label: 'Lavender Dream', accent: '#b8a9e8', glow: '#d1c4f0', sub: '#9b8bd4', category: 'soft', bg: 'linear-gradient(135deg, #100d18, #15102a)', panelBg: 'rgba(12,8,20,0.8)', sound: 'ambient', scanlines: false },
+  { id: 'cream', label: 'Warm Cream', accent: '#e8c99b', glow: '#f0dab8', sub: '#d4aa70', category: 'soft', bg: 'linear-gradient(135deg, #18140c, #1a150d)', panelBg: 'rgba(18,14,8,0.8)', sound: 'ambient', scanlines: false },
+  { id: 'sage', label: 'Sage Mist', accent: '#8fb89a', glow: '#a8d0b3', sub: '#6a9c78', category: 'soft', bg: 'linear-gradient(135deg, #0c140e, #0e180f)', panelBg: 'rgba(8,14,10,0.8)', sound: 'nature', scanlines: false },
+  { id: 'peach', label: 'Peach Blossom', accent: '#ffb399', glow: '#ffc8b3', sub: '#ff9977', category: 'soft', bg: 'linear-gradient(135deg, #1a120c, #1e1410)', panelBg: 'rgba(16,10,8,0.8)', sound: 'ambient', scanlines: false },
+  { id: 'cloud', label: 'Cloud Nine', accent: '#b8d4e3', glow: '#d0e8f5', sub: '#90b8d0', category: 'soft', bg: 'linear-gradient(135deg, #0c1218, #101820)', panelBg: 'rgba(8,12,18,0.8)', sound: 'ambient', scanlines: false },
+  { id: 'blush', label: 'Blush Pink', accent: '#e89bb0', glow: '#f0b8c8', sub: '#d47890', category: 'soft', bg: 'linear-gradient(135deg, #180c10, #1c1014)', panelBg: 'rgba(16,8,12,0.8)', sound: 'ambient', scanlines: false },
+
+  // ── DARK & MOODY ──────────────────────────────────
+  { id: 'gold', label: 'Golden Hour', accent: '#ffd700', glow: '#ffed4e', sub: '#ffb700', category: 'dark', bg: 'linear-gradient(135deg, #0d0a00, #1a1400)', panelBg: 'rgba(8,6,0,0.8)', sound: 'ambient' },
+  { id: 'ice', label: 'Arctic Frost', accent: '#e0f7ff', glow: '#b3e5fc', sub: '#81d4fa', category: 'dark', bg: 'linear-gradient(135deg, #060a0f, #0a1018)', panelBg: 'rgba(4,8,12,0.85)', sound: 'wind' },
+  { id: 'teal', label: 'Deep Ocean', accent: '#00d9ff', glow: '#00bcd4', sub: '#0097a7', category: 'dark', bg: 'linear-gradient(135deg, #000d12, #001418)', panelBg: 'rgba(0,8,12,0.85)', sound: 'ocean' },
+  { id: 'violet', label: 'Midnight Violet', accent: '#9d00ff', glow: '#b24bf3', sub: '#7b00cc', category: 'dark', bg: 'linear-gradient(135deg, #0a0018, #120024)', panelBg: 'rgba(8,0,16,0.85)', sound: 'dark' },
+  { id: 'obsidian', label: 'Obsidian', accent: '#888888', glow: '#aaaaaa', sub: '#666666', category: 'dark', bg: '#050505', panelBg: 'rgba(8,8,8,0.9)', sound: 'dark', scanlines: false },
+  { id: 'ember', label: 'Dying Ember', accent: '#ff4400', glow: '#ff6633', sub: '#cc3300', category: 'dark', bg: 'linear-gradient(135deg, #0d0200, #1a0500)', panelBg: 'rgba(10,2,0,0.85)', sound: 'fire' },
+  { id: 'abyss', label: 'Abyss', accent: '#4466ff', glow: '#6688ff', sub: '#2244cc', category: 'dark', bg: 'linear-gradient(135deg, #000008, #000012)', panelBg: 'rgba(0,0,8,0.9)', sound: 'dark' },
+  { id: 'noir', label: 'Film Noir', accent: '#d4c5a0', glow: '#e8dcc0', sub: '#b8a880', category: 'dark', bg: '#080808', panelBg: 'rgba(6,6,6,0.9)', sound: 'jazz', scanlines: false },
+
+  // ── NATURE & LANDSCAPE ────────────────────────────
+  { id: 'forest', label: 'Forest Canopy', accent: '#4caf50', glow: '#66cc6a', sub: '#388e3c', category: 'nature', bg: 'linear-gradient(180deg, #020d02, #041a04, #021002)', panelBg: 'rgba(2,10,2,0.8)', sound: 'forest', scanlines: false },
+  { id: 'ocean', label: 'Pacific Depths', accent: '#0288d1', glow: '#29b6f6', sub: '#0277bd', category: 'nature', bg: 'linear-gradient(180deg, #000a14, #001828, #000a14)', panelBg: 'rgba(0,6,14,0.8)', sound: 'ocean', scanlines: false },
+  { id: 'desert', label: 'Desert Sand', accent: '#e6a855', glow: '#f0c478', sub: '#cc8833', category: 'nature', bg: 'linear-gradient(180deg, #1a1000, #201808, #1a1000)', panelBg: 'rgba(16,10,0,0.8)', sound: 'wind', scanlines: false },
+  { id: 'aurora', label: 'Northern Lights', accent: '#00e676', glow: '#69f0ae', sub: '#00c853', category: 'nature', bg: 'linear-gradient(180deg, #000510, #001020, #050018)', panelBg: 'rgba(0,4,10,0.75)', sound: 'wind', scanlines: false },
+  { id: 'volcano', label: 'Volcanic', accent: '#ff5722', glow: '#ff7043', sub: '#e64a19', category: 'nature', bg: 'linear-gradient(180deg, #100200, #1a0500, #0d0100)', panelBg: 'rgba(10,2,0,0.85)', sound: 'fire', scanlines: false },
+  { id: 'meadow', label: 'Spring Meadow', accent: '#7cb342', glow: '#9ccc65', sub: '#558b2f', category: 'nature', bg: 'linear-gradient(135deg, #040a02, #081004)', panelBg: 'rgba(4,8,2,0.8)', sound: 'nature', scanlines: false },
+  { id: 'mountain', label: 'Mountain Peak', accent: '#90a4ae', glow: '#b0bec5', sub: '#607d8b', category: 'nature', bg: 'linear-gradient(180deg, #060810, #0a0e16, #060810)', panelBg: 'rgba(6,8,12,0.85)', sound: 'wind', scanlines: false },
+
+  // ── SEASONS ───────────────────────────────────────
+  { id: 'springbloom', label: 'Spring Bloom', accent: '#ff80ab', glow: '#ff99bb', sub: '#ff4081', category: 'season', bg: 'linear-gradient(135deg, #120810, #180c14)', panelBg: 'rgba(12,6,10,0.8)', sound: 'nature', scanlines: false },
+  { id: 'summersky', label: 'Summer Sky', accent: '#00b0ff', glow: '#40c4ff', sub: '#0091ea', category: 'season', bg: 'linear-gradient(180deg, #000814, #001028, #000814)', panelBg: 'rgba(0,6,14,0.75)', sound: 'ocean', scanlines: false },
+  { id: 'autumn', label: 'Autumn Harvest', accent: '#ff9800', glow: '#ffb74d', sub: '#f57c00', category: 'season', bg: 'linear-gradient(135deg, #140a00, #1a0e02)', panelBg: 'rgba(14,8,0,0.8)', sound: 'wind', scanlines: false },
+  { id: 'winter', label: 'Winter Frost', accent: '#b3e5fc', glow: '#e1f5fe', sub: '#81d4fa', category: 'season', bg: 'linear-gradient(180deg, #080c10, #0e1218, #080c10)', panelBg: 'rgba(6,8,12,0.85)', sound: 'wind', scanlines: false },
+  { id: 'monsoon', label: 'Monsoon', accent: '#5c6bc0', glow: '#7986cb', sub: '#3f51b5', category: 'season', bg: 'linear-gradient(180deg, #060810, #0a0e1a, #060810)', panelBg: 'rgba(4,6,12,0.85)', sound: 'rain', scanlines: false },
+
+  // ── HOLIDAYS ──────────────────────────────────────
+  { id: 'christmas', label: 'Christmas', accent: '#ff1744', glow: '#ff5252', sub: '#00c853', category: 'holiday', bg: 'linear-gradient(135deg, #0a0000, #000a04)', panelBg: 'rgba(8,2,2,0.85)', sound: 'bells', scanlines: false },
+  { id: 'halloween', label: 'Halloween', accent: '#ff9100', glow: '#ffab40', sub: '#9c27b0', category: 'holiday', bg: 'linear-gradient(135deg, #0d0600, #100008)', panelBg: 'rgba(10,4,0,0.85)', sound: 'spooky', scanlines: false },
+  { id: 'valentine', label: 'Valentine', accent: '#ff1744', glow: '#ff5252', sub: '#ff80ab', category: 'holiday', bg: 'linear-gradient(135deg, #180008, #200010)', panelBg: 'rgba(16,0,6,0.85)', sound: 'ambient', scanlines: false },
+  { id: 'newyear', label: 'New Year\'s Eve', accent: '#ffd740', glow: '#ffe57f', sub: '#ffc400', category: 'holiday', bg: 'linear-gradient(180deg, #080600, #0a0800, #060400)', panelBg: 'rgba(6,4,0,0.85)', sound: 'bells' },
+  { id: 'stpatricks', label: 'St. Patrick\'s', accent: '#00e676', glow: '#69f0ae', sub: '#00c853', category: 'holiday', bg: 'linear-gradient(135deg, #001a06, #002a0a)', panelBg: 'rgba(0,12,4,0.85)', sound: 'nature', scanlines: false },
+  { id: 'fourthjuly', label: '4th of July', accent: '#ff1744', glow: '#2979ff', sub: '#e0e0e0', category: 'holiday', bg: 'linear-gradient(180deg, #0a0000, #000010, #0a0000)', panelBg: 'rgba(6,0,6,0.85)', sound: 'ambient' },
+  { id: 'easter', label: 'Easter', accent: '#ab47bc', glow: '#ce93d8', sub: '#80cbc4', category: 'holiday', bg: 'linear-gradient(135deg, #0e0814, #080e10)', panelBg: 'rgba(10,6,12,0.8)', sound: 'nature', scanlines: false },
+  { id: 'thanksgiving', label: 'Thanksgiving', accent: '#d4a056', glow: '#e8b870', sub: '#c08040', category: 'holiday', bg: 'linear-gradient(135deg, #140c04, #1a1008)', panelBg: 'rgba(14,10,4,0.85)', sound: 'ambient', scanlines: false },
+
+  // ── RETRO & VINTAGE ───────────────────────────────
+  { id: 'synthwave', label: 'Synthwave', accent: '#ff2a6d', glow: '#ff6b9d', sub: '#05d9e8', category: 'retro', bg: 'linear-gradient(180deg, #0d0021, #1a0035, #0d0021)', panelBg: 'rgba(10,0,18,0.8)', sound: 'synth' },
+  { id: 'retrogame', label: 'Retro Arcade', accent: '#ffeb3b', glow: '#fff176', sub: '#f44336', category: 'retro', bg: '#050005', panelBg: 'rgba(5,0,5,0.9)', sound: 'retro', scanlines: true },
+  { id: 'terminal', label: 'Amber Terminal', accent: '#ffb000', glow: '#ffc844', sub: '#cc8800', category: 'retro', bg: '#000000', panelBg: 'rgba(0,0,0,0.9)', sound: 'digital', scanlines: true },
+  { id: 'crt', label: 'CRT Green', accent: '#33ff33', glow: '#66ff66', sub: '#00cc00', category: 'retro', bg: '#000200', panelBg: 'rgba(0,2,0,0.9)', sound: 'digital', scanlines: true },
+  { id: 'sepia', label: 'Sepia Film', accent: '#c8a874', glow: '#d8c098', sub: '#b08850', category: 'retro', bg: 'linear-gradient(135deg, #0e0a04, #140e08)', panelBg: 'rgba(10,8,4,0.85)', sound: 'jazz', scanlines: false },
+
+  // ── COSMIC & FANTASY ──────────────────────────────
+  { id: 'nebula', label: 'Nebula', accent: '#e040fb', glow: '#ea80fc', sub: '#aa00ff', category: 'cosmic', bg: 'linear-gradient(135deg, #08001a, #1a0030, #08001a)', panelBg: 'rgba(6,0,14,0.8)', sound: 'cosmic' },
+  { id: 'stardust', label: 'Stardust', accent: '#e0e0e0', glow: '#fafafa', sub: '#9e9e9e', category: 'cosmic', bg: 'linear-gradient(180deg, #000004, #020208, #000004)', panelBg: 'rgba(2,2,6,0.85)', sound: 'cosmic', scanlines: false },
+  { id: 'galaxy', label: 'Galaxy Core', accent: '#7c4dff', glow: '#b388ff', sub: '#651fff', category: 'cosmic', bg: 'linear-gradient(135deg, #040010, #0a0020, #040010)', panelBg: 'rgba(4,0,10,0.8)', sound: 'cosmic' },
+  { id: 'enchanted', label: 'Enchanted Forest', accent: '#69f0ae', glow: '#b9f6ca', sub: '#00e676', category: 'cosmic', bg: 'linear-gradient(180deg, #000a04, #001a0a, #000a04)', panelBg: 'rgba(0,8,4,0.8)', sound: 'forest', scanlines: false },
+  { id: 'dragonfire', label: 'Dragon Fire', accent: '#ff6e40', glow: '#ff9e80', sub: '#dd2c00', category: 'cosmic', bg: 'linear-gradient(180deg, #0a0200, #140400, #0a0200)', panelBg: 'rgba(8,2,0,0.85)', sound: 'fire' },
+  { id: 'twilight', label: 'Twilight Zone', accent: '#7e57c2', glow: '#b39ddb', sub: '#512da8', category: 'cosmic', bg: 'linear-gradient(180deg, #06040e, #0e0818, #06040e)', panelBg: 'rgba(6,4,10,0.85)', sound: 'dark', scanlines: false },
 ];
 
 const NAV = [
@@ -1176,6 +1247,147 @@ export default function App() {
       // Silently handle audio errors (context closed, etc.)
     }
   }, [soundEnabled, getAudioContext]);
+
+  // ── Themed Ambient Sound System ──────────────────────────────────────
+  const ambientRef = useRef(null);
+  const [ambientEnabled, setAmbientEnabled] = useState(() => safeStorageGet('vesper_ambient', 'false') === 'true');
+
+  const startAmbientSound = useCallback((soundType) => {
+    // Stop existing ambient
+    if (ambientRef.current) {
+      try { ambientRef.current.forEach(n => { try { n.stop?.(); n.disconnect?.(); } catch(e){} }); } catch(e){}
+      ambientRef.current = null;
+    }
+    if (!ambientEnabled || !soundType) return;
+
+    const ctx = getAudioContext();
+    if (!ctx || ctx.state === 'closed') return;
+
+    const nodes = [];
+    try {
+      // Master gain for ambient volume
+      const master = ctx.createGain();
+      master.gain.value = 0.03; // Very quiet background
+      master.connect(ctx.destination);
+
+      const createNoise = (frequency, type = 'sine', gain = 0.5) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = type;
+        osc.frequency.value = frequency;
+        g.gain.value = gain;
+        osc.connect(g);
+        g.connect(master);
+        osc.start();
+        nodes.push(osc);
+        return osc;
+      };
+
+      const AMBIENT_PRESETS = {
+        digital: () => {
+          createNoise(55, 'sine', 0.3);
+          createNoise(110, 'sine', 0.15);
+          createNoise(220, 'sine', 0.05);
+        },
+        synth: () => {
+          createNoise(65, 'triangle', 0.3);
+          createNoise(130, 'sine', 0.15);
+          createNoise(195, 'triangle', 0.08);
+        },
+        ambient: () => {
+          createNoise(80, 'sine', 0.25);
+          createNoise(120, 'sine', 0.15);
+          createNoise(160, 'sine', 0.08);
+        },
+        nature: () => {
+          createNoise(100, 'sine', 0.2);
+          createNoise(150, 'sine', 0.1);
+          createNoise(200, 'triangle', 0.05);
+        },
+        ocean: () => {
+          createNoise(60, 'sine', 0.3);
+          createNoise(90, 'sine', 0.2);
+          createNoise(45, 'sine', 0.15);
+        },
+        forest: () => {
+          createNoise(120, 'sine', 0.15);
+          createNoise(180, 'triangle', 0.1);
+          createNoise(250, 'sine', 0.05);
+        },
+        wind: () => {
+          createNoise(50, 'sine', 0.25);
+          createNoise(75, 'sine', 0.15);
+          createNoise(100, 'triangle', 0.08);
+        },
+        rain: () => {
+          createNoise(200, 'triangle', 0.1);
+          createNoise(300, 'triangle', 0.08);
+          createNoise(150, 'sine', 0.12);
+        },
+        fire: () => {
+          createNoise(80, 'sawtooth', 0.08);
+          createNoise(120, 'sine', 0.15);
+          createNoise(60, 'triangle', 0.1);
+        },
+        dark: () => {
+          createNoise(40, 'sine', 0.3);
+          createNoise(55, 'sine', 0.15);
+          createNoise(30, 'triangle', 0.1);
+        },
+        cosmic: () => {
+          createNoise(70, 'sine', 0.2);
+          createNoise(140, 'sine', 0.1);
+          createNoise(210, 'triangle', 0.05);
+        },
+        bells: () => {
+          createNoise(440, 'sine', 0.05);
+          createNoise(550, 'sine', 0.03);
+          createNoise(330, 'triangle', 0.04);
+        },
+        spooky: () => {
+          createNoise(35, 'sine', 0.3);
+          createNoise(48, 'sawtooth', 0.06);
+          createNoise(70, 'triangle', 0.08);
+        },
+        jazz: () => {
+          createNoise(110, 'sine', 0.15);
+          createNoise(165, 'triangle', 0.08);
+          createNoise(220, 'sine', 0.05);
+        },
+        retro: () => {
+          createNoise(55, 'square', 0.04);
+          createNoise(110, 'square', 0.02);
+          createNoise(82.5, 'sine', 0.1);
+        },
+      };
+
+      const preset = AMBIENT_PRESETS[soundType] || AMBIENT_PRESETS.ambient;
+      preset();
+
+    } catch (e) {
+      console.log('Ambient sound error:', e.message);
+    }
+
+    ambientRef.current = nodes;
+  }, [ambientEnabled, getAudioContext]);
+
+  // Start/stop ambient when theme or toggle changes
+  useEffect(() => {
+    if (ambientEnabled && activeTheme.sound) {
+      startAmbientSound(activeTheme.sound);
+    } else {
+      if (ambientRef.current) {
+        try { ambientRef.current.forEach(n => { try { n.stop?.(); n.disconnect?.(); } catch(e){} }); } catch(e){}
+        ambientRef.current = null;
+      }
+    }
+    return () => {
+      if (ambientRef.current) {
+        try { ambientRef.current.forEach(n => { try { n.stop?.(); n.disconnect?.(); } catch(e){} }); } catch(e){}
+        ambientRef.current = null;
+      }
+    };
+  }, [ambientEnabled, activeTheme.sound, startAmbientSound]);
 
   const fetchResearch = useCallback(async () => {
     if (!apiBase) return;
@@ -2547,6 +2759,7 @@ export default function App() {
     '--accent': activeTheme.accent,
     '--accent-2': activeTheme.sub,
     '--glow': activeTheme.glow,
+    '--panel-bg': activeTheme.panelBg || 'rgba(0,0,0,0.75)',
   };
 
   const STATUS_ORDER = ['inbox', 'doing', 'done'];
@@ -3634,12 +3847,12 @@ export default function App() {
             <Stack spacing={2.5}>
               {/* Appearance */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Appearance</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Appearance — Theme Catalog</Typography>
                 <Stack spacing={1.5}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Theme Color</Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>{activeTheme.label}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Active Theme</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>{activeTheme.label} ({THEME_CATEGORIES.find(c => c.id === activeTheme.category)?.label || '⚡ Tech'})</Typography>
                     </Box>
                     <IconButton 
                       onClick={(e) => setThemeMenuAnchor(e.currentTarget)}
@@ -3653,48 +3866,144 @@ export default function App() {
                       <PaletteIcon fontSize="small" />
                     </IconButton>
                   </Box>
-                  <Menu
-                    anchorEl={themeMenuAnchor}
+                  
+                  {/* Theme Catalog - Categorized Grid */}
+                  <Dialog
                     open={Boolean(themeMenuAnchor)}
                     onClose={() => setThemeMenuAnchor(null)}
+                    maxWidth="md"
+                    fullWidth
                     PaperProps={{
                       sx: {
-                        bgcolor: 'rgba(10, 14, 30, 0.95)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        backdropFilter: 'blur(20px)',
-                        maxHeight: 400,
+                        bgcolor: 'rgba(8, 8, 18, 0.97)',
+                        backdropFilter: 'blur(30px)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '20px',
+                        maxHeight: '80vh',
                       }
                     }}
                   >
-                    {THEMES.map((t) => (
-                      <MenuItem
-                        key={t.id}
-                        onClick={() => {
-                          setActiveTheme(t);
-                          setThemeMenuAnchor(null);
-                        }}
-                        selected={activeTheme.id === t.id}
-                        sx={{
-                          gap: 1.5,
-                          borderLeft: activeTheme.id === t.id ? `3px solid ${t.accent}` : '3px solid transparent',
-                          '&.Mui-selected': {
-                            bgcolor: `${t.accent}15`,
-                          }
-                        }}
-                      >
-                        <Box 
-                          sx={{ 
-                            width: 24, 
-                            height: 24, 
-                            borderRadius: '50%', 
-                            bgcolor: t.accent,
-                            boxShadow: `0 0 10px ${t.accent}`
-                          }} 
-                        />
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.label}</Typography>
-                      </MenuItem>
-                    ))}
-                  </Menu>
+                    <Box sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
+                        <Box>
+                          <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--accent)' }}>
+                            🎨 Theme Catalog
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mt: 0.5 }}>
+                            {THEMES.length} themes across {THEME_CATEGORIES.length} categories
+                          </Typography>
+                        </Box>
+                        <IconButton onClick={() => setThemeMenuAnchor(null)} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                          <CloseIcon />
+                        </IconButton>
+                      </Box>
+
+                      <Box sx={{ overflowY: 'auto', maxHeight: '60vh', pr: 1 }}>
+                        {THEME_CATEGORIES.map((cat) => {
+                          const catThemes = THEMES.filter(t => t.category === cat.id);
+                          if (catThemes.length === 0) return null;
+                          return (
+                            <Box key={cat.id} sx={{ mb: 3 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)', mb: 0.5, fontSize: '0.85rem' }}>
+                                {cat.label}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', mb: 1.5, display: 'block' }}>
+                                {cat.desc}
+                              </Typography>
+                              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                {catThemes.map((t) => (
+                                  <Box
+                                    key={t.id}
+                                    onClick={() => {
+                                      setActiveTheme(t);
+                                      // Don't close — let user browse
+                                    }}
+                                    sx={{
+                                      width: 100,
+                                      cursor: 'pointer',
+                                      borderRadius: 2,
+                                      p: 1,
+                                      textAlign: 'center',
+                                      border: activeTheme.id === t.id 
+                                        ? `2px solid ${t.accent}` 
+                                        : '2px solid rgba(255,255,255,0.06)',
+                                      bgcolor: activeTheme.id === t.id 
+                                        ? `${t.accent}15` 
+                                        : 'rgba(255,255,255,0.02)',
+                                      transition: 'all 0.2s ease',
+                                      '&:hover': { 
+                                        bgcolor: `${t.accent}20`,
+                                        borderColor: `${t.accent}66`,
+                                        transform: 'translateY(-2px)',
+                                      },
+                                    }}
+                                  >
+                                    {/* Color preview */}
+                                    <Box sx={{
+                                      width: '100%',
+                                      height: 32,
+                                      borderRadius: 1.5,
+                                      mb: 0.75,
+                                      background: t.bg || '#000',
+                                      border: `2px solid ${t.accent}`,
+                                      boxShadow: activeTheme.id === t.id ? `0 0 12px ${t.accent}` : 'none',
+                                      position: 'relative',
+                                      overflow: 'hidden',
+                                    }}>
+                                      {/* Accent dot */}
+                                      <Box sx={{
+                                        position: 'absolute', 
+                                        top: '50%', left: '50%',
+                                        transform: 'translate(-50%,-50%)',
+                                        width: 12, height: 12,
+                                        borderRadius: '50%',
+                                        bgcolor: t.accent,
+                                        boxShadow: `0 0 8px ${t.accent}`,
+                                      }} />
+                                      {/* Sub color dot */}
+                                      <Box sx={{
+                                        position: 'absolute',
+                                        bottom: 3, right: 5,
+                                        width: 6, height: 6,
+                                        borderRadius: '50%',
+                                        bgcolor: t.sub,
+                                      }} />
+                                    </Box>
+                                    <Typography variant="caption" sx={{ 
+                                      color: activeTheme.id === t.id ? t.accent : 'rgba(255,255,255,0.7)',
+                                      fontWeight: activeTheme.id === t.id ? 700 : 500,
+                                      fontSize: '0.65rem',
+                                      lineHeight: 1.2,
+                                      display: 'block',
+                                    }}>
+                                      {t.label}
+                                    </Typography>
+                                    {t.sound && (
+                                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.55rem' }}>
+                                        🔊 {t.sound}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                ))}
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+
+                      <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)' }}>
+                          Active: {activeTheme.label} • Sound: {activeTheme.sound || 'default'} • {activeTheme.scanlines !== false ? 'Scanlines ON' : 'Scanlines OFF'}
+                        </Typography>
+                        <Button 
+                          onClick={() => setThemeMenuAnchor(null)} 
+                          sx={{ color: 'var(--accent)', fontWeight: 700, textTransform: 'none' }}
+                        >
+                          Done
+                        </Button>
+                      </Box>
+                    </Box>
+                  </Dialog>
                 </Stack>
               </Box>
               
@@ -3725,6 +4034,29 @@ export default function App() {
                         '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
                           backgroundColor: 'var(--accent)',
                         },
+                      }}
+                    />
+                  </Box>
+
+                  {/* ── Ambient Sounds Toggle ── */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Ambient Sounds</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                        {ambientEnabled ? `🔊 Playing: ${activeTheme.sound || 'ambient'}` : 'Theme-matched background soundscape'}
+                      </Typography>
+                    </Box>
+                    <Switch
+                      checked={ambientEnabled}
+                      onChange={(e) => {
+                        const newVal = e.target.checked;
+                        setAmbientEnabled(newVal);
+                        try { localStorage.setItem('vesper_ambient', String(newVal)); } catch(err) {}
+                        playSound('click');
+                      }}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: 'var(--accent)' },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: 'var(--accent)' },
                       }}
                     />
                   </Box>
@@ -4278,21 +4610,26 @@ export default function App() {
   return (
     <ThemeProvider theme={baseTheme}>
       <CssBaseline />
+      
+      {/* Background layers — OUTSIDE the transform Box so position:fixed works correctly */}
+      <div className="bg-layer gradient-background" style={{ background: activeTheme.bg || '#000' }} />
+      <div className="bg-layer hex-grid" style={activeTheme.bgImage ? { backgroundImage: activeTheme.bgImage, backgroundSize: activeTheme.bgSize || 'cover', backgroundPosition: 'center' } : {}} />
+      <div className="bg-layer scanlines" style={activeTheme.scanlines === false ? { display: 'none' } : {}} />
+      
       <Box sx={{ 
         transform: `scale(${uiScale})`,
         transformOrigin: 'top left',
         width: `${100 / uiScale}%`,
         minHeight: `${100 / uiScale}vh`,
         overflowX: 'hidden',
-        overflowY: 'auto'
+        overflowY: 'auto',
+        position: 'relative',
+        zIndex: 1,
       }}>
       <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} onCommand={handleCommand} />
 
 
-      {/* Background layers */}
-      <div className="bg-layer gradient-background" />
-      <div className="bg-layer hex-grid" />
-      <div className="bg-layer scanlines" />
+      {/* Background layers removed from here — they're now above the transform Box */}
       
       {/* Subtle Matrix binary - vertical stacked digits, each column different speed */}
       {[...Array(8)].map((_, i) => {

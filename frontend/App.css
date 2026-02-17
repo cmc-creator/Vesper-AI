@@ -300,17 +300,21 @@ canvas {
 /* New high-tech shell layout */
 .bg-layer {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   pointer-events: none;
-  z-index: -2;
+  z-index: 0;
 }
 
 .hex-grid {
   background-color: #000;
   background-image: url('/background.jpg');
-  background-size: auto;
-  background-position: 0 0;
-  background-repeat: repeat;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   opacity: 0.95;
 }
 
@@ -328,6 +332,7 @@ canvas {
 
 .app-shell {
   position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: 200px 1fr;
   min-height: 100vh;
@@ -341,7 +346,7 @@ canvas {
 .sidebar {
   border-radius: 18px;
   padding: 12px;
-  background: rgba(6, 10, 20, 0.85);
+  background: var(--panel-bg, rgba(6, 10, 20, 0.85));
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 30px rgba(0, 255, 255, 0.1);
   display: flex;
@@ -441,7 +446,7 @@ canvas {
 .chat-panel {
   padding: 12px;
   border-radius: 18px;
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--panel-bg, rgba(0, 0, 0, 0.75));
   border: 1px solid rgba(0, 255, 255, 0.25);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 255, 255, 0.15), inset 0 0 60px rgba(0, 255, 255, 0.05);
   backdrop-filter: blur(20px) saturate(140%);
