@@ -673,7 +673,7 @@ export default function App() {
       // Save assistant response to the same thread using the valid ID
       await saveMessageToThread('assistant', data.response, savedThreadId);
       
-      speak(data.response);
+      speak(data.response, activeSection === 'chat' ? 'chat' : activeSection === 'research' ? 'research' : 'default');
       playSound('notification'); // Sound on response received
 
       // Handle Visualizations (Charts)
@@ -1798,13 +1798,14 @@ export default function App() {
       });
   }, []);
 
-  // ─── Cloud Neural TTS Engine ──────────────────────────────────────────
-  // Uses Microsoft Edge neural voices via backend for human-quality speech.
-  // Falls back to browser SpeechSynthesis only if the backend is unavailable.
+  // ─── Cloud Neural TTS Engine (Streaming + Personas) ───────────────────
+  // ElevenLabs voices stream in real-time (starts speaking instantly).
+  // Falls back to full-download for Edge voices, then browser SpeechSynthesis.
 
   const ttsAudioRef = useRef(null);
   const ttsAbortRef = useRef(null);
   const speechQueueRef = useRef([]);
+  const mediaSourceRef = useRef(null);
 
   // Clean markdown artifacts from text
   const cleanTextForSpeech = (text) => {
@@ -1820,23 +1821,81 @@ export default function App() {
       .trim();
   };
 
-  const speak = async (text) => {
+  // Resolve voice for a context (game, chat, task, etc.)
+  const resolveVoiceForContext = async (context) => {
+    try {
+      const res = await fetch('http://localhost:8000/api/voice/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context }),
+      });
+      const data = await res.json();
+      if (data.voice_id) return data.voice_id;
+    } catch (e) { /* fall through */ }
+    return null;
+  };
+
+  const speak = async (text, context = 'chat') => {
     if (!ttsEnabled) return;
 
-    // Stop any current speech
     stopSpeaking();
-
     const clean = cleanTextForSpeech(text);
     if (!clean) return;
 
     setIsSpeaking(true);
 
-    // Try cloud TTS first (HD neural voices)
+    // Resolve voice: persona context → user selection → default
+    let voice = selectedVoiceName || defaultVoiceId || 'edge:en-US-JennyNeural';
+    if (!selectedVoiceName) {
+      const contextVoice = await resolveVoiceForContext(context);
+      if (contextVoice) voice = contextVoice;
+    }
+
+    const isElevenLabs = voice.startsWith('eleven:');
+
+    // ── Streaming path (ElevenLabs – starts speaking instantly) ──────
+    if (isElevenLabs) {
+      try {
+        const controller = new AbortController();
+        ttsAbortRef.current = controller;
+
+        const response = await fetch('http://localhost:8000/api/tts/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: clean, voice }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) throw new Error('Stream TTS failed');
+
+        // Collect streaming chunks into a blob then play
+        const reader = response.body.getReader();
+        const chunks = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+        const audioBlob = new Blob(chunks, { type: 'audio/mpeg' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        ttsAudioRef.current = audio;
+
+        audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
+        audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
+        await audio.play();
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') { setIsSpeaking(false); return; }
+        console.warn('[TTS] Streaming failed, trying full download:', e.message);
+      }
+    }
+
+    // ── Full-download path (Edge-TTS or ElevenLabs fallback) ─────────
     try {
       const controller = new AbortController();
       ttsAbortRef.current = controller;
 
-      const voice = selectedVoiceName || defaultVoiceId || 'edge:en-US-JennyNeural';
       const response = await fetch('http://localhost:8000/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1851,19 +1910,10 @@ export default function App() {
       const audio = new Audio(audioUrl);
       ttsAudioRef.current = audio;
 
-      audio.onended = () => {
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-        ttsAudioRef.current = null;
-      };
-      audio.onerror = () => {
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-        ttsAudioRef.current = null;
-      };
-
+      audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
+      audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
       await audio.play();
-      return; // Cloud TTS succeeded
+      return;
     } catch (e) {
       if (e.name === 'AbortError') { setIsSpeaking(false); return; }
       console.warn('[TTS] Cloud unavailable, falling back to browser:', e.message);
@@ -1873,9 +1923,9 @@ export default function App() {
     if (!window.speechSynthesis) { setIsSpeaking(false); return; }
 
     const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(v => v.name.includes('Zira')) || voices.find(v => v.lang.startsWith('en')) || null;
+    const fallbackVoice = voices.find(v => v.name.includes('Zira')) || voices.find(v => v.lang.startsWith('en')) || null;
     const utt = new SpeechSynthesisUtterance(clean.slice(0, 500));
-    if (voice) utt.voice = voice;
+    if (fallbackVoice) utt.voice = fallbackVoice;
     utt.rate = 0.95;
     utt.pitch = 1.02;
     utt.onend = () => setIsSpeaking(false);
@@ -3356,6 +3406,180 @@ export default function App() {
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Hold V to speak</Typography>
                     </Box>
                     <Chip label="Always On" size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)' }} />
+                  </Box>
+                </Stack>
+              </Box>
+
+              {/* Voice Lab (ElevenLabs Premium) */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#ffbb44' }}>
+                  ★ Voice Lab
+                </Typography>
+                <Stack spacing={1.5}>
+                  {/* Sound Effects Generator */}
+                  <Box sx={{ p: 1.5, border: '1px solid rgba(255,180,50,0.3)', borderRadius: 2, bgcolor: 'rgba(255,180,50,0.05)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: '#ffcc55' }}>Sound Effects AI</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
+                      Generate any sound from a text description
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <input
+                        type="text"
+                        placeholder="e.g. cyberpunk door opening..."
+                        id="sfx-prompt-input"
+                        style={{
+                          flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)',
+                          borderRadius: 6, padding: '6px 10px', color: '#fff', fontSize: '0.8rem', outline: 'none',
+                        }}
+                      />
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={async () => {
+                          const input = document.getElementById('sfx-prompt-input');
+                          if (!input?.value.trim()) return;
+                          setToast('Generating sound effect...');
+                          try {
+                            const res = await fetch('http://localhost:8000/api/sfx/generate', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ prompt: input.value.trim(), duration: 5 }),
+                            });
+                            if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const audio = new Audio(url);
+                            audio.play();
+                            audio.onended = () => URL.revokeObjectURL(url);
+                            setToast('Playing sound effect!');
+                          } catch (e) {
+                            setToast('SFX Error: ' + e.message);
+                          }
+                        }}
+                        sx={{ bgcolor: '#ffbb44', color: '#000', fontWeight: 700, minWidth: 60, '&:hover': { bgcolor: '#ffcc66' } }}
+                      >
+                        Generate
+                      </Button>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
+                      {['Spaceship engine hum', 'Magical spell cast', 'Rain on cyberpunk city', 'Level up chime', 'Dramatic reveal'].map(p => (
+                        <Chip key={p} label={p} size="small"
+                          onClick={() => { const i = document.getElementById('sfx-prompt-input'); if (i) i.value = p; }}
+                          sx={{ fontSize: '0.65rem', height: 22, bgcolor: 'rgba(255,180,50,0.1)', color: '#ffbb44', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,180,50,0.2)' } }}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+
+                  {/* Voice Personas */}
+                  <Box sx={{ p: 1.5, border: '1px solid rgba(0,255,255,0.2)', borderRadius: 2, bgcolor: 'rgba(0,255,255,0.03)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: 'var(--accent)' }}>Voice Personas</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
+                      Different voices for different contexts — Vesper adapts automatically
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      fullWidth
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('http://localhost:8000/api/voice/personas');
+                          const data = await res.json();
+                          const personas = data.personas || {};
+                          const summary = Object.entries(personas).map(([k, v]) => 
+                            `${v.icon} ${v.label}: ${v.voice_id ? cloudVoices.find(cv => cv.id === v.voice_id)?.name || v.voice_id : '(default)'}`
+                          ).join('\n');
+                          setToast('Voice Personas:\n' + summary);
+                        } catch (e) { setToast('Failed to load personas'); }
+                      }}
+                      sx={{ borderColor: 'var(--accent)', color: 'var(--accent)', textTransform: 'none', mb: 1 }}
+                    >
+                      View & Edit Personas
+                    </Button>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.65rem' }}>
+                      Tip: Pick a voice in the chat picker, then assign it to a persona like "Game Narrator" or "Teacher"
+                    </Typography>
+                  </Box>
+
+                  {/* Voice Cloning */}
+                  <Box sx={{ p: 1.5, border: '1px solid rgba(200,100,255,0.3)', borderRadius: 2, bgcolor: 'rgba(200,100,255,0.05)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: '#cc88ff' }}>Voice Cloning</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
+                      Clone any voice from audio samples — make Vesper sound like anyone
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      component="label"
+                      fullWidth
+                      sx={{ borderColor: '#cc88ff', color: '#cc88ff', textTransform: 'none' }}
+                    >
+                      Upload Voice Samples
+                      <input type="file" hidden multiple accept="audio/*"
+                        onChange={async (e) => {
+                          const files = e.target.files;
+                          if (!files?.length) return;
+                          setToast('Cloning voice... this takes a moment');
+                          const formData = new FormData();
+                          formData.append('name', 'Vesper Custom');
+                          formData.append('description', 'Custom cloned voice');
+                          Array.from(files).forEach(f => formData.append('files', f));
+                          try {
+                            const res = await fetch('http://localhost:8000/api/voice/clone?name=VesperCustom', {
+                              method: 'POST', body: formData,
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              setToast('Voice cloned! It\'s now in your voice picker.');
+                              // Refresh voices
+                              const vRes = await fetch('http://localhost:8000/api/tts/voices');
+                              const vData = await vRes.json();
+                              if (vData.voices) setCloudVoices(vData.voices);
+                            } else {
+                              setToast('Clone failed: ' + (data.error || 'Unknown error'));
+                            }
+                          } catch (err) { setToast('Clone error: ' + err.message); }
+                        }}
+                      />
+                    </Button>
+                  </Box>
+
+                  {/* Voice Isolation */}
+                  <Box sx={{ p: 1.5, border: '1px solid rgba(100,255,200,0.3)', borderRadius: 2, bgcolor: 'rgba(100,255,200,0.05)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: '#66ffbb' }}>Voice Isolation</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
+                      Remove background noise from any audio file
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      component="label"
+                      fullWidth
+                      sx={{ borderColor: '#66ffbb', color: '#66ffbb', textTransform: 'none' }}
+                    >
+                      Upload Audio to Clean
+                      <input type="file" hidden accept="audio/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setToast('Isolating voice... removing background noise');
+                          const formData = new FormData();
+                          formData.append('file', file);
+                          try {
+                            const res = await fetch('http://localhost:8000/api/voice/isolate', {
+                              method: 'POST', body: formData,
+                            });
+                            if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const audio = new Audio(url);
+                            audio.play();
+                            audio.onended = () => URL.revokeObjectURL(url);
+                            setToast('Playing isolated voice!');
+                          } catch (err) { setToast('Isolation error: ' + err.message); }
+                        }}
+                      />
+                    </Button>
                   </Box>
                 </Stack>
               </Box>

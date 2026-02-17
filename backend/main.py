@@ -5557,6 +5557,257 @@ async def text_to_speech(req: TTSRequest):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+# ─── Streaming TTS (ElevenLabs) ─────────────────────────────────────────────
+from fastapi.responses import StreamingResponse
+
+class TTSStreamRequest(BaseModel):
+    text: str
+    voice: Optional[str] = ""
+
+@app.post("/api/tts/stream")
+async def text_to_speech_stream(req: TTSStreamRequest):
+    """Stream TTS audio in real-time — Vesper starts speaking instantly"""
+    if not req.text or not req.text.strip():
+        return JSONResponse({"error": "No text provided"}, status_code=400)
+
+    text = req.text.strip()[:5000]
+    voice_id = req.voice or ""
+
+    if voice_id.startswith("eleven:") and ELEVENLABS_AVAILABLE:
+        actual_id = voice_id.replace("eleven:", "")
+        try:
+            audio_stream = elevenlabs_client.text_to_speech.convert_as_stream(
+                voice_id=actual_id,
+                text=text,
+                model_id="eleven_multilingual_v2",
+                output_format="mp3_44100_128",
+            )
+
+            def generate():
+                for chunk in audio_stream:
+                    yield chunk
+
+            return StreamingResponse(
+                generate(),
+                media_type="audio/mpeg",
+                headers={"Cache-Control": "no-cache", "Transfer-Encoding": "chunked"},
+            )
+        except Exception as e:
+            print(f"[TTS STREAM ERROR] {e}")
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+    return JSONResponse({"error": "Streaming only available with ElevenLabs voices"}, status_code=400)
+
+
+# ─── Sound Effects AI (ElevenLabs) ──────────────────────────────────────────
+
+class SFXRequest(BaseModel):
+    prompt: str
+    duration: Optional[float] = 3.0  # seconds
+
+@app.post("/api/sfx/generate")
+async def generate_sound_effect(req: SFXRequest):
+    """Generate a sound effect from a text description (e.g. 'cyberpunk door opening')"""
+    if not ELEVENLABS_AVAILABLE:
+        return JSONResponse({"error": "ElevenLabs not configured"}, status_code=503)
+
+    if not req.prompt or not req.prompt.strip():
+        return JSONResponse({"error": "No prompt provided"}, status_code=400)
+
+    try:
+        audio_gen = elevenlabs_client.text_to_sound_effects.convert(
+            text=req.prompt.strip(),
+            duration_seconds=min(req.duration, 22.0),  # ElevenLabs max 22s
+        )
+
+        audio_buffer = io.BytesIO()
+        for chunk in audio_gen:
+            audio_buffer.write(chunk)
+        audio_buffer.seek(0)
+        audio_bytes = audio_buffer.read()
+
+        if len(audio_bytes) == 0:
+            return JSONResponse({"error": "No audio generated"}, status_code=500)
+
+        from fastapi.responses import Response
+        return Response(
+            content=audio_bytes,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": f"inline; filename=sfx.mp3", "Cache-Control": "no-cache"},
+        )
+    except Exception as e:
+        print(f"[SFX ERROR] {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ─── Voice Cloning (ElevenLabs) ─────────────────────────────────────────────
+import tempfile
+
+@app.post("/api/voice/clone")
+async def clone_voice(
+    name: str = "Vesper Custom",
+    description: str = "Custom cloned voice for Vesper AI",
+    files: List[UploadFile] = File(...),
+):
+    """Clone a voice from uploaded audio samples (WAV/MP3, 1-25 files, 1-10min each)"""
+    if not ELEVENLABS_AVAILABLE:
+        return JSONResponse({"error": "ElevenLabs not configured"}, status_code=503)
+
+    if not files:
+        return JSONResponse({"error": "No audio files provided"}, status_code=400)
+
+    try:
+        # Save uploaded files temporarily
+        temp_paths = []
+        for f in files:
+            content = await f.read()
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(f.filename)[1])
+            tmp.write(content)
+            tmp.close()
+            temp_paths.append(tmp.name)
+
+        # Call ElevenLabs voice clone
+        voice = elevenlabs_client.clone(
+            name=name,
+            description=description,
+            files=temp_paths,
+        )
+
+        # Clean up temp files
+        for p in temp_paths:
+            try:
+                os.unlink(p)
+            except:
+                pass
+
+        # Add to our voice catalog
+        new_voice = {
+            "id": f"eleven:{voice.voice_id}",
+            "name": voice.name,
+            "gender": "Custom",
+            "locale": "Custom",
+            "style": "cloned",
+            "provider": "elevenlabs",
+            "preview_url": getattr(voice, 'preview_url', None),
+        }
+        ELEVENLABS_VOICES.append(new_voice)
+
+        return {
+            "success": True,
+            "voice": new_voice,
+            "message": f"Voice '{name}' cloned successfully! It's now available in the voice picker.",
+        }
+    except Exception as e:
+        print(f"[VOICE CLONE ERROR] {e}")
+        # Clean up on error
+        for p in temp_paths:
+            try:
+                os.unlink(p)
+            except:
+                pass
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ─── Voice Isolation (ElevenLabs) ───────────────────────────────────────────
+
+@app.post("/api/voice/isolate")
+async def isolate_voice(file: UploadFile = File(...)):
+    """Remove background noise from audio, keeping only the human voice"""
+    if not ELEVENLABS_AVAILABLE:
+        return JSONResponse({"error": "ElevenLabs not configured"}, status_code=503)
+
+    try:
+        content = await file.read()
+        audio_stream = elevenlabs_client.audio_isolation.audio_isolation(audio=content)
+
+        audio_buffer = io.BytesIO()
+        for chunk in audio_stream:
+            audio_buffer.write(chunk)
+        audio_buffer.seek(0)
+        audio_bytes = audio_buffer.read()
+
+        from fastapi.responses import Response
+        return Response(
+            content=audio_bytes,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "inline; filename=isolated.mp3", "Cache-Control": "no-cache"},
+        )
+    except Exception as e:
+        print(f"[VOICE ISOLATION ERROR] {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ─── Voice Personas (context-aware voice switching) ─────────────────────────
+
+VOICE_PERSONAS_FILE = os.path.join(os.path.dirname(__file__), '..', 'vesper-ai', 'style', 'voice_personas.json')
+
+def load_voice_personas():
+    try:
+        if os.path.exists(VOICE_PERSONAS_FILE):
+            with open(VOICE_PERSONAS_FILE, 'r') as f:
+                return json.load(f)
+    except:
+        pass
+    # Default personas
+    defaults = {
+        "assistant": {"label": "Assistant", "voice_id": "", "description": "Default helpful assistant voice", "icon": "🤖"},
+        "narrator": {"label": "Game Narrator", "voice_id": "", "description": "Dramatic storytelling voice for game events", "icon": "📖"},
+        "casual": {"label": "Casual Chat", "voice_id": "", "description": "Relaxed, friendly conversation voice", "icon": "💬"},
+        "teacher": {"label": "Teacher", "voice_id": "", "description": "Clear, patient explanatory voice", "icon": "🎓"},
+        "hype": {"label": "Hype Master", "voice_id": "", "description": "Energetic, excited voice for achievements", "icon": "🔥"},
+    }
+    save_voice_personas(defaults)
+    return defaults
+
+def save_voice_personas(personas):
+    os.makedirs(os.path.dirname(VOICE_PERSONAS_FILE), exist_ok=True)
+    with open(VOICE_PERSONAS_FILE, 'w') as f:
+        json.dump(personas, f, indent=2)
+
+@app.get("/api/voice/personas")
+async def get_voice_personas():
+    """Get all voice personas with their assigned voices"""
+    personas = load_voice_personas()
+    return {"personas": personas}
+
+class PersonaUpdate(BaseModel):
+    persona_id: str
+    voice_id: str
+
+@app.put("/api/voice/personas")
+async def update_voice_persona(req: PersonaUpdate):
+    """Assign a voice to a specific persona context"""
+    personas = load_voice_personas()
+    if req.persona_id not in personas:
+        return JSONResponse({"error": f"Unknown persona: {req.persona_id}"}, status_code=400)
+    personas[req.persona_id]["voice_id"] = req.voice_id
+    save_voice_personas(personas)
+    return {"success": True, "persona": personas[req.persona_id]}
+
+class PersonaResolve(BaseModel):
+    context: str  # "game", "chat", "task", "research", "achievement"
+
+@app.post("/api/voice/resolve")
+async def resolve_voice_for_context(req: PersonaResolve):
+    """Given a context, return the appropriate voice ID"""
+    personas = load_voice_personas()
+    mapping = {
+        "game": "narrator",
+        "quest": "narrator",
+        "combat": "narrator",
+        "chat": "casual",
+        "task": "assistant",
+        "research": "teacher",
+        "achievement": "hype",
+        "memory": "casual",
+        "default": "assistant",
+    }
+    persona_key = mapping.get(req.context, "assistant")
+    persona = personas.get(persona_key, {})
+    voice_id = persona.get("voice_id", "")
+    return {"voice_id": voice_id, "persona": persona_key, "label": persona.get("label", "Assistant")}
+
+
 # --- STARTUP ---
 if __name__ == "__main__":
     import uvicorn
