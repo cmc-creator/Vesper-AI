@@ -260,6 +260,7 @@ def add_wardrobe_item(item: dict):
 
 # ── 3D AVATAR SYSTEM ───────────────────────────────────────────────────────
 # Combines: pre-made models, Ready Player Me, and AI-generated avatar support
+DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'vesper-ai')
 AVATAR_DATA_FILE = os.path.join(DATA_DIR, "style", "avatar_config.json")
 
 # Pre-built avatar catalog — models already in frontend/public/models/
