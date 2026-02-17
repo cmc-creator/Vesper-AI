@@ -12,11 +12,15 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  LinearProgress,
+  Chip,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
   Close as CloseIcon,
   Movie as MovieIcon,
+  PlayArrow as PlayIcon,
+  Theaters as TheatersIcon,
 } from '@mui/icons-material';
 
 export default function VideoCreator({ apiBase, onClose }) {
@@ -25,16 +29,22 @@ export default function VideoCreator({ apiBase, onClose }) {
   const [style, setStyle] = useState('cinematic');
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [loading, setLoading] = useState(false);
+  const [renderingScenes, setRenderingScenes] = useState(false);
+  const [renderProgress, setRenderProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState('');
   const [plan, setPlan] = useState(null);
   const [raw, setRaw] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [clips, setClips] = useState([]);        // multi-scene clip results
+  const [activeClip, setActiveClip] = useState(0); // which clip is playing
 
+  // Single quick-clip generation (no scenes)
   const generateVideo = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
     setError('');
     setVideoUrl('');
+    setClips([]);
 
     try {
       const response = await fetch(`${apiBase}/api/video/generate`, {
@@ -52,6 +62,42 @@ export default function VideoCreator({ apiBase, onClose }) {
     }
   };
 
+  // Render ALL planned scenes via backend multi-scene endpoint
+  const renderAllScenes = async () => {
+    if (!plan?.scenes?.length) return;
+    setRenderingScenes(true);
+    setError('');
+    setVideoUrl('');
+    setClips([]);
+    setRenderProgress({ current: 0, total: plan.scenes.length });
+
+    try {
+      const response = await fetch(`${apiBase}/api/video/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          aspect_ratio: aspectRatio,
+          scenes: plan.scenes,
+        }),
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      if (data.clips) {
+        setClips(data.clips);
+        setRenderProgress({ current: data.completed || 0, total: data.total_scenes || 0 });
+        // Auto-play first successful clip
+        const firstOk = data.clips.findIndex(c => c.status === 'success');
+        if (firstOk >= 0) setActiveClip(firstOk);
+      }
+    } catch (err) {
+      setError(err.message || 'Multi-scene rendering failed');
+    } finally {
+      setRenderingScenes(false);
+    }
+  };
+
   const createPlan = async () => {
     if (!prompt.trim()) return;
 
@@ -59,6 +105,7 @@ export default function VideoCreator({ apiBase, onClose }) {
     setError('');
     setPlan(null);
     setRaw('');
+    setClips([]);
 
     try {
       const response = await fetch(`${apiBase}/api/video/plan`, {
@@ -187,7 +234,7 @@ export default function VideoCreator({ apiBase, onClose }) {
         <Stack direction="row" spacing={1}>
           <Button
             onClick={createPlan}
-            disabled={loading || !prompt.trim()}
+            disabled={loading || renderingScenes || !prompt.trim()}
             variant="outlined"
             startIcon={loading ? <CircularProgress size={18} /> : <MovieIcon fontSize="small" />}
             sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
@@ -196,15 +243,41 @@ export default function VideoCreator({ apiBase, onClose }) {
           </Button>
           <Button
             onClick={generateVideo}
-            disabled={loading || !prompt.trim()}
+            disabled={loading || renderingScenes || !prompt.trim()}
             variant="contained"
             startIcon={loading ? <CircularProgress size={18} /> : <MovieIcon fontSize="small" />}
             sx={{ bgcolor: 'var(--accent)', color: '#000' }}
           >
-            {loading ? 'Creating...' : 'Gen Video'}
+            {loading ? 'Creating...' : 'Quick Clip'}
           </Button>
+          {plan?.scenes?.length > 0 && (
+            <Button
+              onClick={renderAllScenes}
+              disabled={loading || renderingScenes}
+              variant="contained"
+              startIcon={renderingScenes ? <CircularProgress size={18} /> : <TheatersIcon fontSize="small" />}
+              sx={{ bgcolor: '#ff6b35', color: '#fff', '&:hover': { bgcolor: '#e55a2b' } }}
+            >
+              {renderingScenes
+                ? `Rendering ${renderProgress.current}/${renderProgress.total}...`
+                : `Render All ${plan.scenes.length} Scenes`}
+            </Button>
+          )}
         </Stack>
       </Stack>
+
+      {/* Rendering progress bar */}
+      {renderingScenes && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="caption" sx={{ color: 'var(--accent)' }}>
+            Rendering scenes... Each scene takes ~60-90 seconds. Please be patient.
+          </Typography>
+          <LinearProgress
+            variant="indeterminate"
+            sx={{ mt: 1, '& .MuiLinearProgress-bar': { bgcolor: 'var(--accent)' }, bgcolor: 'rgba(0,255,255,0.1)' }}
+          />
+        </Box>
+      )}
 
       {error && (
         <Box sx={{ color: '#ff6b6b', mb: 2, fontSize: '0.9rem', bgcolor: 'rgba(255,0,0,0.1)', p: 1, borderRadius: 1 }}>
@@ -220,11 +293,56 @@ export default function VideoCreator({ apiBase, onClose }) {
         </Box>
       )}
 
-      {videoUrl && (
+      {/* Single clip player */}
+      {videoUrl && !clips.length && (
         <Box sx={{ mt: 2, mb: 2, border: '1px solid var(--accent)', borderRadius: 2, overflow: 'hidden' }}>
           <video src={videoUrl} controls autoPlay loop style={{ width: '100%', display: 'block' }} />
           <Typography variant="caption" sx={{ p: 1, display: 'block', color: 'rgba(255,255,255,0.6)' }}>
-            AI Generated Video Preview (Cost: ~$0.02)
+            Quick Clip (~5s) &bull; Cost: ~$0.02
+          </Typography>
+        </Box>
+      )}
+
+      {/* Multi-scene clips player */}
+      {clips.length > 0 && (
+        <Box sx={{ mt: 2, mb: 2 }}>
+          {/* Active clip player */}
+          {clips[activeClip]?.video_url && (
+            <Box sx={{ border: '1px solid var(--accent)', borderRadius: 2, overflow: 'hidden', mb: 1 }}>
+              <video
+                key={clips[activeClip].video_url}
+                src={clips[activeClip].video_url}
+                controls
+                autoPlay
+                style={{ width: '100%', display: 'block' }}
+              />
+              <Typography variant="caption" sx={{ p: 1, display: 'block', color: 'rgba(255,255,255,0.6)' }}>
+                Scene {clips[activeClip].index} of {clips.length}
+              </Typography>
+            </Box>
+          )}
+          {/* Scene thumbnail strip */}
+          <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 1 }}>
+            {clips.map((clip, idx) => (
+              <Chip
+                key={idx}
+                icon={clip.status === 'success' ? <PlayIcon fontSize="small" /> : undefined}
+                label={`Scene ${clip.index}`}
+                onClick={() => clip.status === 'success' && setActiveClip(idx)}
+                sx={{
+                  cursor: clip.status === 'success' ? 'pointer' : 'default',
+                  bgcolor: idx === activeClip ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
+                  color: idx === activeClip ? '#000' : clip.status === 'success' ? '#fff' : '#ff6b6b',
+                  border: `1px solid ${clip.status === 'success' ? 'var(--accent)' : 'rgba(255,0,0,0.3)'}`,
+                  fontWeight: idx === activeClip ? 700 : 400,
+                  '&:hover': clip.status === 'success' ? { bgcolor: 'rgba(0,255,255,0.3)' } : {},
+                }}
+              />
+            ))}
+          </Stack>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 0.5, display: 'block' }}>
+            {clips.filter(c => c.status === 'success').length}/{clips.length} scenes rendered &bull;
+            ~$0.02 per scene
           </Typography>
         </Box>
       )}

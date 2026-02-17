@@ -52,6 +52,7 @@ import {
   PlayArrow as PlayArrowIcon,
   SaveAlt as SaveAltIcon,
   RecordVoiceOver as RecordVoiceOverIcon,
+  PhotoLibrary,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -93,6 +94,7 @@ import SystemStatusCard from './src/components/SystemStatusCard';
 import WeatherWidget from './src/components/WeatherWidget';
 import NyxShift from './src/components/NyxShift';
 import Sassy from './src/components/Sassy';
+import MediaGallery from './src/components/MediaGallery';
 
 // Styles
 import './App.css';
@@ -129,6 +131,7 @@ const NAV = [
   { id: 'memory', label: 'Memory Core', icon: StorageRounded },
   { id: 'tasks', label: 'Task Matrix', icon: ChecklistRounded },
   { id: 'nyxshift', label: 'Creative Suite', icon: AutoStories },
+  { id: 'gallery', label: 'Media Gallery', icon: PhotoLibrary },
   { id: 'sassy', label: 'Vesper\'s Wardrobe', icon: Checkroom },
   { id: 'analytics', label: 'Analytics', icon: BarChart },
   { id: 'personality', label: 'Personality', icon: Person },
@@ -3281,8 +3284,12 @@ export default function App() {
         );
       case 'nyxshift':
         return (
-          <DraggableBoard id="nyxshift">
-            <NyxShift apiBase={apiBase} onClose={() => setActiveSection('chat')} />
+          <NyxShift apiBase={apiBase} onClose={() => setActiveSection('chat')} />
+        );
+      case 'gallery':
+        return (
+          <DraggableBoard id="gallery">
+            <MediaGallery apiBase={apiBase} onClose={() => setActiveSection('chat')} />
           </DraggableBoard>
         );
       case 'sassy':

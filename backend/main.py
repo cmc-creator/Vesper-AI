@@ -5003,6 +5003,66 @@ def transcribe_voice(voice: VoiceInput):
     except Exception as e:
         return {"error": str(e)}
 
+# --- Media Gallery ---
+MEDIA_DIR = os.path.join(os.path.dirname(__file__), '..', 'vesper-ai', 'media')
+MEDIA_FILE = os.path.join(MEDIA_DIR, 'gallery.json')
+
+def _load_media_gallery():
+    """Load the media gallery from disk."""
+    os.makedirs(MEDIA_DIR, exist_ok=True)
+    if os.path.exists(MEDIA_FILE):
+        try:
+            with open(MEDIA_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def _save_media_gallery(items):
+    """Persist the media gallery to disk."""
+    os.makedirs(MEDIA_DIR, exist_ok=True)
+    with open(MEDIA_FILE, 'w') as f:
+        json.dump(items, f, indent=2)
+
+def _save_media_item(media_type: str, url: str, prompt: str, metadata: dict = None):
+    """Save a generated media item (image or video) to the gallery."""
+    import uuid
+    items = _load_media_gallery()
+    item = {
+        "id": str(uuid.uuid4())[:8],
+        "type": media_type,
+        "url": url,
+        "prompt": prompt[:200],
+        "metadata": metadata or {},
+        "created_at": datetime.datetime.now().isoformat(),
+    }
+    items.insert(0, item)  # newest first
+    # Keep gallery at reasonable size
+    if len(items) > 500:
+        items = items[:500]
+    _save_media_gallery(items)
+    print(f"[GALLERY] Saved {media_type}: {url[:60]}...")
+    return item
+
+@app.get("/api/media")
+async def list_media(media_type: Optional[str] = None, limit: int = 50):
+    """List media gallery items. Optional filter by type (image/video)."""
+    items = _load_media_gallery()
+    if media_type:
+        items = [i for i in items if i.get("type") == media_type]
+    return {"items": items[:limit], "total": len(items)}
+
+@app.delete("/api/media/{item_id}")
+async def delete_media(item_id: str):
+    """Delete a media item from the gallery."""
+    items = _load_media_gallery()
+    original_len = len(items)
+    items = [i for i in items if i.get("id") != item_id]
+    if len(items) == original_len:
+        return JSONResponse(status_code=404, content={"error": "Media item not found"})
+    _save_media_gallery(items)
+    return {"status": "deleted", "id": item_id}
+
 # --- Image Generation ---
 class ImageGenerationRequest(BaseModel):
     prompt: str
@@ -5032,6 +5092,9 @@ async def generate_image(req: ImageGenerationRequest):
             
             image_url = f"https://image.pollinations.ai/prompt/{clean_prompt}?width={width}&height={height}&seed={seed}&nologo=true"
             
+            # Save to media gallery
+            _save_media_item("image", image_url, req.prompt, {"provider": "Pollinations.ai", "size": f"{width}x{height}"})
+            
             return {
                 "prompt": req.prompt,
                 "image_url": image_url,
@@ -5057,6 +5120,10 @@ async def generate_image(req: ImageGenerationRequest):
             image_url = getattr(response.data[0], "url", None)
             image_b64 = getattr(response.data[0], "b64_json", None)
 
+        # Save to media gallery
+        if image_url:
+            _save_media_item("image", image_url, req.prompt, {"provider": "DALL-E 3", "size": req.size, "style": req.style})
+
         return {
             "prompt": req.prompt,
             "image_url": image_url,
@@ -5080,10 +5147,15 @@ class VideoGenRequest(BaseModel):
     prompt: str
     aspect_ratio: Optional[str] = "16:9"
     resolution: Optional[str] = "480p"
+    scenes: Optional[List[dict]] = None  # For multi-scene: [{index, description, camera, lighting}]
 
 @app.post("/api/video/generate")
 async def generate_video(req: VideoGenRequest):
-    """Generate text-to-video using Replicate (Wan 2.2 T2V Fast) via raw API"""
+    """Generate text-to-video using Replicate (Wan 2.2 T2V Fast) via raw API.
+    
+    If scenes are provided, generates one clip per scene and returns all URLs.
+    Otherwise generates a single clip from the prompt.
+    """
     
     # Reload environment variables to ensure we pick up changes without full restart
     from dotenv import load_dotenv
@@ -5105,14 +5177,14 @@ async def generate_video(req: VideoGenRequest):
     aspect_map = {"16:9": "16:9", "9:16": "9:16", "1:1": "1:1"}
     aspect = aspect_map.get(req.aspect_ratio, "16:9")
 
-    try:
-        # Wan 2.2 T2V Fast — text-to-video, 185k+ runs, fast & cheap
+    def _generate_single_clip(prompt_text):
+        """Generate one clip via Replicate and return video_url or error."""
         resp = requests.post(
             "https://api.replicate.com/v1/models/wan-video/wan-2.2-t2v-fast/predictions",
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
             json={
                 "input": {
-                    "prompt": req.prompt,
+                    "prompt": prompt_text,
                     "aspect_ratio": aspect,
                     "resolution": req.resolution or "480p",
                     "num_frames": 81,
@@ -5125,19 +5197,15 @@ async def generate_video(req: VideoGenRequest):
         )
         
         if resp.status_code == 402:
-            return JSONResponse(status_code=402, content={"error": "Replicate account has no credit. Add billing at replicate.com/account/billing"})
-        
+            return {"error": "Replicate account has no credit. Add billing at replicate.com/account/billing"}
         if resp.status_code != 201:
-            print(f"[VIDEO] Replicate error {resp.status_code}: {resp.text}")
-            return JSONResponse(status_code=resp.status_code, content={"error": f"Replicate API Error: {resp.text}"})
+            return {"error": f"Replicate API Error: {resp.text}"}
             
         prediction = resp.json()
         pred_id = prediction["id"]
-        print(f"[VIDEO] Prediction started: {pred_id}")
         
-        # Poll for completion (Wan 2.2 fast usually finishes in 30-60s)
-        max_retries = 90
-        for attempt in range(max_retries):
+        # Poll for completion
+        for attempt in range(90):
             time.sleep(2)
             status_resp = requests.get(
                 f"https://api.replicate.com/v1/predictions/{pred_id}",
@@ -5148,19 +5216,63 @@ async def generate_video(req: VideoGenRequest):
             
             if status == "succeeded":
                 output = data.get("output")
-                # Wan 2.2 returns a single URI string (not a list)
                 video_url = output[0] if isinstance(output, list) else output
-                print(f"[VIDEO] Complete: {video_url}")
-                return {"status": "success", "video_url": video_url}
-            elif status == "failed":
-                return JSONResponse(status_code=500, content={"error": f"Video generation failed: {data.get('error')}"})
-            elif status == "canceled":
-                return JSONResponse(status_code=500, content={"error": "Video generation canceled"})
-            
-            if attempt % 10 == 0 and attempt > 0:
-                print(f"[VIDEO] Still processing... attempt {attempt}/{max_retries}")
+                return {"video_url": video_url}
+            elif status in ("failed", "canceled"):
+                return {"error": f"Video {status}: {data.get('error', 'unknown')}"}
         
-        return JSONResponse(status_code=408, content={"error": "Video generation timed out (takes > 2 mins sometimes). Check Replicate dashboard."})
+        return {"error": "Video generation timed out"}
+
+    try:
+        # ── Multi-scene rendering ─────────────────────────────────────
+        if req.scenes and len(req.scenes) > 0:
+            clips = []
+            total = len(req.scenes)
+            print(f"[VIDEO] Multi-scene render: {total} scenes")
+            
+            for i, scene in enumerate(req.scenes):
+                scene_desc = scene.get("description", "")
+                camera = scene.get("camera", "")
+                lighting = scene.get("lighting", "")
+                
+                # Build a rich prompt from scene data
+                scene_prompt = scene_desc
+                if camera:
+                    scene_prompt += f". Camera: {camera}"
+                if lighting:
+                    scene_prompt += f". Lighting: {lighting}"
+                
+                print(f"[VIDEO] Scene {i+1}/{total}: {scene_prompt[:80]}...")
+                result = _generate_single_clip(scene_prompt)
+                
+                if "error" in result:
+                    clips.append({"index": i + 1, "status": "failed", "error": result["error"]})
+                else:
+                    clips.append({"index": i + 1, "status": "success", "video_url": result["video_url"]})
+                    # Save to media gallery
+                    _save_media_item("video", result["video_url"], scene_prompt, {"scene": i + 1, "total_scenes": total})
+            
+            return {
+                "status": "success",
+                "mode": "multi-scene",
+                "clips": clips,
+                "total_scenes": total,
+                "completed": sum(1 for c in clips if c["status"] == "success"),
+            }
+        
+        # ── Single clip ───────────────────────────────────────────────
+        result = _generate_single_clip(req.prompt)
+        
+        if "error" in result:
+            return JSONResponse(status_code=500, content={"error": result["error"]})
+        
+        video_url = result["video_url"]
+        print(f"[VIDEO] Complete: {video_url}")
+        
+        # Save to media gallery
+        _save_media_item("video", video_url, req.prompt, {})
+        
+        return {"status": "success", "video_url": video_url}
 
     except Exception as e:
         print(f"Replicate API Error: {e}")
