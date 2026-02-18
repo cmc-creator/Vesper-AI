@@ -6941,8 +6941,18 @@ async def test_integration(service: str):
             return {"connected": True}
         elif service == "canva":
             return {"connected": bool(key), "note": "Canva Connect API — key stored"}
-        elif service == "google_workspace":
-            return {"connected": bool(key), "note": "Google Workspace — credentials stored"}
+        elif service in ("google_workspace", "google_docs", "google_sheets", "google_drive", "google_calendar"):
+            # Test actual Google service account connection
+            try:
+                creds = get_google_credentials()
+                from googleapiclient.discovery import build
+                drive = build("drive", "v3", credentials=creds)
+                drive.files().list(pageSize=1, fields="files(id)").execute()
+                return {"connected": True, "note": f"Google Workspace connected as {creds.service_account_email}"}
+            except FileNotFoundError:
+                return {"connected": bool(key), "note": "Service account file not found — using stored key only"}
+            except Exception as ge:
+                return {"connected": False, "error": f"Google API error: {str(ge)[:150]}"}
         else:
             return {"connected": bool(key), "note": "Key stored — manual verification needed"}
     except Exception as e:
@@ -7108,6 +7118,328 @@ async def generate_pdf(request: Request):
         return {"error": "reportlab not installed — run: pip install reportlab"}
     except Exception as e:
         return {"error": str(e)[:300]}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ███ GOOGLE WORKSPACE — Drive, Docs, Sheets, Calendar integration ████████████
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_google_credentials():
+    """Load Google service account credentials from file or env var."""
+    sa_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "google-service-account.json")
+    # Resolve relative paths against backend dir
+    if not os.path.isabs(sa_file):
+        sa_file = os.path.join(os.path.dirname(__file__), sa_file)
+    if not os.path.exists(sa_file):
+        raise FileNotFoundError(f"Google service account file not found: {sa_file}")
+    from google.oauth2 import service_account
+    SCOPES = [
+        "https://www.googleapis.com/auth/drive",
+        "https://www.googleapis.com/auth/documents",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/calendar",
+    ]
+    creds = service_account.Credentials.from_service_account_file(sa_file, scopes=SCOPES)
+    return creds
+
+def get_google_service(api, version):
+    """Build a Google API service client."""
+    from googleapiclient.discovery import build
+    creds = get_google_credentials()
+    return build(api, version, credentials=creds)
+
+
+# ── Google Drive ─────────────────────────────────────────────────────────────
+
+@app.get("/api/google/drive/files")
+async def google_drive_list(q: str = "", page_size: int = 20):
+    """List files from Google Drive."""
+    try:
+        service = get_google_service("drive", "v3")
+        query = q or "trashed = false"
+        results = service.files().list(
+            q=query,
+            pageSize=page_size,
+            fields="nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, parents)",
+            orderBy="modifiedTime desc",
+        ).execute()
+        return {"files": results.get("files", []), "nextPageToken": results.get("nextPageToken")}
+    except FileNotFoundError as e:
+        return {"error": str(e), "hint": "Set GOOGLE_SERVICE_ACCOUNT_FILE in .env"}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.get("/api/google/drive/file/{file_id}")
+async def google_drive_get(file_id: str):
+    """Get file metadata by ID."""
+    try:
+        service = get_google_service("drive", "v3")
+        f = service.files().get(fileId=file_id, fields="id,name,mimeType,size,modifiedTime,webViewLink,description,owners").execute()
+        return {"file": f}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.post("/api/google/drive/folder")
+async def google_drive_create_folder(req: dict):
+    """Create a folder in Google Drive."""
+    try:
+        name = req.get("name", "New Folder")
+        parent = req.get("parent_id")
+        service = get_google_service("drive", "v3")
+        metadata = {"name": name, "mimeType": "application/vnd.google-apps.folder"}
+        if parent:
+            metadata["parents"] = [parent]
+        folder = service.files().create(body=metadata, fields="id, name, webViewLink").execute()
+        return {"folder": folder}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.post("/api/google/drive/upload")
+async def google_drive_upload(req: dict):
+    """Upload/create a text file in Google Drive."""
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        name = req.get("name", "Untitled.txt")
+        content = req.get("content", "")
+        parent_id = req.get("parent_id")
+        mime_type = req.get("mime_type", "text/plain")
+        service = get_google_service("drive", "v3")
+        metadata = {"name": name}
+        if parent_id:
+            metadata["parents"] = [parent_id]
+        media = MediaInMemoryUpload(content.encode("utf-8"), mimetype=mime_type, resumable=False)
+        f = service.files().create(body=metadata, media_body=media, fields="id, name, webViewLink").execute()
+        return {"file": f}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.delete("/api/google/drive/file/{file_id}")
+async def google_drive_delete(file_id: str):
+    """Move a file to trash."""
+    try:
+        service = get_google_service("drive", "v3")
+        service.files().update(fileId=file_id, body={"trashed": True}).execute()
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.post("/api/google/drive/share")
+async def google_drive_share(req: dict):
+    """Share a file with an email address."""
+    try:
+        file_id = req.get("file_id")
+        email = req.get("email")
+        role = req.get("role", "reader")  # reader, writer, commenter
+        service = get_google_service("drive", "v3")
+        permission = {"type": "user", "role": role, "emailAddress": email}
+        result = service.permissions().create(fileId=file_id, body=permission, sendNotificationEmail=True).execute()
+        return {"permission": result}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+
+# ── Google Docs ──────────────────────────────────────────────────────────────
+
+@app.post("/api/google/docs/create")
+async def google_docs_create(req: dict):
+    """Create a new Google Doc."""
+    try:
+        title = req.get("title", "Untitled Document")
+        content = req.get("content", "")
+        service = get_google_service("docs", "v1")
+        doc = service.documents().create(body={"title": title}).execute()
+        doc_id = doc["documentId"]
+        # Insert content if provided
+        if content:
+            requests_body = [{"insertText": {"location": {"index": 1}, "text": content}}]
+            service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
+        # Get the web link via Drive
+        drive = get_google_service("drive", "v3")
+        meta = drive.files().get(fileId=doc_id, fields="webViewLink").execute()
+        return {"documentId": doc_id, "title": title, "webViewLink": meta.get("webViewLink", f"https://docs.google.com/document/d/{doc_id}/edit")}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.get("/api/google/docs/{doc_id}")
+async def google_docs_get(doc_id: str):
+    """Get a Google Doc's content."""
+    try:
+        service = get_google_service("docs", "v1")
+        doc = service.documents().get(documentId=doc_id).execute()
+        # Extract plain text from document
+        text_parts = []
+        for elem in doc.get("body", {}).get("content", []):
+            if "paragraph" in elem:
+                for run in elem["paragraph"].get("elements", []):
+                    if "textRun" in run:
+                        text_parts.append(run["textRun"]["content"])
+        return {"documentId": doc_id, "title": doc.get("title", ""), "text": "".join(text_parts), "revisionId": doc.get("revisionId")}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.post("/api/google/docs/{doc_id}/append")
+async def google_docs_append(doc_id: str, req: dict):
+    """Append text to a Google Doc."""
+    try:
+        text = req.get("text", "")
+        if not text:
+            return {"error": "No text provided"}
+        service = get_google_service("docs", "v1")
+        # Get current doc end index
+        doc = service.documents().get(documentId=doc_id).execute()
+        end_index = doc["body"]["content"][-1]["endIndex"] - 1
+        requests_body = [{"insertText": {"location": {"index": end_index}, "text": text}}]
+        service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
+        return {"success": True, "appended": len(text)}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+
+# ── Google Sheets ────────────────────────────────────────────────────────────
+
+@app.post("/api/google/sheets/create")
+async def google_sheets_create(req: dict):
+    """Create a new Google Sheet."""
+    try:
+        title = req.get("title", "Untitled Spreadsheet")
+        headers = req.get("headers", [])
+        service = get_google_service("sheets", "v4")
+        spreadsheet = service.spreadsheets().create(body={"properties": {"title": title}}).execute()
+        sheet_id = spreadsheet["spreadsheetId"]
+        # Add headers if provided
+        if headers:
+            service.spreadsheets().values().update(
+                spreadsheetId=sheet_id, range="A1",
+                valueInputOption="RAW", body={"values": [headers]}
+            ).execute()
+        return {"spreadsheetId": sheet_id, "title": title, "webViewLink": f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.get("/api/google/sheets/{sheet_id}")
+async def google_sheets_read(sheet_id: str, range: str = "Sheet1"):
+    """Read data from a Google Sheet."""
+    try:
+        service = get_google_service("sheets", "v4")
+        result = service.spreadsheets().values().get(spreadsheetId=sheet_id, range=range).execute()
+        return {"values": result.get("values", []), "range": result.get("range", "")}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.post("/api/google/sheets/{sheet_id}/append")
+async def google_sheets_append(sheet_id: str, req: dict):
+    """Append rows to a Google Sheet."""
+    try:
+        rows = req.get("rows", [])
+        range_name = req.get("range", "Sheet1")
+        if not rows:
+            return {"error": "No rows provided"}
+        service = get_google_service("sheets", "v4")
+        result = service.spreadsheets().values().append(
+            spreadsheetId=sheet_id, range=range_name,
+            valueInputOption="USER_ENTERED", body={"values": rows}
+        ).execute()
+        return {"updated": result.get("updates", {}).get("updatedRows", 0)}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.put("/api/google/sheets/{sheet_id}")
+async def google_sheets_update(sheet_id: str, req: dict):
+    """Update cells in a Google Sheet."""
+    try:
+        range_name = req.get("range", "A1")
+        values = req.get("values", [[]])
+        service = get_google_service("sheets", "v4")
+        result = service.spreadsheets().values().update(
+            spreadsheetId=sheet_id, range=range_name,
+            valueInputOption="USER_ENTERED", body={"values": values}
+        ).execute()
+        return {"updated_cells": result.get("updatedCells", 0)}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+
+# ── Google Calendar ──────────────────────────────────────────────────────────
+
+@app.get("/api/google/calendar/events")
+async def google_calendar_list(calendar_id: str = "primary", max_results: int = 20):
+    """List upcoming calendar events."""
+    try:
+        service = get_google_service("calendar", "v3")
+        now = datetime.datetime.utcnow().isoformat() + "Z"
+        result = service.events().list(
+            calendarId=calendar_id, timeMin=now,
+            maxResults=max_results, singleEvents=True, orderBy="startTime"
+        ).execute()
+        events = result.get("items", [])
+        simplified = []
+        for e in events:
+            simplified.append({
+                "id": e.get("id"),
+                "summary": e.get("summary", "(No title)"),
+                "start": e.get("start", {}).get("dateTime", e.get("start", {}).get("date")),
+                "end": e.get("end", {}).get("dateTime", e.get("end", {}).get("date")),
+                "location": e.get("location"),
+                "description": e.get("description"),
+                "htmlLink": e.get("htmlLink"),
+                "status": e.get("status"),
+            })
+        return {"events": simplified}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.post("/api/google/calendar/event")
+async def google_calendar_create(req: dict):
+    """Create a calendar event."""
+    try:
+        service = get_google_service("calendar", "v3")
+        calendar_id = req.get("calendar_id", "primary")
+        event = {
+            "summary": req.get("summary", "New Event"),
+            "description": req.get("description", ""),
+            "location": req.get("location", ""),
+            "start": {"dateTime": req.get("start"), "timeZone": req.get("timezone", "America/New_York")},
+            "end": {"dateTime": req.get("end"), "timeZone": req.get("timezone", "America/New_York")},
+        }
+        if req.get("attendees"):
+            event["attendees"] = [{"email": e} for e in req["attendees"]]
+        created = service.events().insert(calendarId=calendar_id, body=event).execute()
+        return {"event": {"id": created["id"], "summary": created.get("summary"), "htmlLink": created.get("htmlLink"), "start": created.get("start"), "end": created.get("end")}}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.delete("/api/google/calendar/event/{event_id}")
+async def google_calendar_delete(event_id: str, calendar_id: str = "primary"):
+    """Delete a calendar event."""
+    try:
+        service = get_google_service("calendar", "v3")
+        service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+
+# ── Google Workspace Status ──────────────────────────────────────────────────
+
+@app.get("/api/google/status")
+async def google_workspace_status():
+    """Check if Google service account is configured and working."""
+    try:
+        creds = get_google_credentials()
+        # Quick test — list 1 file from Drive
+        from googleapiclient.discovery import build
+        drive = build("drive", "v3", credentials=creds)
+        drive.files().list(pageSize=1, fields="files(id)").execute()
+        return {
+            "connected": True,
+            "service_account": creds.service_account_email,
+            "project_id": creds.project_id,
+            "services": ["Drive", "Docs", "Sheets", "Calendar"],
+        }
+    except FileNotFoundError:
+        return {"connected": False, "error": "Service account file not found. Set GOOGLE_SERVICE_ACCOUNT_FILE in .env"}
+    except Exception as e:
+        return {"connected": False, "error": str(e)[:300]}
 
 
 # --- STARTUP ---

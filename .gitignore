@@ -13,6 +13,7 @@ env/
 *.key
 *-key.json
 firebase-service-account.json
+google-service-account.json
 
 # Build outputs
 dist/
