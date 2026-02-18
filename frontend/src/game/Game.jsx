@@ -30,7 +30,7 @@ import Castle from './Castle';
 import Weather from './Weather';
 import GameUI from './GameUI';
 import VesperNPC from './VesperNPC';
-// Horses removed — replaced with better wildlife later
+import Horses from './Horses';
 import Grass from './Grass';
 import Butterflies from './Butterflies';
 import WorldModels from './WorldModels';
@@ -379,6 +379,19 @@ export default function Game({ onExitGame, onChatWithNPC }) {
               <VesperNPC position={[25, 0, 25]} onChat={onChatWithNPC} />
               <Butterflies count={50} />
               
+              {/* Horses & Unicorn — real GLB models */}
+              <Suspense fallback={null}>
+                <Horses
+                  onMount={(id, pos, isUnicorn) => {
+                    setRidingHorseId(id);
+                    setRidingPosition(pos);
+                    setIsRidingUnicorn(isUnicorn);
+                    setHorsesRidden(prev => prev + 1);
+                  }}
+                  ridingHorseId={ridingHorseId}
+                />
+              </Suspense>
+
               <WorldModels />
 
               {/* World Portals — gateways to other environments */}
