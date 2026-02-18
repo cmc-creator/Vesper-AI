@@ -56,6 +56,7 @@ import {
   ArrowBack as ArrowBackIcon,
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -357,6 +358,8 @@ function App() {
   const [threadSearchQuery, setThreadSearchQuery] = useState('');
   const [exportMenuAnchor, setExportMenuAnchor] = useState(null);
   const [exportThreadData, setExportThreadData] = useState(null);
+  const [threadMenuAnchor, setThreadMenuAnchor] = useState(null);
+  const [threadMenuThread, setThreadMenuThread] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [themeMenuAnchor, setThemeMenuAnchor] = useState(null);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -3343,12 +3346,12 @@ export default function App() {
                       className="board-row" 
                       sx={{ 
                         display: 'flex', 
-                        justifyContent: 'space-between', 
                         alignItems: 'center', 
                         gap: 1, 
+                        py: 1.2,
+                        px: 1.5,
                         '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' },
                         borderLeft: selectedThreadIds.includes(thread.id) ? '2px solid var(--accent)' : 'none',
-                        pl: selectedThreadIds.includes(thread.id) ? 1.75 : 2
                       }}
                     >
                       <Checkbox 
@@ -3358,82 +3361,48 @@ export default function App() {
                           e.stopPropagation();
                           handleSelectThread(thread.id);
                         }}
-                        sx={{ p: 0.5, mr: 0.5, color: 'rgba(255,255,255,0.3)' }}
+                        sx={{ p: 0.5, color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}
                       />
                       {editingThreadId === thread.id ? (
-                        <TextField
-                          value={editingThreadTitle}
-                          onChange={(e) => setEditingThreadTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') renameThread(thread.id);
-                            if (e.key === 'Escape') cancelRenameThread();
-                          }}
-                          autoFocus
-                          size="small"
-                          variant="standard"
-                          sx={{ flex: 1, input: { color: '#fff' } }}
-                        />
-                      ) : (
-                        <Box sx={{ flex: 1, cursor: 'pointer', minWidth: 0, overflow: 'hidden' }} onClick={() => loadThread(thread.id)}>
-                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: thread.pinned ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {thread.pinned && '📌 '}{thread.title}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {thread.message_count || 0} {(thread.message_count === 1) ? 'message' : 'messages'} • {formatTime(thread.updated_at)}
-                          </Typography>
+                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <TextField
+                            value={editingThreadTitle}
+                            onChange={(e) => setEditingThreadTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') renameThread(thread.id);
+                              if (e.key === 'Escape') cancelRenameThread();
+                            }}
+                            autoFocus
+                            size="small"
+                            variant="standard"
+                            sx={{ flex: 1, input: { color: '#fff', fontSize: '0.9rem' } }}
+                          />
+                          <IconButton size="small" onClick={() => renameThread(thread.id)} sx={{ color: 'var(--accent)' }}>
+                            <ChecklistRounded fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" onClick={cancelRenameThread} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
                         </Box>
+                      ) : (
+                        <>
+                          <Box sx={{ flex: 1, cursor: 'pointer', minWidth: 0, overflow: 'hidden' }} onClick={() => loadThread(thread.id)}>
+                            <Typography sx={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
+                              📌 {thread.title}
+                            </Typography>
+                            <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', mt: 0.3, lineHeight: 1.3 }}>
+                              {thread.message_count || 0} {(thread.message_count === 1) ? 'message' : 'messages'} · {formatTime(thread.updated_at)}
+                            </Typography>
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); setThreadMenuAnchor(e.currentTarget); setThreadMenuThread(thread); }}
+                            sx={{ color: 'rgba(255,255,255,0.4)', flexShrink: 0, '&:hover': { color: 'var(--accent)' } }}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        </>
                       )}
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        {editingThreadId === thread.id ? (
-                          <>
-                            <IconButton size="small" onClick={() => renameThread(thread.id)} sx={{ color: 'var(--accent)' }}>
-                              <ChecklistRounded fontSize="small" />
-                            </IconButton>
-                            <IconButton size="small" onClick={cancelRenameThread} sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                              <CloseIcon fontSize="small" />
-                            </IconButton>
-                          </>
-                        ) : (
-                          <>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => { e.stopPropagation(); startRenameThread(thread.id, thread.title); }}
-                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'var(--accent)' } }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => { e.stopPropagation(); togglePinThread(thread.id); }}
-                              sx={{ color: thread.pinned ? 'var(--accent)' : 'rgba(255,255,255,0.5)' }}
-                            >
-                              {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                setExportThreadData({ id: thread.id, title: thread.title });
-                                setExportMenuAnchor(e.currentTarget);
-                              }}
-                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'var(--accent)' } }}
-                            >
-                              <DownloadIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => { 
-                        e.stopPropagation(); 
-                        deleteThread(thread.id);
-                        playSound('click');
-                      }}
-                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#ff4444' } }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </>
-                        )}
-                      </Box>
                     </Box>
                   ))}
                         <Box sx={{ borderBottom: '1px solid rgba(0,255,255,0.15)', my: 1 }} />
@@ -3453,12 +3422,12 @@ export default function App() {
                       className="board-row" 
                       sx={{ 
                         display: 'flex', 
-                        justifyContent: 'space-between', 
                         alignItems: 'center', 
                         gap: 1, 
+                        py: 1.2,
+                        px: 1.5,
                         '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' },
                         borderLeft: selectedThreadIds.includes(thread.id) ? '2px solid var(--accent)' : 'none',
-                        pl: selectedThreadIds.includes(thread.id) ? 1.75 : 2
                       }}
                     >
                       <Checkbox 
@@ -3468,82 +3437,48 @@ export default function App() {
                           e.stopPropagation();
                           handleSelectThread(thread.id);
                         }}
-                        sx={{ p: 0.5, mr: 0.5, color: 'rgba(255,255,255,0.3)' }}
+                        sx={{ p: 0.5, color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}
                       />
                       {editingThreadId === thread.id ? (
-                        <TextField
-                          value={editingThreadTitle}
-                          onChange={(e) => setEditingThreadTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') renameThread(thread.id);
-                            if (e.key === 'Escape') cancelRenameThread();
-                          }}
-                          autoFocus
-                          size="small"
-                          variant="standard"
-                          sx={{ flex: 1, input: { color: '#fff' } }}
-                        />
-                      ) : (
-                        <Box sx={{ flex: 1, cursor: 'pointer', minWidth: 0, overflow: 'hidden' }} onClick={() => loadThread(thread.id)}>
-                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {thread.title}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {thread.message_count || 0} {(thread.message_count === 1) ? 'message' : 'messages'} • {formatTime(thread.updated_at)}
-                          </Typography>
+                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <TextField
+                            value={editingThreadTitle}
+                            onChange={(e) => setEditingThreadTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') renameThread(thread.id);
+                              if (e.key === 'Escape') cancelRenameThread();
+                            }}
+                            autoFocus
+                            size="small"
+                            variant="standard"
+                            sx={{ flex: 1, input: { color: '#fff', fontSize: '0.9rem' } }}
+                          />
+                          <IconButton size="small" onClick={() => renameThread(thread.id)} sx={{ color: 'var(--accent)' }}>
+                            <ChecklistRounded fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" onClick={cancelRenameThread} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
                         </Box>
+                      ) : (
+                        <>
+                          <Box sx={{ flex: 1, cursor: 'pointer', minWidth: 0, overflow: 'hidden' }} onClick={() => loadThread(thread.id)}>
+                            <Typography sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 400, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
+                              {thread.title}
+                            </Typography>
+                            <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', mt: 0.3, lineHeight: 1.3 }}>
+                              {thread.message_count || 0} {(thread.message_count === 1) ? 'message' : 'messages'} · {formatTime(thread.updated_at)}
+                            </Typography>
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); setThreadMenuAnchor(e.currentTarget); setThreadMenuThread(thread); }}
+                            sx={{ color: 'rgba(255,255,255,0.4)', flexShrink: 0, '&:hover': { color: 'var(--accent)' } }}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        </>
                       )}
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        {editingThreadId === thread.id ? (
-                          <>
-                            <IconButton size="small" onClick={() => renameThread(thread.id)} sx={{ color: 'var(--accent)' }}>
-                              <ChecklistRounded fontSize="small" />
-                            </IconButton>
-                            <IconButton size="small" onClick={cancelRenameThread} sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                              <CloseIcon fontSize="small" />
-                            </IconButton>
-                          </>
-                        ) : (
-                          <>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => { e.stopPropagation(); startRenameThread(thread.id, thread.title); }}
-                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'var(--accent)' } }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => { e.stopPropagation(); togglePinThread(thread.id); }}
-                              sx={{ color: 'rgba(255,255,255,0.5)' }}
-                            >
-                              <PinOutlinedIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                setExportThreadData({ id: thread.id, title: thread.title });
-                                setExportMenuAnchor(e.currentTarget);
-                              }}
-                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'var(--accent)' } }}
-                            >
-                              <DownloadIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => { 
-                        e.stopPropagation(); 
-                        deleteThread(thread.id);
-                        playSound('click');
-                      }}
-                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#ff4444' } }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </>
-                        )}
-                      </Box>
                     </Box>
                   ))}
                       </>
@@ -6280,6 +6215,47 @@ export default function App() {
         }}>
           <DownloadIcon fontSize="small" sx={{ mr: 1 }} /> Export as JSON
         </MenuItem>
+      </Menu>
+
+      {/* Thread Actions Context Menu */}
+      <Menu
+        anchorEl={threadMenuAnchor}
+        open={Boolean(threadMenuAnchor)}
+        onClose={() => { setThreadMenuAnchor(null); setThreadMenuThread(null); }}
+        PaperProps={{ sx: { bgcolor: 'rgba(15,18,35,0.95)', border: '1px solid rgba(0,255,255,0.15)', backdropFilter: 'blur(12px)', minWidth: 180 } }}
+      >
+        {threadMenuThread && [
+          <MenuItem key="rename" onClick={() => {
+            startRenameThread(threadMenuThread.id, threadMenuThread.title);
+            setThreadMenuAnchor(null); setThreadMenuThread(null);
+          }} sx={{ color: '#fff', fontSize: '0.875rem', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+            <EditIcon fontSize="small" sx={{ mr: 1.5, color: 'var(--accent)' }} /> Rename
+          </MenuItem>,
+          <MenuItem key="pin" onClick={() => {
+            togglePinThread(threadMenuThread.id);
+            setThreadMenuAnchor(null); setThreadMenuThread(null);
+          }} sx={{ color: '#fff', fontSize: '0.875rem', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+            {threadMenuThread.pinned
+              ? <><PinIcon fontSize="small" sx={{ mr: 1.5, color: 'var(--accent)' }} /> Unpin</>
+              : <><PinOutlinedIcon fontSize="small" sx={{ mr: 1.5, color: 'rgba(255,255,255,0.6)' }} /> Pin</>
+            }
+          </MenuItem>,
+          <MenuItem key="export" onClick={(e) => {
+            setExportThreadData({ id: threadMenuThread.id, title: threadMenuThread.title });
+            setExportMenuAnchor(e.currentTarget);
+            setThreadMenuAnchor(null); setThreadMenuThread(null);
+          }} sx={{ color: '#fff', fontSize: '0.875rem', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+            <DownloadIcon fontSize="small" sx={{ mr: 1.5, color: 'rgba(255,255,255,0.6)' }} /> Export
+          </MenuItem>,
+          <Divider key="divider" sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />,
+          <MenuItem key="delete" onClick={() => {
+            deleteThread(threadMenuThread.id);
+            playSound('click');
+            setThreadMenuAnchor(null); setThreadMenuThread(null);
+          }} sx={{ color: '#ff4444', fontSize: '0.875rem', '&:hover': { bgcolor: 'rgba(255,68,68,0.1)' } }}>
+            <DeleteIcon fontSize="small" sx={{ mr: 1.5 }} /> Delete
+          </MenuItem>,
+        ]}
       </Menu>
       
       {/* Canvas Modal */}
