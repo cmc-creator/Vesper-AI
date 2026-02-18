@@ -792,8 +792,29 @@ export default function App() {
       
       // If no thread, create one
       if (!threadId) {
-        const firstWords = content.slice(0, 50).trim();
-        const title = firstWords.length === 50 ? `${firstWords}...` : firstWords;
+        // Generate a meaningful initial title from the first message
+        const cleanContent = content
+          .replace(/\[File:.*?\]/g, '')  // Remove file references
+          .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+          .replace(/https?:\/\/\S+/g, '') // Remove URLs
+          .replace(/\s+/g, ' ')
+          .trim();
+        // Try to get first sentence
+        const sentenceMatch = cleanContent.match(/^(.+?[.?!])\s/);
+        let title;
+        if (sentenceMatch && sentenceMatch[1].length <= 70) {
+          title = sentenceMatch[1];
+        } else {
+          // Take first ~60 chars, break at word boundary
+          const words = cleanContent.split(' ');
+          let t = '';
+          for (const w of words) {
+            if ((t + ' ' + w).length > 60) break;
+            t = t ? t + ' ' + w : w;
+          }
+          title = t || cleanContent.slice(0, 60);
+        }
+        if (!title || title.length < 3) title = `Chat ${new Date().toLocaleDateString()}`;
         
         console.log('📝 Creating new thread with title:', title);
         
@@ -1027,6 +1048,22 @@ export default function App() {
         await saveMessageToThread('assistant', accumulatedText, savedThreadId);
       }
       
+      // Auto-generate a proper topic title for new threads
+      const threadToTitle = savedThreadId || currentThreadId;
+      if (threadToTitle && accumulatedText) {
+        try {
+          const titleRes = await fetch(`${apiBase}/api/threads/${threadToTitle}/auto-title`, { method: 'POST' });
+          const titleData = await titleRes.json();
+          if (titleData.status === 'success' && titleData.title) {
+            setCurrentThreadTitle(titleData.title);
+            setThreads(prev => prev.map(t => t.id === threadToTitle ? { ...t, title: titleData.title } : t));
+          }
+        } catch (e) {
+          // Auto-title is best-effort, don't block on failure
+          console.warn('Auto-title skipped:', e.message);
+        }
+      }
+      
       // Auto-speak the complete response
       if (autoSpeak && accumulatedText) {
         speak(accumulatedText, activeSection === 'chat' ? 'chat' : activeSection === 'research' ? 'research' : 'default');
@@ -1120,11 +1157,11 @@ export default function App() {
           setToast(`📎 ${file.name} attached`);
         };
         reader.readAsDataURL(file);
-      } else if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.csv')) {
+      } else if (file.type === 'text/plain' || file.type === 'application/json' || file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.csv') || file.name.endsWith('.log') || file.name.endsWith('.xml') || file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
         const reader = new FileReader();
         reader.onload = (ev) => {
           const content = ev.target.result;
-          setInput(prev => prev + (prev ? '\n\n' : '') + `[File: ${file.name}]\n${content.slice(0, 3000)}`);
+          setInput(prev => prev + (prev ? '\n\n' : '') + `[File: ${file.name}]\n${content.slice(0, 5000)}`);
           setToast(`📎 ${file.name} added to message`);
         };
         reader.readAsText(file);
@@ -2072,13 +2109,24 @@ export default function App() {
 
   // Filter threads based on search query
   const filteredThreads = useMemo(() => {
-    if (!threadSearchQuery.trim()) return threads;
-    const query = threadSearchQuery.toLowerCase();
-    return threads.filter(thread => 
-      thread.title.toLowerCase().includes(query) ||
-      (thread.message_count && thread.message_count.toString().includes(query))
-    );
+    let result = threads;
+    if (threadSearchQuery.trim()) {
+      const query = threadSearchQuery.toLowerCase();
+      result = result.filter(thread => 
+        thread.title.toLowerCase().includes(query) ||
+        (thread.summary && thread.summary.toLowerCase().includes(query)) ||
+        (thread.message_count && thread.message_count.toString().includes(query))
+      );
+    }
+    // Sort: pinned first, then newest first
+    return [...result].sort((a, b) => {
+      if (a.pinned !== b.pinned) return b.pinned ? 1 : -1;
+      return new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
+    });
   }, [threads, threadSearchQuery]);
+
+  const pinnedThreads = useMemo(() => filteredThreads.filter(t => t.pinned), [filteredThreads]);
+  const unpinnedThreads = useMemo(() => filteredThreads.filter(t => !t.pinned), [filteredThreads]);
 
   const downloadThreadMD = async (threadId, title) => {
     if (!apiBase) return;
@@ -2290,8 +2338,17 @@ export default function App() {
         setToast('Image attached');
       };
       reader.readAsDataURL(file);
+    } else if (fileName.endsWith('.txt') || fileName.endsWith('.md') || fileName.endsWith('.json') || fileName.endsWith('.csv') || fileName.endsWith('.log') || fileName.endsWith('.xml') || fileName.endsWith('.yaml') || fileName.endsWith('.yml') || file.type === 'text/plain') {
+      // Read text-based files and paste content into chat
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const content = ev.target.result;
+        setInput(prev => prev + (prev ? '\n\n' : '') + `[File: ${fileName}]\n${content.slice(0, 5000)}`);
+        setToast(`📎 ${fileName} added to message`);
+      };
+      reader.readAsText(file);
     } else {
-      // Non-image file - just add reference
+      // Other file types - add reference
       const fileRef = `📎 [File: ${fileName}]`;
       setInput((prev) => (prev ? prev + ' ' + fileRef : fileRef));
     }
@@ -3207,7 +3264,17 @@ export default function App() {
                     ))}
                   </Box>
                 ) : filteredThreads.length > 0 ? (
-                  filteredThreads.map((thread) => (
+                  <>
+                    {/* Pinned Section */}
+                    {pinnedThreads.length > 0 && (
+                      <>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.5, mb: 0.5 }}>
+                          <PinIcon sx={{ fontSize: '0.85rem', color: 'var(--accent)' }} />
+                          <Typography variant="caption" sx={{ color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>
+                            Pinned ({pinnedThreads.length})
+                          </Typography>
+                        </Box>
+                        {pinnedThreads.map((thread) => (
                     <Box 
                       key={thread.id} 
                       className="board-row" 
@@ -3305,7 +3372,120 @@ export default function App() {
                         )}
                       </Box>
                     </Box>
-                  ))
+                  ))}
+                        <Box sx={{ borderBottom: '1px solid rgba(0,255,255,0.15)', my: 1 }} />
+                      </>
+                    )}
+                    {/* Recent Conversations Section */}
+                    {unpinnedThreads.length > 0 && (
+                      <>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.5, mb: 0.5 }}>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                            Recent ({unpinnedThreads.length})
+                          </Typography>
+                        </Box>
+                        {unpinnedThreads.map((thread) => (
+                    <Box 
+                      key={thread.id} 
+                      className="board-row" 
+                      sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        gap: 1, 
+                        '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' },
+                        borderLeft: selectedThreadIds.includes(thread.id) ? '2px solid var(--accent)' : 'none',
+                        pl: selectedThreadIds.includes(thread.id) ? 1.75 : 2
+                      }}
+                    >
+                      <Checkbox 
+                        size="small" 
+                        checked={selectedThreadIds.includes(thread.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleSelectThread(thread.id);
+                        }}
+                        sx={{ p: 0.5, mr: 0.5, color: 'rgba(255,255,255,0.3)' }}
+                      />
+                      {editingThreadId === thread.id ? (
+                        <TextField
+                          value={editingThreadTitle}
+                          onChange={(e) => setEditingThreadTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') renameThread(thread.id);
+                            if (e.key === 'Escape') cancelRenameThread();
+                          }}
+                          autoFocus
+                          size="small"
+                          variant="standard"
+                          sx={{ flex: 1, input: { color: '#fff' } }}
+                        />
+                      ) : (
+                        <Box sx={{ flex: 1, cursor: 'pointer' }} onClick={() => loadThread(thread.id)}>
+                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 400 }}>
+                            {thread.title}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                            {thread.message_count || 0} messages • {formatTime(thread.updated_at)}
+                          </Typography>
+                        </Box>
+                      )}
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        {editingThreadId === thread.id ? (
+                          <>
+                            <IconButton size="small" onClick={() => renameThread(thread.id)} sx={{ color: 'var(--accent)' }}>
+                              <ChecklistRounded fontSize="small" />
+                            </IconButton>
+                            <IconButton size="small" onClick={cancelRenameThread} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
+                          </>
+                        ) : (
+                          <>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => { e.stopPropagation(); startRenameThread(thread.id, thread.title); }}
+                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'var(--accent)' } }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => { e.stopPropagation(); togglePinThread(thread.id); }}
+                              sx={{ color: 'rgba(255,255,255,0.5)' }}
+                            >
+                              <PinOutlinedIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setExportThreadData({ id: thread.id, title: thread.title });
+                                setExportMenuAnchor(e.currentTarget);
+                              }}
+                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'var(--accent)' } }}
+                            >
+                              <DownloadIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => { 
+                        e.stopPropagation(); 
+                        deleteThread(thread.id);
+                        playSound('click');
+                      }}
+                              sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#ff4444' } }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
+                      </Box>
+                    </Box>
+                  ))}
+                      </>
+                    )}
+                  </>
                 ) : (
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
                     {threadSearchQuery ? `No conversations matching "${threadSearchQuery}"` : 'No chat history yet.'}
@@ -4775,7 +4955,15 @@ export default function App() {
                   <CircularProgress size={20} sx={{ color: 'var(--accent)' }} />
                 </Box>
               ) : threads && threads.length > 0 ? (
-                threads.map((thread) => (
+                (() => {
+                  const sortedThreads = [...threads].sort((a, b) => {
+                    if (a.pinned !== b.pinned) return b.pinned ? 1 : -1;
+                    return new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
+                  });
+                  const sidebarPinned = sortedThreads.filter(t => t.pinned);
+                  const sidebarRecent = sortedThreads.filter(t => !t.pinned);
+
+                  const renderSidebarThread = (thread) => (
                   <Box
                     key={thread.id}
                     sx={{
@@ -4967,7 +5155,32 @@ export default function App() {
                       </Box>
                     )}
                   </Box>
-                ))
+                  );
+
+                  return (
+                    <>
+                      {sidebarPinned.length > 0 && (
+                        <>
+                          <Typography variant="caption" sx={{ color: 'var(--accent)', fontWeight: 700, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 1.5, px: 1, pt: 0.5 }}>
+                            📌 Pinned
+                          </Typography>
+                          {sidebarPinned.map(renderSidebarThread)}
+                          <Box sx={{ borderBottom: '1px solid rgba(0,255,255,0.15)', my: 0.5, mx: 1 }} />
+                        </>
+                      )}
+                      {sidebarRecent.length > 0 && (
+                        <>
+                          {sidebarPinned.length > 0 && (
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 1.5, px: 1, pt: 0.5 }}>
+                              Recent
+                            </Typography>
+                          )}
+                          {sidebarRecent.map(renderSidebarThread)}
+                        </>
+                      )}
+                    </>
+                  );
+                })()
               ) : !threadsLoading && (
                 <Typography 
                   variant="caption" 
@@ -5342,6 +5555,9 @@ export default function App() {
                 e.preventDefault();
                 sendMessage();
               }}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
               className="input-bar glass-card"
               sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
             >

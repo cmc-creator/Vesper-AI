@@ -1503,6 +1503,88 @@ def delete_thread_endpoint(thread_id: str):
         print(f"❌ Error deleting thread: {e}")
         return {"status": "error", "error": str(e)}
 
+@app.post("/api/threads/{thread_id}/auto-title")
+async def auto_title_thread(thread_id: str):
+    """Auto-generate a concise topic title for a thread using AI."""
+    try:
+        thread = memory_db.get_thread(thread_id)
+        if not thread:
+            return {"status": "not_found"}
+
+        messages = thread.get("messages", [])
+        if not messages:
+            return {"status": "skipped", "reason": "no messages"}
+
+        # Build a compact conversation excerpt (first few messages, max ~600 chars)
+        excerpt_parts = []
+        for msg in messages[:6]:
+            role = msg.get("role", "user")
+            text = msg.get("content", "")[:200]
+            excerpt_parts.append(f"{role}: {text}")
+        excerpt = "\n".join(excerpt_parts)
+
+        prompt = (
+            "Generate a very short title (3-8 words, no quotes) summarizing the main topic of this conversation. "
+            "Be specific and descriptive. Examples of good titles: 'Setting up Google API integration', "
+            "'3D horse models in game world', 'Fix React build errors', 'Planning weekend trip to Sedona'.\n\n"
+            f"Conversation:\n{excerpt}\n\nTitle:"
+        )
+
+        new_title = None
+
+        # Try Anthropic first
+        if os.getenv("ANTHROPIC_API_KEY") and not new_title:
+            try:
+                client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+                resp = client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=30,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                new_title = resp.content[0].text.strip().strip('"').strip("'")
+            except Exception as e:
+                print(f"Auto-title Anthropic failed: {e}")
+
+        # Try OpenAI
+        if os.getenv("OPENAI_API_KEY") and not new_title:
+            try:
+                import openai
+                openai.api_key = os.getenv("OPENAI_API_KEY")
+                resp = openai.chat.completions.create(
+                    model="gpt-4o-mini",
+                    max_tokens=30,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                new_title = resp.choices[0].message.content.strip().strip('"').strip("'")
+            except Exception as e:
+                print(f"Auto-title OpenAI failed: {e}")
+
+        # Try Google Gemini
+        if os.getenv("GOOGLE_API_KEY") and not new_title:
+            try:
+                from google import genai
+                gemini_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+                resp = gemini_client.models.generate_content(
+                    model="gemini-2.0-flash",
+                    contents=prompt,
+                )
+                new_title = resp.text.strip().strip('"').strip("'")
+            except Exception as e:
+                print(f"Auto-title Gemini failed: {e}")
+
+        if new_title and len(new_title) > 2:
+            # Cap at 80 chars
+            if len(new_title) > 80:
+                new_title = new_title[:77] + "..."
+            memory_db.update_thread_title(thread_id, new_title)
+            return {"status": "success", "title": new_title}
+
+        return {"status": "skipped", "reason": "AI title generation failed"}
+    except Exception as e:
+        print(f"❌ Auto-title error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "error": str(e)}
 
 
 # --- Smart Memory with Tags (Database-backed) ---
