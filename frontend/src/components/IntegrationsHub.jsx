@@ -69,33 +69,37 @@ const SERVICES = [
   {
     id: 'google_workspace', label: 'Google Workspace', icon: '🔷', color: '#4285f4', category: 'productivity',
     desc: 'Docs, Sheets, Slides, Drive, Calendar — full workspace access',
-    fields: ['api_key'],
+    fields: [],
     links: { docs: 'https://developers.google.com/workspace', dashboard: 'https://workspace.google.com' },
-    note: 'Connie Michelle Consulting workspace. Uses service account or OAuth2 credentials.',
+    note: 'Uses service account (vesper-working@warm-cycle-471217-p5). No API key needed.',
   },
   {
     id: 'google_docs', label: 'Google Docs', icon: '📝', color: '#4285f4', category: 'productivity',
     desc: 'Create & edit documents programmatically via Docs API',
-    fields: ['api_key'],
+    fields: [],
     links: { docs: 'https://developers.google.com/docs/api', dashboard: 'https://docs.google.com' },
+    note: 'Uses service account — no API key needed.',
   },
   {
     id: 'google_sheets', label: 'Google Sheets', icon: '📊', color: '#0f9d58', category: 'productivity',
     desc: 'Spreadsheets API — read/write data, create charts',
-    fields: ['api_key'],
+    fields: [],
     links: { docs: 'https://developers.google.com/sheets/api', dashboard: 'https://sheets.google.com' },
+    note: 'Uses service account — no API key needed.',
   },
   {
     id: 'google_drive', label: 'Google Drive', icon: '☁️', color: '#ffba00', category: 'productivity',
     desc: 'File storage — upload, organize, share documents',
-    fields: ['api_key'],
+    fields: [],
     links: { docs: 'https://developers.google.com/drive/api', dashboard: 'https://drive.google.com' },
+    note: 'Uses service account — no API key needed.',
   },
   {
     id: 'google_calendar', label: 'Google Calendar', icon: '📅', color: '#4285f4', category: 'productivity',
     desc: 'Scheduling — create events, check availability',
-    fields: ['api_key'],
+    fields: [],
     links: { docs: 'https://developers.google.com/calendar', dashboard: 'https://calendar.google.com' },
+    note: 'Uses service account — no API key needed.',
   },
 ];
 

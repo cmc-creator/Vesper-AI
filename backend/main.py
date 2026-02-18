@@ -797,6 +797,17 @@ YOUR CAPABILITIES (You HAVE These Now):
 - **Web Scraping**: You can scrape any URL for content analysis
 - **File Operations**: Read, write, and list files on CC's machine
 - **Python Execution**: Run Python code in a sandboxed environment for calculations, data analysis, prototyping
+- **Google Workspace Integration**: You have REAL access to Google Workspace via a service account. You can:
+  - **Google Drive**: List, search, create, and upload files — `GET /api/google/drive/files`, `POST /api/google/drive/upload`
+  - **Google Docs**: Create and read documents — `POST /api/google/docs/create`, `GET /api/google/docs/{doc_id}`
+  - **Google Sheets**: Create spreadsheets, read/write data — `POST /api/google/sheets/create`, `GET /api/google/sheets/{id}/values`
+  - **Google Calendar**: List events, create events, manage schedule — `GET /api/google/calendar/events`, `POST /api/google/calendar/event`
+  - Service account: vesper-working@warm-cycle-471217-p5.iam.gserviceaccount.com
+  - Share files/calendars WITH this service account email so you can access them
+- **Multi-Brand Management**: You can manage multiple brand identities simultaneously via the Creative Command Center. Each brand has its own colors, logos, taglines, industry, and website.
+- **Content Studio**: Create and track content (blogs, social posts, proposals, pitch decks, case studies) tied to specific brands
+- **Strategy Board**: Set business goals, SWOT analyses, OKRs, competitor analyses, growth plans per brand
+- **Campaign Manager**: Plan and track marketing campaigns across platforms (Facebook, Instagram, LinkedIn, Google Ads, etc.)
 - **Git Operations**: Check git status, view diffs, commit changes, and push to GitHub (commits/pushes require CC's approval)
 - **GitHub Integration**: Search issues, create issues, manage the cmc-creator/Vesper-AI repository
 - **Deployment Control**:
@@ -819,7 +830,16 @@ CC built you a full cyberpunk dashboard app. This is YOUR interface. Here's ever
   3. **Documents** — upload & manage documents (PDF, Word, Excel, images with OCR)
   4. **Memory Core** — browse all 7 memory categories, search, add/edit memories
   5. **Task Matrix** — kanban board: Inbox → Doing → Done
-  6. **Creative Suite (NyxShift)** — the creative workspace for storytelling, world-building, atmospheric projects
+  6. **Creative Command Center** — full business consulting suite with sidebar navigation:
+     - **Command Hub**: Dashboard with stats, brand filter, quick actions
+     - **Brand Identities**: Manage multiple business brands (logos, colors, taglines, industry)
+     - **Content Studio**: Create blogs, social posts, proposals, pitch decks, case studies (tied to brands)
+     - **Strategy Board**: Goals, SWOT, OKRs, competitor analysis, growth plans
+     - **Campaigns**: Marketing campaigns across all platforms with budgets and dates
+     - **Audience Intelligence**: Buyer personas, market research, engagement metrics (coming soon)
+     - **Asset Library**: Centralized brand assets and templates (coming soon)
+     - **Google Tools**: Direct Google Workspace integration (Drive files, Calendar events, create docs/sheets)
+     - **NyxShift**: Creative workspace for storytelling, world-building
   7. **Vesper's Wardrobe** — your personality accessories: entertainment responses, sassy comebacks, mood boosts
   8. **Analytics** — usage stats and insights dashboard
   9. **Personality** — switch between personality presets (Sassy, Professional, etc.) and customize your system prompt
@@ -7004,6 +7024,19 @@ async def delete_integration(service: str):
 @app.post("/api/integrations/test/{service}")
 async def test_integration(service: str):
     """Test if an integration's API key is valid"""
+    # Google services use service account file, not API key — test directly
+    if service in ("google_workspace", "google_docs", "google_sheets", "google_drive", "google_calendar"):
+        try:
+            creds = get_google_credentials()
+            from googleapiclient.discovery import build
+            drive = build("drive", "v3", credentials=creds)
+            drive.files().list(pageSize=1, fields="files(id)").execute()
+            return {"connected": True, "note": f"Google Workspace connected as {creds.service_account_email}"}
+        except FileNotFoundError:
+            return {"connected": False, "error": "Service account file not found — set GOOGLE_SERVICE_ACCOUNT_FILE in .env"}
+        except Exception as ge:
+            return {"connected": False, "error": f"Google API error: {str(ge)[:150]}"}
+
     data = load_integrations()
     entry = data.get(service, {})
     key = entry.get("api_key", "")
@@ -7023,22 +7056,181 @@ async def test_integration(service: str):
             return {"connected": True}
         elif service == "canva":
             return {"connected": bool(key), "note": "Canva Connect API — key stored"}
-        elif service in ("google_workspace", "google_docs", "google_sheets", "google_drive", "google_calendar"):
-            # Test actual Google service account connection
-            try:
-                creds = get_google_credentials()
-                from googleapiclient.discovery import build
-                drive = build("drive", "v3", credentials=creds)
-                drive.files().list(pageSize=1, fields="files(id)").execute()
-                return {"connected": True, "note": f"Google Workspace connected as {creds.service_account_email}"}
-            except FileNotFoundError:
-                return {"connected": bool(key), "note": "Service account file not found — using stored key only"}
-            except Exception as ge:
-                return {"connected": False, "error": f"Google API error: {str(ge)[:150]}"}
         else:
             return {"connected": bool(key), "note": "Key stored — manual verification needed"}
     except Exception as e:
         return {"connected": False, "error": str(e)[:200]}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ███ MULTI-BRAND IDENTITIES — Multiple businesses ████████████████████████████
+# ═══════════════════════════════════════════════════════════════════════════════
+
+BRANDS_FILE = os.path.join(DATA_DIR, "brands.json")
+
+def load_brands():
+    if os.path.exists(BRANDS_FILE):
+        with open(BRANDS_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+def save_brands(data):
+    with open(BRANDS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+@app.get("/api/brands")
+async def get_brands():
+    return load_brands()
+
+@app.post("/api/brands")
+async def create_brand(request: Request):
+    body = await request.json()
+    brands = load_brands()
+    brand = {
+        "id": str(uuid.uuid4())[:8],
+        "name": body.get("name", ""),
+        "industry": body.get("industry", ""),
+        "tagline": body.get("tagline", ""),
+        "description": body.get("description", ""),
+        "colors": body.get("colors", []),
+        "logo_url": body.get("logo_url", ""),
+        "website": body.get("website", ""),
+        "created_at": datetime.datetime.now().isoformat(),
+    }
+    brands.append(brand)
+    save_brands(brands)
+    return brand
+
+@app.put("/api/brands/{brand_id}")
+async def update_brand(brand_id: str, request: Request):
+    body = await request.json()
+    brands = load_brands()
+    for i, b in enumerate(brands):
+        if b["id"] == brand_id:
+            brands[i].update({k: v for k, v in body.items() if k != "id"})
+            save_brands(brands)
+            return brands[i]
+    return JSONResponse({"error": "Brand not found"}, status_code=404)
+
+@app.delete("/api/brands/{brand_id}")
+async def delete_brand(brand_id: str):
+    brands = load_brands()
+    brands = [b for b in brands if b["id"] != brand_id]
+    save_brands(brands)
+    return {"success": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ███ CREATIVE SUITE — Content, Strategies, Campaigns █████████████████████████
+# ═══════════════════════════════════════════════════════════════════════════════
+
+CREATIVE_CONTENT_FILE = os.path.join(DATA_DIR, "creative_content.json")
+CREATIVE_STRATEGIES_FILE = os.path.join(DATA_DIR, "creative_strategies.json")
+CREATIVE_CAMPAIGNS_FILE = os.path.join(DATA_DIR, "creative_campaigns.json")
+
+def _load_json(path, default=None):
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return default if default is not None else []
+
+def _save_json(path, data):
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
+# ── Content CRUD ─────────────────────────────────────────────────
+
+@app.get("/api/creative/content")
+async def get_creative_content():
+    return {"items": _load_json(CREATIVE_CONTENT_FILE, [])}
+
+@app.post("/api/creative/content")
+async def create_creative_content(request: Request):
+    body = await request.json()
+    items = _load_json(CREATIVE_CONTENT_FILE, [])
+    item = {
+        "id": str(uuid.uuid4())[:8],
+        "title": body.get("title", ""),
+        "type": body.get("type", "blog"),
+        "status": body.get("status", "draft"),
+        "body": body.get("body", ""),
+        "brand_id": body.get("brand_id"),
+        "tags": body.get("tags", []),
+        "created_at": datetime.datetime.now().isoformat(),
+    }
+    items.append(item)
+    _save_json(CREATIVE_CONTENT_FILE, items)
+    return item
+
+@app.delete("/api/creative/content/{item_id}")
+async def delete_creative_content(item_id: str):
+    items = _load_json(CREATIVE_CONTENT_FILE, [])
+    items = [i for i in items if i.get("id") != item_id]
+    _save_json(CREATIVE_CONTENT_FILE, items)
+    return {"success": True}
+
+# ── Strategy CRUD ────────────────────────────────────────────────
+
+@app.get("/api/creative/strategies")
+async def get_creative_strategies():
+    return {"items": _load_json(CREATIVE_STRATEGIES_FILE, [])}
+
+@app.post("/api/creative/strategies")
+async def create_creative_strategy(request: Request):
+    body = await request.json()
+    items = _load_json(CREATIVE_STRATEGIES_FILE, [])
+    item = {
+        "id": str(uuid.uuid4())[:8],
+        "title": body.get("title", ""),
+        "type": body.get("type", "goal"),
+        "description": body.get("description", ""),
+        "priority": body.get("priority", "medium"),
+        "brand_id": body.get("brand_id"),
+        "created_at": datetime.datetime.now().isoformat(),
+    }
+    items.append(item)
+    _save_json(CREATIVE_STRATEGIES_FILE, items)
+    return item
+
+@app.delete("/api/creative/strategies/{item_id}")
+async def delete_creative_strategy(item_id: str):
+    items = _load_json(CREATIVE_STRATEGIES_FILE, [])
+    items = [i for i in items if i.get("id") != item_id]
+    _save_json(CREATIVE_STRATEGIES_FILE, items)
+    return {"success": True}
+
+# ── Campaign CRUD ────────────────────────────────────────────────
+
+@app.get("/api/creative/campaigns")
+async def get_creative_campaigns():
+    return {"items": _load_json(CREATIVE_CAMPAIGNS_FILE, [])}
+
+@app.post("/api/creative/campaigns")
+async def create_creative_campaign(request: Request):
+    body = await request.json()
+    items = _load_json(CREATIVE_CAMPAIGNS_FILE, [])
+    item = {
+        "id": str(uuid.uuid4())[:8],
+        "name": body.get("name", ""),
+        "platform": body.get("platform", ""),
+        "status": body.get("status", "planning"),
+        "start_date": body.get("start_date", ""),
+        "end_date": body.get("end_date", ""),
+        "budget": body.get("budget", ""),
+        "brand_id": body.get("brand_id"),
+        "notes": body.get("notes", ""),
+        "created_at": datetime.datetime.now().isoformat(),
+    }
+    items.append(item)
+    _save_json(CREATIVE_CAMPAIGNS_FILE, items)
+    return item
+
+@app.delete("/api/creative/campaigns/{item_id}")
+async def delete_creative_campaign(item_id: str):
+    items = _load_json(CREATIVE_CAMPAIGNS_FILE, [])
+    items = [i for i in items if i.get("id") != item_id]
+    _save_json(CREATIVE_CAMPAIGNS_FILE, items)
+    return {"success": True}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
