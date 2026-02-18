@@ -2703,6 +2703,9 @@ export default function App() {
 
           <ReactMarkdown
             components={{
+              a: ({ href, children, ...props }) => (
+                <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }} {...props}>{children}</a>
+              ),
               code: ({ inline, className, children, ...props }) => {
                 const match = /language-(\w+)/.exec(className || '');
                 const codeString = String(children).replace(/\n$/, '');
