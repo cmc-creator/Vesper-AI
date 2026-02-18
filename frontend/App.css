@@ -311,9 +311,9 @@ canvas {
 .hex-grid {
   background-color: #000;
   background-image: url('/background.jpg');
-  background-size: cover;
-  background-position: center top;
-  background-repeat: repeat-y;
+  background-size: 300px 300px;
+  background-position: top left;
+  background-repeat: repeat;
   opacity: 0.95;
 }
 
@@ -1019,4 +1019,39 @@ button:active,
 .MuiBackdrop-root {
   backdrop-filter: blur(8px) !important;
   transition: all 0.3s ease !important;
+}
+
+/* ===== COCKPIT COMMAND CENTER STYLES ===== */
+
+/* Cockpit panel scan line animation overlay */
+@keyframes cockpitScan {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 20px; }
+}
+
+.ops-panel {
+  position: relative;
+}
+
+.ops-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 2px,
+    rgba(0,255,255,0.008) 2px,
+    rgba(0,255,255,0.008) 4px
+  );
+  animation: cockpitScan 3s linear infinite;
+  border-radius: inherit;
+}
+
+/* Cockpit subsystem panel hover glow */
+.ops-panel > div > div:hover {
+  border-color: rgba(0,255,255,0.15) !important;
+  box-shadow: 0 0 12px rgba(0,255,255,0.06), inset 0 0 20px rgba(0,255,255,0.02) !important;
 }

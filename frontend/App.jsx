@@ -95,6 +95,7 @@ const GameLazy = React.lazy(() => import('./src/game/Game'));
 import SystemDiagnostics from './src/components/SystemDiagnostics';
 import SystemStatusCard from './src/components/SystemStatusCard';
 import WeatherWidget from './src/components/WeatherWidget';
+import CockpitPanel from './src/components/CockpitPanel';
 import CreativeSuite from './src/components/CreativeSuite';
 import Sassy from './src/components/Sassy';
 import MediaGallery from './src/components/MediaGallery';
@@ -5781,44 +5782,33 @@ export default function App() {
           </section>
 
           <section className="ops-panel">
-            {/* Cool Dashboard - Statistics & Quick Actions */}
-            <Box className="panel-grid" sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
-              
-              {/* Weather Widget (Replaces AI Stats) */}
-              <WeatherWidget />
+            {/* ═══ COCKPIT COMMAND CENTER ═══ */}
+            <CockpitPanel />
 
-              {/* System Status Card */}
+            {/* Dashboard widgets row */}
+            <Box className="panel-grid" sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2, mt: 1 }}>
+              <WeatherWidget />
               {showSystemStatus && (
                 <div 
                   onClick={(e) => {
-                    // Only open diagnostics if not interacting with the slider or hide button
                     const target = e.target;
-                    if (target.closest('.MuiSlider-root') || target.closest('button')) {
-                      return;
-                    }
+                    if (target.closest('.MuiSlider-root') || target.closest('button')) return;
                     setDiagnosticsOpen(true);
                   }} 
                   style={{ cursor: 'pointer' }}
                 >
-                  <SystemStatusCard 
-                    apiBase={apiBase} 
-                    onHide={() => setShowSystemStatus(false)}
-                  />
+                  <SystemStatusCard apiBase={apiBase} onHide={() => setShowSystemStatus(false)} />
                 </div>
               )}
               {!showSystemStatus && (
                 <Button 
-                  variant="outlined" 
-                  size="small" 
+                  variant="outlined" size="small" 
                   onClick={() => setShowSystemStatus(true)}
                   sx={{ borderColor: 'var(--accent)', color: 'var(--accent)', width: '100%', height: '50px' }}
                 >
                   Show System Widget
                 </Button>
               )}
-
-              {/* Quick Actions and Active Session removed — these are accessible from sidebar and tools grid */}
-
             </Box>
 
             {/* Vesper World - Entry Card */}
