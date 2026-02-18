@@ -3611,7 +3611,7 @@ export default function App() {
               <AvatarStudio 
                 apiBase={apiBase} 
                 onClose={() => setAvatarStudioOpen(false)} 
-                accentColor={currentTheme.accent} 
+                accentColor={activeTheme.accent} 
                 vesperIdentity={vesperIdentity}
                 setToast={setToast}
               />
@@ -6035,7 +6035,7 @@ export default function App() {
                 position={activeAvatarData.position || [0, -1, 0]}
                 height={160}
                 compact
-                accentColor={currentTheme?.accent || '#00ffff'}
+                accentColor={activeTheme?.accent || '#00ffff'}
               />
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem' }}>
                 {activeAvatarData.name}

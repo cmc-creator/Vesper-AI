@@ -1,5 +1,5 @@
 {
-  "date": "2026-02-16",
+  "date": "2026-02-17",
   "mood": {
     "id": "chaotic",
     "label": "Chaotic Energy",
@@ -7,9 +7,9 @@
     "color": "#ff4444"
   },
   "gender": {
-    "id": "chaotic",
-    "label": "Chaotic (surprise me)",
-    "emoji": "\ud83c\udfb2"
+    "id": "feminine",
+    "label": "Feminine",
+    "emoji": "\u2640\ufe0f"
   },
   "look": "Ethereal forest spirit: moss crown, bare feet, glowing green eyes, bark-textured skin",
   "voice_vibe": {
@@ -19,5 +19,5 @@
   },
   "avatar": "dragon",
   "confirmed": false,
-  "generated_at": "2026-02-16T20:11:51.979571"
+  "generated_at": "2026-02-17T17:13:31.749136"
 }
