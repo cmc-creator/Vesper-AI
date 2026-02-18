@@ -101,6 +101,7 @@ import Sassy from './src/components/Sassy';
 import MediaGallery from './src/components/MediaGallery';
 import AvatarStudio from './src/components/AvatarStudio';
 import VesperAvatar3D from './src/components/VesperAvatar3D';
+import IntegrationsHub from './src/components/IntegrationsHub';
 
 // Styles
 import './App.css';
@@ -210,6 +211,7 @@ const NAV = [
   { id: 'nyxshift', label: 'Creative Suite', icon: AutoStories },
   { id: 'gallery', label: 'Media Gallery', icon: PhotoLibrary },
   { id: 'sassy', label: 'Vesper\'s Wardrobe', icon: Checkroom },
+  { id: 'integrations', label: 'Command Center', icon: BoltRounded },
   { id: 'analytics', label: 'Analytics', icon: BarChart },
   { id: 'personality', label: 'Personality', icon: Person },
   { id: 'settings', label: 'Settings', icon: SettingsRounded },
@@ -3598,6 +3600,10 @@ export default function App() {
       case 'nyxshift':
         return (
           <CreativeSuite apiBase={apiBase} onBack={() => setActiveSection('chat')} />
+        );
+      case 'integrations':
+        return (
+          <IntegrationsHub apiBase={apiBase} onBack={() => setActiveSection('chat')} />
         );
       case 'gallery':
         return (

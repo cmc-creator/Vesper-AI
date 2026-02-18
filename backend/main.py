@@ -6860,6 +6860,256 @@ async def resolve_voice_for_context(req: PersonaResolve):
     return {"voice_id": voice_id, "persona": persona_key, "label": persona.get("label", "Assistant")}
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ███ INTEGRATIONS HUB — API keys, OAuth configs, connection status ███████████
+# ═══════════════════════════════════════════════════════════════════════════════
+
+INTEGRATIONS_FILE = os.path.join(DATA_DIR, "integrations.json")
+
+def load_integrations():
+    if os.path.exists(INTEGRATIONS_FILE):
+        with open(INTEGRATIONS_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_integrations(data):
+    with open(INTEGRATIONS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+@app.get("/api/integrations")
+async def get_integrations():
+    """Get all integration configs (keys masked)"""
+    raw = load_integrations()
+    masked = {}
+    for k, v in raw.items():
+        masked[k] = {**v}
+        if "api_key" in masked[k] and masked[k]["api_key"]:
+            key = masked[k]["api_key"]
+            masked[k]["api_key_preview"] = key[:6] + "..." + key[-4:] if len(key) > 10 else "***"
+            del masked[k]["api_key"]
+    return {"integrations": masked}
+
+class IntegrationUpdate(BaseModel):
+    service: str
+    api_key: Optional[str] = None
+    enabled: Optional[bool] = None
+    config: Optional[dict] = None
+
+@app.post("/api/integrations")
+async def update_integration(req: IntegrationUpdate):
+    """Save or update an integration config"""
+    data = load_integrations()
+    entry = data.get(req.service, {"enabled": False, "config": {}})
+    if req.api_key is not None:
+        entry["api_key"] = req.api_key
+    if req.enabled is not None:
+        entry["enabled"] = req.enabled
+    if req.config is not None:
+        entry["config"] = {**entry.get("config", {}), **req.config}
+    entry["updated_at"] = datetime.datetime.utcnow().isoformat()
+    data[req.service] = entry
+    save_integrations(data)
+    return {"success": True, "service": req.service}
+
+@app.delete("/api/integrations/{service}")
+async def delete_integration(service: str):
+    data = load_integrations()
+    if service in data:
+        del data[service]
+        save_integrations(data)
+    return {"success": True}
+
+@app.post("/api/integrations/test/{service}")
+async def test_integration(service: str):
+    """Test if an integration's API key is valid"""
+    data = load_integrations()
+    entry = data.get(service, {})
+    key = entry.get("api_key", "")
+    if not key:
+        return {"connected": False, "error": "No API key configured"}
+    # Basic connectivity tests per service
+    try:
+        if service == "stripe":
+            import urllib.request
+            req = urllib.request.Request("https://api.stripe.com/v1/balance", headers={"Authorization": f"Bearer {key}"})
+            urllib.request.urlopen(req, timeout=5)
+            return {"connected": True}
+        elif service == "mailchimp":
+            dc = key.split("-")[-1] if "-" in key else "us1"
+            req = urllib.request.Request(f"https://{dc}.api.mailchimp.com/3.0/ping", headers={"Authorization": f"Bearer {key}"})
+            urllib.request.urlopen(req, timeout=5)
+            return {"connected": True}
+        elif service == "canva":
+            return {"connected": bool(key), "note": "Canva Connect API — key stored"}
+        elif service == "google_workspace":
+            return {"connected": bool(key), "note": "Google Workspace — credentials stored"}
+        else:
+            return {"connected": bool(key), "note": "Key stored — manual verification needed"}
+    except Exception as e:
+        return {"connected": False, "error": str(e)[:200]}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ███ BRAND KIT — Logos, colors, fonts, templates, messaging ██████████████████
+# ═══════════════════════════════════════════════════════════════════════════════
+
+BRANDKIT_FILE = os.path.join(DATA_DIR, "brandkit.json")
+
+def load_brandkit():
+    if os.path.exists(BRANDKIT_FILE):
+        with open(BRANDKIT_FILE, "r") as f:
+            return json.load(f)
+    return {
+        "business_name": "Connie Michelle Consulting",
+        "taglines": [],
+        "colors": [],
+        "fonts": {"heading": "", "body": "", "accent": ""},
+        "logos": [],
+        "templates": [],
+        "legal_disclaimers": [],
+        "about": "",
+        "headshot_url": "",
+        "social_links": {},
+        "terminology": [],
+    }
+
+def save_brandkit(data):
+    with open(BRANDKIT_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+@app.get("/api/brandkit")
+async def get_brandkit():
+    return load_brandkit()
+
+@app.post("/api/brandkit")
+async def update_brandkit(request: Request):
+    body = await request.json()
+    kit = load_brandkit()
+    kit.update(body)
+    save_brandkit(kit)
+    return {"success": True, "brandkit": kit}
+
+@app.post("/api/brandkit/color")
+async def add_brand_color(request: Request):
+    body = await request.json()
+    kit = load_brandkit()
+    kit["colors"].append({"hex": body.get("hex", "#000"), "label": body.get("label", ""), "usage": body.get("usage", "")})
+    save_brandkit(kit)
+    return {"success": True, "colors": kit["colors"]}
+
+@app.delete("/api/brandkit/color/{idx}")
+async def delete_brand_color(idx: int):
+    kit = load_brandkit()
+    if 0 <= idx < len(kit["colors"]):
+        kit["colors"].pop(idx)
+        save_brandkit(kit)
+    return {"success": True, "colors": kit["colors"]}
+
+@app.post("/api/brandkit/tagline")
+async def add_tagline(request: Request):
+    body = await request.json()
+    kit = load_brandkit()
+    kit["taglines"].append(body.get("text", ""))
+    save_brandkit(kit)
+    return {"success": True, "taglines": kit["taglines"]}
+
+@app.delete("/api/brandkit/tagline/{idx}")
+async def delete_tagline(idx: int):
+    kit = load_brandkit()
+    if 0 <= idx < len(kit["taglines"]):
+        kit["taglines"].pop(idx)
+        save_brandkit(kit)
+    return {"success": True, "taglines": kit["taglines"]}
+
+@app.post("/api/brandkit/logo")
+async def add_logo(request: Request):
+    body = await request.json()
+    kit = load_brandkit()
+    kit["logos"].append({"url": body.get("url", ""), "variant": body.get("variant", "primary"), "label": body.get("label", "")})
+    save_brandkit(kit)
+    return {"success": True, "logos": kit["logos"]}
+
+@app.post("/api/brandkit/template")
+async def add_template(request: Request):
+    body = await request.json()
+    kit = load_brandkit()
+    kit["templates"].append({"name": body.get("name", ""), "type": body.get("type", "cover"), "content": body.get("content", ""), "url": body.get("url", "")})
+    save_brandkit(kit)
+    return {"success": True, "templates": kit["templates"]}
+
+@app.post("/api/brandkit/disclaimer")
+async def add_disclaimer(request: Request):
+    body = await request.json()
+    kit = load_brandkit()
+    kit["legal_disclaimers"].append({"title": body.get("title", ""), "text": body.get("text", "")})
+    save_brandkit(kit)
+    return {"success": True, "legal_disclaimers": kit["legal_disclaimers"]}
+
+@app.post("/api/brandkit/terminology")
+async def add_terminology(request: Request):
+    body = await request.json()
+    kit = load_brandkit()
+    kit["terminology"].append({"term": body.get("term", ""), "definition": body.get("definition", ""), "category": body.get("category", "general")})
+    save_brandkit(kit)
+    return {"success": True, "terminology": kit["terminology"]}
+
+@app.post("/api/content/grammar-check")
+async def grammar_check(request: Request):
+    """Use AI to check grammar and style"""
+    body = await request.json()
+    text_input = body.get("text", "")
+    if not text_input:
+        return {"error": "No text provided"}
+    try:
+        import openai
+        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a professional editor. Check the following text for grammar, spelling, style, and clarity issues. Return a JSON object with: {\"corrected\": \"...\", \"issues\": [{\"original\": \"...\", \"suggestion\": \"...\", \"type\": \"grammar|spelling|style|clarity\"}], \"score\": 0-100}"},
+                {"role": "user", "content": text_input}
+            ],
+            response_format={"type": "json_object"}
+        )
+        return json.loads(resp.choices[0].message.content)
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+@app.post("/api/content/pdf-generate")
+async def generate_pdf(request: Request):
+    """Generate a polished PDF from content"""
+    body = await request.json()
+    title = body.get("title", "Document")
+    content = body.get("content", "")
+    if not content:
+        return JSONResponse({"error": "No content provided"}, status_code=400)
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.colors import HexColor
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+        import io, base64
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=72, bottomMargin=72, leftMargin=72, rightMargin=72)
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle("CustomTitle", parent=styles["Title"], fontSize=24, textColor=HexColor("#1a1a2e"), spaceAfter=20)
+        body_style = ParagraphStyle("CustomBody", parent=styles["Normal"], fontSize=11, leading=16, spaceAfter=8, textColor=HexColor("#333"))
+
+        story = [Paragraph(title, title_style), Spacer(1, 20)]
+        for para in content.split("\n\n"):
+            if para.strip():
+                story.append(Paragraph(para.strip().replace("\n", "<br/>"), body_style))
+                story.append(Spacer(1, 6))
+        doc.build(story)
+        pdf_b64 = base64.b64encode(buffer.getvalue()).decode()
+        return {"success": True, "pdf_base64": pdf_b64, "filename": f"{title.replace(' ', '_')}.pdf"}
+    except ImportError:
+        return {"error": "reportlab not installed — run: pip install reportlab"}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+
 # --- STARTUP ---
 if __name__ == "__main__":
     import uvicorn
