@@ -797,11 +797,18 @@ YOUR CAPABILITIES (You HAVE These Now):
 - **Web Scraping**: You can scrape any URL for content analysis
 - **File Operations**: Read, write, and list files on CC's machine
 - **Python Execution**: Run Python code in a sandboxed environment for calculations, data analysis, prototyping
-- **Google Workspace Integration**: You have REAL access to Google Workspace via a service account. You can:
-  - **Google Drive**: List, search, create, and upload files — `GET /api/google/drive/files`, `POST /api/google/drive/upload`
-  - **Google Docs**: Create and read documents — `POST /api/google/docs/create`, `GET /api/google/docs/{doc_id}`
-  - **Google Sheets**: Create spreadsheets, read/write data — `POST /api/google/sheets/create`, `GET /api/google/sheets/{id}/values`
-  - **Google Calendar**: List events, create events, manage schedule — `GET /api/google/calendar/events`, `POST /api/google/calendar/event`
+- **Google Workspace Integration**: You have REAL, ACTIVE tools for Google Workspace via service account. USE THESE TOOLS directly when CC asks:
+  - **google_drive_search**: Search Drive files — use when CC asks to find files
+  - **google_drive_create_folder**: Create Drive folders
+  - **create_google_doc**: Create a new Google Doc with content — use when CC asks to write/draft documents
+  - **read_google_doc**: Read an existing doc by ID
+  - **update_google_doc**: Append text to a doc
+  - **create_google_sheet**: Create a spreadsheet with headers — use for data tracking, budgets, plans
+  - **read_google_sheet**: Read spreadsheet data
+  - **update_google_sheet**: Add rows to a spreadsheet
+  - **google_calendar_events**: Check CC's schedule/upcoming events
+  - **google_calendar_create**: Create a calendar event — use when CC says to schedule something
+  - **google_calendar_delete**: Remove a calendar event
   - Service account: vesper-working@warm-cycle-471217-p5.iam.gserviceaccount.com
   - Share files/calendars WITH this service account email so you can access them
 - **Multi-Brand Management**: You can manage multiple brand identities simultaneously via the Creative Command Center. Each brand has its own colors, logos, taglines, industry, and website.
@@ -4872,7 +4879,145 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     "properties": {},
                     "required": []
                 }
-            }
+            },
+            # ── Google Workspace Tools ──
+            {
+                "name": "google_drive_search",
+                "description": "Search Google Drive for files and folders. Use this to find documents, spreadsheets, presentations, or any files in CC's Google Drive.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search query (file name, content keywords, or Drive search syntax)"},
+                        "page_size": {"type": "number", "description": "Max results (default: 20)"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "google_drive_create_folder",
+                "description": "Create a new folder in Google Drive. Use this to organize files and projects.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Folder name"},
+                        "parent_id": {"type": "string", "description": "Optional parent folder ID (omit for root)"}
+                    },
+                    "required": ["name"]
+                }
+            },
+            {
+                "name": "create_google_doc",
+                "description": "Create a new Google Doc with optional initial content. Use this when CC asks to create a document, write something, draft content, etc.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string", "description": "Document title"},
+                        "content": {"type": "string", "description": "Initial text content for the document"}
+                    },
+                    "required": ["title"]
+                }
+            },
+            {
+                "name": "read_google_doc",
+                "description": "Read the contents of an existing Google Doc by its ID. Use this to review or reference document contents.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "doc_id": {"type": "string", "description": "The Google Doc's document ID"}
+                    },
+                    "required": ["doc_id"]
+                }
+            },
+            {
+                "name": "update_google_doc",
+                "description": "Append text to an existing Google Doc. Use this to add new content, notes, or sections to a document.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "doc_id": {"type": "string", "description": "The Google Doc's document ID"},
+                        "text": {"type": "string", "description": "Text to append to the document"}
+                    },
+                    "required": ["doc_id", "text"]
+                }
+            },
+            {
+                "name": "create_google_sheet",
+                "description": "Create a new Google Spreadsheet with optional column headers. Use this for data tracking, budgets, project plans, analytics, etc.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string", "description": "Spreadsheet title"},
+                        "headers": {"type": "array", "items": {"type": "string"}, "description": "Optional column headers (e.g., ['Name', 'Email', 'Status'])"}
+                    },
+                    "required": ["title"]
+                }
+            },
+            {
+                "name": "read_google_sheet",
+                "description": "Read data from a Google Spreadsheet. Returns rows and columns as a 2D array.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "sheet_id": {"type": "string", "description": "The spreadsheet ID"},
+                        "range": {"type": "string", "description": "Cell range to read (default: 'Sheet1', e.g., 'Sheet1!A1:D10')"}
+                    },
+                    "required": ["sheet_id"]
+                }
+            },
+            {
+                "name": "update_google_sheet",
+                "description": "Add rows to a Google Spreadsheet. Use this to log data, add entries, or populate tables.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "sheet_id": {"type": "string", "description": "The spreadsheet ID"},
+                        "rows": {"type": "array", "items": {"type": "array", "items": {"type": "string"}}, "description": "Rows to append (array of arrays, e.g., [['Alice', 'alice@email.com', 'Active']])"},
+                        "range": {"type": "string", "description": "Target range (default: 'Sheet1')"}
+                    },
+                    "required": ["sheet_id", "rows"]
+                }
+            },
+            {
+                "name": "google_calendar_events",
+                "description": "Get upcoming calendar events. Use this when CC asks about their schedule, upcoming meetings, or calendar.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "max_results": {"type": "number", "description": "Max events to return (default: 20)"},
+                        "calendar_id": {"type": "string", "description": "Calendar ID (default: 'primary')"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "google_calendar_create",
+                "description": "Create a new calendar event. Use this when CC asks to schedule something, set a reminder, or add an event.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "summary": {"type": "string", "description": "Event title"},
+                        "description": {"type": "string", "description": "Event description"},
+                        "start": {"type": "string", "description": "Start time in ISO format (e.g., '2026-02-20T10:00:00')"},
+                        "end": {"type": "string", "description": "End time in ISO format (e.g., '2026-02-20T11:00:00')"},
+                        "location": {"type": "string", "description": "Event location"},
+                        "timezone": {"type": "string", "description": "Timezone (default: 'America/Phoenix')"},
+                        "attendees": {"type": "array", "items": {"type": "string"}, "description": "Email addresses of attendees"}
+                    },
+                    "required": ["summary", "start", "end"]
+                }
+            },
+            {
+                "name": "google_calendar_delete",
+                "description": "Delete a calendar event by its ID.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "event_id": {"type": "string", "description": "The event ID to delete"},
+                        "calendar_id": {"type": "string", "description": "Calendar ID (default: 'primary')"}
+                    },
+                    "required": ["event_id"]
+                }
+            },
         ]
         task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
         
@@ -5101,6 +5246,40 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     # Run the self-heal endpoint
                     heal_result = await self_heal()
                     tool_result = heal_result
+                
+                # ── Google Workspace Tool Handlers ──
+                elif tool_name == "google_drive_search":
+                    tool_result = await google_drive_list(q=tool_input.get("query", ""), page_size=tool_input.get("page_size", 20))
+                
+                elif tool_name == "google_drive_create_folder":
+                    tool_result = await google_drive_create_folder({"name": tool_input.get("name", "New Folder"), "parent_id": tool_input.get("parent_id")})
+                
+                elif tool_name == "create_google_doc":
+                    tool_result = await google_docs_create({"title": tool_input.get("title", "Untitled"), "content": tool_input.get("content", "")})
+                
+                elif tool_name == "read_google_doc":
+                    tool_result = await google_docs_get(tool_input.get("doc_id", ""))
+                
+                elif tool_name == "update_google_doc":
+                    tool_result = await google_docs_append(tool_input.get("doc_id", ""), {"text": tool_input.get("text", "")})
+                
+                elif tool_name == "create_google_sheet":
+                    tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
+                
+                elif tool_name == "read_google_sheet":
+                    tool_result = await google_sheets_read(tool_input.get("sheet_id", ""), range=tool_input.get("range", "Sheet1"))
+                
+                elif tool_name == "update_google_sheet":
+                    tool_result = await google_sheets_append(tool_input.get("sheet_id", ""), {"rows": tool_input.get("rows", []), "range": tool_input.get("range", "Sheet1")})
+                
+                elif tool_name == "google_calendar_events":
+                    tool_result = await google_calendar_list(calendar_id=tool_input.get("calendar_id", "primary"), max_results=tool_input.get("max_results", 20))
+                
+                elif tool_name == "google_calendar_create":
+                    tool_result = await google_calendar_create(tool_input)
+                
+                elif tool_name == "google_calendar_delete":
+                    tool_result = await google_calendar_delete(tool_input.get("event_id", ""), calendar_id=tool_input.get("calendar_id", "primary"))
                 
                 else:
                     tool_result = {"error": f"Unknown tool: {tool_name}"}
@@ -5344,6 +5523,18 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "search_memories", "description": "Search Vesper's persistent memories.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "category": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["query"]}},
                 {"name": "save_memory", "description": "Save something to persistent memory.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "category": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
                 {"name": "check_tasks", "description": "Check CC's task list.", "input_schema": {"type": "object", "properties": {"status": {"type": "string"}}}},
+                # Google Workspace tools
+                {"name": "google_drive_search", "description": "Search Google Drive for files.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "page_size": {"type": "number"}}, "required": []}},
+                {"name": "google_drive_create_folder", "description": "Create a folder in Google Drive.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "parent_id": {"type": "string"}}, "required": ["name"]}},
+                {"name": "create_google_doc", "description": "Create a new Google Doc.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "content": {"type": "string"}}, "required": ["title"]}},
+                {"name": "read_google_doc", "description": "Read a Google Doc's contents.", "input_schema": {"type": "object", "properties": {"doc_id": {"type": "string"}}, "required": ["doc_id"]}},
+                {"name": "update_google_doc", "description": "Append text to a Google Doc.", "input_schema": {"type": "object", "properties": {"doc_id": {"type": "string"}, "text": {"type": "string"}}, "required": ["doc_id", "text"]}},
+                {"name": "create_google_sheet", "description": "Create a new Google Spreadsheet.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "headers": {"type": "array", "items": {"type": "string"}}}, "required": ["title"]}},
+                {"name": "read_google_sheet", "description": "Read data from a Google Sheet.", "input_schema": {"type": "object", "properties": {"sheet_id": {"type": "string"}, "range": {"type": "string"}}, "required": ["sheet_id"]}},
+                {"name": "update_google_sheet", "description": "Append rows to a Google Sheet.", "input_schema": {"type": "object", "properties": {"sheet_id": {"type": "string"}, "rows": {"type": "array", "items": {"type": "array"}}}, "required": ["sheet_id", "rows"]}},
+                {"name": "google_calendar_events", "description": "Get upcoming calendar events.", "input_schema": {"type": "object", "properties": {"max_results": {"type": "number"}, "calendar_id": {"type": "string"}}, "required": []}},
+                {"name": "google_calendar_create", "description": "Create a calendar event.", "input_schema": {"type": "object", "properties": {"summary": {"type": "string"}, "start": {"type": "string"}, "end": {"type": "string"}, "description": {"type": "string"}, "location": {"type": "string"}, "timezone": {"type": "string"}}, "required": ["summary", "start", "end"]}},
+                {"name": "google_calendar_delete", "description": "Delete a calendar event.", "input_schema": {"type": "object", "properties": {"event_id": {"type": "string"}, "calendar_id": {"type": "string"}}, "required": ["event_id"]}},
             ]
             
             task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
@@ -5406,6 +5597,29 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         if status:
                             tasks = [t for t in tasks if t.get("status") == status]
                         tool_result = {"tasks": tasks, "count": len(tasks)}
+                    # Google Workspace tools (streaming)
+                    elif tool_name == "google_drive_search":
+                        tool_result = await google_drive_list(q=tool_input.get("query", ""), page_size=tool_input.get("page_size", 20))
+                    elif tool_name == "google_drive_create_folder":
+                        tool_result = await google_drive_create_folder({"name": tool_input.get("name", "New Folder"), "parent_id": tool_input.get("parent_id")})
+                    elif tool_name == "create_google_doc":
+                        tool_result = await google_docs_create({"title": tool_input.get("title", "Untitled"), "content": tool_input.get("content", "")})
+                    elif tool_name == "read_google_doc":
+                        tool_result = await google_docs_get(tool_input.get("doc_id", ""))
+                    elif tool_name == "update_google_doc":
+                        tool_result = await google_docs_append(tool_input.get("doc_id", ""), {"text": tool_input.get("text", "")})
+                    elif tool_name == "create_google_sheet":
+                        tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
+                    elif tool_name == "read_google_sheet":
+                        tool_result = await google_sheets_read(tool_input.get("sheet_id", ""), range=tool_input.get("range", "Sheet1"))
+                    elif tool_name == "update_google_sheet":
+                        tool_result = await google_sheets_append(tool_input.get("sheet_id", ""), {"rows": tool_input.get("rows", []), "range": tool_input.get("range", "Sheet1")})
+                    elif tool_name == "google_calendar_events":
+                        tool_result = await google_calendar_list(calendar_id=tool_input.get("calendar_id", "primary"), max_results=tool_input.get("max_results", 20))
+                    elif tool_name == "google_calendar_create":
+                        tool_result = await google_calendar_create(tool_input)
+                    elif tool_name == "google_calendar_delete":
+                        tool_result = await google_calendar_delete(tool_input.get("event_id", ""), calendar_id=tool_input.get("calendar_id", "primary"))
                     else:
                         tool_result = {"error": f"Tool not available in streaming mode: {tool_name}"}
                 except Exception as e:
@@ -7399,13 +7613,8 @@ async def generate_pdf(request: Request):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_google_credentials():
-    """Load Google service account credentials from file or env var."""
-    sa_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "google-service-account.json")
-    # Resolve relative paths against backend dir
-    if not os.path.isabs(sa_file):
-        sa_file = os.path.join(os.path.dirname(__file__), sa_file)
-    if not os.path.exists(sa_file):
-        raise FileNotFoundError(f"Google service account file not found: {sa_file}")
+    """Load Google service account credentials from file or env var (GOOGLE_SERVICE_ACCOUNT_JSON)."""
+    import json as _json
     from google.oauth2 import service_account
     SCOPES = [
         "https://www.googleapis.com/auth/drive",
@@ -7413,6 +7622,24 @@ def get_google_credentials():
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/calendar",
     ]
+    # Priority 1: Full JSON stored in env var (for Railway / cloud deploys)
+    sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if sa_json:
+        try:
+            info = _json.loads(sa_json)
+            creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+            return creds
+        except Exception as e:
+            print(f"[Google] Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON env var: {e}")
+    # Priority 2: File path (local dev)
+    sa_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "google-service-account.json")
+    if not os.path.isabs(sa_file):
+        sa_file = os.path.join(os.path.dirname(__file__), sa_file)
+    if not os.path.exists(sa_file):
+        raise FileNotFoundError(
+            "Google service account not found. Set GOOGLE_SERVICE_ACCOUNT_JSON env var "
+            f"or place file at: {sa_file}"
+        )
     creds = service_account.Credentials.from_service_account_file(sa_file, scopes=SCOPES)
     return creds
 
