@@ -3350,12 +3350,12 @@ export default function App() {
                           sx={{ flex: 1, input: { color: '#fff' } }}
                         />
                       ) : (
-                        <Box sx={{ flex: 1, cursor: 'pointer' }} onClick={() => loadThread(thread.id)}>
-                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: thread.pinned ? 700 : 400 }}>
+                        <Box sx={{ flex: 1, cursor: 'pointer', minWidth: 0, overflow: 'hidden' }} onClick={() => loadThread(thread.id)}>
+                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: thread.pinned ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {thread.pinned && '📌 '}{thread.title}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                            {thread.message_count || 0} messages • {formatTime(thread.updated_at)}
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {thread.message_count || 0} {(thread.message_count === 1) ? 'message' : 'messages'} • {formatTime(thread.updated_at)}
                           </Typography>
                         </Box>
                       )}
@@ -3460,12 +3460,12 @@ export default function App() {
                           sx={{ flex: 1, input: { color: '#fff' } }}
                         />
                       ) : (
-                        <Box sx={{ flex: 1, cursor: 'pointer' }} onClick={() => loadThread(thread.id)}>
-                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 400 }}>
+                        <Box sx={{ flex: 1, cursor: 'pointer', minWidth: 0, overflow: 'hidden' }} onClick={() => loadThread(thread.id)}>
+                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {thread.title}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                            {thread.message_count || 0} messages • {formatTime(thread.updated_at)}
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {thread.message_count || 0} {(thread.message_count === 1) ? 'message' : 'messages'} • {formatTime(thread.updated_at)}
                           </Typography>
                         </Box>
                       )}

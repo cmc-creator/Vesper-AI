@@ -12,6 +12,7 @@ import {
   Edit as EditIcon,
   AutoAwesome as AutoAwesomeIcon,
   Folder as FolderIcon,
+  FolderOpen as FolderOpenIcon,
   OpenInNew as OpenIcon,
   Palette as PaletteIcon,
   Business as BusinessIcon,
@@ -30,6 +31,7 @@ import {
   Map as MapIcon,
   Close as CloseIcon,
   ColorLens as ColorLensIcon,
+  CreateNewFolder as NewFolderIcon,
 } from '@mui/icons-material';
 import NyxShift from './NyxShift';
 
@@ -43,7 +45,7 @@ const SIDEBAR_NAV = [
   { id: 'audience', label: 'Audience Intel', icon: AudienceIcon, color: '#ffcc00' },
   { id: 'assets', label: 'Asset Library', icon: ImageIcon, color: '#4285f4' },
   { id: 'google', label: 'Google Tools', icon: SyncIcon, color: '#34a853' },
-  { id: 'nyxshift', label: 'NyxShift', icon: AutoAwesomeIcon, color: '#9d00ff' },
+  { id: 'projects', label: 'Projects', icon: FolderIcon, color: '#ff9800' },
 ];
 
 export default function CreativeSuite({ apiBase, onBack }) {
@@ -77,6 +79,12 @@ export default function CreativeSuite({ apiBase, onBack }) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [driveFiles, setDriveFiles] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
+
+  // Projects state
+  const [projects, setProjects] = useState([]);
+  const [projectDialog, setProjectDialog] = useState(false);
+  const [projectForm, setProjectForm] = useState({ name: '', description: '', color: '#ff9800', type: 'creative' });
+  const [activeProjectId, setActiveProjectId] = useState(null);
 
   const [toast, setToast] = useState('');
 
@@ -118,7 +126,12 @@ export default function CreativeSuite({ apiBase, onBack }) {
     try { const r = await fetch(`${apiBase}/api/google/calendar/events`); const d = await r.json(); setCalendarEvents(d.events || []); } catch { setCalendarEvents([]); }
   }, [apiBase]);
 
-  useEffect(() => { loadBrands(); loadContent(); loadStrategies(); loadCampaigns(); }, [loadBrands, loadContent, loadStrategies, loadCampaigns]);
+  const loadProjects = useCallback(async () => {
+    if (!apiBase) return;
+    try { const r = await fetch(`${apiBase}/api/projects`); const d = await r.json(); setProjects(Array.isArray(d) ? d : d.projects || []); } catch { setProjects([]); }
+  }, [apiBase]);
+
+  useEffect(() => { loadBrands(); loadContent(); loadStrategies(); loadCampaigns(); loadProjects(); }, [loadBrands, loadContent, loadStrategies, loadCampaigns, loadProjects]);
 
   useEffect(() => {
     if (activePanel === 'google') { checkGoogleStatus(); loadDriveFiles(); loadCalendarEvents(); }
@@ -181,6 +194,27 @@ export default function CreativeSuite({ apiBase, onBack }) {
 
   const deleteCampaign = async (id) => { await fetch(`${apiBase}/api/creative/campaigns/${id}`, { method: 'DELETE' }); loadCampaigns(); };
 
+  // Project CRUD
+  const saveProject = async () => {
+    if (!projectForm.name.trim()) return;
+    try {
+      await fetch(`${apiBase}/api/projects`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(projectForm),
+      });
+      setProjectDialog(false); setProjectForm({ name: '', description: '', color: '#ff9800', type: 'creative' });
+      loadProjects(); showToast('Project created!');
+    } catch (e) { showToast('Error: ' + e.message); }
+  };
+
+  const deleteProject = async (id) => {
+    if (!window.confirm('Delete this project and all its data?')) return;
+    try {
+      const r = await fetch(`${apiBase}/api/projects/${id}`, { method: 'DELETE' });
+      if (!r.ok) { const d = await r.json(); showToast(d.detail || 'Cannot delete'); return; }
+      loadProjects(); showToast('Project deleted');
+    } catch (e) { showToast('Error: ' + e.message); }
+  };
+
   // Helpers
   const activeBrand = brands.find(b => b.id === activeBrandId);
   const filteredContent = activeBrandId ? contentItems.filter(c => c.brand_id === activeBrandId) : contentItems;
@@ -188,7 +222,7 @@ export default function CreativeSuite({ apiBase, onBack }) {
   const filteredCampaigns = activeBrandId ? campaigns.filter(c => c.brand_id === activeBrandId) : campaigns;
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  if (activePanel === 'nyxshift') return <NyxShift apiBase={apiBase} onClose={() => setActivePanel('hub')} />;
+  if (activePanel === 'nyxshift') return <NyxShift apiBase={apiBase} onClose={() => setActivePanel('projects')} />;
 
   const glassCard = {
     bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2, p: 2.5,
@@ -265,7 +299,7 @@ export default function CreativeSuite({ apiBase, onBack }) {
           { label: 'Add Strategy', icon: <BrainIcon />, color: '#00ff88', action: () => setStrategyDialog(true) },
           { label: 'New Campaign', icon: <CampaignIcon />, color: '#ff2d55', action: () => setCampaignDialog(true) },
           { label: 'Google Tools', icon: <SyncIcon />, color: '#34a853', action: () => setActivePanel('google') },
-          { label: 'NyxShift', icon: <AutoAwesomeIcon />, color: '#9d00ff', action: () => setActivePanel('nyxshift') },
+          { label: 'Projects', icon: <FolderIcon />, color: '#ff9800', action: () => setActivePanel('projects') },
         ].map(a => (
           <Grid item xs={6} sm={4} md={2} key={a.label}>
             <Box onClick={a.action} sx={{ ...glassCard, textAlign: 'center', cursor: 'pointer', p: 1.5, '&:hover': { borderColor: a.color, transform: 'translateY(-2px)', boxShadow: `0 4px 20px ${a.color}20` } }}>
@@ -588,6 +622,89 @@ export default function CreativeSuite({ apiBase, onBack }) {
     </Box>
   );
 
+  // PROJECTS
+  const PROJECT_TYPES = ['creative', 'business', 'personal', 'research', 'game', 'media', 'other'];
+  const PROJECT_COLORS = ['#ff9800', '#9d00ff', '#00d0ff', '#ff2d55', '#00ff88', '#ffcc00', '#4285f4', '#ff6b35'];
+
+  const renderProjects = () => (
+    <Box>
+      {sectionHeader(<FolderIcon sx={{ color: '#ff9800' }} />, 'Projects', projects.length, 'New Project', () => setProjectDialog(true))}
+      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)', mb: 3 }}>
+        Organize your creative work into project folders. Each project has its own workspace for characters, worlds, stories, assets, and more.
+      </Typography>
+      {projects.length === 0 ? (
+        <Box sx={{ ...glassCard, textAlign: 'center', py: 6 }}>
+          <FolderIcon sx={{ fontSize: 48, color: 'rgba(255,255,255,0.2)', mb: 2 }} />
+          <Typography sx={{ color: 'rgba(255,255,255,0.5)', mb: 2 }}>No projects yet</Typography>
+          <Button startIcon={<NewFolderIcon />} onClick={() => setProjectDialog(true)} sx={{ color: '#ff9800', border: '1px solid rgba(255,152,0,0.3)' }}>Create Project</Button>
+        </Box>
+      ) : (
+        <Grid container spacing={2}>
+          {projects.map(project => {
+            const isNyxShift = project.id === 'nyxshift';
+            const pColor = project.color || '#ff9800';
+            return (
+              <Grid item xs={12} sm={6} md={4} key={project.id}>
+                <Box
+                  onClick={() => {
+                    if (isNyxShift) { setActivePanel('nyxshift'); }
+                    else { setActiveProjectId(project.id); }
+                  }}
+                  sx={{
+                    ...glassCard,
+                    cursor: 'pointer',
+                    borderColor: `${pColor}30`,
+                    position: 'relative',
+                    '&:hover': { borderColor: pColor, transform: 'translateY(-2px)', boxShadow: `0 8px 32px ${pColor}15` },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      {isNyxShift ? (
+                        <AutoAwesomeIcon sx={{ fontSize: 32, color: pColor }} />
+                      ) : (
+                        <FolderOpenIcon sx={{ fontSize: 32, color: pColor }} />
+                      )}
+                      <Box>
+                        <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, fontSize: '1rem', lineHeight: 1.2 }}>{project.name}</Typography>
+                        <Chip label={project.type || 'creative'} size="small" sx={{ mt: 0.5, bgcolor: `${pColor}18`, color: pColor, fontSize: '0.65rem', height: 18 }} />
+                      </Box>
+                    </Box>
+                    {!isNyxShift && (
+                      <IconButton size="small" onClick={(e) => { e.stopPropagation(); deleteProject(project.id); }} sx={{ color: 'rgba(255,255,255,0.25)', '&:hover': { color: '#ff4444' } }}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                  </Box>
+                  {project.description && (
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 1.5, fontSize: '0.85rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {project.description}
+                    </Typography>
+                  )}
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)' }}>
+                      {project.file_count !== undefined ? `${project.file_count} items` : ''}
+                    </Typography>
+                    {project.created_at && (
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)' }}>
+                        {new Date(project.created_at).toLocaleDateString()}
+                      </Typography>
+                    )}
+                  </Box>
+                  {isNyxShift && (
+                    <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
+                      <Chip label="FLAGSHIP" size="small" sx={{ bgcolor: `${pColor}20`, color: pColor, fontSize: '0.6rem', height: 18, fontWeight: 800, letterSpacing: 1 }} />
+                    </Box>
+                  )}
+                </Box>
+              </Grid>
+            );
+          })}
+        </Grid>
+      )}
+    </Box>
+  );
+
   const renderPanel = () => {
     switch (activePanel) {
       case 'hub': return renderHub();
@@ -598,6 +715,7 @@ export default function CreativeSuite({ apiBase, onBack }) {
       case 'audience': return renderAudience();
       case 'assets': return renderAssets();
       case 'google': return renderGoogle();
+      case 'projects': return renderProjects();
       default: return renderHub();
     }
   };
@@ -787,6 +905,43 @@ export default function CreativeSuite({ apiBase, onBack }) {
         <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
           <Button onClick={() => setCampaignDialog(false)} sx={{ color: 'rgba(255,255,255,0.5)' }}>Cancel</Button>
           <Button variant="contained" onClick={saveCampaign} sx={{ bgcolor: '#ff2d55', color: '#fff' }}>Create</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* PROJECT DIALOG */}
+      <Dialog open={projectDialog} onClose={() => setProjectDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: '#1a1b26', color: '#fff' } }}>
+        <DialogTitle sx={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <NewFolderIcon sx={{ color: '#ff9800' }} />
+            New Project
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="Project Name" fullWidth value={projectForm.name} onChange={e => setProjectForm({...projectForm, name: e.target.value})} sx={dialogInputSx} placeholder="e.g. NyxShift, Brand Refresh, Music Video" />
+            <TextField label="Description" fullWidth multiline rows={3} value={projectForm.description} onChange={e => setProjectForm({...projectForm, description: e.target.value})} sx={dialogInputSx} placeholder="What is this project about?" />
+            <FormControl fullWidth>
+              <InputLabel sx={{ color: 'rgba(255,255,255,0.5)' }}>Project Type</InputLabel>
+              <Select value={projectForm.type} onChange={e => setProjectForm({...projectForm, type: e.target.value})} label="Project Type" sx={{ color: '#fff', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}>
+                {PROJECT_TYPES.map(t => <MenuItem key={t} value={t} sx={{ textTransform: 'capitalize' }}>{t}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <Box>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mb: 1, display: 'block' }}>Project Color</Typography>
+              <Stack direction="row" spacing={1}>
+                {PROJECT_COLORS.map(c => (
+                  <Box key={c} onClick={() => setProjectForm({...projectForm, color: c})} sx={{
+                    width: 32, height: 32, borderRadius: '50%', bgcolor: c, cursor: 'pointer', border: projectForm.color === c ? '3px solid #fff' : '2px solid transparent',
+                    transition: 'all 0.15s', '&:hover': { transform: 'scale(1.2)' },
+                  }} />
+                ))}
+              </Stack>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <Button onClick={() => setProjectDialog(false)} sx={{ color: 'rgba(255,255,255,0.5)' }}>Cancel</Button>
+          <Button variant="contained" onClick={saveProject} sx={{ bgcolor: '#ff9800', color: '#fff', '&:hover': { bgcolor: '#e68900' } }}>Create Project</Button>
         </DialogActions>
       </Dialog>
     </Paper>

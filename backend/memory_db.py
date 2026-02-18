@@ -254,15 +254,17 @@ class PersistentMemoryDB:
         finally:
             session.close()
     
-    def get_all_threads(self) -> List[Dict]:
-        """Get all threads, pinned first"""
+    def get_all_threads(self, include_messages: bool = False) -> List[Dict]:
+        """Get all threads, pinned first.
+        Set include_messages=False (default) for lightweight list view.
+        """
         session = self.get_session()
         try:
             threads = session.query(Thread).order_by(
                 Thread.pinned.desc(),  # Pinned first
                 Thread.updated_at.desc()  # Then by most recent
             ).all()
-            return [self._thread_to_dict(t) for t in threads]
+            return [self._thread_to_dict(t, include_messages=include_messages) for t in threads]
         finally:
             session.close()
     
@@ -941,15 +943,17 @@ class PersistentMemoryDB:
     
     # === HELPER METHODS ===
     
-    def _thread_to_dict(self, thread: Thread) -> Dict:
-        """Convert Thread to dict"""
+    def _thread_to_dict(self, thread: Thread, include_messages: bool = True) -> Dict:
+        """Convert Thread to dict.
+        Set include_messages=False for lightweight list views.
+        """
         # Extract summary from first user message or use generated title
         summary = ""
         if thread.messages:
             first_user_msg = next((m.get('content', '') for m in thread.messages if m.get('role') == 'user'), '')
             summary = first_user_msg[:200]  # First 200 chars as summary
         
-        return {
+        result = {
             "id": thread.id,
             "title": thread.title,
             "summary": summary,  # Preview text for cards
@@ -957,9 +961,11 @@ class PersistentMemoryDB:
             "message_count": len(thread.messages) if thread.messages else 0,
             "created_at": thread.created_at.isoformat() if thread.created_at else None,
             "updated_at": thread.updated_at.isoformat() if thread.updated_at else None,
-            "messages": thread.messages or [],
             "metadata": thread.meta_data or {}
         }
+        if include_messages:
+            result["messages"] = thread.messages or []
+        return result
     
     def _memory_to_dict(self, memory: Memory) -> Dict:
         """Convert Memory to dict"""

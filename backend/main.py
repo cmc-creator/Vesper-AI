@@ -667,6 +667,188 @@ def delete_growth_item(item: str, idx: int):
         save_growth(item, data)
         return {"status": "ok"}
     return {"status": "not found"}
+
+# --- Creative Suite Project Folders ---
+PROJECTS_DIR = os.path.join(os.path.dirname(__file__), '../vesper-ai/projects')
+PROJECTS_INDEX = os.path.join(PROJECTS_DIR, '_index.json')
+os.makedirs(PROJECTS_DIR, exist_ok=True)
+
+def load_projects_index():
+    if os.path.exists(PROJECTS_INDEX):
+        with open(PROJECTS_INDEX, 'r', encoding='utf-8') as f:
+            try:
+                return json.load(f)
+            except Exception:
+                return []
+    return []
+
+def save_projects_index(data):
+    with open(PROJECTS_INDEX, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def ensure_default_projects():
+    """Ensure NyxShift exists as a default project."""
+    projects = load_projects_index()
+    if not any(p.get('id') == 'nyxshift' for p in projects):
+        projects.insert(0, {
+            "id": "nyxshift",
+            "name": "NyxShift",
+            "description": "Interactive storytelling & world-building workspace",
+            "icon": "auto_awesome",
+            "color": "#9d00ff",
+            "type": "creative",
+            "created_at": datetime.datetime.now().isoformat()
+        })
+        save_projects_index(projects)
+    return projects
+
+# Run on import
+ensure_default_projects()
+
+@app.get("/api/projects")
+def get_projects():
+    """List all project folders."""
+    projects = ensure_default_projects()
+    # Add file counts for each project
+    for p in projects:
+        project_dir = os.path.join(PROJECTS_DIR, p['id'])
+        if os.path.exists(project_dir):
+            files = [f for f in os.listdir(project_dir) if f.endswith('.json') and f != '_index.json']
+            p['file_count'] = len(files)
+        else:
+            p['file_count'] = 0
+    return projects
+
+@app.post("/api/projects")
+async def create_project(data: dict):
+    """Create a new project folder."""
+    name = data.get("name", "").strip()
+    if not name:
+        return {"error": "Project name is required"}
+    
+    project_id = name.lower().replace(' ', '_').replace('-', '_')
+    project_id = ''.join(c for c in project_id if c.isalnum() or c == '_')
+    
+    projects = load_projects_index()
+    if any(p['id'] == project_id for p in projects):
+        return {"error": f"Project '{name}' already exists"}
+    
+    project = {
+        "id": project_id,
+        "name": name,
+        "description": data.get("description", ""),
+        "icon": data.get("icon", "folder"),
+        "color": data.get("color", "#00d0ff"),
+        "type": data.get("type", "general"),
+        "created_at": datetime.datetime.now().isoformat()
+    }
+    
+    # Create project directory
+    os.makedirs(os.path.join(PROJECTS_DIR, project_id), exist_ok=True)
+    
+    projects.append(project)
+    save_projects_index(projects)
+    return {"status": "success", "project": project}
+
+@app.put("/api/projects/{project_id}")
+async def update_project(project_id: str, data: dict):
+    """Update a project's metadata."""
+    projects = load_projects_index()
+    for p in projects:
+        if p['id'] == project_id:
+            if 'name' in data: p['name'] = data['name']
+            if 'description' in data: p['description'] = data['description']
+            if 'icon' in data: p['icon'] = data['icon']
+            if 'color' in data: p['color'] = data['color']
+            if 'type' in data: p['type'] = data['type']
+            save_projects_index(projects)
+            return {"status": "success", "project": p}
+    return {"error": "Project not found"}
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project(project_id: str):
+    """Delete a project folder (cannot delete nyxshift)."""
+    if project_id == 'nyxshift':
+        return {"error": "Cannot delete the NyxShift project"}
+    projects = load_projects_index()
+    projects = [p for p in projects if p['id'] != project_id]
+    save_projects_index(projects)
+    # Optionally remove data directory
+    project_dir = os.path.join(PROJECTS_DIR, project_id)
+    if os.path.exists(project_dir):
+        import shutil
+        shutil.rmtree(project_dir, ignore_errors=True)
+    return {"status": "success"}
+
+# Project-specific data (generic CRUD for any project's items)
+@app.get("/api/projects/{project_id}/items")
+def get_project_items(project_id: str, section: str = ""):
+    """Get items from a project, optionally filtered by section."""
+    project_dir = os.path.join(PROJECTS_DIR, project_id)
+    if not os.path.exists(project_dir):
+        os.makedirs(project_dir, exist_ok=True)
+    
+    if section:
+        path = os.path.join(project_dir, f"{section}.json")
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                try:
+                    return json.load(f)
+                except Exception:
+                    return []
+        return []
+    
+    # Return all sections with their items
+    result = {}
+    for fname in sorted(os.listdir(project_dir)):
+        if fname.endswith('.json'):
+            section_name = fname[:-5]
+            with open(os.path.join(project_dir, fname), 'r', encoding='utf-8') as f:
+                try:
+                    result[section_name] = json.load(f)
+                except Exception:
+                    result[section_name] = []
+    return result
+
+@app.post("/api/projects/{project_id}/items/{section}")
+async def add_project_item(project_id: str, section: str, entry: dict):
+    """Add an item to a project section."""
+    project_dir = os.path.join(PROJECTS_DIR, project_id)
+    os.makedirs(project_dir, exist_ok=True)
+    path = os.path.join(project_dir, f"{section}.json")
+    
+    data = []
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            try:
+                data = json.load(f)
+            except Exception:
+                data = []
+    
+    entry['timestamp'] = entry.get('timestamp') or datetime.datetime.now().isoformat()
+    data.append(entry)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return {"status": "success", "count": len(data)}
+
+@app.delete("/api/projects/{project_id}/items/{section}/{idx}")
+async def delete_project_item(project_id: str, section: str, idx: int):
+    """Delete an item from a project section."""
+    project_dir = os.path.join(PROJECTS_DIR, project_id)
+    path = os.path.join(project_dir, f"{section}.json")
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            try:
+                data = json.load(f)
+            except Exception:
+                return {"status": "not found"}
+        if 0 <= idx < len(data):
+            data.pop(idx)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            return {"status": "success"}
+    return {"status": "not found"}
+
 # --- NyxShift Creative Collaboration Endpoints ---
 NYX_DIR = os.path.join(os.path.dirname(__file__), '../vesper-ai/nyxshift')
 
@@ -1522,18 +1704,6 @@ async def update_thread_title(thread_id: str, data: dict):
         print(f"❌ Error updating thread title: {e}")
         import traceback
         traceback.print_exc()
-        return {"status": "error", "error": str(e)}
-
-@app.delete("/api/threads/{thread_id}")
-def delete_thread_endpoint(thread_id: str):
-    """Delete a conversation thread by ID"""
-    try:
-        success = memory_db.delete_thread(thread_id)
-        if success:
-            return {"status": "success", "message": "Thread deleted"}
-        return {"status": "not_found", "message": "Thread not found"}
-    except Exception as e:
-        print(f"❌ Error deleting thread: {e}")
         return {"status": "error", "error": str(e)}
 
 @app.post("/api/threads/{thread_id}/auto-title")
