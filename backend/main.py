@@ -796,6 +796,12 @@ YOUR CAPABILITIES (You HAVE These Now):
 - **Deep Research**: Advanced research tool that goes deeper than basic web search — crawls pages, follows links, analyzes content
 - **Web Scraping**: You can scrape any URL for content analysis
 - **File Operations**: Read, write, and list files on CC's machine
+- **File Download & Save**: You can DOWNLOAD files from any URL and SAVE them to the server! Use these tools:
+  - **download_file**: Download images, logos, PDFs, documents from any URL. Returns a permanent URL where the file is served.
+  - **save_file**: Save text content or base64 data as a file (notes, code, exported data, etc.)
+  - **list_saved_files**: Browse all downloaded/saved files with their URLs and sizes
+  - **delete_file**: Remove a saved file
+  - When CC asks you to save/download/extract an image or file from a website, USE the download_file tool with the direct file URL.
 - **Python Execution**: Run Python code in a sandboxed environment for calculations, data analysis, prototyping
 - **Google Workspace Integration**: You have REAL, ACTIVE tools for Google Workspace via service account. USE THESE TOOLS directly when CC asks:
   - **google_drive_search**: Search Drive files — use when CC asks to find files
@@ -5018,6 +5024,56 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     "required": ["event_id"]
                 }
             },
+            # ── File Management Tools ──
+            {
+                "name": "download_file",
+                "description": "Download a file from a URL and save it to the server. Use this to save images, documents, logos, PDFs, or any file from the web. Returns a permanent URL where the file can be accessed.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string", "description": "The URL of the file to download"},
+                        "filename": {"type": "string", "description": "Optional custom filename. If omitted, extracted from URL."},
+                        "folder": {"type": "string", "description": "Optional subfolder to organize files (e.g. 'logos', 'images', 'documents')"}
+                    },
+                    "required": ["url"]
+                }
+            },
+            {
+                "name": "save_file",
+                "description": "Save text content or base64-encoded data as a file on the server. Use this for saving generated content, code, notes, or images from base64.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string", "description": "The filename to save as"},
+                        "content": {"type": "string", "description": "Text content to save (for text files, code, notes, etc.)"},
+                        "base64_data": {"type": "string", "description": "Base64-encoded binary data (for images, PDFs, etc.)"},
+                        "folder": {"type": "string", "description": "Optional subfolder to organize files"}
+                    },
+                    "required": ["filename"]
+                }
+            },
+            {
+                "name": "list_saved_files",
+                "description": "List all files that have been downloaded or saved. Shows filenames, sizes, and accessible URLs.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "folder": {"type": "string", "description": "Optional folder to list (omit for root)"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "delete_file",
+                "description": "Delete a previously saved or downloaded file.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "The file path to delete (relative, as shown by list_saved_files)"}
+                    },
+                    "required": ["path"]
+                }
+            },
         ]
         task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
         
@@ -5281,6 +5337,25 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "google_calendar_delete":
                     tool_result = await google_calendar_delete(tool_input.get("event_id", ""), calendar_id=tool_input.get("calendar_id", "primary"))
                 
+                # ── File Management Tool Handlers ──
+                elif tool_name == "download_file":
+                    from starlette.requests import Request as _Req
+                    class _FakeReq:
+                        async def json(self_inner): return tool_input
+                    tool_result = await download_file_from_url(_FakeReq())
+                
+                elif tool_name == "save_file":
+                    class _FakeReq2:
+                        async def json(self_inner): return tool_input
+                    tool_result = await save_file_content(_FakeReq2())
+                
+                elif tool_name == "list_saved_files":
+                    tool_result = await list_saved_files(folder=tool_input.get("folder", ""))
+                
+                elif tool_name == "delete_file":
+                    file_path = tool_input.get("path", "")
+                    tool_result = await delete_saved_file(file_path)
+                
                 else:
                     tool_result = {"error": f"Unknown tool: {tool_name}"}
 
@@ -5535,6 +5610,11 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "google_calendar_events", "description": "Get upcoming calendar events.", "input_schema": {"type": "object", "properties": {"max_results": {"type": "number"}, "calendar_id": {"type": "string"}}, "required": []}},
                 {"name": "google_calendar_create", "description": "Create a calendar event.", "input_schema": {"type": "object", "properties": {"summary": {"type": "string"}, "start": {"type": "string"}, "end": {"type": "string"}, "description": {"type": "string"}, "location": {"type": "string"}, "timezone": {"type": "string"}}, "required": ["summary", "start", "end"]}},
                 {"name": "google_calendar_delete", "description": "Delete a calendar event.", "input_schema": {"type": "object", "properties": {"event_id": {"type": "string"}, "calendar_id": {"type": "string"}}, "required": ["event_id"]}},
+                # File Management tools
+                {"name": "download_file", "description": "Download a file from a URL and save it. Returns a permanent accessible URL.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
+                {"name": "save_file", "description": "Save text or base64 data as a file.", "input_schema": {"type": "object", "properties": {"filename": {"type": "string"}, "content": {"type": "string"}, "base64_data": {"type": "string"}, "folder": {"type": "string"}}, "required": ["filename"]}},
+                {"name": "list_saved_files", "description": "List all saved/downloaded files.", "input_schema": {"type": "object", "properties": {"folder": {"type": "string"}}, "required": []}},
+                {"name": "delete_file", "description": "Delete a saved file.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
             ]
             
             task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
@@ -5620,6 +5700,19 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         tool_result = await google_calendar_create(tool_input)
                     elif tool_name == "google_calendar_delete":
                         tool_result = await google_calendar_delete(tool_input.get("event_id", ""), calendar_id=tool_input.get("calendar_id", "primary"))
+                    # File Management tools (streaming)
+                    elif tool_name == "download_file":
+                        class _FReq:
+                            async def json(s): return tool_input
+                        tool_result = await download_file_from_url(_FReq())
+                    elif tool_name == "save_file":
+                        class _FReq2:
+                            async def json(s): return tool_input
+                        tool_result = await save_file_content(_FReq2())
+                    elif tool_name == "list_saved_files":
+                        tool_result = await list_saved_files(folder=tool_input.get("folder", ""))
+                    elif tool_name == "delete_file":
+                        tool_result = await delete_saved_file(tool_input.get("path", ""))
                     else:
                         tool_result = {"error": f"Tool not available in streaming mode: {tool_name}"}
                 except Exception as e:
@@ -8011,6 +8104,247 @@ async def update_background_settings(req: Request):
     data["settings"] = {**data.get("settings", {}), **body}
     save_backgrounds(data)
     return {"success": True, "settings": data["settings"]}
+
+
+# ═══════════════════════════════════════════════════════════════
+#  FILE MANAGER — Download, Save, Serve files from URLs
+# ═══════════════════════════════════════════════════════════════
+
+DOWNLOADS_DIR = os.path.join(DATA_DIR, "downloads")
+os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+
+# Mount static file serving so saved files are accessible via URL
+app.mount("/files", StaticFiles(directory=DOWNLOADS_DIR), name="saved_files")
+
+def _get_backend_url():
+    """Get the public backend URL for file links."""
+    railway_url = os.getenv("RAILWAY_PUBLIC_DOMAIN")
+    if railway_url:
+        return f"https://{railway_url}"
+    port = os.getenv("PORT", "8000")
+    return f"http://localhost:{port}"
+
+@app.post("/api/files/download")
+async def download_file_from_url(req: Request):
+    """Download a file from a URL and save it to the server.
+    Body: {url: str, filename?: str, folder?: str}
+    """
+    import urllib.request
+    import urllib.parse
+    import mimetypes
+    import hashlib
+    
+    body = await req.json()
+    url = body.get("url", "").strip()
+    if not url:
+        return {"error": "No URL provided"}
+    
+    folder = body.get("folder", "").strip().replace("..", "").strip("/")
+    save_dir = os.path.join(DOWNLOADS_DIR, folder) if folder else DOWNLOADS_DIR
+    os.makedirs(save_dir, exist_ok=True)
+    
+    try:
+        # Determine filename
+        filename = body.get("filename", "").strip()
+        if not filename:
+            # Extract from URL
+            parsed = urllib.parse.urlparse(url)
+            filename = os.path.basename(parsed.path) or "download"
+            # If no extension, try to detect from content-type
+            if "." not in filename:
+                filename = f"{filename}_{hashlib.md5(url.encode()).hexdigest()[:8]}"
+        
+        # Sanitize filename
+        filename = "".join(c for c in filename if c.isalnum() or c in ".-_ ").strip()
+        if not filename:
+            filename = f"file_{hashlib.md5(url.encode()).hexdigest()[:8]}"
+        
+        # Download
+        headers = {"User-Agent": "Mozilla/5.0 (Vesper AI File Manager)"}
+        request = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(request, timeout=30) as response:
+            content_type = response.headers.get("Content-Type", "")
+            file_data = response.read(50 * 1024 * 1024)  # 50MB max
+            
+            # Add extension if missing
+            if "." not in filename:
+                ext = mimetypes.guess_extension(content_type.split(";")[0].strip()) or ""
+                filename = f"{filename}{ext}"
+        
+        # Avoid overwrites
+        filepath = os.path.join(save_dir, filename)
+        if os.path.exists(filepath):
+            name, ext = os.path.splitext(filename)
+            filepath = os.path.join(save_dir, f"{name}_{hashlib.md5(url.encode()).hexdigest()[:6]}{ext}")
+            filename = os.path.basename(filepath)
+        
+        with open(filepath, "wb") as f:
+            f.write(file_data)
+        
+        rel_path = f"{folder}/{filename}" if folder else filename
+        serve_url = f"{_get_backend_url()}/files/{rel_path}"
+        
+        return {
+            "success": True,
+            "filename": filename,
+            "folder": folder or "root",
+            "size_bytes": len(file_data),
+            "size_human": f"{len(file_data)/1024:.1f}KB" if len(file_data) < 1024*1024 else f"{len(file_data)/(1024*1024):.1f}MB",
+            "content_type": content_type,
+            "url": serve_url,
+            "local_path": filepath
+        }
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}", "url": url}
+    except urllib.error.URLError as e:
+        return {"error": f"URL error: {str(e.reason)}", "url": url}
+    except Exception as e:
+        return {"error": f"Download failed: {str(e)[:300]}", "url": url}
+
+@app.post("/api/files/save")
+async def save_file_content(req: Request):
+    """Save content (text or base64) as a file.
+    Body: {filename: str, content?: str, base64_data?: str, folder?: str}
+    """
+    import base64
+    import hashlib
+    
+    body = await req.json()
+    filename = body.get("filename", "").strip()
+    if not filename:
+        return {"error": "No filename provided"}
+    
+    filename = "".join(c for c in filename if c.isalnum() or c in ".-_ ").strip()
+    folder = body.get("folder", "").strip().replace("..", "").strip("/")
+    save_dir = os.path.join(DOWNLOADS_DIR, folder) if folder else DOWNLOADS_DIR
+    os.makedirs(save_dir, exist_ok=True)
+    
+    filepath = os.path.join(save_dir, filename)
+    
+    try:
+        b64 = body.get("base64_data", "").strip()
+        text_content = body.get("content", "")
+        
+        if b64:
+            # Strip data URI prefix if present
+            if "," in b64:
+                b64 = b64.split(",", 1)[1]
+            file_data = base64.b64decode(b64)
+            with open(filepath, "wb") as f:
+                f.write(file_data)
+            size = len(file_data)
+        elif text_content:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(text_content)
+            size = len(text_content.encode())
+        else:
+            return {"error": "No content or base64_data provided"}
+        
+        rel_path = f"{folder}/{filename}" if folder else filename
+        serve_url = f"{_get_backend_url()}/files/{rel_path}"
+        
+        return {
+            "success": True,
+            "filename": filename,
+            "folder": folder or "root",
+            "size_bytes": size,
+            "url": serve_url,
+            "local_path": filepath
+        }
+    except Exception as e:
+        return {"error": f"Save failed: {str(e)[:300]}"}
+
+@app.get("/api/files/list")
+async def list_saved_files(folder: str = ""):
+    """List all saved/downloaded files."""
+    folder = folder.strip().replace("..", "").strip("/")
+    target = os.path.join(DOWNLOADS_DIR, folder) if folder else DOWNLOADS_DIR
+    
+    if not os.path.exists(target):
+        return {"files": [], "folders": [], "current_folder": folder or "root"}
+    
+    files = []
+    folders = []
+    base_url = _get_backend_url()
+    
+    for item in sorted(os.listdir(target)):
+        full_path = os.path.join(target, item)
+        if os.path.isdir(full_path):
+            folders.append({"name": item, "path": f"{folder}/{item}" if folder else item})
+        else:
+            rel_path = f"{folder}/{item}" if folder else item
+            stat = os.stat(full_path)
+            size = stat.st_size
+            files.append({
+                "name": item,
+                "path": rel_path,
+                "url": f"{base_url}/files/{rel_path}",
+                "size_bytes": size,
+                "size_human": f"{size/1024:.1f}KB" if size < 1024*1024 else f"{size/(1024*1024):.1f}MB",
+                "modified": datetime.datetime.fromtimestamp(stat.st_mtime).isoformat()
+            })
+    
+    return {"files": files, "folders": folders, "current_folder": folder or "root"}
+
+@app.delete("/api/files/{file_path:path}")
+async def delete_saved_file(file_path: str):
+    """Delete a saved file."""
+    file_path = file_path.replace("..", "").strip("/")
+    full_path = os.path.join(DOWNLOADS_DIR, file_path)
+    
+    if not os.path.exists(full_path):
+        return {"error": f"File not found: {file_path}"}
+    
+    try:
+        if os.path.isfile(full_path):
+            os.remove(full_path)
+        elif os.path.isdir(full_path):
+            import shutil
+            shutil.rmtree(full_path)
+        return {"success": True, "deleted": file_path}
+    except Exception as e:
+        return {"error": f"Delete failed: {str(e)[:300]}"}
+
+@app.post("/api/files/screenshot")
+async def take_screenshot_of_url(req: Request):
+    """Take a screenshot/snapshot of a webpage and save it.
+    Body: {url: str, filename?: str}
+    Falls back to downloading the page HTML if screenshot tools aren't available.
+    """
+    body = await req.json()
+    url = body.get("url", "").strip()
+    if not url:
+        return {"error": "No URL provided"}
+    
+    import hashlib
+    filename = body.get("filename", "").strip()
+    if not filename:
+        filename = f"screenshot_{hashlib.md5(url.encode()).hexdigest()[:8]}.html"
+    
+    # Download the page HTML as a snapshot
+    try:
+        import urllib.request
+        headers = {"User-Agent": "Mozilla/5.0 (Vesper AI File Manager)"}
+        request = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(request, timeout=15) as response:
+            html = response.read(10 * 1024 * 1024)  # 10MB max
+        
+        save_dir = os.path.join(DOWNLOADS_DIR, "screenshots")
+        os.makedirs(save_dir, exist_ok=True)
+        filepath = os.path.join(save_dir, filename)
+        with open(filepath, "wb") as f:
+            f.write(html)
+        
+        serve_url = f"{_get_backend_url()}/files/screenshots/{filename}"
+        return {
+            "success": True,
+            "filename": filename,
+            "url": serve_url,
+            "size_bytes": len(html),
+            "note": "Saved as HTML snapshot. For visual screenshots, a headless browser would be needed."
+        }
+    except Exception as e:
+        return {"error": f"Screenshot failed: {str(e)[:300]}"}
 
 
 # --- STARTUP ---
