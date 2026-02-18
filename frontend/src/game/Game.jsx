@@ -30,7 +30,7 @@ import Castle from './Castle';
 import Weather from './Weather';
 import GameUI from './GameUI';
 import VesperNPC from './VesperNPC';
-import Horses from './Horses';
+// Horses removed — replaced with better wildlife later
 import Grass from './Grass';
 import Butterflies from './Butterflies';
 import WorldModels from './WorldModels';
@@ -345,38 +345,39 @@ export default function Game({ onExitGame, onChatWithNPC }) {
                ============================================================ */
             <>
               {/* === SECOND WORLD ATMOSPHERE === */}
-              <ambientLight intensity={0.45} color="#302060" />
-              <pointLight position={[0, 30, 0]} intensity={2.5} color="#8040ff" castShadow distance={120} decay={1} />
-              <pointLight position={[50, 15, 50]} intensity={1.2} color="#00ffff" castShadow distance={100} decay={2} />
-              <pointLight position={[-50, 15, -50]} intensity={1.0} color="#ff40ff" distance={100} decay={2} />
+              <ambientLight intensity={1.5} color="#8080c0" />
+              <pointLight position={[0, 50, 0]} intensity={3.5} color="#8040ff" castShadow distance={200} decay={1} />
+              <pointLight position={[80, 25, 80]} intensity={2.0} color="#00ffff" castShadow distance={180} decay={2} />
+              <pointLight position={[-80, 25, -80]} intensity={1.8} color="#ff40ff" distance={180} decay={2} />
+              <pointLight position={[0, 20, 100]} intensity={1.5} color="#60c0ff" distance={150} decay={2} />
+              <pointLight position={[-100, 20, 50]} intensity={1.2} color="#a060ff" distance={150} decay={2} />
               <directionalLight 
-                position={[30, 60, 30]} 
-                intensity={0.7} 
-                color="#6040c0" 
+                position={[50, 80, 50]} 
+                intensity={2.5} 
+                color="#a080ff" 
                 castShadow 
                 shadow-mapSize={[2048, 2048]}
               />
-              <fog attach="fog" args={['#0c0828', 50, 220]} />
+              <fog attach="fog" args={['#1a1040', 120, 550]} />
 
               <Sky 
-                sunPosition={[10, 2, 100]} 
-                turbidity={20} 
-                rayleigh={0.5} 
-                mieCoefficient={0.01} 
-                mieDirectionalG={0.99}
+                sunPosition={[50, 30, 100]} 
+                turbidity={3} 
+                rayleigh={1.5} 
+                mieCoefficient={0.005} 
+                mieDirectionalG={0.8}
                 inclination={0.48}
                 azimuth={0.25}
               />
               <Stars radius={100} depth={50} count={4000} factor={8} saturation={0.8} fade speed={0.3} />
               
               <Plaza />
-              <Grass position={[0, 0, 0]} />
+              <Grass position={[0, 0, 0]} spread={400} count={15000} />
               <Castle position={[0, 0, -50]} scale={6} />
               <Weather season={currentSeason} />
               
               <VesperNPC position={[25, 0, 25]} onChat={onChatWithNPC} />
-              <Horses position={[45, 0, -20]} onMount={() => {}} />
-              <Butterflies count={30} />
+              <Butterflies count={50} />
               
               <WorldModels />
 
@@ -397,9 +398,9 @@ export default function Game({ onExitGame, onChatWithNPC }) {
               {/* Second World Post-Processing */}
               <SafeEffects>
                 <EffectComposer>
-                  <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.9} intensity={1.0} mipmapBlur />
-                  <Vignette eskil={false} offset={0.3} darkness={0.4} />
-                  <Noise opacity={0.03} />
+                  <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.9} intensity={0.8} mipmapBlur />
+                  <Vignette eskil={false} offset={0.3} darkness={0.15} />
+                  <Noise opacity={0.02} />
                 </EffectComposer>
               </SafeEffects>
             </>

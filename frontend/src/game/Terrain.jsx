@@ -4,7 +4,7 @@ import { MeshReflectorMaterial, Sparkles, Float } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 
 // Floating emissive orbs for atmosphere
-function FloatingOrbs({ count = 40, spread = 120, color = '#8040ff' }) {
+function FloatingOrbs({ count = 60, spread = 400, color = '#8040ff' }) {
   const orbs = useMemo(() => {
     return Array.from({ length: count }, (_, i) => ({
       pos: [
@@ -41,9 +41,9 @@ function FloatingOrbs({ count = 40, spread = 120, color = '#8040ff' }) {
 // Ruined pillars scattered in the world
 function RuinedPillars() {
   const pillars = useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => {
-      const angle = (i / 12) * Math.PI * 2 + Math.random() * 0.3;
-      const radius = 35 + Math.random() * 30;
+    return Array.from({ length: 20 }, (_, i) => {
+      const angle = (i / 20) * Math.PI * 2 + Math.random() * 0.3;
+      const radius = 80 + Math.random() * 120;
       return {
         pos: [Math.cos(angle) * radius, 0, Math.sin(angle) * radius],
         height: 4 + Math.random() * 8,
@@ -83,11 +83,11 @@ function RuinedPillars() {
 // Dead/twisted trees for dark atmosphere
 function TwistedTrees() {
   const trees = useMemo(() => {
-    return Array.from({ length: 20 }, (_, i) => {
-      const x = (Math.random() - 0.5) * 100;
-      const z = (Math.random() - 0.5) * 100;
+    return Array.from({ length: 45 }, (_, i) => {
+      const x = (Math.random() - 0.5) * 350;
+      const z = (Math.random() - 0.5) * 350;
       const dist = Math.sqrt(x * x + z * z);
-      if (dist < 25) return null; // Keep plaza clear
+      if (dist < 40) return null; // Keep plaza clear
       return {
         pos: [x, 0, z],
         scale: 0.8 + Math.random() * 0.6,
@@ -128,8 +128,8 @@ export default function Terrain() {
 
   // Create procedural terrain with dark hills
   const terrain = useMemo(() => {
-    const size = 200;
-    const segments = 80;
+    const size = 600;
+    const segments = 120;
     const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
     
     const positions = geometry.attributes.position.array;
@@ -139,7 +139,7 @@ export default function Terrain() {
       const dist = Math.sqrt(x * x + y * y);
       
       // Flatten center (plaza area), rolling dark hills elsewhere
-      const flattenFactor = Math.min(1, Math.max(0, (dist - 20) / 15));
+      const flattenFactor = Math.min(1, Math.max(0, (dist - 35) / 20));
       const height = (
         Math.sin(x * 0.08) * Math.cos(y * 0.08) * 3 +
         Math.sin(x * 0.04) * Math.cos(y * 0.04) * 2 +
@@ -163,7 +163,7 @@ export default function Terrain() {
         receiveShadow
       >
         <meshPhysicalMaterial 
-          color="#0a0a18"
+          color="#151530"
           roughness={0.85}
           metalness={0.2}
           envMapIntensity={0.5}
@@ -178,7 +178,7 @@ export default function Terrain() {
         position={[0, -0.3, 0]}
         receiveShadow
       >
-        <planeGeometry args={[500, 500]} />
+        <planeGeometry args={[1200, 1200]} />
         <MeshReflectorMaterial
           blur={[600, 200]}
           resolution={512}
@@ -188,7 +188,7 @@ export default function Terrain() {
           depthScale={1.5}
           minDepthThreshold={0.3}
           maxDepthThreshold={1.5}
-          color="#050510"
+          color="#0a0a20"
           metalness={0.9}
           mirror={0.6}
         />
@@ -196,8 +196,8 @@ export default function Terrain() {
 
       {/* Ethereal mist sparkles */}
       <Sparkles
-        count={200}
-        scale={[200, 15, 200]}
+        count={300}
+        scale={[600, 20, 600]}
         position={[0, 3, 0]}
         size={1.5}
         speed={0.15}
@@ -207,8 +207,8 @@ export default function Terrain() {
       
       {/* Low-lying cyan sparkles */}
       <Sparkles
-        count={80}
-        scale={[150, 3, 150]}
+        count={120}
+        scale={[450, 4, 450]}
         position={[0, 0.5, 0]}
         size={2}
         speed={0.1}
@@ -226,9 +226,9 @@ export default function Terrain() {
       <TwistedTrees />
 
       {/* Glowing energy crystals */}
-      {Array.from({ length: 10 }).map((_, i) => {
-        const angle = (i / 10) * Math.PI * 2;
-        const radius = 25 + Math.random() * 25;
+      {Array.from({ length: 18 }).map((_, i) => {
+        const angle = (i / 18) * Math.PI * 2;
+        const radius = 60 + Math.random() * 120;
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
         const crystalColor = ['#00ffff', '#8040ff', '#ff40ff', '#00ff88'][i % 4];
@@ -257,7 +257,7 @@ export default function Terrain() {
       {/* Mystic fog rings on the ground */}
       {Array.from({ length: 6 }).map((_, i) => {
         const angle = (i / 6) * Math.PI * 2;
-        const r = 40 + i * 10;
+        const r = 80 + i * 25;
         return (
           <mesh key={`fog-ring-${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[Math.cos(angle) * r * 0.3, 0.02, Math.sin(angle) * r * 0.3]}>
             <ringGeometry args={[r - 2, r, 64]} />
