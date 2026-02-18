@@ -7892,7 +7892,8 @@ async def generate_pdf(request: Request):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_google_credentials():
-    """Load Google service account credentials from file or env var (GOOGLE_SERVICE_ACCOUNT_JSON)."""
+    """Load Google service account credentials from file or env var (GOOGLE_SERVICE_ACCOUNT_JSON).
+    Uses domain-wide delegation to impersonate cmc@conniemichelleconsulting.com."""
     import json as _json
     from google.oauth2 import service_account
     SCOPES = [
@@ -7900,13 +7901,18 @@ def get_google_credentials():
         "https://www.googleapis.com/auth/documents",
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/presentations",
     ]
+    # The user account to impersonate via domain-wide delegation
+    IMPERSONATE_USER = "cmc@conniemichelleconsulting.com"
+
     # Priority 1: Full JSON stored in env var (for Railway / cloud deploys)
     sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
     if sa_json:
         try:
             info = _json.loads(sa_json)
             creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+            creds = creds.with_subject(IMPERSONATE_USER)
             return creds
         except Exception as e:
             print(f"[Google] Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON env var: {e}")
@@ -7920,6 +7926,7 @@ def get_google_credentials():
             f"or place file at: {sa_file}"
         )
     creds = service_account.Credentials.from_service_account_file(sa_file, scopes=SCOPES)
+    creds = creds.with_subject(IMPERSONATE_USER)
     return creds
 
 def get_google_service(api, version):
