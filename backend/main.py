@@ -4490,6 +4490,13 @@ async def chat_with_vesper(chat: ChatMessage):
 
         enhanced_system = VESPER_CORE_DNA + "\n\n" + date_context + "\n\n" + memory_summary
         
+        # Check Google availability
+        try:
+            _creds = get_google_credentials()
+            enhanced_system += f"\n\n**GOOGLE WORKSPACE:** CONNECTED. Service account: {_creds.service_account_email}. USE your Google tools when CC asks."
+        except Exception:
+            enhanced_system += "\n\n**GOOGLE WORKSPACE:** NOT CONNECTED on this server. Tell CC the service account needs to be configured if she asks about Google."
+        
         # Inject daily identity context
         try:
             identity = load_daily_identity()
@@ -5726,7 +5733,16 @@ async def chat_stream(chat: ChatMessage):
                 current_datetime = datetime.datetime.utcnow().strftime("%A, %B %d, %Y at %I:%M %p UTC")
             
             date_context = f"\n\n**RIGHT NOW:** It's {current_datetime} (Arizona time)"
-            enhanced_system = VESPER_CORE_DNA + "\n\n" + date_context + "\n\n" + memory_summary
+            
+            # Check Google availability at runtime
+            google_context = ""
+            try:
+                _creds = get_google_credentials()
+                google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED and ready. Service account: {_creds.service_account_email}. You have full access to Drive, Docs, Sheets, and Calendar tools. USE THEM when CC asks."
+            except Exception:
+                google_context = "\n\n**GOOGLE WORKSPACE:** NOT CONNECTED on this server. If CC asks about Google tools, tell her the service account credentials need to be configured on this deployment. Don't claim you can't access Google in general — it works when properly configured."
+            
+            enhanced_system = VESPER_CORE_DNA + "\n\n" + date_context + "\n\n" + memory_summary + google_context
             
             # Inject daily identity
             try:

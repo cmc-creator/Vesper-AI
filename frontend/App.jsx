@@ -811,19 +811,24 @@ export default function App() {
     return () => unsubscribe();
   }, [userId]);
 
+  const lastMessageCountRef = useRef(0);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Only auto-scroll when messages are ADDED, not when content updates (streaming)
+    if (messages.length !== lastMessageCountRef.current) {
+      lastMessageCountRef.current = messages.length;
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }, [messages]);
 
-  // Auto-focus input after sending message or loading thread
+  // Auto-focus input when switching threads (not on every message update)
   useEffect(() => {
     inputRef.current?.focus();
-  }, [messages, currentThreadId]);
+  }, [currentThreadId]);
 
-  const saveMessageToThread = async (role, content) => {
+  const saveMessageToThread = async (role, content, overrideThreadId) => {
     if (!apiBase) return null;
     try {
-      let threadId = currentThreadId;
+      let threadId = overrideThreadId || currentThreadId;
       
       // If no thread, create one
       if (!threadId) {
@@ -991,6 +996,8 @@ export default function App() {
     // Create a placeholder assistant message for streaming
     const streamMsgId = `stream-${Date.now()}-${Math.random()}`;
     setStreamingMessageId(streamMsgId);
+    let lastStreamUpdate = 0;
+    const STREAM_THROTTLE = 50; // ms — throttle DOM updates during streaming
     
     try {
       const payload = { 
@@ -1044,11 +1051,16 @@ export default function App() {
                 messageAdded = true;
                 setThinking(false);
                 setThinkingStatus('');
+                lastStreamUpdate = Date.now();
               } else {
-                // Update existing message content
-                setMessages(prev => prev.map(m => 
-                  m.id === streamMsgId ? { ...m, content: accumulatedText } : m
-                ));
+                // Throttle DOM updates during streaming to prevent twitching
+                const now = Date.now();
+                if (now - lastStreamUpdate >= STREAM_THROTTLE) {
+                  lastStreamUpdate = now;
+                  setMessages(prev => prev.map(m => 
+                    m.id === streamMsgId ? { ...m, content: accumulatedText } : m
+                  ));
+                }
               }
             } else if (data.type === 'visualizations' && data.data) {
               data.data.forEach(viz => {
@@ -1071,7 +1083,12 @@ export default function App() {
         }
       }
       
-      // Finalize
+      // Finalize — flush last streaming content
+      if (messageAdded && accumulatedText) {
+        setMessages(prev => prev.map(m => 
+          m.id === streamMsgId ? { ...m, content: accumulatedText } : m
+        ));
+      }
       if (!messageAdded && accumulatedText) {
         addLocalMessage('assistant', accumulatedText);
       }
@@ -2024,7 +2041,8 @@ export default function App() {
       const data = await res.json();
       if (data && data.messages) {
         // Convert backend message format to frontend format
-        const formattedMessages = data.messages.map(msg => ({
+        const formattedMessages = data.messages.map((msg, idx) => ({
+          id: msg.id || `thread-${threadId}-${idx}-${Date.now()}`,
           role: msg.role,
           content: msg.content,
           timestamp: msg.timestamp || Date.now()
@@ -2043,11 +2061,17 @@ export default function App() {
 
   const startNewChat = () => {
     setMessages([]);
-    // Reset thread ID - let first message create the thread
     setCurrentThreadId(null);
     setCurrentThreadTitle('New Conversation');
+    setStreamingMessageId(null);
+    setLoading(false);
+    setThinking(false);
+    setThinkingStatus('');
+    if (abortController) { abortController.abort(); setAbortController(null); }
     playSound('click');
     setToast('New conversation started');
+    // Focus input after clearing
+    setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   const deleteThread = async (threadId, skipConfirm = false) => {
@@ -6352,13 +6376,14 @@ export default function App() {
             backdropFilter: 'blur(30px)',
             border: '1px solid rgba(0,255,255,0.2)',
             borderRadius: '20px',
-            minWidth: '380px',
+            minWidth: '340px',
             maxWidth: '440px',
-            overflow: 'visible',
+            overflow: 'hidden',
+            margin: '16px',
           },
         }}
       >
-        <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Box sx={{ p: 2.5, textAlign: 'center', maxHeight: '85vh', overflowY: 'auto', '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(0,255,255,0.2)', borderRadius: 2 } }}>
           {/* 3D Avatar or fallback emoji */}
           {activeAvatarData?.file ? (
             <Box sx={{ mb: 1 }}>
@@ -6366,7 +6391,7 @@ export default function App() {
                 avatarUrl={activeAvatarData.file}
                 scale={activeAvatarData.scale || 1.5}
                 position={activeAvatarData.position || [0, -1, 0]}
-                height={160}
+                height={140}
                 compact
                 accentColor={activeTheme?.accent || '#00ffff'}
               />
@@ -6392,7 +6417,7 @@ export default function App() {
           </Typography>
 
           {/* Identity cards */}
-          <Stack spacing={1.5} sx={{ mb: 2.5, textAlign: 'left' }}>
+          <Stack spacing={1} sx={{ mb: 2, textAlign: 'left' }}>
             {[
               { label: 'Mood', value: vesperIdentity?.mood?.label || vesperIdentity?.mood?.id, idValue: vesperIdentity?.mood?.id, emoji: vesperIdentity?.mood?.emoji, color: vesperIdentity?.mood?.color, key: 'mood_override', options: identityOptions?.moods },
               { label: 'Vibe', value: vesperIdentity?.gender?.label || vesperIdentity?.gender?.id, idValue: vesperIdentity?.gender?.id, emoji: vesperIdentity?.gender?.emoji || (vesperIdentity?.gender?.id === 'feminine' ? '♀️' : vesperIdentity?.gender?.id === 'masculine' ? '♂️' : '⚧️'), color: '#ff66ff', key: 'gender_override', options: identityOptions?.genders },
@@ -6400,11 +6425,13 @@ export default function App() {
               { label: 'Voice', value: vesperIdentity?.voice_vibe?.label || vesperIdentity?.voice_vibe?.id, idValue: vesperIdentity?.voice_vibe?.id, emoji: vesperIdentity?.voice_vibe?.emoji || '🎤', color: '#ffaa00', key: 'voice_vibe_override', options: identityOptions?.voice_vibes },
             ].map((item) => (
               <Box key={item.label} sx={{
-                display: 'flex', alignItems: 'center', gap: 1.5,
+                display: 'flex', alignItems: 'center', gap: 1,
                 bgcolor: 'rgba(255,255,255,0.03)',
                 borderRadius: 2,
-                p: 1.5,
+                p: 1,
                 border: `1px solid ${item.color || 'var(--accent)'}22`,
+                minWidth: 0,
+                overflow: 'hidden',
               }}>
                 <Box sx={{ fontSize: '1.3rem', width: 32, textAlign: 'center' }}>{item.emoji}</Box>
                 <Box sx={{ flex: 1 }}>
@@ -6499,7 +6526,7 @@ export default function App() {
             onClick={() => setIdentityDialogOpen(false)}
             sx={{ mt: 1.5, color: 'rgba(255,255,255,0.35)', fontSize: '0.7rem', textTransform: 'none' }}
           >
-            remind me later
+            Remind Me Later
           </Button>
         </Box>
       </Dialog>
