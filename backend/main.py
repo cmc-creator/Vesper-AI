@@ -7716,6 +7716,76 @@ async def google_workspace_status():
         return {"connected": False, "error": str(e)[:300]}
 
 
+# ═══════════════════════════════════════════════════════════════
+#  BACKGROUND STUDIO — Custom Dashboard Backgrounds
+# ═══════════════════════════════════════════════════════════════
+
+BACKGROUNDS_FILE = os.path.join(DATA_DIR, "style", "backgrounds.json")
+
+def load_backgrounds():
+    """Load saved backgrounds gallery."""
+    try:
+        if os.path.exists(BACKGROUNDS_FILE):
+            with open(BACKGROUNDS_FILE, "r") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {"backgrounds": [], "settings": {"opacity": 0.3, "blur": 0, "overlay": True}}
+
+def save_backgrounds(data):
+    """Persist backgrounds gallery."""
+    os.makedirs(os.path.dirname(BACKGROUNDS_FILE), exist_ok=True)
+    with open(BACKGROUNDS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+@app.get("/api/backgrounds")
+async def get_backgrounds():
+    """Get all saved backgrounds and settings."""
+    data = load_backgrounds()
+    return data
+
+@app.post("/api/backgrounds")
+async def add_background(req: Request):
+    """Add a background to the gallery."""
+    body = await req.json()
+    data = load_backgrounds()
+    
+    # Ensure required fields
+    bg = {
+        "id": body.get("id", f"bg-{int(datetime.now().timestamp() * 1000)}"),
+        "name": body.get("name", "Untitled"),
+        "url": body.get("url", ""),
+        "category": body.get("category", "custom"),
+        "source": body.get("source", "manual"),
+        "tags": body.get("tags", []),
+        "addedAt": body.get("addedAt", datetime.now().isoformat()),
+    }
+    
+    # Don't add duplicates
+    if not any(b["id"] == bg["id"] for b in data["backgrounds"]):
+        data["backgrounds"].append(bg)
+        save_backgrounds(data)
+    
+    return {"success": True, "background": bg}
+
+@app.delete("/api/backgrounds/{bg_id}")
+async def delete_background(bg_id: str):
+    """Remove a background from the gallery."""
+    data = load_backgrounds()
+    data["backgrounds"] = [b for b in data["backgrounds"] if b.get("id") != bg_id]
+    save_backgrounds(data)
+    return {"success": True}
+
+@app.put("/api/backgrounds/settings")
+async def update_background_settings(req: Request):
+    """Update background display settings (opacity, blur, overlay)."""
+    body = await req.json()
+    data = load_backgrounds()
+    data["settings"] = {**data.get("settings", {}), **body}
+    save_backgrounds(data)
+    return {"success": True, "settings": data["settings"]}
+
+
 # --- STARTUP ---
 if __name__ == "__main__":
     import uvicorn

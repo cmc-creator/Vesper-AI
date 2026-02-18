@@ -102,6 +102,7 @@ import MediaGallery from './src/components/MediaGallery';
 import AvatarStudio from './src/components/AvatarStudio';
 import VesperAvatar3D from './src/components/VesperAvatar3D';
 import IntegrationsHub from './src/components/IntegrationsHub';
+import BackgroundStudio from './src/components/BackgroundStudio';
 
 // Styles
 import './App.css';
@@ -395,6 +396,16 @@ function App() {
   // 3D Avatar System
   const [avatarStudioOpen, setAvatarStudioOpen] = useState(false);
   const [activeAvatarData, setActiveAvatarData] = useState(null);
+
+  // Background Studio
+  const [backgroundStudioOpen, setBackgroundStudioOpen] = useState(false);
+  const [customBackground, setCustomBackground] = useState(() => {
+    try { const s = localStorage.getItem('vesper_custom_bg'); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const [backgroundGallery, setBackgroundGallery] = useState([]);
+  const [backgroundSettings, setBackgroundSettings] = useState(() => {
+    try { const s = localStorage.getItem('vesper_bg_settings'); return s ? JSON.parse(s) : { opacity: 0.3, blur: 0, overlay: true }; } catch { return { opacity: 0.3, blur: 0, overlay: true }; }
+  });
 
   // Tools
   const [canvasOpen, setCanvasOpen] = useState(false);
@@ -698,17 +709,49 @@ export default function App() {
     }
   }, [activeTheme, activeSection, memoryCategory]);
 
+  // ── Background auto-rotation ──
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('vesper_bg_rotate');
+      if (!saved) return;
+      const { enabled, interval } = JSON.parse(saved);
+      if (!enabled || !interval || backgroundGallery.length === 0) return;
+      
+      const timer = setInterval(() => {
+        const all = backgroundGallery.length > 0 ? backgroundGallery : [];
+        if (all.length === 0) return;
+        const pick = all[Math.floor(Math.random() * all.length)];
+        setCustomBackground({ id: pick.id, url: pick.url, name: pick.name, category: pick.category || 'custom' });
+        try { localStorage.setItem('vesper_custom_bg', JSON.stringify({ id: pick.id, url: pick.url, name: pick.name, category: pick.category })); } catch (e) {}
+      }, (interval || 30) * 60 * 1000);
+      
+      return () => clearInterval(timer);
+    } catch (e) {}
+  }, [backgroundGallery]);
+
   // ── Vesper Autonomy: Fetch daily identity + proactive greeting on load ──
   useEffect(() => {
     const loadVesperIdentity = async () => {
+      let identity = null;
+      let optionsLoaded = false;
+
+      // Fetch identity options FIRST so the dialog has data when it opens
+      try {
+        const optRes = await fetch(`${apiBase}/api/vesper/identity/options`);
+        if (optRes.ok) {
+          setIdentityOptions(await optRes.json());
+          optionsLoaded = true;
+        }
+      } catch (e) { console.log('Identity options fetch skipped:', e.message); }
+
       try {
         // Fetch daily identity
         const idRes = await fetch(`${apiBase}/api/vesper/identity`);
         if (idRes.ok) {
-          const identity = await idRes.json();
+          identity = await idRes.json();
           setVesperIdentity(identity);
-          // Show identity dialog if not confirmed yet today
-          if (!identity.confirmed) {
+          // Only show identity dialog once options are loaded to prevent crash
+          if (!identity.confirmed && optionsLoaded) {
             setIdentityDialogOpen(true);
           }
         }
@@ -723,14 +766,6 @@ export default function App() {
           if (data.initiatives?.length) setVesperInitiatives(data.initiatives);
         }
       } catch (e) { console.log('Initiative fetch skipped:', e.message); }
-      
-      try {
-        // Fetch identity options for the picker
-        const optRes = await fetch(`${apiBase}/api/vesper/identity/options`);
-        if (optRes.ok) {
-          setIdentityOptions(await optRes.json());
-        }
-      } catch (e) {}
 
       try {
         // Fetch active avatar data  
@@ -2310,6 +2345,10 @@ export default function App() {
         break;
       case 'enterWorld':
         setGameMode(true);
+        break;
+      case 'backgrounds':
+      case 'backgroundStudio':
+        setBackgroundStudioOpen(true);
         break;
       default:
         break;
@@ -4241,6 +4280,59 @@ export default function App() {
                   </Dialog>
                 </Stack>
               </Box>
+
+              {/* Background Studio */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#ff88ff' }}>🖼️ Background Studio</Typography>
+                <Box sx={{
+                  p: 2, border: '1px solid rgba(255,136,255,0.2)', borderRadius: 2, bgcolor: 'rgba(255,136,255,0.03)',
+                  position: 'relative', overflow: 'hidden',
+                }}>
+                  {/* Mini preview of current background */}
+                  {customBackground?.url && (
+                    <Box sx={{
+                      position: 'absolute', inset: 0, opacity: 0.15,
+                      backgroundImage: `url(${customBackground.url})`,
+                      backgroundSize: 'cover', backgroundPosition: 'center',
+                      filter: 'blur(4px)',
+                    }} />
+                  )}
+                  <Box sx={{ position: 'relative', zIndex: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: '#ff88ff' }}>
+                      Custom Backgrounds
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1.5 }}>
+                      {customBackground
+                        ? `Active: ${customBackground.name}`
+                        : 'Set custom wallpapers, upload images, or pick from curated collections'
+                      }
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => setBackgroundStudioOpen(true)}
+                        sx={{ borderColor: '#ff88ff', color: '#ff88ff', textTransform: 'none', fontWeight: 600, flex: 1 }}
+                      >
+                        Open Studio
+                      </Button>
+                      {customBackground && (
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            setCustomBackground(null);
+                            try { localStorage.removeItem('vesper_custom_bg'); } catch (e) {}
+                            setToast('Background cleared');
+                          }}
+                          sx={{ color: 'rgba(255,255,255,0.4)', textTransform: 'none', fontSize: '0.75rem' }}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </Stack>
+                  </Box>
+                </Box>
+              </Box>
               
               {/* Audio & Voice */}
               <Box>
@@ -4848,8 +4940,19 @@ export default function App() {
       
       {/* Background layers — absolute positioned in a full-page wrapper */}
       <Box sx={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-        <div className="bg-layer gradient-background" style={{ background: activeTheme.bg || '#000', position: 'absolute', inset: 0 }} />
-        <div className="bg-layer hex-grid" style={{ position: 'absolute', inset: 0, ...(activeTheme.bgImage ? { backgroundImage: activeTheme.bgImage, backgroundSize: activeTheme.bgSize || 'cover', backgroundPosition: 'center' } : {}) }} />
+        <div className="bg-layer gradient-background" style={{ background: activeTheme.bg || '#000', position: 'absolute', inset: 0, ...(customBackground ? { opacity: backgroundSettings?.overlay !== false ? (backgroundSettings?.opacity ?? 0.3) : 0 } : {}) }} />
+        {/* Custom background image layer */}
+        {customBackground?.url && (
+          <div className="bg-layer custom-background" style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: `url(${customBackground.url})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: (backgroundSettings?.blur || 0) > 0 ? `blur(${backgroundSettings.blur}px)` : 'none',
+            zIndex: -1,
+          }} />
+        )}
+        <div className="bg-layer hex-grid" style={{ position: 'absolute', inset: 0, ...(activeTheme.bgImage && !customBackground ? { backgroundImage: activeTheme.bgImage, backgroundSize: activeTheme.bgSize || 'cover', backgroundPosition: 'center' } : {}) }} />
         <div className="bg-layer scanlines" style={{ position: 'absolute', inset: 0, ...(activeTheme.scanlines === false ? { display: 'none' } : {}) }} />
       </Box>
       
@@ -6222,6 +6325,21 @@ export default function App() {
         open={diagnosticsOpen} 
         onClose={() => setDiagnosticsOpen(false)} 
         apiBase={apiBase} 
+      />
+
+      {/* Background Studio */}
+      <BackgroundStudio
+        open={backgroundStudioOpen}
+        onClose={() => setBackgroundStudioOpen(false)}
+        apiBase={apiBase}
+        setToast={setToast}
+        activeTheme={activeTheme}
+        customBackground={customBackground}
+        setCustomBackground={setCustomBackground}
+        backgroundGallery={backgroundGallery}
+        setBackgroundGallery={setBackgroundGallery}
+        backgroundSettings={backgroundSettings}
+        setBackgroundSettings={setBackgroundSettings}
       />
 
       {/* Vesper Identity Dialog */}
