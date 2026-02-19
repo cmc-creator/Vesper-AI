@@ -5,7 +5,7 @@ cd /d %~dp0
 
 REM Start Backend
 echo Starting backend server...
-start "Vesper Backend" cmd /k "call .venv\Scripts\activate.bat && cd backend && uvicorn main:app --reload --host 127.0.0.1 --port 8000"
+start "Vesper Backend" cmd /k "call .venv\Scripts\activate.bat && cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000"
 
 REM Wait a moment for backend to start
 TIMEOUT /T 3 >nul
@@ -19,10 +19,10 @@ TIMEOUT /T 5 >nul
 
 REM Open browser
 echo Opening Vesper in browser...
-start http://localhost:5176
+start http://localhost:5173
 
 echo.
 echo Vesper is starting! Check the terminal windows for any errors.
 echo Backend: http://localhost:8000
-echo Frontend: http://localhost:5176 (or check terminal for actual port)
+echo Frontend: http://localhost:5173 (or check terminal for actual port)
 pause

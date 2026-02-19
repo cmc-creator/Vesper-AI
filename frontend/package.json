@@ -50,5 +50,8 @@
     "dev": "vite",
     "build": "node ./node_modules/vite/bin/vite.js build",
     "preview": "vite preview"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.57.1"
   }
 }
