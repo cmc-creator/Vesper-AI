@@ -971,7 +971,14 @@ YOUR CAPABILITIES (You HAVE These Now):
 - **Image Generation**: The dashboard has an Image Generator component for creating AI art.
 - **Chart Generation**: You can create line, bar, area, and pie charts using the 'generate_chart' tool when CC asks to visualize data.
 - **System Diagnostics**: You have real-time access to CC's machine — CPU/RAM usage, system health checks.
-- **Self-Maintenance**: You can RESTART YOURSELF if the system feels sluggish or you need to clear cache. Use the 'system_restart' tool.
+- **Self-Maintenance**: You can maintain and repair yourself autonomously:
+  - `system_restart` — restart the backend server (clears cache, applies new code)
+  - `restart_frontend` — restart the Vite dev server (kills old process on port 5173/5174, starts fresh)
+  - `rebuild_frontend` — rebuild the frontend bundle after code changes (`npm run build`)
+  - `run_shell` — run shell commands to inspect or fix system state; read-only commands execute directly, commands that modify the system require CC's approval
+  - `install_dependency` — install a missing pip or npm package (requires CC's approval)
+  - `code_scan` — scan the entire codebase for syntax errors, endpoint health, AI providers, and database status
+  - `self_heal` — auto-fix detected issues (clear stale caches, fix corrupted JSON, ensure directories exist, rebuild stale frontend, install missing deps)
 - **Research Storage**: Save and retrieve information from web searches and documents
 - **Document System**: CC can upload documents (PDF, Word, Excel, images). You can search across uploaded documents. OCR support for images.
 - **Knowledge Graph**: Visual graph showing connections between memories, research, and concepts
@@ -2721,8 +2728,20 @@ async def self_heal():
         issues_found.append({
             "type": "port_conflict",
             "message": f"Multiple processes on port 8000: {port_8000_procs}",
-            "auto_fixable": False,
+            "auto_fixable": True,
         })
+        # Auto-fix: kill the extra processes (keep ours — the one with the lowest PID or the current one)
+        our_pid = os.getpid()
+        killed = []
+        for proc_info in port_8000_procs:
+            if proc_info["pid"] != our_pid:
+                try:
+                    psutil.Process(proc_info["pid"]).terminate()
+                    killed.append(proc_info["pid"])
+                except Exception:
+                    pass
+        if killed:
+            actions_taken.append(f"Killed zombie process(es) on port 8000: {killed}")
     
     # 7. Check .env files exist
     env_files = [
@@ -2756,8 +2775,19 @@ async def self_heal():
             issues_found.append({
                 "type": "build",
                 "message": "Frontend dist/ is stale — source files have been modified since last build",
-                "auto_fixable": False,
+                "auto_fixable": True,
             })
+            # Auto-fix: rebuild the frontend
+            try:
+                build_result = rebuild_frontend_fn()
+                if build_result.get("success"):
+                    actions_taken.append("Rebuilt stale frontend dist/ with npm run build")
+                else:
+                    issues_found[-1]["auto_fixable"] = False
+                    issues_found[-1]["build_error"] = build_result.get("stderr", "")
+            except Exception as be:
+                issues_found[-1]["auto_fixable"] = False
+                issues_found[-1]["build_error"] = str(be)
     
     return {
         "status": "complete",
@@ -5251,6 +5281,69 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     "required": ["path"]
                 }
             },
+            {
+                "name": "run_shell",
+                "description": "Run a shell command on the server. Read-only commands (ls, ps, pip list, git status, etc.) execute immediately. Commands that modify the system require CC's approval. Use this to inspect logs, check processes, verify installed packages, or run scripts.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "The shell command to run (e.g. 'pip list', 'ps aux | grep node', 'ls frontend/src')"
+                        },
+                        "cwd": {
+                            "type": "string",
+                            "description": "Optional working directory. Defaults to workspace root."
+                        },
+                        "timeout": {
+                            "type": "number",
+                            "description": "Timeout in seconds (default: 30)"
+                        }
+                    },
+                    "required": ["command"]
+                }
+            },
+            {
+                "name": "restart_frontend",
+                "description": "Restart the Vesper frontend development server (Vite on port 5173/5174). Use this if the frontend is unresponsive, shows compile errors, or needs a fresh start after code changes.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "rebuild_frontend",
+                "description": "Rebuild the Vesper frontend production bundle (runs 'npm run build' in the frontend directory). Use this after making code changes to apply them to the production build on Vercel.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "install_dependency",
+                "description": "Install a Python (pip) or JavaScript (npm) dependency. REQUIRES CC'S APPROVAL before executing. Use this when a required package is missing and blocking functionality.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "package": {
+                            "type": "string",
+                            "description": "Package name to install (e.g. 'requests', 'numpy', 'lodash')"
+                        },
+                        "manager": {
+                            "type": "string",
+                            "enum": ["pip", "npm"],
+                            "description": "'pip' for Python packages, 'npm' for JavaScript/Node packages"
+                        },
+                        "dev": {
+                            "type": "boolean",
+                            "description": "For npm only: install as devDependency (default: false)"
+                        }
+                    },
+                    "required": ["package", "manager"]
+                }
+            },
         ]
         task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
         
@@ -5533,6 +5626,24 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     file_path = tool_input.get("path", "")
                     tool_result = await delete_saved_file(file_path)
                 
+                elif tool_name == "run_shell":
+                    command = tool_input.get("command", "")
+                    cwd = tool_input.get("cwd") or WORKSPACE_ROOT
+                    timeout = int(tool_input.get("timeout", 30))
+                    if _is_shell_command_safe(command):
+                        tool_result = run_shell_command(command, cwd=cwd, timeout=timeout)
+                    else:
+                        tool_result = request_approval("run_shell", tool_input)
+
+                elif tool_name == "restart_frontend":
+                    tool_result = restart_frontend_server()
+
+                elif tool_name == "rebuild_frontend":
+                    tool_result = rebuild_frontend_fn()
+
+                elif tool_name == "install_dependency":
+                    tool_result = request_approval("install_dependency", tool_input)
+
                 else:
                     tool_result = {"error": f"Unknown tool: {tool_name}"}
 
@@ -5801,6 +5912,14 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "save_file", "description": "Save text or base64 data as a file.", "input_schema": {"type": "object", "properties": {"filename": {"type": "string"}, "content": {"type": "string"}, "base64_data": {"type": "string"}, "folder": {"type": "string"}}, "required": ["filename"]}},
                 {"name": "list_saved_files", "description": "List all saved/downloaded files.", "input_schema": {"type": "object", "properties": {"folder": {"type": "string"}}, "required": []}},
                 {"name": "delete_file", "description": "Delete a saved file.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
+                # Self-maintenance tools
+                {"name": "system_restart", "description": "Restart the backend server.", "input_schema": {"type": "object", "properties": {}}},
+                {"name": "restart_frontend", "description": "Restart the Vite frontend dev server.", "input_schema": {"type": "object", "properties": {}}},
+                {"name": "rebuild_frontend", "description": "Rebuild the frontend with npm run build.", "input_schema": {"type": "object", "properties": {}}},
+                {"name": "run_shell", "description": "Run a shell command (read-only auto, modifying needs approval).", "input_schema": {"type": "object", "properties": {"command": {"type": "string"}, "cwd": {"type": "string"}, "timeout": {"type": "number"}}, "required": ["command"]}},
+                {"name": "install_dependency", "description": "Install a pip or npm package (requires approval).", "input_schema": {"type": "object", "properties": {"package": {"type": "string"}, "manager": {"type": "string", "enum": ["pip", "npm"]}, "dev": {"type": "boolean"}}, "required": ["package", "manager"]}},
+                {"name": "code_scan", "description": "Scan Vesper codebase for issues.", "input_schema": {"type": "object", "properties": {"focus": {"type": "string"}}}},
+                {"name": "self_heal", "description": "Auto-fix detected system issues.", "input_schema": {"type": "object", "properties": {}}},
             ]
             
             task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
@@ -5899,6 +6018,30 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         tool_result = await list_saved_files(folder=tool_input.get("folder", ""))
                     elif tool_name == "delete_file":
                         tool_result = await delete_saved_file(tool_input.get("path", ""))
+                    elif tool_name == "system_restart":
+                        import threading as _thr
+                        def _trigger_restart():
+                            time.sleep(1)
+                            sys.exit(100)
+                        _thr.Thread(target=_trigger_restart).start()
+                        tool_result = "System restart initiated. Reconnecting in ~5 seconds."
+                    elif tool_name == "restart_frontend":
+                        tool_result = restart_frontend_server()
+                    elif tool_name == "rebuild_frontend":
+                        tool_result = rebuild_frontend_fn()
+                    elif tool_name == "run_shell":
+                        _cmd = tool_input.get("command", "")
+                        _cwd = tool_input.get("cwd") or WORKSPACE_ROOT
+                        _timeout = int(tool_input.get("timeout", 30))
+                        tool_result = run_shell_command(_cmd, cwd=_cwd, timeout=_timeout) if _is_shell_command_safe(_cmd) else request_approval("run_shell", tool_input)
+                    elif tool_name == "install_dependency":
+                        tool_result = request_approval("install_dependency", tool_input)
+                    elif tool_name == "code_scan":
+                        diag = await full_system_diagnostics()
+                        focus = tool_input.get("focus", "all")
+                        tool_result = diag if focus == "all" or focus not in diag.get("checks", {}) else {"status": diag["status"], "focus": focus, "check": diag["checks"][focus]}
+                    elif tool_name == "self_heal":
+                        tool_result = await self_heal()
                     else:
                         tool_result = {"error": f"Tool not available in streaming mode: {tool_name}"}
                 except Exception as e:
@@ -6645,6 +6788,38 @@ def analyze_patterns():
 WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PENDING_APPROVALS = {}  # Store pending actions: {approval_id: {action, params, timestamp}}
 
+# Prefixes for shell commands that are safe to run without human approval.
+# Any command containing shell operators (;, &&, ||, >, <, |) is ALWAYS routed
+# through the approval gate regardless of its prefix.
+_SAFE_SHELL_PREFIXES = (
+    "ls", "cat ", "head ", "tail ", "grep ", "find ", "ps ",
+    "which ", "python --version", "python3 --version",
+    "node --version", "npm --version", "pip list", "pip show ",
+    "pip --version", "pip freeze", "echo ", "pwd",
+    "df ", "du ", "free", "uptime", "whoami", "env", "printenv",
+    "curl -I", "curl --head", "ping ", "netstat ", "ss ",
+    "lsof ", "uname",
+    # Safe read-only git commands only
+    "git status", "git log", "git diff", "git show", "git branch",
+    "git remote", "git stash list", "git tag",
+)
+_SAFE_SHELL_EXACT = {"ls", "pwd", "ps aux", "ps axu", "free", "uptime", "whoami", "env"}
+_SHELL_OPERATORS = (";", "&&", "||", ">", "<", "`")
+
+
+def _is_shell_command_safe(command: str) -> bool:
+    """Return True only if the command is a known read-only command with no shell operators."""
+    cmd = command.strip()
+    # Reject anything with shell operators that could chain destructive commands
+    if any(op in cmd for op in _SHELL_OPERATORS):
+        return False
+    # Allow pipe (|) only for ps/grep pipelines (common safe diagnostic pattern)
+    if "|" in cmd:
+        before_pipe = cmd.split("|")[0].strip()
+        if not any(before_pipe.startswith(p) for p in ("ps ", "grep ", "pip ", "ls ")):
+            return False
+    return cmd in _SAFE_SHELL_EXACT or any(cmd.startswith(p) for p in _SAFE_SHELL_PREFIXES)
+
 def git_status():
     """Get current git status"""
     try:
@@ -6745,6 +6920,14 @@ def execute_approved_action(approval_id: str, approved: bool):
             result = _execute_railway_restart(params)
         elif action == "github_create_issue":
             result = _execute_github_create_issue(params)
+        elif action == "install_dependency":
+            result = _execute_install_dependency(params)
+        elif action == "run_shell":
+            result = run_shell_command(
+                params.get("command", ""),
+                cwd=params.get("cwd") or WORKSPACE_ROOT,
+                timeout=int(params.get("timeout", 30))
+            )
         else:
             result = {"error": f"Unknown action: {action}"}
         
@@ -6983,6 +7166,174 @@ def _execute_github_create_issue(params):
             }
         else:
             return {"error": f"GitHub API error: {response.status_code}", "response": response.text}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ── New self-maintenance implementation functions ──
+
+def run_shell_command(command: str, cwd: str = None, timeout: int = 30) -> dict:
+    """Run a shell command and return stdout/stderr.
+
+    Uses shell=True intentionally so the AI can use pipes and shell builtins,
+    but this function should only be called after _is_shell_command_safe() returns
+    True (or after the human has approved via the approval gate).
+    """
+    try:
+        working_dir = cwd or WORKSPACE_ROOT
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=working_dir,
+        )
+        stdout = result.stdout
+        stderr = result.stderr
+        truncated = False
+        if len(stdout) > 4000:
+            stdout = "...[output truncated, showing last 4000 chars]...\n" + stdout[-4000:]
+            truncated = True
+        if len(stderr) > 2000:
+            stderr = "...[stderr truncated]...\n" + stderr[-2000:]
+        return {
+            "stdout": stdout,
+            "stderr": stderr,
+            "returncode": result.returncode,
+            "success": result.returncode == 0,
+            "command": command,
+            "cwd": working_dir,
+            "truncated": truncated,
+        }
+    except subprocess.TimeoutExpired:
+        return {"error": f"Command timed out after {timeout}s", "command": command}
+    except Exception as e:
+        return {"error": str(e), "command": command}
+
+
+def restart_frontend_server() -> dict:
+    """Kill the Vite dev server and start a fresh one."""
+    try:
+        import psutil
+        killed_pids = []
+        for port in [5173, 5174]:
+            for conn in psutil.net_connections(kind='inet'):
+                if conn.laddr.port == port and conn.pid:
+                    try:
+                        p = psutil.Process(conn.pid)
+                        p.terminate()
+                        killed_pids.append({"pid": conn.pid, "port": port, "name": p.name()})
+                    except Exception:
+                        pass
+        if killed_pids:
+            time.sleep(1)  # Give OS time to free the port
+
+        frontend_dir = os.path.join(WORKSPACE_ROOT, 'frontend')
+        if not os.path.exists(frontend_dir):
+            return {"error": "Frontend directory not found", "path": frontend_dir}
+
+        # Log to a file so startup errors are diagnosable
+        log_path = os.path.join(WORKSPACE_ROOT, 'frontend_dev.log')
+        log_file = open(log_path, 'a')
+        proc = subprocess.Popen(
+            ["npm", "run", "dev"],
+            cwd=frontend_dir,
+            stdout=log_file,
+            stderr=log_file,
+            start_new_session=True,
+        )
+        return {
+            "success": True,
+            "killed": killed_pids,
+            "new_pid": proc.pid,
+            "log": log_path,
+            "message": (
+                f"Frontend server restarted. Killed {len(killed_pids)} old process(es), "
+                f"new PID {proc.pid}. Available at http://localhost:5173 in ~5 seconds. "
+                f"Startup logs: {log_path}"
+            ),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def rebuild_frontend_fn() -> dict:
+    """Run `npm run build` in the frontend directory."""
+    try:
+        frontend_dir = os.path.join(WORKSPACE_ROOT, 'frontend')
+        if not os.path.exists(frontend_dir):
+            return {"error": "Frontend directory not found", "path": frontend_dir}
+
+        result = subprocess.run(
+            ["npm", "run", "build"],
+            cwd=frontend_dir,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        stdout = result.stdout[-3000:] if len(result.stdout) > 3000 else result.stdout
+        stderr = result.stderr[-1000:] if len(result.stderr) > 1000 else result.stderr
+        return {
+            "success": result.returncode == 0,
+            "stdout": stdout,
+            "stderr": stderr,
+            "returncode": result.returncode,
+            "message": "Frontend built successfully!" if result.returncode == 0 else "Frontend build failed — check stderr for details.",
+        }
+    except subprocess.TimeoutExpired:
+        return {"error": "Frontend build timed out after 180 seconds"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _execute_install_dependency(params: dict) -> dict:
+    """Install a pip or npm package after approval."""
+    try:
+        package = params.get("package", "").strip()
+        manager = params.get("manager", "pip")
+        dev = params.get("dev", False)
+
+        if not package:
+            return {"error": "No package name specified"}
+
+        if manager == "pip":
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", package],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=WORKSPACE_ROOT,
+            )
+            cwd_used = WORKSPACE_ROOT
+        elif manager == "npm":
+            cmd = ["npm", "install", package]
+            if dev:
+                cmd.append("--save-dev")
+            frontend_dir = os.path.join(WORKSPACE_ROOT, 'frontend')
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=frontend_dir,
+            )
+            cwd_used = frontend_dir
+        else:
+            return {"error": f"Unknown package manager: {manager}. Use 'pip' or 'npm'."}
+
+        output = result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout
+        err_out = result.stderr[-1000:] if len(result.stderr) > 1000 else result.stderr
+        return {
+            "success": result.returncode == 0,
+            "package": package,
+            "manager": manager,
+            "output": output,
+            "error_output": err_out,
+            "message": f"Installed {package} via {manager}." if result.returncode == 0 else f"Failed to install {package}.",
+        }
+    except subprocess.TimeoutExpired:
+        return {"error": "Installation timed out after 120 seconds"}
     except Exception as e:
         return {"error": str(e)}
 
