@@ -7,7 +7,7 @@ export default defineConfig({
   ],
   server: {
     host: true, // Enable network access
-    port: 5174,
+    port: 5173,
     proxy: {
       '/api': 'http://localhost:8000',
     },
