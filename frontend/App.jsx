@@ -57,6 +57,7 @@ import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
   MoreVert as MoreVertIcon,
+  Menu as MenuIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -375,6 +376,7 @@ function App() {
   const [abortController, setAbortController] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(() => safeStorageGet('vesper_sound_enabled', 'true') === 'true');
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [uiScale, setUiScale] = useState(() => parseFloat(safeStorageGet('vesper_ui_scale', '1')));
@@ -4952,7 +4954,7 @@ export default function App() {
       })}
 
       <Box className="app-shell" style={themeVars}>
-        <aside className="sidebar glass-panel">
+        <aside className={`sidebar glass-panel${mobileSidebarOpen ? ' mobile-open' : ''}`}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Box>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 2 }}>
@@ -4972,6 +4974,7 @@ export default function App() {
                 onClick={() => {
                   setActiveSection(id);
                   playSound('click');
+                  setMobileSidebarOpen(false);
                 }}
               >
                 <Icon fontSize="small" />
@@ -5282,9 +5285,27 @@ export default function App() {
           </Button>
         </aside>
 
+        {/* Mobile backdrop – closes sidebar when tapped */}
+        {mobileSidebarOpen && (
+          <div
+            className="mobile-sidebar-backdrop"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+        )}
+
         <main className="content-grid">
           <section className="chat-panel glass-panel">
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexShrink: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {/* Hamburger – mobile only */}
+                <IconButton
+                  className="mobile-menu-btn"
+                  size="small"
+                  onClick={() => setMobileSidebarOpen(o => !o)}
+                  sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}
+                >
+                  <MenuIcon fontSize="small" />
+                </IconButton>
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--accent)' }}>
@@ -5335,6 +5356,7 @@ export default function App() {
                   </Box>
                 )}
               </Box>
+              </Box>{/* end mobile-menu-btn + title wrapper */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 {/* Model Picker */}
                 {availableModels.length > 0 && (

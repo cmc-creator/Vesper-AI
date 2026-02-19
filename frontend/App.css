@@ -1060,3 +1060,74 @@ button:active,
   border-color: rgba(0,255,255,0.15) !important;
   box-shadow: 0 0 12px rgba(0,255,255,0.06), inset 0 0 20px rgba(0,255,255,0.02) !important;
 }
+
+/* ===== MOBILE RESPONSIVE (Desktop-first) ===== */
+
+/* Hamburger button hidden on desktop */
+.mobile-menu-btn {
+  display: none !important;
+}
+
+/* Mobile sidebar backdrop hidden on desktop */
+.mobile-sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  /* Sidebar becomes a fixed off-canvas drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 260px;
+    z-index: 1000;
+    border-radius: 0 18px 18px 0;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 16px 12px;
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 40px rgba(0, 0, 0, 0.8), 4px 0 20px rgba(0, 255, 255, 0.15);
+  }
+
+  /* Backdrop visible when sidebar is open */
+  .mobile-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 999;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  /* Content fills the full width */
+  .content-grid {
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - 16px);
+  }
+
+  .chat-panel {
+    min-height: calc(100svh - 32px);
+  }
+
+  .chat-window {
+    max-height: 55svh;
+  }
+
+  /* Show hamburger button */
+  .mobile-menu-btn {
+    display: flex !important;
+  }
+}
