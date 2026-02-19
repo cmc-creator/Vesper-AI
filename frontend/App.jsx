@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, startTransition } from 'react';
 import {
   Box,
   TextField,
@@ -2468,33 +2468,35 @@ export default function App() {
   const [cloudVoices, setCloudVoices] = useState([]);
   const [defaultVoiceId, setDefaultVoiceId] = useState('');
   useEffect(() => {
-    fetch('http://localhost:8000/api/tts/voices')
+    // Defer getVoices() out of synchronous event-handler path to avoid blocking
+    // INP (Interaction to Next Paint) and preventing dropdown population.
+    const loadBrowserVoices = () => {
+      setTimeout(() => {
+        const v = window.speechSynthesis.getVoices();
+        if (v.length > 0) startTransition(() => setAvailableVoices(v));
+      }, 0);
+    };
+
+    let removeVoicesChangedListener = () => {};
+    if (window.speechSynthesis) {
+      loadBrowserVoices();
+      window.speechSynthesis.addEventListener('voiceschanged', loadBrowserVoices);
+      removeVoicesChangedListener = () =>
+        window.speechSynthesis.removeEventListener('voiceschanged', loadBrowserVoices);
+    }
+
+    fetch(`${apiBase}/api/tts/voices`)
       .then(r => r.json())
       .then(data => {
         if (data.voices) setCloudVoices(data.voices);
         if (data.default && !selectedVoiceName) setDefaultVoiceId(data.default);
-        // Also load browser voices as fallback
-        if (window.speechSynthesis) {
-          const loadVoices = () => {
-            const v = window.speechSynthesis.getVoices();
-            if (v.length > 0) setAvailableVoices(v);
-          };
-          loadVoices();
-          window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
-        }
       })
-      .catch(() => {
-        // Fallback: load browser voices only
-        if (window.speechSynthesis) {
-          const loadVoices = () => {
-            const v = window.speechSynthesis.getVoices();
-            if (v.length > 0) setAvailableVoices(v);
-          };
-          loadVoices();
-          window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
-        }
-      });
-  }, []);
+      .catch(() => {});
+
+    return removeVoicesChangedListener;
+  // selectedVoiceName is intentionally omitted: we only want to check it once at
+  // mount time to avoid overwriting a pre-selected voice with the backend default.
+  }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch available AI models for model picker
   useEffect(() => {
