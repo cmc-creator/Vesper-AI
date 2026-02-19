@@ -6354,40 +6354,23 @@ export default function App() {
             backdropFilter: 'blur(30px)',
             border: '1px solid rgba(0,255,255,0.2)',
             borderRadius: '20px',
-            minWidth: '340px',
-            maxWidth: '440px',
-            overflow: 'hidden',
+            width: '440px',
+            maxWidth: 'calc(100vw - 32px)',
             margin: '16px',
           },
         }}
       >
-        <Box sx={{ p: 2.5, textAlign: 'center', maxHeight: '85vh', overflowY: 'auto', '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(0,255,255,0.2)', borderRadius: 2 } }}>
-          {/* 3D Avatar or fallback emoji */}
-          {activeAvatarData?.file ? (
-            <Box sx={{ mb: 1 }}>
-              <VesperAvatar3D
-                avatarUrl={activeAvatarData.file}
-                scale={activeAvatarData.scale || 1.5}
-                position={activeAvatarData.position || [0, -1, 0]}
-                height={140}
-                compact
-                accentColor={activeTheme?.accent || '#00ffff'}
-              />
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem' }}>
-                {activeAvatarData.name}
-              </Typography>
-            </Box>
-          ) : (
-            <Box sx={{ 
-              fontSize: '3rem', mb: 1, 
-              animation: 'pulse 2s ease-in-out infinite',
-              '@keyframes pulse': { '0%,100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.1)' } },
-            }}>
-              {vesperIdentity?.mood?.emoji || '✨'}
-            </Box>
-          )}
+        <Box sx={{ p: 2.5, textAlign: 'center', maxHeight: '85vh', overflowY: 'auto', overflowX: 'hidden', '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(0,255,255,0.2)', borderRadius: 2 } }}>
+          {/* Emoji fallback — no 3D canvas to avoid white WebGL flash */}
+          <Box sx={{ 
+            fontSize: '3rem', mb: 1, 
+            animation: 'pulse 2s ease-in-out infinite',
+            '@keyframes pulse': { '0%,100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.1)' } },
+          }}>
+            {vesperIdentity?.mood?.emoji || '✨'}
+          </Box>
 
-          <Typography variant="h5" sx={{ color: 'var(--accent)', fontWeight: 800, mb: 0.5 }}>
+          <Typography variant="h5" sx={{ color: 'var(--accent)', fontWeight: 800, mb: 0.5, wordBreak: 'break-word' }}>
             Today's Vibe
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 2, fontSize: '0.75rem' }}>
@@ -6397,10 +6380,10 @@ export default function App() {
           {/* Identity cards */}
           <Stack spacing={1} sx={{ mb: 2, textAlign: 'left' }}>
             {[
-              { label: 'Mood', value: vesperIdentity?.mood?.label || vesperIdentity?.mood?.id, idValue: vesperIdentity?.mood?.id, emoji: vesperIdentity?.mood?.emoji, color: vesperIdentity?.mood?.color, key: 'mood_override', options: identityOptions?.moods },
-              { label: 'Vibe', value: vesperIdentity?.gender?.label || vesperIdentity?.gender?.id, idValue: vesperIdentity?.gender?.id, emoji: vesperIdentity?.gender?.emoji || (vesperIdentity?.gender?.id === 'feminine' ? '♀️' : vesperIdentity?.gender?.id === 'masculine' ? '♂️' : '⚧️'), color: '#ff66ff', key: 'gender_override', options: identityOptions?.genders },
-              { label: 'Look', value: vesperIdentity?.look, idValue: vesperIdentity?.look, emoji: '👁️', color: '#66ffcc', key: 'look_override', options: identityOptions?.looks },
-              { label: 'Voice', value: vesperIdentity?.voice_vibe?.label || vesperIdentity?.voice_vibe?.id, idValue: vesperIdentity?.voice_vibe?.id, emoji: vesperIdentity?.voice_vibe?.emoji || '🎤', color: '#ffaa00', key: 'voice_vibe_override', options: identityOptions?.voice_vibes },
+              { label: 'Mood', value: vesperIdentity?.mood?.label || vesperIdentity?.mood?.id, idValue: vesperIdentity?.mood?.id, emoji: vesperIdentity?.mood?.emoji, color: vesperIdentity?.mood?.color, identityKey: 'mood', options: identityOptions?.moods },
+              { label: 'Vibe', value: vesperIdentity?.gender?.label || vesperIdentity?.gender?.id, idValue: vesperIdentity?.gender?.id, emoji: vesperIdentity?.gender?.emoji || (vesperIdentity?.gender?.id === 'feminine' ? '♀️' : vesperIdentity?.gender?.id === 'masculine' ? '♂️' : '⚧️'), color: '#ff66ff', identityKey: 'gender', options: identityOptions?.genders },
+              { label: 'Look', value: vesperIdentity?.look, idValue: vesperIdentity?.look, emoji: '👁️', color: '#66ffcc', identityKey: 'look', options: identityOptions?.looks },
+              { label: 'Voice', value: vesperIdentity?.voice_vibe?.label || vesperIdentity?.voice_vibe?.id, idValue: vesperIdentity?.voice_vibe?.id, emoji: vesperIdentity?.voice_vibe?.emoji || '🎤', color: '#ffaa00', identityKey: 'voice_vibe', options: identityOptions?.voice_vibes },
             ].map((item) => (
               <Box key={item.label} sx={{
                 display: 'flex', alignItems: 'center', gap: 1,
@@ -6411,17 +6394,25 @@ export default function App() {
                 minWidth: 0,
                 overflow: 'hidden',
               }}>
-                <Box sx={{ fontSize: '1.3rem', width: 32, textAlign: 'center' }}>{item.emoji}</Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 1 }}>
+                <Box sx={{ fontSize: '1.3rem', width: 32, flexShrink: 0, textAlign: 'center' }}>{item.emoji}</Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 1, display: 'block' }}>
                     {item.label}
                   </Typography>
                   {item.options ? (
                     <Select
+                      displayEmpty
                       value={item.idValue || ''}
                       onChange={(e) => {
                         const selectedOpt = (Array.isArray(item.options) ? item.options : []).find(o => (typeof o === 'string' ? o : o.id) === e.target.value);
-                        setVesperIdentity(prev => ({ ...prev, [item.label.toLowerCase()]: selectedOpt || e.target.value }));
+                        setVesperIdentity(prev => ({ ...prev, [item.identityKey]: selectedOpt || e.target.value }));
+                      }}
+                      renderValue={(selected) => {
+                        if (!selected) return <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>Select {item.label}…</span>;
+                        const opts = Array.isArray(item.options) ? item.options : [];
+                        const opt = opts.find(o => (typeof o === 'string' ? o : o.id) === selected);
+                        if (!opt) return <span style={{ color: item.color || '#fff', fontSize: '0.8rem' }}>{selected}</span>;
+                        return <span style={{ color: item.color || '#fff', fontSize: '0.8rem', fontWeight: 600 }}>{typeof opt === 'string' ? opt : `${opt.emoji || ''} ${opt.label || opt.id}`.trim()}</span>;
                       }}
                       size="small"
                       fullWidth
@@ -6430,7 +6421,7 @@ export default function App() {
                         fontSize: '0.8rem',
                         fontWeight: 600,
                         '.MuiOutlinedInput-notchedOutline': { border: 'none' },
-                        '.MuiSelect-select': { py: 0.25, px: 0 },
+                        '.MuiSelect-select': { py: 0.25, px: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
                         '.MuiSvgIcon-root': { color: 'rgba(255,255,255,0.3)' },
                       }}
                       MenuProps={{
@@ -6439,7 +6430,8 @@ export default function App() {
                             bgcolor: 'rgba(10,10,25,0.95)',
                             backdropFilter: 'blur(20px)',
                             border: '1px solid rgba(0,255,255,0.15)',
-                            '& .MuiMenuItem-root': { color: '#fff', fontSize: '0.8rem' },
+                            maxHeight: 240,
+                            '& .MuiMenuItem-root': { color: '#fff', fontSize: '0.8rem', whiteSpace: 'normal' },
                             '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(0,255,255,0.1)' },
                           }
                         }
@@ -6447,12 +6439,12 @@ export default function App() {
                     >
                       {(Array.isArray(item.options) ? item.options : []).map((opt) => {
                         const optId = typeof opt === 'string' ? opt : opt.id;
-                        const optDisplay = typeof opt === 'string' ? opt : `${opt.emoji || ''} ${opt.label || opt.id}`;
+                        const optDisplay = typeof opt === 'string' ? opt : `${opt.emoji || ''} ${opt.label || opt.id}`.trim();
                         return <MenuItem key={optId} value={optId}>{optDisplay}</MenuItem>;
                       })}
                     </Select>
                   ) : (
-                    <Typography variant="body2" sx={{ color: item.color || '#fff', fontWeight: 600, fontSize: '0.85rem', textTransform: 'capitalize' }}>
+                    <Typography variant="body2" sx={{ color: item.color || '#fff', fontWeight: 600, fontSize: '0.85rem', textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.value || '—'}
                     </Typography>
                   )}
@@ -6483,6 +6475,7 @@ export default function App() {
               onClick={() => handleConfirmIdentity({
                 mood_override: vesperIdentity?.mood?.id || vesperIdentity?.mood,
                 gender_override: vesperIdentity?.gender?.id || vesperIdentity?.gender,
+                look_override: vesperIdentity?.look?.id || vesperIdentity?.look,
                 voice_vibe_override: vesperIdentity?.voice_vibe?.id || vesperIdentity?.voice_vibe,
               })}
               sx={{
