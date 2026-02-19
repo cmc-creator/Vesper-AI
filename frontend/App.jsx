@@ -627,7 +627,8 @@ export default function App() {
   const apiBase = useMemo(() => {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
     if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:8000';
-    return 'https://vesper-backend-production-b486.up.railway.app';
+    // Relative to current origin — works with Vercel rewrites, nginx proxy, and any host
+    return typeof window !== 'undefined' ? window.location.origin : '';
   }, []);
 
   const firebaseAuthEnabled = useMemo(
@@ -643,7 +644,8 @@ export default function App() {
     if (import.meta.env.VITE_CHAT_API_URL) return import.meta.env.VITE_CHAT_API_URL.replace(/\/$/, '');
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
     if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:8000';
-    return 'https://vesper-backend-production-b486.up.railway.app';
+    // Relative to current origin — works with Vercel rewrites, nginx proxy, and any host
+    return typeof window !== 'undefined' ? window.location.origin : '';
   }, []);
 
   const addLocalMessage = async (role, content, extras = {}) => {
