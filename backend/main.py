@@ -7520,39 +7520,10 @@ async def text_to_speech(req: TTSRequest):
             )
         except Exception as e:
             print(f"[TTS ElevenLabs ERROR] {e}")
-            # Fall through to edge-tts
-            if not EDGE_TTS_AVAILABLE:
-                return JSONResponse({"error": f"ElevenLabs error: {str(e)}"}, status_code=500)
-            voice_id = "edge:en-US-JennyNeural"  # fallback
+            return JSONResponse({"error": f"ElevenLabs error: {str(e)}"}, status_code=500)
 
-    # ── Edge-TTS path (free fallback) ────────────────────────────────────
-    if not EDGE_TTS_AVAILABLE:
-        return JSONResponse({"error": "No TTS engine available"}, status_code=503)
-
-    edge_voice = voice_id.replace("edge:", "") if voice_id.startswith("edge:") else "en-US-JennyNeural"
-
-    try:
-        communicate = edge_tts.Communicate(text, edge_voice, rate=req.rate, pitch=req.pitch)
-        audio_buffer = io.BytesIO()
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_buffer.write(chunk["data"])
-
-        audio_buffer.seek(0)
-        audio_bytes = audio_buffer.read()
-
-        if len(audio_bytes) == 0:
-            return JSONResponse({"error": "No audio generated"}, status_code=500)
-
-        from fastapi.responses import Response
-        return Response(
-            content=audio_bytes,
-            media_type="audio/mpeg",
-            headers={"Content-Disposition": "inline; filename=tts.mp3", "Cache-Control": "no-cache"},
-        )
-    except Exception as e:
-        print(f"[TTS Edge ERROR] {e}")
-        return JSONResponse({"error": str(e)}, status_code=500)
+    # ── No robotic fallback — ElevenLabs only ────────────────────────────
+    return JSONResponse({"error": "No ElevenLabs voice selected. Set ELEVENLABS_API_KEY and choose an ElevenLabs voice."}, status_code=503)
 
 
 # ─── Streaming TTS (ElevenLabs) ─────────────────────────────────────────────

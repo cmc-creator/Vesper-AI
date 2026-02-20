@@ -368,7 +368,6 @@ function App() {
   const [toast, setToast] = useState('');
   const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'true') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [availableVoices, setAvailableVoices] = useState([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState(() => safeStorageGet('vesper_tts_voice', ''));
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
@@ -2461,27 +2460,10 @@ export default function App() {
     }
   };
 
-  // Load available voices from cloud TTS endpoint (HD neural voices)
+  // Load available ElevenLabs voices from backend (no browser voices — they sound robotic)
   const [cloudVoices, setCloudVoices] = useState([]);
   const [defaultVoiceId, setDefaultVoiceId] = useState('');
   useEffect(() => {
-    // Defer getVoices() out of synchronous event-handler path to avoid blocking
-    // INP (Interaction to Next Paint) and preventing dropdown population.
-    const loadBrowserVoices = () => {
-      setTimeout(() => {
-        const v = window.speechSynthesis.getVoices();
-        if (v.length > 0) startTransition(() => setAvailableVoices(v));
-      }, 0);
-    };
-
-    let removeVoicesChangedListener = () => {};
-    if (window.speechSynthesis) {
-      loadBrowserVoices();
-      window.speechSynthesis.addEventListener('voiceschanged', loadBrowserVoices);
-      removeVoicesChangedListener = () =>
-        window.speechSynthesis.removeEventListener('voiceschanged', loadBrowserVoices);
-    }
-
     fetch(`${apiBase}/api/tts/voices`)
       .then(r => r.json())
       .then(data => {
@@ -2489,8 +2471,6 @@ export default function App() {
         if (data.default && !selectedVoiceName) setDefaultVoiceId(data.default);
       })
       .catch(() => {});
-
-    return removeVoicesChangedListener;
   // selectedVoiceName is intentionally omitted: we only want to check it once at
   // mount time to avoid overwriting a pre-selected voice with the backend default.
   }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -2531,7 +2511,7 @@ export default function App() {
   // Resolve voice for a context (game, chat, task, etc.)
   const resolveVoiceForContext = async (context) => {
     try {
-      const res = await fetch('http://localhost:8000/api/voice/resolve', {
+      const res = await fetch(`${apiBase}/api/voice/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ context }),
@@ -2551,8 +2531,8 @@ export default function App() {
 
     setIsSpeaking(true);
 
-    // Resolve voice: persona context → user selection → default
-    let voice = selectedVoiceName || defaultVoiceId || 'edge:en-US-JennyNeural';
+    // Resolve voice: persona context → user selection → default (ElevenLabs only, never robotic)
+    let voice = selectedVoiceName || defaultVoiceId || (cloudVoices.length > 0 ? cloudVoices[0].id : '');
     if (!selectedVoiceName) {
       const contextVoice = await resolveVoiceForContext(context);
       if (contextVoice) voice = contextVoice;
@@ -2566,7 +2546,7 @@ export default function App() {
         const controller = new AbortController();
         ttsAbortRef.current = controller;
 
-        const response = await fetch('http://localhost:8000/api/tts/stream', {
+        const response = await fetch(`${apiBase}/api/tts/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: clean, voice }),
@@ -2603,7 +2583,7 @@ export default function App() {
       const controller = new AbortController();
       ttsAbortRef.current = controller;
 
-      const response = await fetch('http://localhost:8000/api/tts', {
+      const response = await fetch(`${apiBase}/api/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: clean, voice }),
@@ -2623,21 +2603,11 @@ export default function App() {
       return;
     } catch (e) {
       if (e.name === 'AbortError') { setIsSpeaking(false); return; }
-      console.warn('[TTS] Cloud unavailable, falling back to browser:', e.message);
+      console.warn('[TTS] Cloud TTS unavailable:', e.message);
     }
 
-    // Fallback: browser SpeechSynthesis
-    if (!window.speechSynthesis) { setIsSpeaking(false); return; }
-
-    const voices = window.speechSynthesis.getVoices();
-    const fallbackVoice = voices.find(v => v.name.includes('Zira')) || voices.find(v => v.lang.startsWith('en')) || null;
-    const utt = new SpeechSynthesisUtterance(clean.slice(0, 500));
-    if (fallbackVoice) utt.voice = fallbackVoice;
-    utt.rate = 0.95;
-    utt.pitch = 1.02;
-    utt.onend = () => setIsSpeaking(false);
-    utt.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utt);
+    // No browser fallback — ElevenLabs only (robotic voices are banned)
+    setIsSpeaking(false);
   };
 
   const stopSpeaking = () => {
@@ -2650,10 +2620,7 @@ export default function App() {
       ttsAbortRef.current.abort();
       ttsAbortRef.current = null;
     }
-    // Stop browser fallback
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
+
     speechQueueRef.current = [];
     setIsSpeaking(false);
   };
@@ -2669,25 +2636,33 @@ export default function App() {
     if (!newValue) stopSpeaking();
   };
 
-  const handleVoiceChange = (voiceName) => {
+  const handleVoiceChange = async (voiceName) => {
     setSelectedVoiceName(voiceName);
     try {
       localStorage.setItem('vesper_tts_voice', voiceName);
     } catch (e) {}
-    // Preview the voice with natural settings
-    if (window.speechSynthesis && voiceName) {
-      window.speechSynthesis.cancel();
-      clearInterval(speechTimerRef.current);
-      speechQueueRef.current = [];
-      const utt = new SpeechSynthesisUtterance("Hey CC. This is how I sound now... pretty nice, right?");
-      const voice = availableVoices.find(v => v.name === voiceName);
-      if (voice) utt.voice = voice;
-      utt.rate = 0.95;
-      utt.pitch = 1.02;
-      utt.volume = 0.92;
-      utt.onstart = () => setIsSpeaking(true);
-      utt.onend = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utt);
+    // Preview the voice via ElevenLabs (never use browser SpeechSynthesis)
+    if (voiceName) {
+      stopSpeaking();
+      setIsSpeaking(true);
+      try {
+        const response = await fetch(`${apiBase}/api/tts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: "Hey CC. This is how I sound now... pretty nice, right?", voice: voiceName }),
+        });
+        if (!response.ok) throw new Error('Preview failed');
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        ttsAudioRef.current = audio;
+        audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
+        audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
+        await audio.play();
+      } catch (e) {
+        console.warn('[TTS] Voice preview failed:', e.message);
+        setIsSpeaking(false);
+      }
     }
   };
 
@@ -4687,14 +4662,14 @@ export default function App() {
                           formData.append('description', 'Custom cloned voice');
                           Array.from(files).forEach(f => formData.append('files', f));
                           try {
-                            const res = await fetch('http://localhost:8000/api/voice/clone?name=VesperCustom', {
+                            const res = await fetch(`${apiBase}/api/voice/clone?name=VesperCustom`, {
                               method: 'POST', body: formData,
                             });
                             const data = await res.json();
                             if (data.success) {
                               setToast('Voice cloned! It\'s now in your voice picker.');
                               // Refresh voices
-                              const vRes = await fetch('http://localhost:8000/api/tts/voices');
+                              const vRes = await fetch(`${apiBase}/api/tts/voices`);
                               const vData = await vRes.json();
                               if (vData.voices) setCloudVoices(vData.voices);
                             } else {
@@ -4728,7 +4703,7 @@ export default function App() {
                           const formData = new FormData();
                           formData.append('file', file);
                           try {
-                            const res = await fetch('http://localhost:8000/api/voice/isolate', {
+                            const res = await fetch(`${apiBase}/api/voice/isolate`, {
                               method: 'POST', body: formData,
                             });
                             if (!res.ok) throw new Error((await res.json()).error || 'Failed');
