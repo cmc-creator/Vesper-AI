@@ -224,7 +224,8 @@ class AIRouter:
         tools: Optional[List[Dict]] = None,
         max_tokens: int = 4096,
         temperature: float = 0.7,
-        preferred_provider: Optional[ModelProvider] = None
+        preferred_provider: Optional[ModelProvider] = None,
+        _tried_providers: Optional[set] = None
     ) -> Dict[str, Any]:
         """
         Route chat request to best available provider
@@ -236,10 +237,14 @@ class AIRouter:
             max_tokens: Max response tokens
             temperature: Response randomness (0-1)
             preferred_provider: Override automatic routing
+            _tried_providers: Internal — tracks failed providers to prevent recursion loops
         
         Returns:
             Standardized response with content, provider info, usage stats
         """
+        if _tried_providers is None:
+            _tried_providers = set()
+        
         # Get provider
         provider = preferred_provider if preferred_provider else self.get_available_provider(task_type)
         
@@ -250,6 +255,7 @@ class AIRouter:
                 "model": None
             }
         
+        _tried_providers.add(provider)
         model = self.models[provider]
         
         try:
@@ -262,12 +268,12 @@ class AIRouter:
             elif provider == ModelProvider.OLLAMA:
                 return await self._chat_ollama(messages, model, max_tokens, temperature)
         except Exception as e:
-            # Fallback to next provider
+            # Fallback to next provider (excluding ALL previously tried ones)
             print(f"[ERR] {provider.value} failed: {e}")
-            fallback_providers = [p for p in self.routing_strategy[task_type] if p != provider and self.is_provider_available(p)]
+            fallback_providers = [p for p in self.routing_strategy[task_type] if p not in _tried_providers and self.is_provider_available(p)]
             if fallback_providers:
                 print(f"[FALLBACK] Falling back to {fallback_providers[0].value}")
-                return await self.chat(messages, task_type, tools, max_tokens, temperature, fallback_providers[0])
+                return await self.chat(messages, task_type, tools, max_tokens, temperature, fallback_providers[0], _tried_providers)
             return {"error": str(e), "provider": provider.value, "model": model}
     
     async def _chat_anthropic(self, messages, model, tools, max_tokens, temperature):

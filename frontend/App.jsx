@@ -393,7 +393,6 @@ function App() {
 
   // ── Vesper Autonomy: Daily Identity + Proactive Initiative ─────
   const [vesperIdentity, setVesperIdentity] = useState(null);
-  const [identityDialogOpen, setIdentityDialogOpen] = useState(false);
   const [vesperGreeting, setVesperGreeting] = useState('');
   const [vesperInitiatives, setVesperInitiatives] = useState([]);
   const [identityOptions, setIdentityOptions] = useState(null);
