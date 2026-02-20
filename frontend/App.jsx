@@ -754,9 +754,8 @@ export default function App() {
           identity = await idRes.json();
           setVesperIdentity(identity);
           // Only show identity dialog once options are loaded to prevent crash
-          if (!identity.confirmed && optionsLoaded) {
-            setIdentityDialogOpen(true);
-          }
+          // Identity loads silently — user can adjust in Settings
+          void 0;
         }
       } catch (e) { console.log('Identity fetch skipped:', e.message); }
       
@@ -941,7 +940,6 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setVesperIdentity(data.identity || data);
-        setIdentityDialogOpen(false);
         setToast(`✨ Vesper locked in today's vibe!`);
       }
     } catch (e) { console.error('Confirm identity failed:', e); }
@@ -4240,6 +4238,115 @@ export default function App() {
                 </Stack>
               </Box>
 
+              {/* Vesper Identity */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#ff66ff' }}>✨ Vesper Identity</Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1.5 }}>
+                  Customize Vesper's mood, vibe, look, and voice for today
+                </Typography>
+                <Stack spacing={1} sx={{ mb: 2 }}>
+                  {[
+                    { label: 'Mood', value: vesperIdentity?.mood?.label || vesperIdentity?.mood?.id, idValue: vesperIdentity?.mood?.id, emoji: vesperIdentity?.mood?.emoji, color: vesperIdentity?.mood?.color, key: 'mood_override', options: identityOptions?.moods },
+                    { label: 'Vibe', value: vesperIdentity?.gender?.label || vesperIdentity?.gender?.id, idValue: vesperIdentity?.gender?.id, emoji: vesperIdentity?.gender?.emoji || (vesperIdentity?.gender?.id === 'feminine' ? '♀️' : vesperIdentity?.gender?.id === 'masculine' ? '♂️' : '⚧️'), color: '#ff66ff', key: 'gender_override', options: identityOptions?.genders },
+                    { label: 'Look', value: vesperIdentity?.look, idValue: vesperIdentity?.look, emoji: '👁️', color: '#66ffcc', key: 'look_override', options: identityOptions?.looks },
+                    { label: 'Voice', value: vesperIdentity?.voice_vibe?.label || vesperIdentity?.voice_vibe?.id, idValue: vesperIdentity?.voice_vibe?.id, emoji: vesperIdentity?.voice_vibe?.emoji || '🎤', color: '#ffaa00', key: 'voice_vibe_override', options: identityOptions?.voice_vibes },
+                  ].map((item) => (
+                    <Box key={item.label} sx={{
+                      display: 'flex', alignItems: 'center', gap: 1.5,
+                      bgcolor: 'rgba(255,255,255,0.03)',
+                      borderRadius: 2,
+                      p: 1.5,
+                      border: `1px solid ${item.color || 'var(--accent)'}22`,
+                    }}>
+                      <Box sx={{ fontSize: '1.4rem', width: 36, textAlign: 'center', flexShrink: 0 }}>{item.emoji}</Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 1, display: 'block' }}>
+                          {item.label}
+                        </Typography>
+                        {item.options ? (
+                          <Select
+                            value={item.idValue || ''}
+                            onChange={(e) => {
+                              const selectedOpt = (Array.isArray(item.options) ? item.options : []).find(o => (typeof o === 'string' ? o : o.id) === e.target.value);
+                              setVesperIdentity(prev => ({ ...prev, [item.label.toLowerCase()]: selectedOpt || e.target.value }));
+                            }}
+                            size="small"
+                            fullWidth
+                            sx={{
+                              color: item.color || '#fff',
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              '.MuiOutlinedInput-notchedOutline': { border: 'none' },
+                              '.MuiSelect-select': { py: 0.25, px: 0 },
+                              '.MuiSvgIcon-root': { color: 'rgba(255,255,255,0.3)' },
+                            }}
+                            MenuProps={{
+                              PaperProps: {
+                                sx: {
+                                  bgcolor: 'rgba(10,10,25,0.95)',
+                                  backdropFilter: 'blur(20px)',
+                                  border: '1px solid rgba(0,255,255,0.15)',
+                                  '& .MuiMenuItem-root': { color: '#fff', fontSize: '0.85rem' },
+                                  '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(0,255,255,0.1)' },
+                                }
+                              }
+                            }}
+                          >
+                            {(Array.isArray(item.options) ? item.options : []).map((opt) => {
+                              const optId = typeof opt === 'string' ? opt : opt.id;
+                              const optDisplay = typeof opt === 'string' ? opt : `${opt.emoji || ''} ${opt.label || opt.id}`;
+                              return <MenuItem key={optId} value={optId}>{optDisplay}</MenuItem>;
+                            })}
+                          </Select>
+                        ) : (
+                          <Typography variant="body2" sx={{ color: item.color || '#fff', fontWeight: 600, fontSize: '0.85rem', textTransform: 'capitalize' }}>
+                            {item.value || '—'}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  ))}
+                </Stack>
+                <Stack direction="row" spacing={1.5}>
+                  <Button
+                    onClick={handleRerollIdentity}
+                    size="small"
+                    sx={{
+                      color: '#ff66ff',
+                      borderColor: 'rgba(255,102,255,0.3)',
+                      border: '1px solid',
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      flex: 1,
+                      '&:hover': { bgcolor: 'rgba(255,102,255,0.1)', borderColor: '#ff66ff' },
+                    }}
+                  >
+                    🎲 Reroll
+                  </Button>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={() => handleConfirmIdentity({
+                      mood_override: vesperIdentity?.mood?.id || vesperIdentity?.mood,
+                      gender_override: vesperIdentity?.gender?.id || vesperIdentity?.gender,
+                      voice_vibe_override: vesperIdentity?.voice_vibe?.id || vesperIdentity?.voice_vibe,
+                    })}
+                    sx={{
+                      bgcolor: 'var(--accent)',
+                      color: '#000',
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      flex: 1,
+                      '&:hover': { bgcolor: 'var(--accent)', filter: 'brightness(1.2)' },
+                    }}
+                  >
+                    ✨ Confirm Vibe
+                  </Button>
+                </Stack>
+              </Box>
+
               {/* Background Studio */}
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#ff88ff' }}>🖼️ Background Studio</Typography>
@@ -5294,7 +5401,7 @@ export default function App() {
                     <Chip
                       label={`${vesperIdentity.mood?.emoji || '✨'} ${vesperIdentity.mood?.label || vesperIdentity.mood?.id || ''}`}
                       size="small"
-                      onClick={() => setIdentityDialogOpen(true)}
+                      onClick={() => setActiveSection('settings')}
                       sx={{
                         bgcolor: vesperIdentity.mood?.color ? `${vesperIdentity.mood.color}22` : 'rgba(0,255,255,0.1)',
                         color: vesperIdentity.mood?.color || 'var(--accent)',
@@ -6342,170 +6449,7 @@ export default function App() {
         setBackgroundSettings={setBackgroundSettings}
       />
 
-      {/* Vesper Identity Dialog */}
-      <Dialog
-        open={identityDialogOpen}
-        onClose={() => setIdentityDialogOpen(false)}
-        PaperProps={{
-          style: {
-            backgroundColor: 'rgba(8, 8, 18, 0.97)',
-            backdropFilter: 'blur(30px)',
-            border: '1px solid rgba(0,255,255,0.2)',
-            borderRadius: '20px',
-            minWidth: '340px',
-            maxWidth: '440px',
-            overflow: 'hidden',
-            margin: '16px',
-          },
-        }}
-      >
-        <Box sx={{ p: 2.5, textAlign: 'center', maxHeight: '85vh', overflowY: 'auto', '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(0,255,255,0.2)', borderRadius: 2 } }}>
-          {/* 3D Avatar or fallback emoji */}
-          {activeAvatarData?.file ? (
-            <Box sx={{ mb: 1 }}>
-              <VesperAvatar3D
-                avatarUrl={activeAvatarData.file}
-                scale={activeAvatarData.scale || 1.5}
-                position={activeAvatarData.position || [0, -1, 0]}
-                height={140}
-                compact
-                accentColor={activeTheme?.accent || '#00ffff'}
-              />
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem' }}>
-                {activeAvatarData.name}
-              </Typography>
-            </Box>
-          ) : (
-            <Box sx={{ 
-              fontSize: '3rem', mb: 1, 
-              animation: 'pulse 2s ease-in-out infinite',
-              '@keyframes pulse': { '0%,100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.1)' } },
-            }}>
-              {vesperIdentity?.mood?.emoji || '✨'}
-            </Box>
-          )}
 
-          <Typography variant="h5" sx={{ color: 'var(--accent)', fontWeight: 800, mb: 0.5 }}>
-            Today's Vibe
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 2, fontSize: '0.75rem' }}>
-            Vesper chose her identity for today
-          </Typography>
-
-          {/* Identity cards */}
-          <Stack spacing={1} sx={{ mb: 2, textAlign: 'left' }}>
-            {[
-              { label: 'Mood', value: vesperIdentity?.mood?.label || vesperIdentity?.mood?.id, idValue: vesperIdentity?.mood?.id, emoji: vesperIdentity?.mood?.emoji, color: vesperIdentity?.mood?.color, key: 'mood_override', options: identityOptions?.moods },
-              { label: 'Vibe', value: vesperIdentity?.gender?.label || vesperIdentity?.gender?.id, idValue: vesperIdentity?.gender?.id, emoji: vesperIdentity?.gender?.emoji || (vesperIdentity?.gender?.id === 'feminine' ? '♀️' : vesperIdentity?.gender?.id === 'masculine' ? '♂️' : '⚧️'), color: '#ff66ff', key: 'gender_override', options: identityOptions?.genders },
-              { label: 'Look', value: vesperIdentity?.look, idValue: vesperIdentity?.look, emoji: '👁️', color: '#66ffcc', key: 'look_override', options: identityOptions?.looks },
-              { label: 'Voice', value: vesperIdentity?.voice_vibe?.label || vesperIdentity?.voice_vibe?.id, idValue: vesperIdentity?.voice_vibe?.id, emoji: vesperIdentity?.voice_vibe?.emoji || '🎤', color: '#ffaa00', key: 'voice_vibe_override', options: identityOptions?.voice_vibes },
-            ].map((item) => (
-              <Box key={item.label} sx={{
-                display: 'flex', alignItems: 'center', gap: 1,
-                bgcolor: 'rgba(255,255,255,0.03)',
-                borderRadius: 2,
-                p: 1,
-                border: `1px solid ${item.color || 'var(--accent)'}22`,
-                minWidth: 0,
-                overflow: 'hidden',
-              }}>
-                <Box sx={{ fontSize: '1.3rem', width: 32, textAlign: 'center' }}>{item.emoji}</Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 1 }}>
-                    {item.label}
-                  </Typography>
-                  {item.options ? (
-                    <Select
-                      value={item.idValue || ''}
-                      onChange={(e) => {
-                        const selectedOpt = (Array.isArray(item.options) ? item.options : []).find(o => (typeof o === 'string' ? o : o.id) === e.target.value);
-                        setVesperIdentity(prev => ({ ...prev, [item.label.toLowerCase()]: selectedOpt || e.target.value }));
-                      }}
-                      size="small"
-                      fullWidth
-                      sx={{
-                        color: item.color || '#fff',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        '.MuiOutlinedInput-notchedOutline': { border: 'none' },
-                        '.MuiSelect-select': { py: 0.25, px: 0 },
-                        '.MuiSvgIcon-root': { color: 'rgba(255,255,255,0.3)' },
-                      }}
-                      MenuProps={{
-                        PaperProps: {
-                          sx: {
-                            bgcolor: 'rgba(10,10,25,0.95)',
-                            backdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(0,255,255,0.15)',
-                            '& .MuiMenuItem-root': { color: '#fff', fontSize: '0.8rem' },
-                            '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(0,255,255,0.1)' },
-                          }
-                        }
-                      }}
-                    >
-                      {(Array.isArray(item.options) ? item.options : []).map((opt) => {
-                        const optId = typeof opt === 'string' ? opt : opt.id;
-                        const optDisplay = typeof opt === 'string' ? opt : `${opt.emoji || ''} ${opt.label || opt.id}`;
-                        return <MenuItem key={optId} value={optId}>{optDisplay}</MenuItem>;
-                      })}
-                    </Select>
-                  ) : (
-                    <Typography variant="body2" sx={{ color: item.color || '#fff', fontWeight: 600, fontSize: '0.85rem', textTransform: 'capitalize' }}>
-                      {item.value || '—'}
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-            ))}
-          </Stack>
-
-          {/* Action buttons */}
-          <Stack direction="row" spacing={1.5} justifyContent="center">
-            <Button
-              onClick={handleRerollIdentity}
-              sx={{
-                color: '#ff66ff',
-                borderColor: 'rgba(255,102,255,0.3)',
-                border: '1px solid',
-                borderRadius: 3,
-                textTransform: 'none',
-                fontWeight: 600,
-                px: 2.5,
-                '&:hover': { bgcolor: 'rgba(255,102,255,0.1)', borderColor: '#ff66ff' },
-              }}
-            >
-              🎲 Reroll
-            </Button>
-            <Button
-              variant="contained"
-              onClick={() => handleConfirmIdentity({
-                mood_override: vesperIdentity?.mood?.id || vesperIdentity?.mood,
-                gender_override: vesperIdentity?.gender?.id || vesperIdentity?.gender,
-                voice_vibe_override: vesperIdentity?.voice_vibe?.id || vesperIdentity?.voice_vibe,
-              })}
-              sx={{
-                bgcolor: 'var(--accent)',
-                color: '#000',
-                borderRadius: 3,
-                textTransform: 'none',
-                fontWeight: 700,
-                px: 3,
-                '&:hover': { bgcolor: 'var(--accent)', filter: 'brightness(1.2)' },
-              }}
-            >
-              ✨ Love it!
-            </Button>
-          </Stack>
-
-          <Button
-            size="small"
-            onClick={() => setIdentityDialogOpen(false)}
-            sx={{ mt: 1.5, color: 'rgba(255,255,255,0.35)', fontSize: '0.7rem', textTransform: 'none' }}
-          >
-            Remind Me Later
-          </Button>
-        </Box>
-      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog 

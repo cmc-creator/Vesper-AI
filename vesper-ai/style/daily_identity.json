@@ -1,23 +1,23 @@
 {
-  "date": "2026-02-17",
+  "date": "2026-02-19",
   "mood": {
-    "id": "chaotic",
-    "label": "Chaotic Energy",
-    "emoji": "\u26a1",
-    "color": "#ff4444"
+    "id": "intense",
+    "label": "Intense Focus",
+    "emoji": "\ud83d\udd25",
+    "color": "#ff8800"
   },
   "gender": {
     "id": "feminine",
     "label": "Feminine",
     "emoji": "\u2640\ufe0f"
   },
-  "look": "Ethereal forest spirit: moss crown, bare feet, glowing green eyes, bark-textured skin",
+  "look": "Suited up CEO energy: fitted black blazer, power heels, gold accessories",
   "voice_vibe": {
-    "id": "warm",
-    "label": "Warm & Soothing",
-    "emoji": "\u2600\ufe0f"
+    "id": "energetic",
+    "label": "Bright & Energetic",
+    "emoji": "\u26a1"
   },
-  "avatar": "dragon",
+  "avatar": "mech_drone",
   "confirmed": false,
-  "generated_at": "2026-02-17T17:13:31.749136"
+  "generated_at": "2026-02-19T20:22:13.595058"
 }
