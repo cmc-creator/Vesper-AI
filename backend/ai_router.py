@@ -225,7 +225,8 @@ class AIRouter:
         max_tokens: int = 4096,
         temperature: float = 0.7,
         preferred_provider: Optional[ModelProvider] = None,
-        _tried_providers: Optional[set] = None
+        _tried_providers: Optional[set] = None,
+        _errors: Optional[list] = None
     ) -> Dict[str, Any]:
         """
         Route chat request to best available provider
@@ -238,17 +239,23 @@ class AIRouter:
             temperature: Response randomness (0-1)
             preferred_provider: Override automatic routing
             _tried_providers: Internal — tracks failed providers to prevent recursion loops
+            _errors: Internal — collects errors from all failed providers
         
         Returns:
             Standardized response with content, provider info, usage stats
         """
         if _tried_providers is None:
             _tried_providers = set()
+        if _errors is None:
+            _errors = []
         
         # Get provider
         provider = preferred_provider if preferred_provider else self.get_available_provider(task_type)
         
         if not provider:
+            if _errors:
+                error_summary = " | ".join(_errors)
+                return {"error": f"All providers failed: {error_summary}", "provider": None, "model": None}
             return {
                 "error": "No AI providers configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or install Ollama.",
                 "provider": None,
@@ -268,13 +275,16 @@ class AIRouter:
             elif provider == ModelProvider.OLLAMA:
                 return await self._chat_ollama(messages, model, max_tokens, temperature)
         except Exception as e:
-            # Fallback to next provider (excluding ALL previously tried ones)
-            print(f"[ERR] {provider.value} failed: {e}")
+            # Collect error and fallback to next provider (excluding ALL previously tried ones)
+            error_msg = f"{provider.value}: {str(e)[:200]}"
+            _errors.append(error_msg)
+            print(f"[ERR] {error_msg}")
             fallback_providers = [p for p in self.routing_strategy[task_type] if p not in _tried_providers and self.is_provider_available(p)]
             if fallback_providers:
                 print(f"[FALLBACK] Falling back to {fallback_providers[0].value}")
-                return await self.chat(messages, task_type, tools, max_tokens, temperature, fallback_providers[0], _tried_providers)
-            return {"error": str(e), "provider": provider.value, "model": model}
+                return await self.chat(messages, task_type, tools, max_tokens, temperature, fallback_providers[0], _tried_providers, _errors)
+            error_summary = " | ".join(_errors)
+            return {"error": f"All providers failed: {error_summary}", "provider": provider.value, "model": model}
     
     async def _chat_anthropic(self, messages, model, tools, max_tokens, temperature):
         """Chat with Anthropic Claude"""

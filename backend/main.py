@@ -6192,6 +6192,35 @@ async def get_available_models():
     return {"models": models, "default": "auto"}
 
 
+@app.get("/api/models/test")
+async def test_ai_providers():
+    """Quick diagnostic: test each AI provider with a tiny request"""
+    results = {}
+    test_messages = [{"role": "user", "content": "Say 'ok' and nothing else."}]
+    
+    for provider_name, provider_enum in [("anthropic", ModelProvider.ANTHROPIC), ("openai", ModelProvider.OPENAI), ("google", ModelProvider.GOOGLE)]:
+        if ai_router.is_provider_available(provider_enum):
+            try:
+                result = await ai_router.chat(
+                    messages=test_messages,
+                    task_type=TaskType.CHAT,
+                    max_tokens=10,
+                    temperature=0,
+                    preferred_provider=provider_enum,
+                    _tried_providers={p for p in ModelProvider if p != provider_enum},  # Prevent fallback
+                )
+                if "error" in result:
+                    results[provider_name] = {"status": "error", "error": str(result["error"])[:300]}
+                else:
+                    results[provider_name] = {"status": "ok", "response": str(result.get("content", ""))[:100]}
+            except Exception as e:
+                results[provider_name] = {"status": "exception", "error": str(e)[:300]}
+        else:
+            results[provider_name] = {"status": "not_configured"}
+    
+    return results
+
+
 # ============================================================================
 # POWER TRIO: File System Access, Code Execution, Voice Interface
 # ============================================================================
