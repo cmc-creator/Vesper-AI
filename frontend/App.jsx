@@ -3154,12 +3154,14 @@ export default function App() {
 
   const STATUS_ORDER = ['inbox', 'doing', 'done'];
 
-  // Draggable Board Wrapper Component
-  const DraggableBoard = ({ id, children }) => {
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-      id,
-    });
+  // Context for passing drag-handle ref/listeners down to board headers only
+  const DragHandleContext = React.createContext(null);
 
+  // Draggable Board Wrapper Component
+  // Drag is activated ONLY via the board-header (DragHandleArea) — not the whole panel.
+  // This means scroll and button clicks inside the panel work correctly.
+  const DraggableBoard = ({ id, children }) => {
+    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({ id });
     const position = boardPositions[id] || { x: 0, y: 0 };
 
     const style = {
@@ -3167,26 +3169,39 @@ export default function App() {
       top: '80px',
       left: '280px',
       zIndex: isDragging ? 1000 : 10,
-      cursor: 'grab',
+      cursor: 'default',
       transform: `translate3d(${position.x + (transform?.x || 0)}px, ${position.y + (transform?.y || 0)}px, 0)`,
       transition: isDragging ? 'none' : 'transform 0.2s ease',
       width: 'calc(100vw - 320px)',
       maxWidth: '1000px',
       maxHeight: 'calc(100vh - 120px)',
       overflow: 'auto',
-      touchAction: 'none',
+      // No touchAction here — allows trackpad/touch scroll in the panel content
     };
 
     return (
-      <div 
-        ref={setNodeRef} 
-        style={style} 
-        {...listeners} 
-        {...attributes}
-        data-draggable={id}
+      <DragHandleContext.Provider value={{ setActivatorNodeRef, listeners, attributes, isDragging }}>
+        <div ref={setNodeRef} style={style} data-draggable={id}>
+          {children}
+        </div>
+      </DragHandleContext.Provider>
+    );
+  };
+
+  // Apply to every <DragHandleArea className="board-header"> — makes ONLY the header draggable
+  const DragHandleArea = ({ className, children }) => {
+    const ctx = React.useContext(DragHandleContext);
+    if (!ctx) return <Box className={className}>{children}</Box>;
+    return (
+      <Box
+        ref={ctx.setActivatorNodeRef}
+        {...ctx.listeners}
+        {...ctx.attributes}
+        className={className}
+        sx={{ cursor: ctx.isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none' }}
       >
         {children}
-      </div>
+      </Box>
     );
   };
 
@@ -3196,7 +3211,7 @@ export default function App() {
         return (
           <DraggableBoard id="research">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Research Tools</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -3211,7 +3226,7 @@ export default function App() {
                     </IconButton>
                   </Tooltip>
                 </Box>
-              </Box>
+              </DragHandleArea>
             <Grid container spacing={2}>
               {/* Add Research */}
               <Grid item xs={12} md={4}>
@@ -3363,7 +3378,7 @@ export default function App() {
         return (
           <DraggableBoard id="documents">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>📄 Document Library</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -3375,7 +3390,7 @@ export default function App() {
                     <ArrowBackIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-              </Box>
+              </DragHandleArea>
               <Stack spacing={2}>
                 {/* Upload Section */}
                 <Box>
@@ -3454,7 +3469,7 @@ export default function App() {
         return (
           <DraggableBoard id="memory">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Memory Core</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -3469,7 +3484,7 @@ export default function App() {
                   </IconButton>
                 </Tooltip>
               </Box>
-            </Box>
+            </DragHandleArea>
             <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
               <Chip
                 label="History"
@@ -3842,7 +3857,7 @@ export default function App() {
         return (
           <DraggableBoard id="tasks">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Task Matrix</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -3857,7 +3872,7 @@ export default function App() {
                   </IconButton>
                 </Tooltip>
               </Box>
-            </Box>
+            </DragHandleArea>
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
                 <Stack spacing={1}>
@@ -4072,7 +4087,7 @@ export default function App() {
         return (
           <DraggableBoard id="analytics">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Analytics Dashboard</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -4099,7 +4114,7 @@ export default function App() {
                     </IconButton>
                   </Tooltip>
                 </Box>
-              </Box>
+              </DragHandleArea>
               {analyticsLoading ? (
                 <CircularProgress sx={{ color: 'var(--accent)', mt: 2 }} />
               ) : analytics ? (
@@ -4174,7 +4189,7 @@ export default function App() {
         return (
           <DraggableBoard id="personality">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Personality Configuration</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -4186,7 +4201,7 @@ export default function App() {
                     <ArrowBackIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-              </Box>
+              </DragHandleArea>
               
               {personalityLoading ? (
                 <CircularProgress sx={{ color: 'var(--accent)', mt: 2 }} />
@@ -4307,7 +4322,7 @@ export default function App() {
         return (
           <DraggableBoard id="settings">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Settings</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -4319,7 +4334,7 @@ export default function App() {
                   <ArrowBackIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-            </Box>
+            </DragHandleArea>
             <Stack spacing={2.5}>
               {/* Appearance */}
               <Box>
