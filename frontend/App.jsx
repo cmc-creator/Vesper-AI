@@ -2667,44 +2667,17 @@ export default function App() {
   // Load available ElevenLabs voices from backend (no browser voices — they sound robotic)
   const [cloudVoices, setCloudVoices] = useState([]);
   const [defaultVoiceId, setDefaultVoiceId] = useState('');
-  const [elevenLabsKey, setElevenLabsKey] = useState(() => {
-    try { return localStorage.getItem('vesper_elevenlabs_key') || ''; } catch { return ''; }
-  });
   useEffect(() => {
     fetch(`${apiBase}/api/tts/voices`)
       .then(r => r.json())
       .then(data => {
-        if (data.voices && data.voices.length > 0) setCloudVoices(data.voices);
+        if (data.voices) setCloudVoices(data.voices);
         if (data.default && !selectedVoiceName) setDefaultVoiceId(data.default);
       })
       .catch(() => {});
   // selectedVoiceName is intentionally omitted: we only want to check it once at
   // mount time to avoid overwriting a pre-selected voice with the backend default.
   }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Client-side fallback: fetch ElevenLabs voices directly if backend returned none
-  useEffect(() => {
-    if (cloudVoices.length > 0 || !elevenLabsKey) return;
-    fetch('https://api.elevenlabs.io/v1/voices', {
-      headers: { 'xi-api-key': elevenLabsKey },
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (!data.voices || data.voices.length === 0) return;
-        const mapped = data.voices.map(v => ({
-          id: `eleven:${v.voice_id}`,
-          name: v.name,
-          gender: (v.labels?.gender || 'unknown').charAt(0).toUpperCase() + (v.labels?.gender || 'unknown').slice(1),
-          locale: v.labels?.accent || 'American',
-          style: v.labels?.description || v.labels?.use_case || 'general',
-          provider: 'elevenlabs',
-          preview_url: v.preview_url || '',
-        }));
-        setCloudVoices(mapped);
-        if (mapped.length > 0 && !selectedVoiceName) setDefaultVoiceId(mapped[0].id);
-      })
-      .catch(() => {});
-  }, [elevenLabsKey, cloudVoices.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch available AI models for model picker
   useEffect(() => {
@@ -4711,44 +4684,6 @@ export default function App() {
                         Choose Vesper's voice for all speech
                       </Typography>
 
-                      {/* ElevenLabs API Key (client-side fallback when backend has no key) */}
-                      <Box sx={{ mb: 1.5 }}>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 0.5 }}>
-                          ElevenLabs API Key {cloudVoices.length > 0 ? '✓ (voices loaded)' : '— paste to load voices'}
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                          <input
-                            type="password"
-                            placeholder="sk-... or xi-..."
-                            defaultValue={elevenLabsKey}
-                            onBlur={(e) => {
-                              const val = e.target.value.trim();
-                              setElevenLabsKey(val);
-                              try { localStorage.setItem('vesper_elevenlabs_key', val); } catch {}
-                              if (val) setCloudVoices([]); // trigger re-fetch
-                            }}
-                            style={{
-                              flex: 1, background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0,255,136,0.3)',
-                              borderRadius: 6, color: '#fff', fontSize: 11, padding: '5px 8px',
-                              outline: 'none', fontFamily: 'monospace',
-                            }}
-                          />
-                          {elevenLabsKey && (
-                            <button
-                              onClick={() => {
-                                setElevenLabsKey('');
-                                setCloudVoices([]);
-                                try { localStorage.removeItem('vesper_elevenlabs_key'); } catch {}
-                              }}
-                              style={{
-                                background: 'rgba(255,50,50,0.15)', border: '1px solid rgba(255,50,50,0.3)',
-                                borderRadius: 6, color: '#ff6666', cursor: 'pointer', padding: '4px 8px', fontSize: 11,
-                              }}
-                            >✕</button>
-                          )}
-                        </Box>
-                      </Box>
-
                       <Box sx={{
                         maxHeight: 200, overflowY: 'auto', borderRadius: 1,
                         border: '1px solid rgba(0,255,136,0.15)', p: 0.5,
@@ -4797,14 +4732,9 @@ export default function App() {
                             </Box>
                           );
                         }) : (
-                          <Box sx={{ p: 1 }}>
-                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', display: 'block', mb: 0.5 }}>
-                              No voices loaded yet.
-                            </Typography>
-                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)' }}>
-                              {elevenLabsKey ? 'Fetching from ElevenLabs...' : 'Paste your ElevenLabs API key above to load voices.'}
-                            </Typography>
-                          </Box>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', p: 1 }}>
+                            No voices loaded — check that the backend is reachable
+                          </Typography>
                         )}
                       </Box>
                     </Box>
