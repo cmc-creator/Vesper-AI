@@ -727,39 +727,6 @@ export default function App() {
     } catch { showToast('⚠️ Clipboard access denied'); }
   }, [tasks, showToast]);
 
-  const executeSlashCommand = useCallback((cmd, rawArgs = '') => {
-    const args = rawArgs.trim();
-    setSlashMenuOpen(false);
-    setInput('');
-    if (cmd === '/task') {
-      if (args) {
-        fetch(`${apiBase}/api/tasks`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: args, status: 'inbox', priority: 'medium', createdAt: new Date().toISOString() }),
-        }).then(() => { fetchTasks(); vesperReact('taskAdded'); }).catch(() => {});
-      } else {
-        setActiveSection('tasks');
-        showToast('📋 Tasks tab — add what needs doing', 'success');
-      }
-    } else if (cmd === '/remember') {
-      setActiveSection('memory');
-      if (args) { setMemoryText(args); showToast('🧠 Pre-filled — hit Save to lock it in', 'success'); }
-    } else if (cmd === '/search') {
-      setActiveSection('research');
-      if (args) { setResearchSearch(args); showToast(`🔍 Searching for “${args}”`, 'success'); }
-    } else if (cmd === '/focus') {
-      setFocusMode(true);
-      vesperReact('focusStart');
-    } else if (cmd === '/export') {
-      exportChat('markdown');
-    } else if (cmd === '/stats') {
-      setActiveSection('settings');
-      showToast('📊 Stats are in your Settings tab', 'success');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiBase, fetchTasks, vesperReact, exportChat, showToast]);
-
   const handleDragEnd = useCallback((event) => {
     const { active, delta } = event;
     if (!delta) return;
@@ -2203,6 +2170,39 @@ export default function App() {
       setTasksLoading(false);
     }
   }, [apiBase]);
+
+  const executeSlashCommand = useCallback((cmd, rawArgs = '') => {
+    const args = rawArgs.trim();
+    setSlashMenuOpen(false);
+    setInput('');
+    if (cmd === '/task') {
+      if (args) {
+        fetch(`${apiBase}/api/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: args, status: 'inbox', priority: 'medium', createdAt: new Date().toISOString() }),
+        }).then(() => { fetchTasks(); vesperReact('taskAdded'); }).catch(() => {});
+      } else {
+        setActiveSection('tasks');
+        showToast('📋 Tasks tab — add what needs doing', 'success');
+      }
+    } else if (cmd === '/remember') {
+      setActiveSection('memory');
+      if (args) { setMemoryText(args); showToast('🧠 Pre-filled — hit Save to lock it in', 'success'); }
+    } else if (cmd === '/search') {
+      setActiveSection('research');
+      if (args) { setResearchSearch(args); showToast(`🔍 Searching for "${args}"`, 'success'); }
+    } else if (cmd === '/focus') {
+      setFocusMode(true);
+      vesperReact('focusStart');
+    } else if (cmd === '/export') {
+      exportChat('markdown');
+    } else if (cmd === '/stats') {
+      setActiveSection('settings');
+      showToast('📊 Stats are in your Settings tab', 'success');
+    }
+  }, [apiBase, fetchTasks, vesperReact, exportChat, showToast]);
+
 
   const fetchThreads = useCallback(async () => {
     if (!apiBase) return;
