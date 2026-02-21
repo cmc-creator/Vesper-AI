@@ -952,6 +952,15 @@ export default function App() {
     loadVesperIdentity();
   }, [apiBase]);
 
+  // ── Keepalive: ping backend every 4 min to prevent Railway cold starts ──
+  useEffect(() => {
+    if (!apiBase) return;
+    const ping = () => fetch(`${apiBase}/health`, { method: 'GET' }).catch(() => {});
+    ping(); // warm it up immediately on mount
+    const keepaliveInterval = setInterval(ping, 4 * 60 * 1000);
+    return () => clearInterval(keepaliveInterval);
+  }, [apiBase]);
+
   useEffect(() => {
     if (
       !isFirebaseConfigured ||
@@ -1179,15 +1188,28 @@ export default function App() {
         model: selectedModel !== 'auto' ? selectedModel : null,
       };
 
-      // ── Use SSE streaming endpoint ──────────────────────────────
-      const response = await fetch(`${chatBase}/api/chat/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      
-      if (!response.ok) throw new Error('Backend call failed');
+      // ── Use SSE streaming endpoint (with retry for Railway cold starts) ──
+      let response;
+      let _fetchAttempts = 0;
+      while (true) {
+        try {
+          response = await fetch(`${chatBase}/api/chat/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          });
+          if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+          break; // success
+        } catch (fetchErr) {
+          if (fetchErr.name === 'AbortError') throw fetchErr; // user stopped — don't retry
+          _fetchAttempts++;
+          if (_fetchAttempts >= 3) throw fetchErr; // give up after 3 attempts
+          console.warn(`⚡ Connection attempt ${_fetchAttempts} failed, retrying in 3s...`, fetchErr.message);
+          setThinkingStatus(`Reconnecting... (${_fetchAttempts}/2)`);
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      }
       
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -1302,7 +1324,7 @@ export default function App() {
       }
       console.error('❌ Chat error:', error);
       playSound('error');
-      const errorMsg = "I'm having trouble connecting right now, but I'm still here! Press C to jump into the world and I'll keep watch.";
+      const errorMsg = "Connection failed after 3 attempts — Railway might still be waking up. Give it a moment and try again!";
       addLocalMessage('assistant', errorMsg);
       await saveMessageToThread('assistant', errorMsg);
       if (autoSpeak) speak(errorMsg);
