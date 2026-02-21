@@ -16,6 +16,8 @@ import {
   Menu,
   MenuItem,
   Dialog,
+  DialogTitle,
+  DialogContent,
   Switch,
   FormControlLabel,
   LinearProgress,
@@ -118,6 +120,26 @@ const baseTheme = createTheme({
   },
   typography: { fontFamily: '"Inter", "Segoe UI", -apple-system, sans-serif' },
 });
+
+// ─── Slash Command Definitions ───────────────────────────────────────────────
+const SLASH_CMD_LIST = [
+  { cmd: '/task',    icon: '📋', desc: 'Quick add a task',          hint: '/task Plan sprint review' },
+  { cmd: '/remember',icon: '🧠', desc: 'Save something to memory',  hint: '/remember Standup is 9am' },
+  { cmd: '/search',  icon: '🔍', desc: 'Jump to research + search', hint: '/search quantum computing' },
+  { cmd: '/focus',   icon: '🎯', desc: 'Start Focus / Pomodoro mode', hint: '/focus' },
+  { cmd: '/export',  icon: '📦', desc: 'Export current chat',        hint: '/export' },
+  { cmd: '/stats',   icon: '📊', desc: 'View your stats',             hint: '/stats' },
+];
+
+// ─── Vesper Personality Quips ────────────────────────────────────────────────
+const VESPER_QUIPS = {
+  taskDone:    ['⚡ Task obliterated. You\'re on fire.', '✅ Done deal. Vesper approves.', '💫 Check! Another one bites the dust.', '🔥 That\'s how it\'s done. Boom.', '🎯 Mission accomplished.', '✨ Tick. You magnificent human.'],
+  taskAdded:   ['📋 Task locked and loaded.', '⚙️ Added to the matrix. Let\'s get it.', '🎯 New target acquired.', '📌 Pinned. Don\'t ghost it.'],
+  memoryAdded: ['🧠 Locked in. Vesper won\'t forget.', '💾 Stored in the vault.', '🗝️ Memory crystal archived.', '✨ Remembered. Forever.'],
+  focusStart:  ['🎯 Focus mode: ACTIVATED. No distractions.', '⏲️ 25 minutes. You\'ve got this.', '🔥 All systems focused. Let\'s GO.', '🧠 Deep work mode. Vesper is watching over you.'],
+  focusDone:   ['🎉 Work session complete! Take your break.', '✨ Pomodoro CRUSHED. Rest up.', '🔥 Session done. Vesper is proud.', '💫 That\'s 25 focused minutes. Beautiful.'],
+  breakDone:   ['🎯 Break over — back to domination.', '⚡ Recharged. Let\'s go again.', '💫 Back in the zone.', '🔥 Break\'s done. Finish what you started.'],
+};
 
 // ─── Theme Helpers ─────────────────────────────────────────────────────────
 const hexToRgb = (hex) => {
@@ -384,6 +406,26 @@ function App() {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: '', description: '', status: 'inbox', priority: 'medium', dueDate: '' });
   const [toast, setToast] = useState('');
+  const [toastVariant, setToastVariant] = useState('default'); // 'default' | 'success' | 'celebrate' | 'warn'
+  // Stats & Insights
+  const [vesperStats, setVesperStats] = useState(() => {
+    try {
+      const s = localStorage.getItem('vesper_stats');
+      return s ? JSON.parse(s) : { messages: 0, tasksCompleted: 0, memories: 0, daysActive: 0, lastActive: null, streak: 0 };
+    } catch { return { messages: 0, tasksCompleted: 0, memories: 0, daysActive: 0, lastActive: null, streak: 0 }; }
+  });
+  // Focus Mode
+  const [focusMode, setFocusMode] = useState(false);
+  const [focusTask, setFocusTask] = useState(null); // task object | null
+  const [focusTimeLeft, setFocusTimeLeft] = useState(25 * 60); // seconds
+  const [focusPhase, setFocusPhase] = useState('work'); // 'work' | 'break'
+  const [focusRunning, setFocusRunning] = useState(false);
+  // Slash commands
+  const [slashMenuOpen, setSlashMenuOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
+  const [slashIdx, setSlashIdx] = useState(0);
+  // Keyboard shortcuts modal
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'true') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [selectedVoiceName, setSelectedVoiceName] = useState(() => safeStorageGet('vesper_tts_voice', ''));
@@ -551,6 +593,57 @@ export default function App() {
     };
   }, []);
 
+  // ── Global keyboard shortcuts ─────────────────────────────────────────────
+  useEffect(() => {
+    const NAV_SECTIONS = ['chat', 'research', 'memory', 'tasks', 'settings'];
+    const handler = (e) => {
+      // Ignore if any input focused (except Escape)
+      const tag = document.activeElement?.tagName;
+      const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
+      if (e.key === 'Escape') {
+        setShortcutsOpen(false);
+        setSlashMenuOpen(false);
+        setFocusMode(false);
+        return;
+      }
+      if (inInput) return;
+      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+        const num = parseInt(e.key);
+        if (num >= 1 && num <= 5) { e.preventDefault(); setActiveSection(NAV_SECTIONS[num - 1]); return; }
+        if (e.key === '/') { e.preventDefault(); setShortcutsOpen(p => !p); return; }
+      }
+      if (e.ctrlKey && e.shiftKey && e.key === 'F') { e.preventDefault(); setFocusMode(p => !p); return; }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // ── Focus mode timer ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!focusRunning) return;
+    const tick = setInterval(() => {
+      setFocusTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(tick);
+          setFocusRunning(false);
+          if (focusPhase === 'work') {
+            bumpStat('tasksCompleted');
+            vesperReact('focusDone');
+            setFocusPhase('break');
+            setFocusTimeLeft(5 * 60);
+          } else {
+            vesperReact('breakDone');
+            setFocusPhase('work');
+            setFocusTimeLeft(25 * 60);
+          }
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [focusRunning, focusPhase, bumpStat, vesperReact]);
+
   // Apply theme background to body when theme changes
   useEffect(() => {
     document.body.style.background = activeTheme.bg || '#000';
@@ -592,6 +685,81 @@ export default function App() {
   );
 
   // Handle drag end - save new position
+  // ── Vesper react helper + stat tracker ──────────────────────────────────
+  const showToast = useCallback((msg, variant = 'default') => {
+    setToastVariant(variant);
+    setToast(msg);
+  }, []);
+
+  const vesperReact = useCallback((type, override) => {
+    const quips = VESPER_QUIPS[type];
+    const msg = override || (quips ? quips[Math.floor(Math.random() * quips.length)] : null);
+    if (msg) showToast(msg, type === 'taskDone' ? 'celebrate' : type === 'focusDone' ? 'celebrate' : 'success');
+  }, [showToast]);
+
+  const bumpStat = useCallback((key) => {
+    setVesperStats(prev => {
+      const today = new Date().toDateString();
+      const isNewDay = prev.lastActive !== today;
+      const updated = {
+        ...prev,
+        [key]: (prev[key] || 0) + 1,
+        lastActive: today,
+        daysActive: isNewDay ? (prev.daysActive || 0) + 1 : (prev.daysActive || 0),
+        streak: isNewDay ? (prev.streak || 0) + 1 : (prev.streak || 0),
+      };
+      try { localStorage.setItem('vesper_stats', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+  }, []);
+
+  const exportTasks = useCallback(async () => {
+    const done  = tasks.filter(t => t.status === 'done');
+    const doing = tasks.filter(t => t.status === 'doing');
+    const inbox = tasks.filter(t => t.status === 'inbox');
+    let md = `# Vesper Task Export\n_${new Date().toLocaleString()}_\n\n`;
+    if (doing.length) { md += `## 🔥 In Progress (${doing.length})\n`; doing.forEach(t => { md += `- [ ] **${t.title}**\n`; }); md += '\n'; }
+    if (inbox.length) { md += `## 📥 Inbox (${inbox.length})\n`; inbox.forEach(t => { md += `- [ ] ${t.title}\n`; }); md += '\n'; }
+    if (done.length)  { md += `## ✅ Done (${done.length})\n`;  done.forEach(t  => { md += `- [x] ${t.title}\n`; }); }
+    try {
+      await navigator.clipboard.writeText(md);
+      showToast(`📦 ${tasks.length} tasks copied to clipboard!`, 'success');
+    } catch { showToast('⚠️ Clipboard access denied'); }
+  }, [tasks, showToast]);
+
+  const executeSlashCommand = useCallback((cmd, rawArgs = '') => {
+    const args = rawArgs.trim();
+    setSlashMenuOpen(false);
+    setInput('');
+    if (cmd === '/task') {
+      if (args) {
+        fetch(`${apiBase}/api/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: args, status: 'inbox', priority: 'medium', createdAt: new Date().toISOString() }),
+        }).then(() => { fetchTasks(); vesperReact('taskAdded'); }).catch(() => {});
+      } else {
+        setActiveSection('tasks');
+        showToast('📋 Tasks tab — add what needs doing', 'success');
+      }
+    } else if (cmd === '/remember') {
+      setActiveSection('memory');
+      if (args) { setMemoryText(args); showToast('🧠 Pre-filled — hit Save to lock it in', 'success'); }
+    } else if (cmd === '/search') {
+      setActiveSection('research');
+      if (args) { setResearchSearch(args); showToast(`🔍 Searching for “${args}”`, 'success'); }
+    } else if (cmd === '/focus') {
+      setFocusMode(true);
+      vesperReact('focusStart');
+    } else if (cmd === '/export') {
+      exportChat('markdown');
+    } else if (cmd === '/stats') {
+      setActiveSection('settings');
+      showToast('📊 Stats are in your Settings tab', 'success');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiBase, fetchTasks, vesperReact, exportChat, showToast]);
+
   const handleDragEnd = useCallback((event) => {
     const { active, delta } = event;
     if (!delta) return;
@@ -1001,6 +1169,7 @@ export default function App() {
     setLoading(true);
     setThinking(true);
     setThinkingStatus('Thinking...');
+    bumpStat('messages');
     
     try {
       playSound('click'); // Sound on send
@@ -1817,7 +1986,8 @@ export default function App() {
       setNewMemoryTags('');
       fetchMemory(memoryCategory);
       fetchMemoryTags();
-      setToast('Memory stored!');
+      vesperReact('memoryAdded');
+      bumpStat('memories');
       playSound('success');
     } catch (error) {
       console.error('Memory save failed:', error);
@@ -2302,7 +2472,7 @@ export default function App() {
       });
       setTaskForm({ title: '', status: 'inbox' });
       fetchTasks();
-      setToast('Task added');
+      vesperReact('taskAdded');
     } catch (error) {
       console.error('Add task failed:', error);
     }
@@ -2317,6 +2487,7 @@ export default function App() {
         body: JSON.stringify({ status }),
       });
       fetchTasks();
+      if (status === 'done') { vesperReact('taskDone'); bumpStat('tasksCompleted'); }
     } catch (error) {
       console.error('Update task failed:', error);
     }
@@ -4254,6 +4425,39 @@ export default function App() {
                 </Stack>
               </Box>
 
+              {/* Stats & Insights */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5, color: 'var(--accent)' }}>📊 Your Vesper Stats</Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1.5 }}>Tracked across sessions</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+                  {[
+                    { label: 'Messages Sent',   value: vesperStats.messages,       icon: '💬' },
+                    { label: 'Tasks Completed', value: vesperStats.tasksCompleted, icon: '✅' },
+                    { label: 'Memories Saved',  value: vesperStats.memories,       icon: '🧠' },
+                    { label: 'Days Active',     value: vesperStats.daysActive,     icon: '📅' },
+                    { label: 'Day Streak',      value: `${vesperStats.streak || 0}d`, icon: '🔥' },
+                  ].map(({ label, value, icon }) => (
+                    <Box key={label} sx={{ bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 2, p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box sx={{ fontSize: '1.2rem', width: 28, textAlign: 'center', flexShrink: 0 }}>{icon}</Box>
+                      <Box>
+                        <Typography sx={{ color: 'var(--accent)', fontWeight: 700, fontSize: '1.1rem', lineHeight: 1 }}>{value ?? 0}</Typography>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem' }}>{label}</Typography>
+                      </Box>
+                    </Box>
+                  ))}
+                  <Box
+                    onClick={exportTasks}
+                    sx={{ bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 2, p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', '&:hover': { borderColor: 'rgba(var(--accent-rgb),0.3)', bgcolor: 'rgba(var(--accent-rgb),0.06)' }, transition: 'all 0.2s' }}
+                  >
+                    <Box sx={{ fontSize: '1.2rem', width: 28, textAlign: 'center', flexShrink: 0 }}>📦</Box>
+                    <Box>
+                      <Typography sx={{ color: '#bbb', fontWeight: 700, fontSize: '0.9rem', lineHeight: 1 }}>Export Tasks</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.62rem' }}>Copy all tasks → clipboard</Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+
               {/* Vesper Identity */}
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#ff66ff' }}>✨ Vesper Identity</Typography>
@@ -5773,7 +5977,7 @@ export default function App() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               className="input-bar glass-card"
-              sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+              sx={{ display: 'flex', alignItems: 'center', gap: 1, position: 'relative' }}
             >
               <input
                 ref={fileInputRef}
@@ -5803,19 +6007,70 @@ export default function App() {
                 </IconButton>
               </Tooltip>
               <VoiceInput onTranscript={handleVoiceTranscript} />
+              {/* Slash command menu */}
+              {slashMenuOpen && (() => {
+                const filtered = SLASH_CMD_LIST.filter(c => c.cmd.startsWith('/' + slashQuery));
+                return filtered.length > 0 ? (
+                  <Box sx={{
+                    position: 'absolute', bottom: '100%', left: 0, right: 0, mb: 0.75,
+                    bgcolor: 'rgba(5,10,20,0.97)', border: '1px solid rgba(var(--accent-rgb),0.35)',
+                    borderRadius: 2, overflow: 'hidden', boxShadow: '0 -8px 30px rgba(0,0,0,0.7)',
+                    backdropFilter: 'blur(16px)', zIndex: 100,
+                  }}>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', px: 1.5, py: 0.5, display: 'block', fontSize: '0.6rem', letterSpacing: 2, textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      Slash Commands — ↑↓ navigate · Enter execute
+                    </Typography>
+                    {filtered.map((c, i) => (
+                      <Box
+                        key={c.cmd}
+                        onClick={() => executeSlashCommand(c.cmd, input.slice(c.cmd.length))}
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1,
+                          cursor: 'pointer', transition: 'all 0.15s',
+                          bgcolor: i === slashIdx ? 'rgba(var(--accent-rgb),0.12)' : 'transparent',
+                          borderLeft: i === slashIdx ? '2px solid var(--accent)' : '2px solid transparent',
+                          '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.08)' },
+                        }}
+                      >
+                        <Box sx={{ fontSize: '1.1rem', width: 24, textAlign: 'center', flexShrink: 0 }}>{c.icon}</Box>
+                        <Box>
+                          <Typography sx={{ fontFamily: 'monospace', fontSize: '0.82rem', color: i === slashIdx ? 'var(--accent)' : '#e0e0e0', fontWeight: 600 }}>{c.cmd}</Typography>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem' }}>{c.desc}</Typography>
+                        </Box>
+                        <Typography variant="caption" sx={{ ml: 'auto', color: 'rgba(255,255,255,0.2)', fontSize: '0.65rem', fontStyle: 'italic' }}>{c.hint}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                ) : null;
+              })()}
               <TextField
                 inputRef={inputRef}
                 fullWidth
                 multiline
                 maxRows={3}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onPaste={handlePaste}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setInput(val);
+                  if (val.match(/^\//)) {
+                    const q = val.slice(1).split(' ')[0].toLowerCase();
+                    setSlashQuery(q);
+                    setSlashMenuOpen(true);
+                    setSlashIdx(0);
+                  } else {
+                    setSlashMenuOpen(false);
                   }
+                }}
+                onPaste={handlePaste}
+                onKeyDown={(e) => {
+                  if (slashMenuOpen) {
+                    const filtered = SLASH_CMD_LIST.filter(c => c.cmd.startsWith('/' + slashQuery));
+                    if (e.key === 'ArrowDown') { e.preventDefault(); setSlashIdx(p => Math.min(p + 1, filtered.length - 1)); return; }
+                    if (e.key === 'ArrowUp')   { e.preventDefault(); setSlashIdx(p => Math.max(p - 1, 0)); return; }
+                    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); if (filtered[slashIdx]) executeSlashCommand(filtered[slashIdx].cmd, input.slice(filtered[slashIdx].cmd.length)); else setSlashMenuOpen(false); return; }
+                    if (e.key === 'Escape')     { e.preventDefault(); setSlashMenuOpen(false); return; }
+                  }
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
                 }}
                 placeholder="Ask Vesper… (paste images supported)"
                 disabled={loading}
@@ -6329,20 +6584,132 @@ export default function App() {
           </section>
         </main>
       </Box>
+
+      {/* ─── FOCUS MODE OVERLAY ──────────────────────────────────────── */}
+      {focusMode && (
+        <Box sx={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          background: 'rgba(0,0,0,0.94)',
+          backdropFilter: 'blur(14px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
+        }}>
+          <Typography sx={{ color: 'var(--accent)', fontSize: '0.7rem', letterSpacing: 5, textTransform: 'uppercase', opacity: 0.65 }}>
+            {focusPhase === 'work' ? '⚡ FOCUS SESSION' : '☕ BREAK TIME'}
+          </Typography>
+          <Typography sx={{
+            fontFamily: 'monospace', fontSize: '5.5rem', fontWeight: 100, color: '#fff', letterSpacing: '-3px',
+            textShadow: '0 0 60px var(--accent), 0 0 20px var(--accent)',
+            lineHeight: 1,
+          }}>
+            {String(Math.floor(focusTimeLeft / 60)).padStart(2, '0')}:{String(focusTimeLeft % 60).padStart(2, '0')}
+          </Typography>
+          {/* Task selector */}
+          {!focusTask ? (
+            <Select
+              value=""
+              displayEmpty
+              size="small"
+              onChange={(e) => { const t = tasks.find(x => x.title === e.target.value); if (t) setFocusTask(t); }}
+              sx={{ minWidth: 260, color: 'rgba(255,255,255,0.6)', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--accent)' } }}
+            >
+              <MenuItem value="" disabled sx={{ color: 'rgba(255,255,255,0.3)' }}>🎯 Pick a task to focus on…</MenuItem>
+              {tasks.filter(t => t.status !== 'done').map((t, i) => (
+                <MenuItem key={i} value={t.title} sx={{ color: '#fff' }}>{t.title}</MenuItem>
+              ))}
+            </Select>
+          ) : (
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', letterSpacing: 3, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>Current Task</Typography>
+              <Typography sx={{ color: '#fff', fontWeight: 600, fontSize: '1.1rem', maxWidth: 400, textAlign: 'center' }}>{focusTask.title}</Typography>
+              <Button size="small" onClick={() => setFocusTask(null)} sx={{ color: 'rgba(255,255,255,0.3)', mt: 0.5, fontSize: '0.65rem' }}>change task</Button>
+            </Box>
+          )}
+          {/* Progress bar */}
+          <Box sx={{ width: 300, height: 2, bgcolor: 'rgba(255,255,255,0.08)', borderRadius: 1, overflow: 'hidden', mt: 1 }}>
+            <Box sx={{
+              height: '100%', bgcolor: 'var(--accent)',
+              width: `${(1 - focusTimeLeft / (focusPhase === 'work' ? 25*60 : 5*60)) * 100}%`,
+              transition: 'width 1s linear',
+              boxShadow: '0 0 8px var(--accent)',
+            }} />
+          </Box>
+          {/* Controls */}
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button
+              variant="contained"
+              onClick={() => { setFocusRunning(p => !p); if (!focusRunning && focusPhase === 'work') vesperReact('focusStart'); }}
+              sx={{ bgcolor: 'var(--accent)', color: '#000', fontWeight: 700, minWidth: 110, '&:hover': { filter: 'brightness(1.15)', bgcolor: 'var(--accent)' } }}
+            >
+              {focusRunning ? '⏸ Pause' : '▶ Start'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => { setFocusRunning(false); setFocusTimeLeft(focusPhase === 'work' ? 25*60 : 5*60); }}
+              sx={{ borderColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.55)', '&:hover': { borderColor: 'rgba(255,255,255,0.35)' } }}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="text"
+              onClick={() => { setFocusMode(false); setFocusRunning(false); setFocusPhase('work'); setFocusTimeLeft(25*60); }}
+              sx={{ color: 'rgba(255,255,255,0.3)', '&:hover': { color: 'rgba(255,255,255,0.6)' } }}
+            >
+              Exit
+            </Button>
+          </Box>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.2)', letterSpacing: 1 }}>Ctrl+Shift+F to toggle</Typography>
+        </Box>
+      )}
+
+      {/* ─── KEYBOARD SHORTCUTS MODAL ────────────────────────────────── */}
+      <Dialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)}
+        PaperProps={{ sx: { bgcolor: 'rgba(4,8,20,0.98)', border: '1px solid rgba(var(--accent-rgb),0.35)', borderRadius: 3, minWidth: 400 } }}
+      >
+        <DialogTitle sx={{ color: 'var(--accent)', fontWeight: 700, pb: 1 }}>⌨️ Keyboard Shortcuts</DialogTitle>
+        <DialogContent sx={{ pt: 0 }}>
+          {[
+            { key: 'Ctrl + 1 – 5',       desc: 'Switch Chat / Research / Memory / Tasks / Settings' },
+            { key: 'Ctrl + K',          desc: 'Open command palette' },
+            { key: 'Ctrl + /',           desc: 'Toggle this shortcuts panel' },
+            { key: 'Ctrl + Shift + F',   desc: 'Enter / exit Focus (Pomodoro) mode' },
+            { key: 'Enter',              desc: 'Send chat message' },
+            { key: 'Shift + Enter',      desc: 'New line in chat' },
+            { key: '/ (in chat)',        desc: 'Slash commands: /task /remember /search /focus /export /stats' },
+            { key: '↑ ↓ + Enter',         desc: 'Navigate and execute slash commands' },
+            { key: 'Esc',                desc: 'Close any overlay' },
+          ].map(({ key, desc }) => (
+            <Box key={key} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid rgba(255,255,255,0.05)', gap: 2 }}>
+              <Box sx={{ fontFamily: 'monospace', bgcolor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', px: 1.5, py: 0.4, borderRadius: 1, fontSize: '0.78rem', color: 'var(--accent)', whiteSpace: 'nowrap', flexShrink: 0 }}>{key}</Box>
+              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem' }}>{desc}</Typography>
+            </Box>
+          ))}
+        </DialogContent>
+      </Dialog>
+
       <Snackbar
         open={!!toast}
-        autoHideDuration={2200}
-        onClose={() => setToast('')}
+        autoHideDuration={2800}
+        onClose={() => { setToast(''); setToastVariant('default'); }}
         message={toast}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         ContentProps={{
           className: 'toast-enter',
           sx: {
-            background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.15), rgba(0, 136, 255, 0.15))',
-            border: '1px solid rgba(0, 255, 255, 0.3)',
+            background: toastVariant === 'celebrate'
+              ? 'linear-gradient(135deg, rgba(255,200,0,0.22), rgba(255,100,0,0.15))'
+              : toastVariant === 'success'
+              ? `linear-gradient(135deg, rgba(var(--accent-rgb),0.2), rgba(0,180,80,0.12))`
+              : toastVariant === 'warn'
+              ? 'linear-gradient(135deg, rgba(255,150,0,0.2), rgba(200,80,0,0.12))'
+              : `linear-gradient(135deg, rgba(var(--accent-rgb),0.15), rgba(0,136,255,0.15))`,
+            border: toastVariant === 'celebrate'
+              ? '1px solid rgba(255,200,0,0.45)'
+              : `1px solid rgba(var(--accent-rgb),0.3)`,
             borderRadius: '12px',
             backdropFilter: 'blur(20px)',
-            boxShadow: '0 0 30px rgba(0, 255, 255, 0.3), 0 8px 32px rgba(0, 0, 0, 0.4)',
+            boxShadow: toastVariant === 'celebrate'
+              ? '0 0 30px rgba(255,200,0,0.35), 0 8px 32px rgba(0,0,0,0.4)'
+              : `0 0 30px rgba(var(--accent-rgb),0.3), 0 8px 32px rgba(0,0,0,0.4)`,
             color: '#fff',
             fontWeight: 600,
           }
