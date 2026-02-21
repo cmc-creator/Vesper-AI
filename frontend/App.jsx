@@ -119,6 +119,15 @@ const baseTheme = createTheme({
   typography: { fontFamily: '"Inter", "Segoe UI", -apple-system, sans-serif' },
 });
 
+// ─── Theme Helpers ─────────────────────────────────────────────────────────
+const hexToRgb = (hex) => {
+  if (!hex || !hex.startsWith('#')) return '0, 255, 255';
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `${r}, ${g}, ${b}`;
+};
+
 // ─── Theme Categories & Massive Theme Catalog ─────────────────────────────
 const THEME_CATEGORIES = [
   { id: 'tech', label: '⚡ Tech & Cyber', desc: 'High-tech neon vibes' },
@@ -532,6 +541,18 @@ export default function App() {
       }
     };
   }, []);
+
+  // Apply theme background to body when theme changes
+  useEffect(() => {
+    document.body.style.background = activeTheme.bg || '#000';
+    // Also set CSS vars on :root for elements outside app-shell (modals, popovers)
+    const root = document.documentElement;
+    root.style.setProperty('--accent-rgb', hexToRgb(activeTheme.accent));
+    root.style.setProperty('--glow-rgb', hexToRgb(activeTheme.glow));
+    root.style.setProperty('--accent', activeTheme.accent);
+    root.style.setProperty('--glow', activeTheme.glow);
+    root.style.setProperty('--panel-bg', activeTheme.panelBg || 'rgba(0,0,0,0.75)');
+  }, [activeTheme]);
   
   // Draggable board positions - load from localStorage
   const [boardPositions, setBoardPositions] = useState(() => {
@@ -2885,6 +2906,9 @@ export default function App() {
     '--accent-2': activeTheme.sub,
     '--glow': activeTheme.glow,
     '--panel-bg': activeTheme.panelBg || 'rgba(0,0,0,0.75)',
+    '--bg': activeTheme.bg || '#000',
+    '--accent-rgb': hexToRgb(activeTheme.accent),
+    '--glow-rgb': hexToRgb(activeTheme.glow),
   };
 
   const STATUS_ORDER = ['inbox', 'doing', 'done'];
@@ -5039,6 +5063,15 @@ export default function App() {
       })}
 
       <Box className="app-shell" style={themeVars}>
+        {/* Scanlines overlay - renders when theme has scanlines enabled */}
+        {activeTheme.scanlines && (
+          <div className="scanlines" style={{
+            position: 'fixed',
+            inset: 0,
+            pointerEvents: 'none',
+            zIndex: 9999,
+          }} />
+        )}
         <aside className={`sidebar glass-panel${mobileSidebarOpen ? ' mobile-open' : ''}`}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Box>
