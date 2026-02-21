@@ -618,32 +618,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // ── Focus mode timer ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!focusRunning) return;
-    const tick = setInterval(() => {
-      setFocusTimeLeft(t => {
-        if (t <= 1) {
-          clearInterval(tick);
-          setFocusRunning(false);
-          if (focusPhase === 'work') {
-            bumpStat('tasksCompleted');
-            vesperReact('focusDone');
-            setFocusPhase('break');
-            setFocusTimeLeft(5 * 60);
-          } else {
-            vesperReact('breakDone');
-            setFocusPhase('work');
-            setFocusTimeLeft(25 * 60);
-          }
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
-    return () => clearInterval(tick);
-  }, [focusRunning, focusPhase, bumpStat, vesperReact]);
-
   // Apply theme background to body when theme changes
   useEffect(() => {
     document.body.style.background = activeTheme.bg || '#000';
@@ -712,6 +686,32 @@ export default function App() {
       return updated;
     });
   }, []);
+
+  // ── Focus mode timer ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!focusRunning) return;
+    const tick = setInterval(() => {
+      setFocusTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(tick);
+          setFocusRunning(false);
+          if (focusPhase === 'work') {
+            bumpStat('tasksCompleted');
+            vesperReact('focusDone');
+            setFocusPhase('break');
+            setFocusTimeLeft(5 * 60);
+          } else {
+            vesperReact('breakDone');
+            setFocusPhase('work');
+            setFocusTimeLeft(25 * 60);
+          }
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [focusRunning, focusPhase, bumpStat, vesperReact]);
 
   const exportTasks = useCallback(async () => {
     const done  = tasks.filter(t => t.status === 'done');
