@@ -4812,21 +4812,6 @@ export default function App() {
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>System Diagnostics</Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Check health & performance</Typography>
-                    </Box>
-                    <Button 
-                      onClick={() => setDiagnosticsOpen(true)}
-                      size="small"
-                      variant="outlined"
-                      sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-                      startIcon={<SpeedIcon />}
-                    >
-                      Run Check
-                    </Button>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>UI Sound Effects</Typography>
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Button clicks and notifications</Typography>
                     </Box>
@@ -4860,9 +4845,17 @@ export default function App() {
 
               {/* Voice Lab (ElevenLabs Premium) */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#ffbb44' }}>
-                  ★ Voice Lab
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#ffbb44' }}>★ Voice Lab</Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => { setVoiceLabOpen(true); setVoiceLabTab('sfx'); }}
+                    sx={{ borderColor: '#ffbb44', color: '#ffbb44', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem', py: 0.25 }}
+                  >
+                    Open Full Lab ↗
+                  </Button>
+                </Box>
                 <Stack spacing={1.5}>
                   {/* Sound Effects Generator */}
                   <Box sx={{ p: 1.5, border: '1px solid rgba(255,180,50,0.3)', borderRadius: 2, bgcolor: 'rgba(255,180,50,0.05)' }}>
@@ -4888,7 +4881,7 @@ export default function App() {
                           if (!input?.value.trim()) return;
                           setToast('Generating sound effect...');
                           try {
-                            const res = await fetch('http://localhost:8000/api/sfx/generate', {
+                            const res = await fetch(`${apiBase}/api/sfx/generate`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ prompt: input.value.trim(), duration: 5 }),
@@ -5013,39 +5006,59 @@ export default function App() {
 
               {/* AI Models */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>AI Models</Typography>
-                <Stack spacing={1}>
-                  <Box sx={{ p: 1.5, border: '2px solid #4ade80', borderRadius: '8px', bgcolor: 'rgba(74, 222, 128, 0.05)' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>Ollama (Local)</Typography>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Free • Private • Fast</Typography>
-                      </Box>
-                      <Chip label="PRIMARY" size="small" sx={{ bgcolor: '#4ade80', color: '#000', fontWeight: 700 }} />
-                    </Box>
-                  </Box>
-                  <Box sx={{ p: 1.5, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>Cloud Models</Typography>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Claude, GPT, Gemini</Typography>
-                      </Box>
-                      <Chip label="Fallback" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }} />
-                    </Box>
-                  </Box>
-                </Stack>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
-                  Auto-routes to best available model. Ollama runs locally for privacy.
-                </Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>🤖 AI Model</Typography>
+                <Box sx={{ p: 1.5, border: '1px solid rgba(var(--accent-rgb),0.25)', borderRadius: 2, bgcolor: 'rgba(var(--accent-rgb),0.04)' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.75 }}>Active Model</Typography>
+                  <Select
+                    size="small"
+                    fullWidth
+                    value={selectedModel}
+                    onChange={(e) => {
+                      setSelectedModel(e.target.value);
+                      try { localStorage.setItem('vesper_model', e.target.value); } catch(ex) {}
+                      setToast(`Model set: ${e.target.value === 'auto' ? 'Auto (best available)' : e.target.value}`);
+                    }}
+                    sx={{
+                      color: 'var(--accent)', bgcolor: 'rgba(0,0,0,0.25)',
+                      '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(var(--accent-rgb),0.3)' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--accent)' },
+                      '.MuiSvgIcon-root': { color: 'var(--accent)' },
+                    }}
+                    MenuProps={{ PaperProps: { sx: { bgcolor: 'rgba(8,8,18,0.97)', backdropFilter: 'blur(20px)', border: '1px solid rgba(0,255,255,0.15)', '& .MuiMenuItem-root': { color: '#fff', fontSize: '0.85rem' }, '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(0,255,255,0.1)' } } } }}
+                  >
+                    <MenuItem value="auto">🔄 Auto (best available)</MenuItem>
+                    {availableModels.map(m => (
+                      <MenuItem key={m.id} value={m.id}>{m.icon} {m.label}</MenuItem>
+                    ))}
+                    {availableModels.length === 0 && (
+                      <MenuItem value="gpt-4o-mini">☁️ GPT-4o-mini (cloud)</MenuItem>
+                    )}
+                  </Select>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', mt: 0.75, display: 'block' }}>
+                    {availableModels.length > 0 ? `${availableModels.length} models detected` : 'Connect to Ollama for local models'}
+                  </Typography>
+                </Box>
               </Box>
 
               {/* System Info */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>System Status</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>System Status</Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setDiagnosticsOpen(true)}
+                    startIcon={<SpeedIcon sx={{ fontSize: '0.85rem !important' }} />}
+                    sx={{ borderColor: 'var(--accent)', color: 'var(--accent)', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem', py: 0.25 }}
+                  >
+                    Run Diagnostics
+                  </Button>
+                </Box>
                 <Stack spacing={1.5}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Memory Database</Typography>
-                    <Chip label="Connected" size="small" sx={{ bgcolor: 'rgba(74, 222, 128, 0.2)', color: '#4ade80', fontWeight: 600 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Backend / Railway</Typography>
+                    <Chip label="Check Status →" size="small" onClick={() => setDiagnosticsOpen(true)}
+                      sx={{ bgcolor: 'rgba(0,255,255,0.12)', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,255,255,0.2)' } }} />
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>Conversations</Typography>
@@ -5053,7 +5066,7 @@ export default function App() {
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>Storage</Typography>
-                    <Chip label="Auto-Save" size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)', fontWeight: 600 }} />
+                    <Chip label="Auto-Save ON" size="small" sx={{ bgcolor: 'rgba(74,222,128,0.2)', color: '#4ade80', fontWeight: 600 }} />
                   </Box>
                 </Stack>
               </Box>
