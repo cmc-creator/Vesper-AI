@@ -130,6 +130,7 @@ const hexToRgb = (hex) => {
 
 // ─── Theme Categories & Massive Theme Catalog ─────────────────────────────
 const THEME_CATEGORIES = [
+  { id: 'packages', label: '✨ Theme Packages', desc: 'Full immersive visual worlds — textures, fonts, animations & all' },
   { id: 'tech', label: '⚡ Tech & Cyber', desc: 'High-tech neon vibes' },
   { id: 'soft', label: '🌸 Soft & Minimal', desc: 'Clean, gentle aesthetics' },
   { id: 'dark', label: '🖤 Dark & Moody', desc: 'Deep shadows, rich tones' },
@@ -141,6 +142,14 @@ const THEME_CATEGORIES = [
 ];
 
 const THEMES = [
+  // ── THEME PACKAGES ─ Full immersive visual worlds ──────────────────────────
+  { id: 'oak-workshop',    label: '🪵 Oak Workshop',    accent: '#d4a855', glow: '#e8b84b', sub: '#a07828', category: 'packages', bg: 'linear-gradient(160deg, #0a0702, #140f03, #0e0a02)', panelBg: 'rgba(24,16,4,0.93)',  sound: 'ambient',  scanlines: false, style: 'wood'     },
+  { id: 'iron-forge',      label: '⚙️ Iron Forge',      accent: '#a8c4d8', glow: '#c0d8f0', sub: '#6090b0', category: 'packages', bg: 'linear-gradient(160deg, #060a10, #0c1420, #080e18)', panelBg: 'rgba(10,14,22,0.95)', sound: 'digital',  scanlines: false, style: 'metal'    },
+  { id: 'deep-rainforest', label: '🌴 Deep Rainforest', accent: '#34d058', glow: '#22bb44', sub: '#16803a', category: 'packages', bg: 'linear-gradient(160deg, #010802, #020f04, #010a03)', panelBg: 'rgba(2,10,4,0.93)',   sound: 'nature',   scanlines: false, style: 'forest'   },
+  { id: 'ocean-abyss',     label: '🌊 Ocean Abyss',     accent: '#38bdf8', glow: '#0ea5e9', sub: '#0369a1', category: 'packages', bg: 'linear-gradient(180deg, #000813, #00101e, #000a16)', panelBg: 'rgba(0,8,20,0.93)',   sound: 'ambient',  scanlines: false, style: 'ocean'    },
+  { id: 'volcanic-forge',  label: '🌋 Volcanic Forge',  accent: '#f97316', glow: '#ea580c', sub: '#b91c1c', category: 'packages', bg: 'linear-gradient(160deg, #100200, #1a0400, #110200)', panelBg: 'rgba(18,4,0,0.95)',   sound: 'dark',     scanlines: false, style: 'volcanic' },
+  { id: 'arctic-glass',    label: '🧊 Arctic Glass',    accent: '#bae6fd', glow: '#e0f2fe', sub: '#7dd3fc', category: 'packages', bg: 'linear-gradient(180deg, #010b15, #020e1e, #010a14)', panelBg: 'rgba(2,10,20,0.88)',  sound: 'ambient',  scanlines: false, style: 'arctic'   },
+
   // ── TECH & CYBER ──────────────────────────────────
   { id: 'cyan', label: 'Cyan Matrix', accent: '#00ffff', glow: '#00fff2', sub: '#00ff88', category: 'tech', bg: 'linear-gradient(135deg, #000a0f, #001a1a)', panelBg: 'rgba(0,0,0,0.75)', sound: 'digital', scanlines: true },
   { id: 'green', label: 'Neon Green', accent: '#00ff00', glow: '#00ff00', sub: '#00dd00', category: 'tech', bg: 'linear-gradient(135deg, #000800, #001a00)', panelBg: 'rgba(0,5,0,0.75)', sound: 'digital', scanlines: true },
@@ -545,6 +554,9 @@ export default function App() {
   // Apply theme background to body when theme changes
   useEffect(() => {
     document.body.style.background = activeTheme.bg || '#000';
+    // Set data-style on body and html for global CSS targeting
+    document.body.dataset.style = activeTheme.style || 'cyber';
+    document.documentElement.dataset.style = activeTheme.style || 'cyber';
     // Also set CSS vars on :root for elements outside app-shell (modals, popovers)
     const root = document.documentElement;
     root.style.setProperty('--accent-rgb', hexToRgb(activeTheme.accent));
@@ -5062,7 +5074,7 @@ export default function App() {
         );
       })}
 
-      <Box className="app-shell" style={themeVars}>
+      <Box className="app-shell" style={themeVars} data-style={activeTheme.style || 'cyber'}>
         {/* Scanlines overlay - renders when theme has scanlines enabled */}
         {activeTheme.scanlines && (
           <div className="scanlines" style={{

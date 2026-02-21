@@ -1131,3 +1131,526 @@ button:active,
     display: flex !important;
   }
 }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   IMMERSIVE THEME PACKAGES
+   Applied via [data-style="..."] on .app-shell
+   Each package transforms the entire visual language — textures, shapes,
+   animations, fonts, borders, glows — a completely different world.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+
+/* ── 🪵 OAK WORKSHOP ─────────────────────────────────────────────────────────
+   Warm amber light, handcrafted wood grain, carved inset panels, serif weight
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-style="wood"] .sidebar,
+[data-style="wood"] .chat-panel,
+[data-style="wood"] .ops-card,
+[data-style="wood"] .board-card {
+  background-image:
+    /* wood grain - tight diagonal strokes */
+    repeating-linear-gradient(
+      102deg,
+      transparent, transparent 38px,
+      rgba(0,0,0,0.045) 38px, rgba(0,0,0,0.045) 39px
+    ),
+    /* wider grain bands */
+    repeating-linear-gradient(
+      175deg,
+      transparent, transparent 70px,
+      rgba(180,100,20,0.035) 70px, rgba(180,100,20,0.035) 73px
+    ) !important;
+  border-radius: 8px !important;
+  border-color: rgba(var(--accent-rgb), 0.45) !important;
+  border-width: 1px !important;
+  box-shadow:
+    0 8px 28px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(var(--accent-rgb), 0.2),
+    inset 0 1px 0 rgba(220,160,50,0.2),
+    inset 0 -2px 0 rgba(0,0,0,0.4) !important;
+}
+
+[data-style="wood"] .sidebar {
+  border-width: 2px !important;
+  position: relative;
+}
+
+/* Top plate trim on sidebar */
+[data-style="wood"] .sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10px; right: 10px; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.75), rgba(255,200,80,0.5), rgba(var(--accent-rgb), 0.75), transparent);
+  border-radius: 0 0 2px 2px;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.4);
+  z-index: 1;
+}
+
+/* Bottom plate trim on sidebar */
+[data-style="wood"] .sidebar::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 10px; right: 10px; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.5), transparent);
+  border-radius: 2px 2px 0 0;
+  z-index: 1;
+}
+
+[data-style="wood"] .nav-item {
+  border-radius: 6px !important;
+  font-family: Georgia, 'Palatino Linotype', 'Book Antiqua', Palatino, serif !important;
+  letter-spacing: 0.04em;
+  font-size: 13px !important;
+}
+
+[data-style="wood"] .nav-item.active {
+  background: linear-gradient(180deg,
+    rgba(var(--accent-rgb), 0.24),
+    rgba(var(--accent-rgb), 0.09)) !important;
+  border: 2px solid rgba(var(--accent-rgb), 0.55) !important;
+  box-shadow:
+    inset 0 2px 4px rgba(0,0,0,0.45),
+    inset 0 -1px 0 rgba(220,160,50,0.22),
+    0 0 14px rgba(var(--accent-rgb), 0.28) !important;
+  animation: none !important;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* Serif headings */
+[data-style="wood"] .MuiTypography-h6,
+[data-style="wood"] .MuiTypography-h5,
+[data-style="wood"] .MuiTypography-h4 {
+  font-family: Georgia, 'Palatino Linotype', serif !important;
+  letter-spacing: 0.05em;
+}
+
+/* Scrollbar in amber wood tone */
+[data-style="wood"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.8), rgba(160,80,20,0.6)) !important;
+}
+
+
+/* ── ⚙️ IRON FORGE ───────────────────────────────────────────────────────────
+   Brushed gunmetal steel, cold precision, rivet corners, mono terminals
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-style="metal"] .sidebar,
+[data-style="metal"] .chat-panel,
+[data-style="metal"] .ops-card,
+[data-style="metal"] .board-card {
+  background-image:
+    /* tight vertical brushed-steel stripes */
+    repeating-linear-gradient(
+      90deg,
+      transparent, transparent 2px,
+      rgba(255,255,255,0.014) 2px, rgba(255,255,255,0.014) 3px
+    ) !important;
+  border-radius: 3px !important;
+  border-color: rgba(var(--accent-rgb), 0.48) !important;
+  box-shadow:
+    0 0 0 1px rgba(var(--accent-rgb), 0.25),
+    0 6px 22px rgba(0,0,0,0.85),
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    inset 0 -1px 0 rgba(0,0,0,0.55) !important;
+}
+
+/* Rivet corner dots via multi-background on sidebar */
+[data-style="metal"] .sidebar {
+  background-image:
+    radial-gradient(circle at 8px 8px,             rgba(var(--accent-rgb), 0.75) 2.5px, transparent 2.5px),
+    radial-gradient(circle at calc(100% - 8px) 8px, rgba(var(--accent-rgb), 0.75) 2.5px, transparent 2.5px),
+    radial-gradient(circle at 8px calc(100% - 8px), rgba(var(--accent-rgb), 0.55) 2.5px, transparent 2.5px),
+    radial-gradient(circle at calc(100% - 8px) calc(100% - 8px), rgba(var(--accent-rgb), 0.55) 2.5px, transparent 2.5px),
+    repeating-linear-gradient(
+      90deg,
+      transparent, transparent 2px,
+      rgba(255,255,255,0.014) 2px, rgba(255,255,255,0.014) 3px
+    ) !important;
+}
+
+/* Cold top edge highlight */
+[data-style="metal"] .sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.9), rgba(255,255,255,0.4), rgba(var(--accent-rgb), 0.9), transparent);
+  z-index: 1;
+}
+
+[data-style="metal"] .nav-item {
+  border-radius: 2px !important;
+  font-family: 'Courier New', 'Lucida Console', Courier, monospace !important;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 11px !important;
+  font-weight: 600;
+}
+
+[data-style="metal"] .nav-item.active {
+  background: linear-gradient(180deg,
+    rgba(var(--accent-rgb), 0.22),
+    rgba(var(--accent-rgb), 0.07)) !important;
+  border: 1px solid rgba(var(--accent-rgb), 0.72) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.14),
+    inset 0 -1px 0 rgba(0,0,0,0.5),
+    0 0 12px rgba(var(--accent-rgb), 0.32) !important;
+  animation: none !important;
+  letter-spacing: 0.12em;
+}
+
+[data-style="metal"] .MuiTypography-h6,
+[data-style="metal"] .MuiTypography-h5 {
+  font-family: 'Courier New', Courier, monospace !important;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+
+/* ── 🌴 DEEP RAINFOREST ──────────────────────────────────────────────────────
+   Organic asymmetric shapes, vine-like borders, bioluminescent pulse
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-style="forest"] .sidebar,
+[data-style="forest"] .chat-panel,
+[data-style="forest"] .ops-card,
+[data-style="forest"] .board-card {
+  border-radius: 18px 5px 18px 5px !important;
+  border-color: rgba(var(--accent-rgb), 0.32) !important;
+  background-image:
+    radial-gradient(ellipse at 0% 0%,   rgba(var(--accent-rgb), 0.1)  0%, transparent 45%),
+    radial-gradient(ellipse at 100% 100%, rgba(var(--accent-rgb), 0.07) 0%, transparent 35%) !important;
+  box-shadow:
+    0 10px 36px rgba(0,0,0,0.78),
+    0 0 55px rgba(var(--accent-rgb), 0.08),
+    inset 0 0 65px rgba(var(--accent-rgb), 0.04) !important;
+  position: relative;
+}
+
+/* Misty bioluminescent wisps drifting in sidebar */
+[data-style="forest"] .sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(var(--accent-rgb), 0.12) 0%, transparent 30%),
+    radial-gradient(circle at 85% 75%, rgba(var(--accent-rgb), 0.09) 0%, transparent 25%),
+    radial-gradient(circle at 50% 55%, rgba(var(--accent-rgb), 0.05) 0%, transparent 38%);
+  pointer-events: none;
+  border-radius: inherit;
+  animation: forestMist 6s ease-in-out infinite;
+  z-index: 0;
+}
+
+@keyframes forestMist {
+  0%, 100% { opacity: 0.6; transform: translateY(0px); }
+  50%       { opacity: 1;   transform: translateY(-5px); }
+}
+
+[data-style="forest"] .nav-item {
+  border-radius: 14px 3px 14px 3px !important;
+  letter-spacing: 0.02em;
+  font-size: 13px !important;
+}
+
+[data-style="forest"] .nav-item.active {
+  background: rgba(var(--accent-rgb), 0.15) !important;
+  border: 1px solid rgba(var(--accent-rgb), 0.48) !important;
+  border-radius: 14px 3px 14px 3px !important;
+  box-shadow:
+    0 0 28px rgba(var(--accent-rgb), 0.3),
+    inset 0 0 22px rgba(var(--accent-rgb), 0.09) !important;
+  animation: forestPulse 3.5s ease-in-out infinite !important;
+}
+
+@keyframes forestPulse {
+  0%, 100% { box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.27), inset 0 0 14px rgba(var(--accent-rgb), 0.08); }
+  50%       { box-shadow: 0 0 38px rgba(var(--accent-rgb), 0.48), inset 0 0 28px rgba(var(--accent-rgb), 0.15); }
+}
+
+/* Vine-like right border on sidebar */
+[data-style="forest"] .sidebar::after {
+  content: '';
+  position: absolute;
+  top: 10%; right: -1px; bottom: 10%; width: 2px;
+  background: linear-gradient(180deg,
+    transparent,
+    rgba(var(--accent-rgb), 0.5),
+    rgba(var(--accent-rgb), 0.3),
+    rgba(var(--accent-rgb), 0.6),
+    transparent
+  );
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35);
+  z-index: 1;
+}
+
+
+/* ── 🌊 OCEAN ABYSS ──────────────────────────────────────────────────────────
+   Deep pressure darkness, bioluminescent wisps, gentle horizontal wave lines
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-style="ocean"] .sidebar,
+[data-style="ocean"] .chat-panel,
+[data-style="ocean"] .ops-card,
+[data-style="ocean"] .board-card {
+  border-radius: 20px !important;
+  border-color: rgba(var(--accent-rgb), 0.2) !important;
+  background-image:
+    /* subtle horizontal water layer lines */
+    repeating-linear-gradient(
+      180deg,
+      transparent, transparent 5px,
+      rgba(var(--accent-rgb), 0.016) 5px, rgba(var(--accent-rgb), 0.016) 6px
+    ),
+    /* light filtering down from surface above */
+    radial-gradient(ellipse at 50% 0%, rgba(var(--accent-rgb), 0.14) 0%, transparent 55%) !important;
+  box-shadow:
+    0 0 0 1px rgba(var(--accent-rgb), 0.1),
+    0 18px 52px rgba(0,0,0,0.88),
+    0 0 90px rgba(var(--accent-rgb), 0.07),
+    inset 0 0 110px rgba(var(--accent-rgb), 0.05) !important;
+  position: relative;
+}
+
+/* Bioluminescent wisps floating in sidebar */
+[data-style="ocean"] .sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 22% 70%, rgba(var(--accent-rgb), 0.14) 0%, transparent 22%),
+    radial-gradient(circle at 78% 30%, rgba(var(--accent-rgb), 0.1)  0%, transparent 18%),
+    radial-gradient(circle at 50% 55%, rgba(var(--accent-rgb), 0.06) 0%, transparent 35%);
+  pointer-events: none;
+  border-radius: inherit;
+  animation: oceanWisps 9s ease-in-out infinite;
+  z-index: 0;
+}
+
+@keyframes oceanWisps {
+  0%, 100% { opacity: 0.65; transform: translateY(0px) scale(1); }
+  33%       { opacity: 1;    transform: translateY(-6px) scale(1.04); }
+  66%       { opacity: 0.75; transform: translateY(-2px) scale(0.98); }
+}
+
+[data-style="ocean"] .nav-item {
+  border-radius: 14px !important;
+  letter-spacing: 0.02em;
+}
+
+[data-style="ocean"] .nav-item.active {
+  background: rgba(var(--accent-rgb), 0.1) !important;
+  border: 1px solid rgba(var(--accent-rgb), 0.38) !important;
+  box-shadow:
+    0 0 32px rgba(var(--accent-rgb), 0.35),
+    inset 0 0 32px rgba(var(--accent-rgb), 0.09) !important;
+  animation: oceanPulse 4.5s ease-in-out infinite !important;
+}
+
+@keyframes oceanPulse {
+  0%, 100% { box-shadow: 0 0 22px rgba(var(--accent-rgb), 0.3),  inset 0 0 20px rgba(var(--accent-rgb), 0.07); }
+  40%       { box-shadow: 0 0 50px rgba(var(--accent-rgb), 0.52), inset 0 0 42px rgba(var(--accent-rgb), 0.16); }
+  70%       { box-shadow: 0 0 28px rgba(var(--accent-rgb), 0.34), inset 0 0 25px rgba(var(--accent-rgb), 0.09); }
+}
+
+/* Animated background for ocean body */
+body[data-style="ocean"] {
+  animation: oceanTide 12s ease-in-out infinite;
+}
+
+@keyframes oceanTide {
+  0%, 100% { background-position: 0% 0%; }
+  50%       { background-position: 0% 3%; }
+}
+
+
+/* ── 🌋 VOLCANIC FORGE ───────────────────────────────────────────────────────
+   Dark molten rock, lava crack edges, scorched panels, pulsing heat
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-style="volcanic"] .sidebar,
+[data-style="volcanic"] .chat-panel,
+[data-style="volcanic"] .ops-card,
+[data-style="volcanic"] .board-card {
+  border-radius: 5px !important;
+  border-color: rgba(var(--accent-rgb), 0.52) !important;
+  background-image:
+    /* diagonal rock-crack texture */
+    repeating-linear-gradient(
+      63deg,
+      transparent, transparent 17px,
+      rgba(var(--accent-rgb), 0.022) 17px, rgba(var(--accent-rgb), 0.022) 18px
+    ),
+    /* upwelling heat from below */
+    radial-gradient(ellipse at 0% 100%, rgba(var(--accent-rgb), 0.18) 0%, transparent 52%) !important;
+  box-shadow:
+    0 0 0 1px rgba(var(--accent-rgb), 0.28),
+    0 10px 36px rgba(0,0,0,0.88),
+    0 0 45px rgba(var(--accent-rgb), 0.12),
+    inset 0 -2px 0 rgba(var(--accent-rgb), 0.65) !important;
+  position: relative;
+  overflow: visible !important;
+}
+
+/* Lava crack glow at bottom edge */
+[data-style="volcanic"] .sidebar::after,
+[data-style="volcanic"] .chat-panel::after,
+[data-style="volcanic"] .ops-card::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 8%; right: 8%; height: 2px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(var(--accent-rgb), 0.95),
+    rgba(255,140,0,0.85),
+    rgba(var(--accent-rgb), 0.95),
+    transparent
+  );
+  border-radius: 0 0 5px 5px;
+  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.95), 0 0 28px rgba(var(--accent-rgb), 0.5);
+  animation: lavaGlow 2.8s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes lavaGlow {
+  0%, 100% { opacity: 0.8; box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.85), 0 0 22px rgba(var(--accent-rgb), 0.4); }
+  50%       { opacity: 1;   box-shadow: 0 0 20px rgba(var(--accent-rgb), 1),    0 0 45px rgba(var(--accent-rgb), 0.7); }
+}
+
+/* Heat shimmer at top */
+[data-style="volcanic"] .sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,140,0,0.6), rgba(var(--accent-rgb), 0.8), rgba(255,140,0,0.6), transparent);
+  z-index: 1;
+}
+
+[data-style="volcanic"] .nav-item {
+  border-radius: 4px !important;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  font-size: 12px !important;
+}
+
+[data-style="volcanic"] .nav-item.active {
+  background: linear-gradient(160deg,
+    rgba(var(--accent-rgb), 0.26),
+    rgba(var(--accent-rgb), 0.06)) !important;
+  border: 1px solid rgba(var(--accent-rgb), 0.75) !important;
+  box-shadow:
+    0 0 22px rgba(var(--accent-rgb), 0.5),
+    0 2px 0 rgba(var(--accent-rgb), 0.9),
+    inset 0 0 22px rgba(var(--accent-rgb), 0.14) !important;
+  animation: lavaPulse 2.2s ease-in-out infinite !important;
+}
+
+@keyframes lavaPulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.48), 0 2px 0 rgba(var(--accent-rgb), 0.9), inset 0 0 16px rgba(var(--accent-rgb), 0.12); }
+  50%       { box-shadow: 0 0 38px rgba(var(--accent-rgb), 0.82), 0 2px 0 rgba(var(--accent-rgb), 1),   inset 0 0 32px rgba(var(--accent-rgb), 0.25); }
+}
+
+/* Pulsing body background for volcanic */
+body[data-style="volcanic"] {
+  animation: volcanicPulse 6s ease-in-out infinite;
+}
+
+@keyframes volcanicPulse {
+  0%, 100% { background-size: 100% 100%; }
+  50%       { background-size: 102% 102%; background-position: center; }
+}
+
+
+/* ── 🧊 ARCTIC GLASS ─────────────────────────────────────────────────────────
+   Ice crystal panels, frosted ultra-glass, cold precision, diamond sparkle
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-style="arctic"] .sidebar,
+[data-style="arctic"] .chat-panel,
+[data-style="arctic"] .ops-card,
+[data-style="arctic"] .board-card {
+  border-radius: 18px !important;
+  border-color: rgba(var(--accent-rgb), 0.3) !important;
+  background-image:
+    /* ice crystal diagonal lines */
+    repeating-linear-gradient(
+      52deg,
+      transparent, transparent 26px,
+      rgba(var(--accent-rgb), 0.016) 26px, rgba(var(--accent-rgb), 0.016) 27px
+    ),
+    /* cold frost emanating from top */
+    radial-gradient(ellipse at 50% 0%,  rgba(var(--accent-rgb), 0.18) 0%, transparent 52%),
+    /* corner cold spots */
+    radial-gradient(ellipse at 0%   50%, rgba(var(--accent-rgb), 0.07) 0%, transparent 38%) !important;
+  box-shadow:
+    0 0 0 1px rgba(var(--accent-rgb), 0.2),
+    0 14px 52px rgba(0,0,0,0.68),
+    0 0 90px rgba(var(--accent-rgb), 0.1),
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    inset 0 0 110px rgba(var(--accent-rgb), 0.05) !important;
+  backdrop-filter: blur(32px) saturate(115%) brightness(1.1) !important;
+  position: relative;
+}
+
+/* Frost bloom at top of sidebar */
+[data-style="arctic"] .sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 55%;
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.1) 0%, transparent 100%);
+  border-radius: 18px 18px 0 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Crystal sparkle in corner */
+[data-style="arctic"] .sidebar::after {
+  content: '';
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 36px; height: 36px;
+  background: radial-gradient(circle at center, rgba(var(--accent-rgb), 0.55) 0%, transparent 65%);
+  pointer-events: none;
+  animation: crystalSpark 5.5s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes crystalSpark {
+  0%, 100% { opacity: 0.45; transform: scale(1)    rotate(0deg); }
+  25%       { opacity: 0.9;  transform: scale(1.35) rotate(15deg); }
+  50%       { opacity: 0.55; transform: scale(1.1)  rotate(0deg); }
+  75%       { opacity: 0.85; transform: scale(1.3)  rotate(-12deg); }
+}
+
+[data-style="arctic"] .nav-item {
+  border-radius: 12px !important;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+
+[data-style="arctic"] .nav-item.active {
+  background: rgba(var(--accent-rgb), 0.09) !important;
+  border: 1px solid rgba(var(--accent-rgb), 0.52) !important;
+  box-shadow:
+    0 0 22px rgba(var(--accent-rgb), 0.24),
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    inset 0 0 22px rgba(var(--accent-rgb), 0.08) !important;
+  animation: frostPulse 4.5s ease-in-out infinite !important;
+}
+
+@keyframes frostPulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.2),  inset 0 1px 0 rgba(255,255,255,0.15), inset 0 0 16px rgba(var(--accent-rgb), 0.06); }
+  50%       { box-shadow: 0 0 38px rgba(var(--accent-rgb), 0.38), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 35px rgba(var(--accent-rgb), 0.14); }
+}
+
+[data-style="arctic"] .MuiTypography-h6,
+[data-style="arctic"] .MuiTypography-h5 {
+  letter-spacing: 0.08em;
+  font-weight: 300 !important;
+}
+
+/* Frosted scrollbar */
+[data-style="arctic"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.6), rgba(255,255,255,0.3)) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.3) !important;
+}
+
