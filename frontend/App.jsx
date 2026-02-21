@@ -264,13 +264,25 @@ const NAV = [
 function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview }) {
   const [personas, setPersonas] = React.useState(null);
   const [saving, setSaving] = React.useState('');
+  const [personasError, setPersonasError] = React.useState(false);
 
-  React.useEffect(() => {
-    fetch(`${apiBase}/api/voice/personas`)
-      .then(r => r.json())
-      .then(d => setPersonas(d.personas || {}))
-      .catch(() => setToast('Failed to load personas'));
+  const loadPersonas = React.useCallback(async () => {
+    setPersonas(null);
+    setPersonasError(false);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const r = await fetch(`${apiBase}/api/voice/personas`);
+        const d = await r.json();
+        setPersonas(d.personas || {});
+        return;
+      } catch (e) {
+        if (attempt < 3) await new Promise(r => setTimeout(r, 2000 * attempt));
+      }
+    }
+    setPersonasError(true);
   }, [apiBase]);
+
+  React.useEffect(() => { loadPersonas(); }, [apiBase]);
 
   const assignVoice = async (personaId, voiceId) => {
     setSaving(personaId);
@@ -292,7 +304,13 @@ function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview }) {
     setSaving('');
   };
 
-  if (!personas) return <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>Loading personas...</Typography>;
+  if (personasError) return (
+    <Box>
+      <Typography variant="caption" sx={{ color: 'rgba(255,100,100,0.7)' }}>⚠️ Could not load personas</Typography>
+      <Box onClick={loadPersonas} sx={{ mt: 0.5, cursor: 'pointer', color: 'var(--accent)', fontSize: '0.7rem', textDecoration: 'underline' }}>↻ Retry</Box>
+    </Box>
+  );
+  if (!personas) return <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>⏳ Loading personas...</Typography>;
 
   return (
     <Stack spacing={1}>
@@ -2689,17 +2707,35 @@ export default function App() {
   // Load available ElevenLabs voices from backend (no browser voices — they sound robotic)
   const [cloudVoices, setCloudVoices] = useState([]);
   const [defaultVoiceId, setDefaultVoiceId] = useState('');
-  useEffect(() => {
-    fetch(`${apiBase}/api/tts/voices`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.voices) setCloudVoices(data.voices);
-        if (data.default && !selectedVoiceName) setDefaultVoiceId(data.default);
-      })
-      .catch(() => {});
-  // selectedVoiceName is intentionally omitted: we only want to check it once at
-  // mount time to avoid overwriting a pre-selected voice with the backend default.
+  const [voicesLoading, setVoicesLoading] = useState(false);
+
+  const fetchVoices = useCallback(async () => {
+    if (!apiBase || voicesLoading) return;
+    setVoicesLoading(true);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const r = await fetch(`${apiBase}/api/tts/voices`);
+        const data = await r.json();
+        if (data.voices) {
+          setCloudVoices(data.voices);
+          if (data.default && !selectedVoiceName) setDefaultVoiceId(data.default);
+          break;
+        }
+      } catch (e) {
+        if (attempt < 3) await new Promise(r => setTimeout(r, 2000 * attempt));
+      }
+    }
+    setVoicesLoading(false);
+  // selectedVoiceName intentionally omitted — only read once at mount
   }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch on mount
+  useEffect(() => { fetchVoices(); }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-fetch when Voice Lab opens if voices still empty (e.g. Railway was cold at page load)
+  useEffect(() => {
+    if (voiceLabOpen && cloudVoices.length === 0) fetchVoices();
+  }, [voiceLabOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch available AI models for model picker
   useEffect(() => {
@@ -6476,9 +6512,14 @@ export default function App() {
                           </Box>
                         );
                       }) : (
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-                          Start the backend to load voices.
-                        </Typography>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+                            {voicesLoading ? '⏳ Loading voices...' : '⚠️ Could not load voices'}
+                          </Typography>
+                          {!voicesLoading && (
+                            <Box onClick={() => fetchVoices()} sx={{ mt: 0.5, cursor: 'pointer', color: 'var(--accent)', fontSize: '0.7rem', textDecoration: 'underline' }}>↻ Retry</Box>
+                          )}
+                        </Box>
                       )}
                     </Box>
 
