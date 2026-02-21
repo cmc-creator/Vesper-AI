@@ -185,11 +185,6 @@ def save_research(data):
     with open(RESEARCH_PATH, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# Health check endpoint for deployment platforms
-@app.get("/health")
-def health_check():
-    return {"status": "healthy", "service": "vesper-ai-backend"}
-
 @app.get("/api/research")
 def get_research():
     return load_research()
@@ -1474,24 +1469,6 @@ def get_vesper_dna():
 
 # --- Threaded Conversation Model ---
 # Removed duplicate imports and app initialization - using the one at the top of the file
-
-# Health check endpoint
-@app.get("/health")
-def health_check():
-    return {
-        "status": "healthy",
-        "service": "Vesper AI Backend",
-        "version": "1.0.0",
-        "timestamp": datetime.datetime.now().isoformat()
-    }
-
-@app.get("/")
-def root():
-    return {
-        "message": "Vesper AI Backend API",
-        "docs": "/docs",
-        "health": "/health"
-    }
 
 MEMORY_DIR = os.path.join(os.path.dirname(__file__), '../vesper-ai/memory')
 
