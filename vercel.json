@@ -6,10 +6,6 @@
   "installCommand": "npm --prefix ./frontend install --legacy-peer-deps",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://vesper-backend-production-b486.up.railway.app/api/:path*"
-    },
-    {
       "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }

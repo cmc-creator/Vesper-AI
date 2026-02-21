@@ -71,23 +71,18 @@ GOOGLE_API_KEY=xxxxx
 **Output Directory:** `frontend/dist`
 **Install Command:** `npm install --prefix frontend`
 
-### 2.4 Update vercel.json with Railway URL
-Before deploying, update [vercel.json](vercel.json) line 8:
+### 2.4 Add Required Environment Variable
+In Vercel project → Settings → Environment Variables, add:
 
-```json
-"destination": "https://YOUR-RAILWAY-URL.up.railway.app/api/:path*"
-```
+| Name | Value |
+|------|-------|
+| `VITE_API_URL` | `https://your-railway-url.up.railway.app` |
 
-Replace `YOUR-RAILWAY-URL` with your actual Railway domain!
+Replace `your-railway-url` with the actual domain shown in your Railway project Settings → Domains.
 
-### 2.5 Add Environment Variable (Optional)
-In Vercel project → Settings → Environment Variables:
+> **This is required.** The frontend uses `VITE_API_URL` to know where to send API requests. Without it, chat, memory, research, and all backend features will not work.
 
-```bash
-VITE_API_URL=https://your-railway-url.up.railway.app
-```
-
-### 2.6 Deploy
+### 2.5 Deploy
 1. Click "Deploy"
 2. Wait ~2 minutes for build
 3. Visit your Vercel URL (e.g., `https://vesper-ai.vercel.app`)

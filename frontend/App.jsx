@@ -4897,7 +4897,7 @@ export default function App() {
                           if (!input?.value.trim()) return;
                           setToast('Generating sound effect...');
                           try {
-                            const res = await fetch('http://localhost:8000/api/sfx/generate', {
+                            const res = await fetch(`${apiBase}/api/sfx/generate`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ prompt: input.value.trim(), duration: 5 }),
