@@ -4339,7 +4339,7 @@ export default function App() {
             <Stack spacing={2.5}>
               {/* Appearance */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Appearance — Theme Catalog</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>🎨 Appearance</Typography>
                 <Stack spacing={1.5}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
@@ -4496,6 +4496,34 @@ export default function App() {
                       </Box>
                     </Box>
                   </Dialog>
+
+                  {/* Wallpaper */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Wallpaper</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                        {customBackground ? `Active: ${customBackground.name}` : 'Custom background image'}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      {customBackground && (
+                        <Button
+                          size="small"
+                          onClick={() => { setCustomBackground(null); try { localStorage.removeItem('vesper_custom_bg'); } catch(e) {} setToast('Background cleared'); }}
+                          sx={{ color: 'rgba(255,255,255,0.4)', textTransform: 'none', fontSize: '0.7rem', p: '2px 6px', minWidth: 0 }}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                      <IconButton
+                        size="small"
+                        onClick={() => setBackgroundStudioOpen(true)}
+                        sx={{ bgcolor: 'rgba(255,136,255,0.15)', color: '#ff88ff', '&:hover': { bgcolor: 'rgba(255,136,255,0.25)' } }}
+                      >
+                        <PhotoLibrary fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                  </Box>
                 </Stack>
               </Box>
 
@@ -4641,59 +4669,6 @@ export default function App() {
                 </Stack>
               </Box>
 
-              {/* Background Studio */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#ff88ff' }}>🖼️ Background Studio</Typography>
-                <Box sx={{
-                  p: 2, border: '1px solid rgba(255,136,255,0.2)', borderRadius: 2, bgcolor: 'rgba(255,136,255,0.03)',
-                  position: 'relative', overflow: 'hidden',
-                }}>
-                  {/* Mini preview of current background */}
-                  {customBackground?.url && (
-                    <Box sx={{
-                      position: 'absolute', inset: 0, opacity: 0.15,
-                      backgroundImage: `url(${customBackground.url})`,
-                      backgroundSize: 'cover', backgroundPosition: 'center',
-                      filter: 'blur(4px)',
-                    }} />
-                  )}
-                  <Box sx={{ position: 'relative', zIndex: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: '#ff88ff' }}>
-                      Custom Backgrounds
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1.5 }}>
-                      {customBackground
-                        ? `Active: ${customBackground.name}`
-                        : 'Set custom wallpapers, upload images, or pick from curated collections'
-                      }
-                    </Typography>
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => setBackgroundStudioOpen(true)}
-                        sx={{ borderColor: '#ff88ff', color: '#ff88ff', textTransform: 'none', fontWeight: 600, flex: 1 }}
-                      >
-                        Open Studio
-                      </Button>
-                      {customBackground && (
-                        <Button
-                          size="small"
-                          onClick={() => {
-                            setCustomBackground(null);
-                            try { localStorage.removeItem('vesper_custom_bg'); } catch (e) {}
-                            setToast('Background cleared');
-                          }}
-                          sx={{ color: 'rgba(255,255,255,0.4)', textTransform: 'none', fontSize: '0.75rem' }}
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </Stack>
-                  </Box>
-                </Box>
-              </Box>
-              
               {/* Audio & Voice */}
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Audio & Voice</Typography>
