@@ -165,12 +165,12 @@ const THEME_CATEGORIES = [
 
 const THEMES = [
   // ── THEME PACKAGES ─ Full immersive visual worlds ──────────────────────────
-  { id: 'oak-workshop',    label: '🪵 Oak Workshop',    accent: '#d4a855', glow: '#e8b84b', sub: '#a07828', category: 'packages', bg: 'linear-gradient(160deg, #0a0702, #140f03, #0e0a02)', panelBg: 'rgba(24,16,4,0.93)',  sound: 'ambient',  scanlines: false, style: 'wood'     },
-  { id: 'iron-forge',      label: '⚙️ Iron Forge',      accent: '#a8c4d8', glow: '#c0d8f0', sub: '#6090b0', category: 'packages', bg: 'linear-gradient(160deg, #060a10, #0c1420, #080e18)', panelBg: 'rgba(10,14,22,0.95)', sound: 'digital',  scanlines: false, style: 'metal'    },
-  { id: 'deep-rainforest', label: '🌴 Deep Rainforest', accent: '#34d058', glow: '#22bb44', sub: '#16803a', category: 'packages', bg: 'linear-gradient(160deg, #010802, #020f04, #010a03)', panelBg: 'rgba(2,10,4,0.93)',   sound: 'nature',   scanlines: false, style: 'forest'   },
-  { id: 'ocean-abyss',     label: '🌊 Ocean Abyss',     accent: '#38bdf8', glow: '#0ea5e9', sub: '#0369a1', category: 'packages', bg: 'linear-gradient(180deg, #000813, #00101e, #000a16)', panelBg: 'rgba(0,8,20,0.93)',   sound: 'ambient',  scanlines: false, style: 'ocean'    },
-  { id: 'volcanic-forge',  label: '🌋 Volcanic Forge',  accent: '#f97316', glow: '#ea580c', sub: '#b91c1c', category: 'packages', bg: 'linear-gradient(160deg, #100200, #1a0400, #110200)', panelBg: 'rgba(18,4,0,0.95)',   sound: 'dark',     scanlines: false, style: 'volcanic' },
-  { id: 'arctic-glass',    label: '🧊 Arctic Glass',    accent: '#bae6fd', glow: '#e0f2fe', sub: '#7dd3fc', category: 'packages', bg: 'linear-gradient(180deg, #010b15, #020e1e, #010a14)', panelBg: 'rgba(2,10,20,0.88)',  sound: 'ambient',  scanlines: false, style: 'arctic'   },
+  { id: 'oak-workshop',    label: '🪵 Oak Workshop',    accent: '#d4a855', glow: '#e8b84b', sub: '#a07828', category: 'packages', bg: 'linear-gradient(160deg, #1c0d04 0%, #2a1508 45%, #1a0b03 100%)', panelBg: 'rgba(58,30,10,0.97)',  sound: 'ambient',  scanlines: false, style: 'wood'     },
+  { id: 'iron-forge',      label: '⚙️ Iron Forge',      accent: '#a8c4d8', glow: '#c0d8f0', sub: '#6090b0', category: 'packages', bg: 'linear-gradient(160deg, #080d14 0%, #0d1828 50%, #080d14 100%)', panelBg: 'rgba(18,24,38,0.98)', sound: 'digital',  scanlines: false, style: 'metal'    },
+  { id: 'deep-rainforest', label: '🌴 Deep Rainforest', accent: '#34d058', glow: '#22bb44', sub: '#16803a', category: 'packages', bg: 'linear-gradient(160deg, #030d05 0%, #061508 45%, #030b04 100%)', panelBg: 'rgba(10,32,14,0.97)',  sound: 'nature',   scanlines: false, style: 'forest'   },
+  { id: 'ocean-abyss',     label: '🌊 Ocean Abyss',     accent: '#38bdf8', glow: '#0ea5e9', sub: '#0369a1', category: 'packages', bg: 'linear-gradient(180deg, #010610 0%, #000b1e 50%, #000814 100%)', panelBg: 'rgba(6,16,40,0.97)',   sound: 'ambient',  scanlines: false, style: 'ocean'    },
+  { id: 'volcanic-forge',  label: '🌋 Volcanic Forge',  accent: '#f97316', glow: '#ea580c', sub: '#b91c1c', category: 'packages', bg: 'linear-gradient(160deg, #0d0200 0%, #1a0300 50%, #0d0100 100%)', panelBg: 'rgba(44,14,4,0.98)',   sound: 'dark',     scanlines: false, style: 'volcanic' },
+  { id: 'arctic-glass',    label: '🧊 Arctic Glass',    accent: '#bae6fd', glow: '#e0f2fe', sub: '#7dd3fc', category: 'packages', bg: 'linear-gradient(180deg, #030c18 0%, #051020 50%, #030c18 100%)', panelBg: 'rgba(12,24,46,0.88)',  sound: 'ambient',  scanlines: false, style: 'arctic'   },
 
   // ── TECH & CYBER ──────────────────────────────────
   { id: 'cyan', label: 'Cyan Matrix', accent: '#00ffff', glow: '#00fff2', sub: '#00ff88', category: 'tech', bg: 'linear-gradient(135deg, #000a0f, #001a1a)', panelBg: 'rgba(0,0,0,0.75)', sound: 'digital', scanlines: true },
@@ -2667,17 +2667,44 @@ export default function App() {
   // Load available ElevenLabs voices from backend (no browser voices — they sound robotic)
   const [cloudVoices, setCloudVoices] = useState([]);
   const [defaultVoiceId, setDefaultVoiceId] = useState('');
+  const [elevenLabsKey, setElevenLabsKey] = useState(() => {
+    try { return localStorage.getItem('vesper_elevenlabs_key') || ''; } catch { return ''; }
+  });
   useEffect(() => {
     fetch(`${apiBase}/api/tts/voices`)
       .then(r => r.json())
       .then(data => {
-        if (data.voices) setCloudVoices(data.voices);
+        if (data.voices && data.voices.length > 0) setCloudVoices(data.voices);
         if (data.default && !selectedVoiceName) setDefaultVoiceId(data.default);
       })
       .catch(() => {});
   // selectedVoiceName is intentionally omitted: we only want to check it once at
   // mount time to avoid overwriting a pre-selected voice with the backend default.
   }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Client-side fallback: fetch ElevenLabs voices directly if backend returned none
+  useEffect(() => {
+    if (cloudVoices.length > 0 || !elevenLabsKey) return;
+    fetch('https://api.elevenlabs.io/v1/voices', {
+      headers: { 'xi-api-key': elevenLabsKey },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.voices || data.voices.length === 0) return;
+        const mapped = data.voices.map(v => ({
+          id: `eleven:${v.voice_id}`,
+          name: v.name,
+          gender: (v.labels?.gender || 'unknown').charAt(0).toUpperCase() + (v.labels?.gender || 'unknown').slice(1),
+          locale: v.labels?.accent || 'American',
+          style: v.labels?.description || v.labels?.use_case || 'general',
+          provider: 'elevenlabs',
+          preview_url: v.preview_url || '',
+        }));
+        setCloudVoices(mapped);
+        if (mapped.length > 0 && !selectedVoiceName) setDefaultVoiceId(mapped[0].id);
+      })
+      .catch(() => {});
+  }, [elevenLabsKey, cloudVoices.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch available AI models for model picker
   useEffect(() => {
@@ -4683,6 +4710,45 @@ export default function App() {
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
                         Choose Vesper's voice for all speech
                       </Typography>
+
+                      {/* ElevenLabs API Key (client-side fallback when backend has no key) */}
+                      <Box sx={{ mb: 1.5 }}>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 0.5 }}>
+                          ElevenLabs API Key {cloudVoices.length > 0 ? '✓ (voices loaded)' : '— paste to load voices'}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <input
+                            type="password"
+                            placeholder="sk-... or xi-..."
+                            defaultValue={elevenLabsKey}
+                            onBlur={(e) => {
+                              const val = e.target.value.trim();
+                              setElevenLabsKey(val);
+                              try { localStorage.setItem('vesper_elevenlabs_key', val); } catch {}
+                              if (val) setCloudVoices([]); // trigger re-fetch
+                            }}
+                            style={{
+                              flex: 1, background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0,255,136,0.3)',
+                              borderRadius: 6, color: '#fff', fontSize: 11, padding: '5px 8px',
+                              outline: 'none', fontFamily: 'monospace',
+                            }}
+                          />
+                          {elevenLabsKey && (
+                            <button
+                              onClick={() => {
+                                setElevenLabsKey('');
+                                setCloudVoices([]);
+                                try { localStorage.removeItem('vesper_elevenlabs_key'); } catch {}
+                              }}
+                              style={{
+                                background: 'rgba(255,50,50,0.15)', border: '1px solid rgba(255,50,50,0.3)',
+                                borderRadius: 6, color: '#ff6666', cursor: 'pointer', padding: '4px 8px', fontSize: 11,
+                              }}
+                            >✕</button>
+                          )}
+                        </Box>
+                      </Box>
+
                       <Box sx={{
                         maxHeight: 200, overflowY: 'auto', borderRadius: 1,
                         border: '1px solid rgba(0,255,136,0.15)', p: 0.5,
@@ -4731,9 +4797,14 @@ export default function App() {
                             </Box>
                           );
                         }) : (
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', p: 1 }}>
-                            No voices loaded — start the backend to see ElevenLabs voices
-                          </Typography>
+                          <Box sx={{ p: 1 }}>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', display: 'block', mb: 0.5 }}>
+                              No voices loaded yet.
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)' }}>
+                              {elevenLabsKey ? 'Fetching from ElevenLabs...' : 'Paste your ElevenLabs API key above to load voices.'}
+                            </Typography>
+                          </Box>
                         )}
                       </Box>
                     </Box>
