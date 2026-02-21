@@ -10,6 +10,10 @@
       "destination": "https://vesper-backend-production-b486.up.railway.app/api/:path*"
     },
     {
+      "source": "/health",
+      "destination": "https://vesper-backend-production-b486.up.railway.app/health"
+    },
+    {
       "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }

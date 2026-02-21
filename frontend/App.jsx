@@ -971,9 +971,10 @@ export default function App() {
   }, [apiBase]);
 
   // ── Keepalive: ping backend every 4 min to prevent Railway cold starts ──
+  // /health is rewritten by vercel.json to Railway directly
   useEffect(() => {
     if (!apiBase) return;
-    const ping = () => fetch(`${apiBase}/health`, { method: 'GET' }).catch(() => {});
+    const ping = () => fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' }).catch(() => {});
     ping(); // warm it up immediately on mount
     const keepaliveInterval = setInterval(ping, 4 * 60 * 1000);
     return () => clearInterval(keepaliveInterval);
