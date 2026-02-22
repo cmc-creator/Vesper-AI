@@ -261,7 +261,7 @@ const NAV = [
 ];
 
 // ─── Voice Persona Assigner Component ──────────────────────────────────
-function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview }) {
+function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview, onSave }) {
   const [personas, setPersonas] = React.useState(null);
   const [saving, setSaving] = React.useState('');
   const [personasError, setPersonasError] = React.useState(false);
@@ -297,6 +297,7 @@ function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview }) {
         setPersonas(prev => ({ ...prev, [personaId]: { ...prev[personaId], voice_id: voiceId } }));
         const voiceName = voiceId ? (cloudVoices.find(v => v.id === voiceId)?.name || voiceId) : 'Default';
         setToast(`✅ ${personas[personaId]?.label}: ${voiceName}`);
+        if (onSave) onSave(); // refresh App-level persona cache
       } else {
         setToast('Failed: ' + (data.error || 'Unknown'));
       }
@@ -2723,6 +2724,16 @@ export default function App() {
   const [cloudVoices, setCloudVoices] = useState([]);
   const [defaultVoiceId, setDefaultVoiceId] = useState('');
   const [voicesLoading, setVoicesLoading] = useState(false);
+  // Local persona cache — avoids a network round-trip on every TTS call
+  const voicePersonaCacheRef = useRef({});
+
+  const fetchPersonaCache = useCallback(async () => {
+    try {
+      const r = await fetch(`${apiBase}/api/voice/personas`);
+      const d = await r.json();
+      if (d.personas) voicePersonaCacheRef.current = d.personas;
+    } catch { /* non-fatal */ }
+  }, [apiBase]);
 
   const fetchVoices = useCallback(async () => {
     if (!apiBase || voicesLoading) return;
@@ -2745,11 +2756,12 @@ export default function App() {
   }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch on mount
-  useEffect(() => { fetchVoices(); }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchVoices(); fetchPersonaCache(); }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-fetch when Voice Lab opens if voices still empty (e.g. Railway was cold at page load)
   useEffect(() => {
     if (voiceLabOpen && cloudVoices.length === 0) fetchVoices();
+    if (voiceLabOpen) fetchPersonaCache(); // always refresh persona cache when lab opens
   }, [voiceLabOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch available AI models for model picker
@@ -2785,8 +2797,26 @@ export default function App() {
       .trim();
   };
 
-  // Resolve voice for a context (game, chat, task, etc.)
+  // Context → persona key mapping (mirrors backend)
+  const CONTEXT_PERSONA_MAP = {
+    game: 'narrator', quest: 'narrator', combat: 'narrator',
+    chat: 'casual', memory: 'casual',
+    task: 'assistant', default: 'assistant',
+    research: 'teacher',
+    achievement: 'hype',
+  };
+
+  // Resolve voice for a context — uses local cache first, network fallback
   const resolveVoiceForContext = async (context) => {
+    // Try local cache first (instant, no network)
+    const cache = voicePersonaCacheRef.current;
+    if (cache && Object.keys(cache).length > 0) {
+      const personaKey = CONTEXT_PERSONA_MAP[context] || 'assistant';
+      const persona = cache[personaKey];
+      if (persona?.voice_id) return persona.voice_id;
+      return null; // persona exists but no voice assigned — use main voice
+    }
+    // Cache empty (first load / cold start) — fall back to network
     try {
       const res = await fetch(`${apiBase}/api/voice/resolve`, {
         method: 'POST',
@@ -2808,11 +2838,13 @@ export default function App() {
 
     setIsSpeaking(true);
 
-    // Resolve voice: persona context → user selection → default (ElevenLabs only, never robotic)
-    let voice = selectedVoiceName || defaultVoiceId || (cloudVoices.length > 0 ? cloudVoices[0].id : '');
-    if (!selectedVoiceName) {
-      const contextVoice = await resolveVoiceForContext(context);
-      if (contextVoice) voice = contextVoice;
+    // Resolve voice: persona context ALWAYS takes priority → user selection → default
+    let voice = '';
+    const contextVoice = await resolveVoiceForContext(context);
+    if (contextVoice) {
+      voice = contextVoice;
+    } else {
+      voice = selectedVoiceName || defaultVoiceId || (cloudVoices.length > 0 ? cloudVoices[0].id : '');
     }
 
     const isElevenLabs = voice.startsWith('eleven:');
@@ -4932,7 +4964,7 @@ export default function App() {
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
                       Assign different voices for different contexts — Vesper adapts automatically
                     </Typography>
-                    <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} playVoicePreview={playVoicePreview} />
+                    <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} playVoicePreview={playVoicePreview} onSave={fetchPersonaCache} />
                   </Box>
 
                   {/* Voice Cloning */}
@@ -6549,7 +6581,7 @@ export default function App() {
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
                         Override the voice for specific contexts (optional)
                       </Typography>
-                      <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} playVoicePreview={playVoicePreview} />
+                      <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} playVoicePreview={playVoicePreview} onSave={fetchPersonaCache} />
                     </Box>
                   </Box>
                 )}
