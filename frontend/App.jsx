@@ -1209,23 +1209,33 @@ export default function App() {
         model: selectedModel !== 'auto' ? selectedModel : null,
       };
 
-      // ── Pre-warm Railway on first open (SSE streams need backend fully awake) ──
-      setThinkingStatus('Waking up Vesper...');
-      try {
-        await Promise.race([
-          fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store', signal: controller.signal }),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('warmup timeout')), 18000)),
-        ]);
-      } catch (warmupErr) {
-        if (warmupErr.name === 'AbortError') throw warmupErr;
-        // Non-fatal — continue even if warmup times out; chat stream will do its own retries
+      // ── Pre-warm: ping /health until Railway responds (up to 45s) ──
+      setThinkingStatus('Connecting to Vesper...');
+      const PREWARM_TIMEOUT = 45000;
+      const prewarmStart = Date.now();
+      let prewarmOk = false;
+      while (Date.now() - prewarmStart < PREWARM_TIMEOUT) {
+        if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+        try {
+          const pingRes = await Promise.race([
+            fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' }),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('ping timeout')), 5000)),
+          ]);
+          if (pingRes.ok) { prewarmOk = true; break; }
+        } catch { /* still waking */ }
+        const elapsed = Math.round((Date.now() - prewarmStart) / 1000);
+        setThinkingStatus(`Waking up Railway… ${elapsed}s`);
+        await new Promise(r => setTimeout(r, 2500));
+      }
+      if (!prewarmOk) {
+        console.warn('⚠️ Railway health check timed out — attempting chat anyway');
       }
       setThinkingStatus('Thinking...');
 
-      // ── Use SSE streaming endpoint (with retry for Railway cold starts) ──
+      // ── Use SSE streaming endpoint (with retry) ──
       let response;
       let _fetchAttempts = 0;
-      const MAX_FETCH_ATTEMPTS = 5;
+      const MAX_FETCH_ATTEMPTS = 3;
       while (true) {
         try {
           response = await fetch(`${chatBase}/api/chat/stream`, {
@@ -1239,10 +1249,10 @@ export default function App() {
         } catch (fetchErr) {
           if (fetchErr.name === 'AbortError') throw fetchErr; // user stopped — don't retry
           _fetchAttempts++;
-          if (_fetchAttempts >= MAX_FETCH_ATTEMPTS) throw fetchErr; // give up after 5 attempts
-          console.warn(`⚡ Connection attempt ${_fetchAttempts} failed, retrying in 8s...`, fetchErr.message);
+          if (_fetchAttempts >= MAX_FETCH_ATTEMPTS) throw fetchErr; // give up after 3 attempts
+          console.warn(`⚡ Connection attempt ${_fetchAttempts} failed, retrying in 4s...`, fetchErr.message);
           setThinkingStatus(`Reconnecting... (${_fetchAttempts}/${MAX_FETCH_ATTEMPTS - 1})`);
-          await new Promise(r => setTimeout(r, 8000));
+          await new Promise(r => setTimeout(r, 4000));
         }
       }
       
@@ -1359,7 +1369,9 @@ export default function App() {
       }
       console.error('❌ Chat error:', error);
       playSound('error');
-      const errorMsg = "Connection failed after 5 attempts — Railway might still be waking up. Give it a moment and try again!";
+      // Restore the user's message so they can re-send without retyping
+      setInput(userMessage);
+      const errorMsg = "⚠️ Couldn't reach the backend — Railway may still be waking up. Your message has been restored in the input box. Wait a moment, then hit Send again.";
       addLocalMessage('assistant', errorMsg);
       await saveMessageToThread('assistant', errorMsg);
       if (autoSpeak) speak(errorMsg);
