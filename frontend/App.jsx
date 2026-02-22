@@ -812,8 +812,9 @@ export default function App() {
 
   const apiBase = useMemo(() => {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
-    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:8000';
-    // Relative to current origin — works with Vercel rewrites, nginx proxy, and any host
+    // For local dev, use a relative path so the Vite proxy works.
+    // For production, it will be an absolute URL.
+    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return '';
     return typeof window !== 'undefined' ? window.location.origin : '';
   }, []);
 
@@ -829,7 +830,8 @@ export default function App() {
   const chatBase = useMemo(() => {
     if (import.meta.env.VITE_CHAT_API_URL) return import.meta.env.VITE_CHAT_API_URL.replace(/\/$/, '');
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
-    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:8000';
+    // For local dev, use a relative path so the Vite proxy works.
+    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return '';
     // Relative to current origin — works with Vercel rewrites, nginx proxy, and any host
     return typeof window !== 'undefined' ? window.location.origin : '';
   }, []);
@@ -2753,7 +2755,7 @@ export default function App() {
     setVoicesLoading(true);
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const r = await fetch(`${apiBase}/api/tts/voices`);
+        const r = await fetch(`${apiBase}/api/elevenlabs/voices`);
         const data = await r.json();
         if (data.voices) {
           setCloudVoices(data.voices);
