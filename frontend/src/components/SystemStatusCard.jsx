@@ -6,6 +6,7 @@ const SystemStatusCard = ({ apiBase, onHide }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [failCount, setFailCount] = useState(0);
   const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
@@ -18,9 +19,11 @@ const SystemStatusCard = ({ apiBase, onHide }) => {
         const json = await res.json();
         setData({ ...json, latency });
         setError(false);
+        setFailCount(0);
       } catch (err) {
         console.error("System status fetch error:", err);
         setError(true);
+        setFailCount(prev => prev + 1);
       } finally {
         setLoading(false);
       }
@@ -34,8 +37,15 @@ const SystemStatusCard = ({ apiBase, onHide }) => {
   // Default values if data is missing/loading
   const cpu = data?.metrics?.cpu_usage_percent || 0;
   const ram = data?.metrics?.memory_usage_percent || 0;
-  const backendStatus = error ? 'Offline' : (loading ? 'Checking...' : 'Online');
-  const backendColor = error ? '#ff4444' : (loading ? '#ffbb33' : '#00ff88');
+
+  // "Waking up" for first 3 failures (~15s), then "Offline"
+  const isWakingUp = error && failCount <= 3;
+  const backendStatus = error
+    ? (isWakingUp ? 'Waking up...' : 'Offline')
+    : (loading ? 'Checking...' : 'Online');
+  const backendColor = error
+    ? (isWakingUp ? '#ffbb33' : '#ff4444')
+    : (loading ? '#ffbb33' : '#00ff88');
 
   return (
     <Paper 
