@@ -322,16 +322,27 @@ function IntegrationsTab({ apiBase }) {
 function BrandKitTab({ apiBase }) {
   const [kit, setKit] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [newColor, setNewColor] = useState({ hex: '#00ffff', label: '', usage: '' });
   const [newTagline, setNewTagline] = useState('');
   const [newTerm, setNewTerm] = useState({ term: '', definition: '', category: 'general' });
   const [newDisclaimer, setNewDisclaimer] = useState({ title: '', text: '' });
 
   const fetchKit = useCallback(async () => {
-    try {
-      const r = await fetch(`${apiBase}/api/brandkit`);
-      setKit(await r.json());
-    } catch { }
+    setLoading(true);
+    setFetchError(false);
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      try {
+        const r = await fetch(`${apiBase}/api/brandkit`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        setKit(await r.json());
+        setLoading(false);
+        return;
+      } catch (e) {
+        if (attempt < 4) await new Promise(res => setTimeout(res, 2000 * attempt));
+      }
+    }
+    setFetchError(true);
     setLoading(false);
   }, [apiBase]);
 
@@ -386,8 +397,21 @@ function BrandKitTab({ apiBase }) {
     fetchKit();
   };
 
-  if (loading) return <CircularProgress size={28} sx={{ color: 'var(--accent)' }} />;
-  if (!kit) return <Typography sx={{ color: 'rgba(255,255,255,0.5)' }}>Failed to load brand kit</Typography>;
+  if (loading) return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 4 }}>
+      <CircularProgress size={28} sx={{ color: 'var(--accent)' }} />
+      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>Loading brand kit…</Typography>
+    </Box>
+  );
+  if (fetchError || !kit) return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 4 }}>
+      <Typography sx={{ color: 'rgba(255,100,100,0.8)', fontSize: 13 }}>⚠️ Failed to load brand kit — backend may be starting up</Typography>
+      <Button variant="outlined" size="small" onClick={fetchKit}
+        sx={{ borderColor: 'var(--accent)', color: 'var(--accent)', textTransform: 'none', fontWeight: 700 }}>
+        🔄 Retry
+      </Button>
+    </Box>
+  );
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -736,8 +760,10 @@ function ContentToolsTab({ apiBase }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ███ MAIN EXPORT ███████████████████████████████████████████████████████████
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function IntegrationsHub({ apiBase, onBack }) {
-  const [tab, setTab] = useState(0);
+export default function IntegrationsHub({ apiBase, onBack, initialTab = 0 }) {
+  const [tab, setTab] = useState(initialTab);
+  // Re-sync if parent changes initialTab (e.g. navigated from Brand Kit quick link)
+  React.useEffect(() => { setTab(initialTab); }, [initialTab]);
 
   return (
     <Paper sx={{

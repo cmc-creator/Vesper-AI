@@ -455,6 +455,7 @@ function App() {
   const [soundEnabled, setSoundEnabled] = useState(() => safeStorageGet('vesper_sound_enabled', 'true') === 'true');
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [integrationInitialTab, setIntegrationInitialTab] = useState(0);
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [uiScale, setUiScale] = useState(() => parseFloat(safeStorageGet('vesper_ui_scale', '1')));
@@ -4089,7 +4090,7 @@ export default function App() {
         );
       case 'integrations':
         return (
-          <IntegrationsHub apiBase={apiBase} onBack={() => setActiveSection('chat')} />
+          <IntegrationsHub apiBase={apiBase} onBack={() => { setActiveSection('chat'); setIntegrationInitialTab(0); }} initialTab={integrationInitialTab} />
         );
       case 'gallery':
         return (
@@ -4280,6 +4281,17 @@ export default function App() {
                         </Grid>
                       ))}
                     </Grid>
+                    {personalities.length === 0 && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', flex: 1 }}>
+                          Presets not loaded yet — backend may still be starting up
+                        </Typography>
+                        <Button size="small" onClick={fetchPersonalityPresets}
+                          sx={{ color: 'var(--accent)', fontSize: '0.72rem', textTransform: 'none', fontWeight: 700, minWidth: 0, flexShrink: 0 }}>
+                          🔄 Retry
+                        </Button>
+                      </Box>
+                    )}
                   </Box>
 
                   {personality && (
@@ -4383,9 +4395,54 @@ export default function App() {
               </Tooltip>
             </DragHandleArea>
             <Stack spacing={2.5}>
-              {/* Appearance */}
+              {/* ── Quick Navigation ── */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>🎨 Appearance</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', letterSpacing: 1, textTransform: 'uppercase' }}>Quick Links</Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {[
+                    { id: 'personality', label: '🎭 Personality', color: '#00d0ff', tab: null },
+                    { id: 'integrations', label: '🏢 Brand Kit', color: '#aa88ff', tab: 1 },
+                    { id: 'sassy', label: '👗 Wardrobe', color: '#ff88ff', tab: null },
+                    { id: 'analytics', label: '📊 Analytics', color: '#ffbb44', tab: null },
+                    { id: 'nyxshift', label: '🎨 Creative Suite', color: '#ff6680', tab: null },
+                  ].map(({ id, label, color, tab }) => (
+                    <Chip
+                      key={id}
+                      label={label}
+                      size="small"
+                      onClick={() => {
+                        if (tab !== null) setIntegrationInitialTab(tab);
+                        setActiveSection(id);
+                        playSound('click');
+                      }}
+                      sx={{
+                        bgcolor: 'rgba(255,255,255,0.05)',
+                        border: `1px solid ${color}44`,
+                        color,
+                        fontWeight: 600,
+                        fontSize: '0.72rem',
+                        cursor: 'pointer',
+                        '&:hover': { bgcolor: `${color}18`, borderColor: color },
+                        transition: 'all 0.2s',
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              <Box>
+                <Box
+                  onClick={() => setThemeMenuAnchor(true)}
+                  sx={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    mb: 1.5, cursor: 'pointer', borderRadius: 1.5, px: 0.5, py: 0.5,
+                    '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.08)' },
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>🎨 Appearance</Typography>
+                  <Typography variant="caption" sx={{ color: 'var(--accent)', opacity: 0.7, fontSize: '0.65rem', letterSpacing: 1 }}>OPEN THEMES →</Typography>
+                </Box>
                 <Stack spacing={1.5}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
@@ -4778,6 +4835,16 @@ export default function App() {
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
                         Choose Vesper's voice for all speech
                       </Typography>
+
+                      {selectedVoiceName && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, p: 0.75, px: 1, bgcolor: 'rgba(0,255,136,0.08)', borderRadius: 1, border: '1px solid rgba(0,255,136,0.2)' }}>
+                          <Typography sx={{ fontSize: '0.65rem', color: '#00ff88' }}>💾</Typography>
+                          <Typography variant="caption" sx={{ color: '#00ff88', fontWeight: 700, fontSize: '0.72rem' }}>
+                            Saved default: {cloudVoices.find(v => v.id === selectedVoiceName)?.name || selectedVoiceName}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', ml: 'auto' }}>persists across sessions</Typography>
+                        </Box>
+                      )}
 
                       <Box sx={{
                         maxHeight: 200, overflowY: 'auto', borderRadius: 1,
