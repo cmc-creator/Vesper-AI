@@ -811,11 +811,29 @@ export default function App() {
   }, [customizations.chatBoxHeight]);
 
   const apiBase = useMemo(() => {
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
-    // For local dev, use a relative path so the Vite proxy works.
-    // For production, it will be an absolute URL.
-    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return '';
-    return typeof window !== 'undefined' ? window.location.origin : '';
+    // VITE_API_URL is the source of truth for the backend URL.
+    // It should be set in the .env file for local dev,
+    // and in Vercel/Railway environment variables for production.
+    const apiUrl = import.meta.env.VITE_API_URL;
+
+    // If VITE_API_URL is defined, use it.
+    if (apiUrl) {
+      return apiUrl.replace(/\/$/, '');
+    }
+
+    // For local development, if VITE_API_URL is NOT set,
+    // we fall back to a relative path. This relies on the Vite
+    // proxy you have configured in vite.config.js to forward
+    // /api requests to your local backend on port 8000.
+    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) {
+      return '';
+    }
+
+    // In a production environment (like Vercel) where VITE_API_URL is not set,
+    // this will default to the frontend's own origin. For Vercel, we want
+    // to use relative paths so the vercel.json rewrites can handle it.
+    // A blank string '' ensures requests are relative (e.g., /api/chat).
+    return '';
   }, []);
 
   const firebaseAuthEnabled = useMemo(
@@ -828,13 +846,17 @@ export default function App() {
   );
 
   const chatBase = useMemo(() => {
-    if (import.meta.env.VITE_CHAT_API_URL) return import.meta.env.VITE_CHAT_API_URL.replace(/\/$/, '');
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
-    // For local dev, use a relative path so the Vite proxy works.
-    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return '';
-    // Relative to current origin — works with Vercel rewrites, nginx proxy, and any host
-    return typeof window !== 'undefined' ? window.location.origin : '';
-  }, []);
+    // This logic ensures the correct API endpoint is used for the chat stream.
+    // It prioritizes a specific chat URL if provided, otherwise falls back
+    // to the main apiBase logic. This is useful if your streaming endpoint
+    // is on a different domain or path.
+    const chatApiUrl = import.meta.env.VITE_CHAT_API_URL;
+    if (chatApiUrl) {
+      return chatApiUrl.replace(/\/$/, '');
+    }
+    // If no specific chat URL, use the same logic as apiBase.
+    return apiBase;
+  }, [apiBase]);
 
   const addLocalMessage = async (role, content, extras = {}) => {
     const message = {
