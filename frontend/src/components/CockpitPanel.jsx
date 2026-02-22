@@ -101,7 +101,7 @@ function DataStream({ color = 'var(--accent)', speed = 30, lines = 8 }) {
       fontFamily: '"Fira Code", "Courier New", monospace',
       fontSize: 9, lineHeight: 1.5,
       color: color,
-      background: 'rgba(0,0,0,0.7)',
+      background: 'var(--panel-bg)',
       borderRadius: 1, p: 0.8,
       border: `1px solid ${color}22`,
       overflow: 'hidden',
@@ -208,7 +208,7 @@ function SectionHeader({ label, color = 'var(--accent)', icon }) {
 function SubsystemPanel({ title, color, icon, children }) {
   return (
     <Box sx={{
-      background: 'rgba(0,0,0,0.55)',
+      background: 'var(--panel-bg)',
       border: `1px solid ${color}22`,
       borderRadius: 1.5, p: 1,
       boxShadow: `inset 0 1px 0 ${color}11, 0 2px 8px rgba(0,0,0,0.4)`,
@@ -272,7 +272,7 @@ export default function CockpitPanel() {
       {/* ═══ TOP STATUS BAR ═══ */}
       <Box sx={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)',
+        background: 'var(--panel-bg)', border: '1px solid rgba(255,255,255,0.06)',
         borderRadius: 1.5, px: 1.2, py: 0.6,
         boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.04)',
       }}>
@@ -300,7 +300,7 @@ export default function CockpitPanel() {
       {/* ═══ GAUGE STRIP ═══ */}
       <Box sx={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-around',
-        background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.05)',
+        background: 'var(--panel-bg)', border: '1px solid rgba(255,255,255,0.05)',
         borderRadius: 1.5, py: 0.8, px: 0.5,
       }}>
         <MiniGauge value={liveData.cpu} label="CPU" color="#00ffff" />
@@ -422,7 +422,7 @@ export default function CockpitPanel() {
       {/* ═══ BOTTOM READOUT BAR ═══ */}
       <Box sx={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.04)',
+        background: 'var(--panel-bg)', border: '1px solid rgba(255,255,255,0.04)',
         borderRadius: 1, px: 1, py: 0.4,
       }}>
         <Box sx={{ display: 'flex', gap: 1.5 }}>

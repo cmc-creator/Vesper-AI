@@ -207,7 +207,7 @@ export default function SystemDiagnostics({ open, onClose, apiBase }) {
       fullWidth
       PaperProps={{
         style: {
-          backgroundColor: 'rgba(10, 10, 20, 0.97)',
+          backgroundColor: 'var(--panel-bg)',
           backdropFilter: 'blur(20px)',
           border: `1px solid ${statusColors[data?.status] || 'var(--accent)'}`,
           borderRadius: '16px',

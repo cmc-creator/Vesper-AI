@@ -1207,9 +1207,23 @@ export default function App() {
         model: selectedModel !== 'auto' ? selectedModel : null,
       };
 
+      // ── Pre-warm Railway on first open (SSE streams need backend fully awake) ──
+      setThinkingStatus('Waking up Vesper...');
+      try {
+        await Promise.race([
+          fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store', signal: controller.signal }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('warmup timeout')), 18000)),
+        ]);
+      } catch (warmupErr) {
+        if (warmupErr.name === 'AbortError') throw warmupErr;
+        // Non-fatal — continue even if warmup times out; chat stream will do its own retries
+      }
+      setThinkingStatus('Thinking...');
+
       // ── Use SSE streaming endpoint (with retry for Railway cold starts) ──
       let response;
       let _fetchAttempts = 0;
+      const MAX_FETCH_ATTEMPTS = 5;
       while (true) {
         try {
           response = await fetch(`${chatBase}/api/chat/stream`, {
@@ -1223,10 +1237,10 @@ export default function App() {
         } catch (fetchErr) {
           if (fetchErr.name === 'AbortError') throw fetchErr; // user stopped — don't retry
           _fetchAttempts++;
-          if (_fetchAttempts >= 3) throw fetchErr; // give up after 3 attempts
-          console.warn(`⚡ Connection attempt ${_fetchAttempts} failed, retrying in 3s...`, fetchErr.message);
-          setThinkingStatus(`Reconnecting... (${_fetchAttempts}/2)`);
-          await new Promise(r => setTimeout(r, 3000));
+          if (_fetchAttempts >= MAX_FETCH_ATTEMPTS) throw fetchErr; // give up after 5 attempts
+          console.warn(`⚡ Connection attempt ${_fetchAttempts} failed, retrying in 8s...`, fetchErr.message);
+          setThinkingStatus(`Reconnecting... (${_fetchAttempts}/${MAX_FETCH_ATTEMPTS - 1})`);
+          await new Promise(r => setTimeout(r, 8000));
         }
       }
       
@@ -1343,7 +1357,7 @@ export default function App() {
       }
       console.error('❌ Chat error:', error);
       playSound('error');
-      const errorMsg = "Connection failed after 3 attempts — Railway might still be waking up. Give it a moment and try again!";
+      const errorMsg = "Connection failed after 5 attempts — Railway might still be waking up. Give it a moment and try again!";
       addLocalMessage('assistant', errorMsg);
       await saveMessageToThread('assistant', errorMsg);
       if (autoSpeak) speak(errorMsg);

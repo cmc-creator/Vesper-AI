@@ -43,7 +43,7 @@ const SystemStatusCard = ({ apiBase, onHide }) => {
       sx={{
         p: 2,
         borderRadius: 2,
-        background: 'rgba(10, 14, 30, 0.6)',
+        background: 'var(--panel-bg)',
         backdropFilter: 'blur(10px)',
         border: '1px solid rgba(255, 255, 255, 0.08)',
         mb: 2
