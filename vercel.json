@@ -1,15 +1,16 @@
 {
+  "version": 2,
   "builds": [
     {
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "frontend/dist" }
+      "config": { "distDir": "dist" }
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/:path*",
-      "destination": "https://vesper-backend-production.up.railway.app/api/:path*"
+      "src": "/api/(.*)",
+      "dest": "https://vesper-backend-production.up.railway.app/api/$1"
     }
   ]
 }
