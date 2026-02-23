@@ -1,31 +1,31 @@
-{
+﻿{
   "assistant": {
     "label": "Assistant",
-    "voice_id": "",
+    "voice_id": "eleven:pFZP5JQG7iQjIQuC4Bku",
     "description": "Default helpful assistant voice",
     "icon": "\ud83e\udd16"
   },
   "narrator": {
     "label": "Game Narrator",
-    "voice_id": "",
+    "voice_id": "eleven:pFZP5JQG7iQjIQuC4Bku",
     "description": "Dramatic storytelling voice for game events",
     "icon": "\ud83d\udcd6"
   },
   "casual": {
     "label": "Casual Chat",
-    "voice_id": "",
+    "voice_id": "eleven:pFZP5JQG7iQjIQuC4Bku",
     "description": "Relaxed, friendly conversation voice",
     "icon": "\ud83d\udcac"
   },
   "teacher": {
     "label": "Teacher",
-    "voice_id": "",
+    "voice_id": "eleven:pFZP5JQG7iQjIQuC4Bku",
     "description": "Clear, patient explanatory voice",
     "icon": "\ud83c\udf93"
   },
   "hype": {
     "label": "Hype Master",
-    "voice_id": "",
+    "voice_id": "eleven:pFZP5JQG7iQjIQuC4Bku",
     "description": "Energetic, excited voice for achievements",
     "icon": "\ud83d\udd25"
   }

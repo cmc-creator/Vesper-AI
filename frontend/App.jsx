@@ -447,7 +447,7 @@ function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'true') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [selectedVoiceName, setSelectedVoiceName] = useState(() => safeStorageGet('vesper_tts_voice', ''));
+  const [selectedVoiceName, setSelectedVoiceName] = useState(() => safeStorageGet('vesper_tts_voice', 'eleven:pFZP5JQG7iQjIQuC4Bku'));
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [analyzingImage, setAnalyzingImage] = useState(false);

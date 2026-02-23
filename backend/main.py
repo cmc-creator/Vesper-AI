@@ -195,7 +195,7 @@ async def get_elevenlabs_voices():
             }
             for v in voices_data
         ]
-        default = next((v for v in formatted if v["name"] == "Rachel"), formatted[0] if formatted else None)
+        default = next((v for v in formatted if v["name"] == "Lily"), formatted[0] if formatted else None)
         return {"voices": formatted, "default": default["id"] if default else None}
     except httpx.HTTPStatusError as e:
         return JSONResponse(status_code=e.response.status_code, content={"error": f"ElevenLabs error: {e.response.status_code}"})
@@ -7509,11 +7509,12 @@ EDGE_TTS_VOICES = []
 async def get_tts_voices():
     """Return all available TTS voices – ElevenLabs first, then Edge-TTS"""
     # Only serve ElevenLabs voices (Edge voices sound robotic)
+    lily = next((v for v in ELEVENLABS_VOICES if v["name"] == "Lily"), ELEVENLABS_VOICES[0] if ELEVENLABS_VOICES else None)
     return {
         "voices": ELEVENLABS_VOICES,
         "elevenlabs_available": ELEVENLABS_AVAILABLE,
         "edge_available": False,
-        "default": ELEVENLABS_VOICES[0]["id"] if ELEVENLABS_VOICES else "",
+        "default": lily["id"] if lily else "",
     }
 
 class TTSRequest(BaseModel):
