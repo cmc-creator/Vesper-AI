@@ -23,7 +23,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
-# ...existing code...
+import httpx
 import threading
 import datetime
 import urllib.parse
@@ -169,6 +169,38 @@ def root():
 def health_check():
     """Health check endpoint required by Railway deployment"""
     return {"status": "healthy", "timestamp": datetime.datetime.now().isoformat()}
+
+@app.get("/api/elevenlabs/voices")
+async def get_elevenlabs_voices():
+    """Fetch available voices from ElevenLabs API"""
+    api_key = os.getenv("ELEVENLABS_API_KEY")
+    if not api_key:
+        return JSONResponse(status_code=400, content={"error": "ELEVENLABS_API_KEY not configured"})
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(
+                "https://api.elevenlabs.io/v1/voices",
+                headers={"xi-api-key": api_key},
+                timeout=15.0
+            )
+            r.raise_for_status()
+            voices_data = r.json().get("voices", [])
+        formatted = [
+            {
+                "id": f"eleven:{v['voice_id']}",
+                "name": v.get("name", "Unknown"),
+                "preview_url": v.get("preview_url"),
+                "category": v.get("category"),
+                "labels": v.get("labels", {}),
+            }
+            for v in voices_data
+        ]
+        default = next((v for v in formatted if v["name"] == "Rachel"), formatted[0] if formatted else None)
+        return {"voices": formatted, "default": default["id"] if default else None}
+    except httpx.HTTPStatusError as e:
+        return JSONResponse(status_code=e.response.status_code, content={"error": f"ElevenLabs error: {e.response.status_code}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), '../vesper-ai/knowledge')
 RESEARCH_PATH = os.path.join(KNOWLEDGE_DIR, 'research.json')
