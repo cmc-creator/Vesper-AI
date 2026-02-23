@@ -117,6 +117,7 @@ import requests
 # ...existing code...
 
 import sys
+import httpx
 
 # === SETUP TRACING ===
 # DISABLED: OpenTelemetry packages not in requirements.txt
