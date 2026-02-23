@@ -33,7 +33,7 @@ import {
   ColorLens as ColorLensIcon,
   CreateNewFolder as NewFolderIcon,
 } from '@mui/icons-material';
-import NyxShift from './NyxShift';
+
 
 // Sidebar Navigation
 const SIDEBAR_NAV = [
@@ -83,7 +83,7 @@ export default function CreativeSuite({ apiBase, onBack }) {
   // Projects state
   const [projects, setProjects] = useState([]);
   const [projectDialog, setProjectDialog] = useState(false);
-  const [projectForm, setProjectForm] = useState({ name: '', description: '', color: '#ff9800', type: 'creative' });
+  const [projectForm, setProjectForm] = useState({ name: '', description: '', color: '#00d0ff', type: 'app', status: 'planning', tech_stack: '', repo_url: '', live_url: '' });
   const [activeProjectId, setActiveProjectId] = useState(null);
 
   const [toast, setToast] = useState('');
@@ -222,8 +222,6 @@ export default function CreativeSuite({ apiBase, onBack }) {
   const filteredCampaigns = activeBrandId ? campaigns.filter(c => c.brand_id === activeBrandId) : campaigns;
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  if (activePanel === 'nyxshift') return <NyxShift apiBase={apiBase} onClose={() => setActivePanel('projects')} />;
-
   const glassCard = {
     bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2, p: 2.5,
     transition: 'all 0.2s', '&:hover': { borderColor: 'rgba(0,255,255,0.2)', bgcolor: 'rgba(255,255,255,0.05)' },
@@ -260,7 +258,7 @@ export default function CreativeSuite({ apiBase, onBack }) {
         Creative Command Center
       </Typography>
       <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 3 }}>
-        Your business consulting powerhouse  brands, content, campaigns, strategy all in one place.
+        Manage your dev projects, brands, content, campaigns, and Google Workspace all in one place.
       </Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {[
@@ -623,14 +621,15 @@ export default function CreativeSuite({ apiBase, onBack }) {
   );
 
   // PROJECTS
-  const PROJECT_TYPES = ['creative', 'business', 'personal', 'research', 'game', 'media', 'other'];
-  const PROJECT_COLORS = ['#ff9800', '#9d00ff', '#00d0ff', '#ff2d55', '#00ff88', '#ffcc00', '#4285f4', '#ff6b35'];
+  const PROJECT_TYPES = ['app', 'platform', 'website', 'saas', 'tool', 'api', 'automation', 'game', 'creative', 'other'];
+  const PROJECT_STATUSES = ['planning', 'in-dev', 'in-progress', 'launched', 'paused', 'shelved'];
+  const PROJECT_COLORS = ['#00d0ff', '#ff9800', '#9d00ff', '#ff2d55', '#00ff88', '#ffcc00', '#4285f4', '#ff6b35'];
 
   const renderProjects = () => (
     <Box>
-      {sectionHeader(<FolderIcon sx={{ color: '#ff9800' }} />, 'Projects', projects.length, 'New Project', () => setProjectDialog(true))}
+      {sectionHeader(<FolderIcon sx={{ color: '#ff9800' }} />, 'My Projects', projects.length, 'New Project', () => setProjectDialog(true))}
       <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)', mb: 3 }}>
-        Organize your creative work into project folders. Each project has its own workspace for characters, worlds, stories, assets, and more.
+        Track all your apps, platforms, and tools in development. Add NyxShift, Vesper, and any other projects you're building here.
       </Typography>
       {projects.length === 0 ? (
         <Box sx={{ ...glassCard, textAlign: 'center', py: 6 }}>
@@ -641,61 +640,56 @@ export default function CreativeSuite({ apiBase, onBack }) {
       ) : (
         <Grid container spacing={2}>
           {projects.map(project => {
-            const isNyxShift = project.id === 'nyxshift';
-            const pColor = project.color || '#ff9800';
+            const pColor = project.color || '#00d0ff';
+            const statusColor = { planning: '#ffcc00', 'in-dev': '#00d0ff', 'in-progress': '#00ff88', launched: '#34a853', paused: '#ff9800', shelved: 'rgba(255,255,255,0.3)' }[project.status] || 'rgba(255,255,255,0.4)';
             return (
               <Grid item xs={12} sm={6} md={4} key={project.id}>
                 <Box
-                  onClick={() => {
-                    if (isNyxShift) { setActivePanel('nyxshift'); }
-                    else { setActiveProjectId(project.id); }
-                  }}
                   sx={{
                     ...glassCard,
-                    cursor: 'pointer',
                     borderColor: `${pColor}30`,
                     position: 'relative',
                     '&:hover': { borderColor: pColor, transform: 'translateY(-2px)', boxShadow: `0 8px 32px ${pColor}15` },
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      {isNyxShift ? (
-                        <AutoAwesomeIcon sx={{ fontSize: 32, color: pColor }} />
-                      ) : (
-                        <FolderOpenIcon sx={{ fontSize: 32, color: pColor }} />
-                      )}
+                      <FolderOpenIcon sx={{ fontSize: 28, color: pColor }} />
                       <Box>
                         <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, fontSize: '1rem', lineHeight: 1.2 }}>{project.name}</Typography>
-                        <Chip label={project.type || 'creative'} size="small" sx={{ mt: 0.5, bgcolor: `${pColor}18`, color: pColor, fontSize: '0.65rem', height: 18 }} />
+                        <Stack direction="row" spacing={0.5} sx={{ mt: 0.4 }}>
+                          <Chip label={project.type || 'app'} size="small" sx={{ bgcolor: `${pColor}18`, color: pColor, fontSize: '0.6rem', height: 17 }} />
+                          {project.status && <Chip label={project.status} size="small" sx={{ bgcolor: `${statusColor}18`, color: statusColor, fontSize: '0.6rem', height: 17 }} />}
+                        </Stack>
                       </Box>
                     </Box>
-                    {!isNyxShift && (
-                      <IconButton size="small" onClick={(e) => { e.stopPropagation(); deleteProject(project.id); }} sx={{ color: 'rgba(255,255,255,0.25)', '&:hover': { color: '#ff4444' } }}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    )}
+                    <IconButton size="small" onClick={(e) => { e.stopPropagation(); deleteProject(project.id); }} sx={{ color: 'rgba(255,255,255,0.25)', '&:hover': { color: '#ff4444' } }}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
                   </Box>
                   {project.description && (
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 1.5, fontSize: '0.85rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 1, fontSize: '0.85rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {project.description}
                     </Typography>
                   )}
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)' }}>
-                      {project.file_count !== undefined ? `${project.file_count} items` : ''}
-                    </Typography>
+                  {project.tech_stack && (
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', display: 'block', mb: 0.5 }}>⚙ {project.tech_stack}</Typography>
+                  )}
+                  <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.5 }}>
+                    {project.repo_url && (
+                      <Chip label="Repo" size="small" onClick={(e) => { e.stopPropagation(); window.open(project.repo_url, '_blank'); }}
+                        sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' } }} />
+                    )}
+                    {project.live_url && (
+                      <Chip label="Live ↗" size="small" onClick={(e) => { e.stopPropagation(); window.open(project.live_url, '_blank'); }}
+                        sx={{ height: 20, fontSize: '0.65rem', bgcolor: `${statusColor}15`, color: statusColor, cursor: 'pointer' }} />
+                    )}
                     {project.created_at && (
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)' }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.2)', ml: 'auto', alignSelf: 'center' }}>
                         {new Date(project.created_at).toLocaleDateString()}
                       </Typography>
                     )}
-                  </Box>
-                  {isNyxShift && (
-                    <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
-                      <Chip label="FLAGSHIP" size="small" sx={{ bgcolor: `${pColor}20`, color: pColor, fontSize: '0.6rem', height: 18, fontWeight: 800, letterSpacing: 1 }} />
-                    </Box>
-                  )}
+                  </Stack>
                 </Box>
               </Grid>
             );
@@ -912,20 +906,31 @@ export default function CreativeSuite({ apiBase, onBack }) {
       <Dialog open={projectDialog} onClose={() => setProjectDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: '#1a1b26', color: '#fff' } }}>
         <DialogTitle sx={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <NewFolderIcon sx={{ color: '#ff9800' }} />
+            <NewFolderIcon sx={{ color: '#00d0ff' }} />
             New Project
           </Box>
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField label="Project Name" fullWidth value={projectForm.name} onChange={e => setProjectForm({...projectForm, name: e.target.value})} sx={dialogInputSx} placeholder="e.g. NyxShift, Brand Refresh, Music Video" />
-            <TextField label="Description" fullWidth multiline rows={3} value={projectForm.description} onChange={e => setProjectForm({...projectForm, description: e.target.value})} sx={dialogInputSx} placeholder="What is this project about?" />
-            <FormControl fullWidth>
-              <InputLabel sx={{ color: 'rgba(255,255,255,0.5)' }}>Project Type</InputLabel>
-              <Select value={projectForm.type} onChange={e => setProjectForm({...projectForm, type: e.target.value})} label="Project Type" sx={{ color: '#fff', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}>
-                {PROJECT_TYPES.map(t => <MenuItem key={t} value={t} sx={{ textTransform: 'capitalize' }}>{t}</MenuItem>)}
-              </Select>
-            </FormControl>
+            <TextField label="Project Name" fullWidth value={projectForm.name} onChange={e => setProjectForm({...projectForm, name: e.target.value})} sx={dialogInputSx} placeholder="e.g. NyxShift, Vesper, my-saas-app" />
+            <TextField label="Description" fullWidth multiline rows={2} value={projectForm.description} onChange={e => setProjectForm({...projectForm, description: e.target.value})} sx={dialogInputSx} placeholder="What is this app / platform / tool?" />
+            <Stack direction="row" spacing={2}>
+              <FormControl fullWidth>
+                <InputLabel sx={{ color: 'rgba(255,255,255,0.5)' }}>Type</InputLabel>
+                <Select value={projectForm.type} onChange={e => setProjectForm({...projectForm, type: e.target.value})} label="Type" sx={{ color: '#fff', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}>
+                  {PROJECT_TYPES.map(t => <MenuItem key={t} value={t} sx={{ textTransform: 'capitalize' }}>{t}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <FormControl fullWidth>
+                <InputLabel sx={{ color: 'rgba(255,255,255,0.5)' }}>Status</InputLabel>
+                <Select value={projectForm.status} onChange={e => setProjectForm({...projectForm, status: e.target.value})} label="Status" sx={{ color: '#fff', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}>
+                  {PROJECT_STATUSES.map(s => <MenuItem key={s} value={s} sx={{ textTransform: 'capitalize' }}>{s}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Stack>
+            <TextField label="Tech Stack" fullWidth value={projectForm.tech_stack} onChange={e => setProjectForm({...projectForm, tech_stack: e.target.value})} sx={dialogInputSx} placeholder="e.g. React, FastAPI, Railway, Firebase" />
+            <TextField label="Repo URL" fullWidth value={projectForm.repo_url} onChange={e => setProjectForm({...projectForm, repo_url: e.target.value})} sx={dialogInputSx} placeholder="https://github.com/..." />
+            <TextField label="Live URL" fullWidth value={projectForm.live_url} onChange={e => setProjectForm({...projectForm, live_url: e.target.value})} sx={dialogInputSx} placeholder="https://..." />
             <Box>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mb: 1, display: 'block' }}>Project Color</Typography>
               <Stack direction="row" spacing={1}>
@@ -941,7 +946,7 @@ export default function CreativeSuite({ apiBase, onBack }) {
         </DialogContent>
         <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
           <Button onClick={() => setProjectDialog(false)} sx={{ color: 'rgba(255,255,255,0.5)' }}>Cancel</Button>
-          <Button variant="contained" onClick={saveProject} sx={{ bgcolor: '#ff9800', color: '#fff', '&:hover': { bgcolor: '#e68900' } }}>Create Project</Button>
+          <Button variant="contained" onClick={saveProject} sx={{ bgcolor: '#00d0ff', color: '#000', fontWeight: 700, '&:hover': { bgcolor: '#00b8e0' } }}>Create Project</Button>
         </DialogActions>
       </Dialog>
     </Paper>

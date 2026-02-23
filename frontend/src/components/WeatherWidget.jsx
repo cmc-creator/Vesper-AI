@@ -46,7 +46,7 @@ const WeatherWidget = () => {
   };
 
   if (loading) return (
-    <Paper className="glass-card" sx={{ p: 2, mb: 2, borderRadius: 2, background: 'rgba(10, 14, 30, 0.6)' }}>
+    <Paper className="glass-card" sx={{ p: 2, mb: 2, borderRadius: 2, background: 'var(--panel-bg)' }}>
       <Skeleton variant="text" width="60%" />
       <Skeleton variant="rectangular" height={60} sx={{ mt: 1 }} />
     </Paper>
@@ -58,7 +58,7 @@ const WeatherWidget = () => {
       sx={{
         p: 2,
         borderRadius: 2,
-        background: 'rgba(10, 14, 30, 0.6)',
+        background: 'var(--panel-bg)',
         backdropFilter: 'blur(10px)',
         border: '1px solid rgba(255, 255, 255, 0.08)',
         mb: 2,

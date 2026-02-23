@@ -96,7 +96,7 @@ export default function NyxShift({ apiBase, onClose }) {
       }}
     >
       {/* Header */}
-      <Box sx={{ p: 2, borderBottom: '1px solid rgba(0,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'rgba(0,0,0,0.5)' }}>
+      <Box sx={{ p: 2, borderBottom: '1px solid rgba(0,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'var(--panel-bg)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <IconButton onClick={onClose} sx={{ color: 'var(--accent)' }}><ArrowBackIcon /></IconButton>
           <AutoAwesomeIcon sx={{ color: 'var(--accent)', fontSize: 32 }} />
@@ -127,7 +127,7 @@ export default function NyxShift({ apiBase, onClose }) {
         </Box>
 
         {/* Content Area */}
-        <Box sx={{ flex: 1, p: 4, overflowY: 'auto', bgcolor: 'rgba(0,0,0,0.2)' }}>
+        <Box sx={{ flex: 1, p: 4, overflowY: 'auto', bgcolor: 'color-mix(in srgb, var(--panel-bg), transparent 60%)' }}>
            
            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
              <Typography variant="h4" sx={{ color: '#fff', fontWeight: 300 }}>

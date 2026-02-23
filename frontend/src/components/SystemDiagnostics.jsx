@@ -147,29 +147,50 @@ export default function SystemDiagnostics({ open, onClose, apiBase }) {
   const [loading, setLoading] = useState(true);
   const [healing, setHealing] = useState(false);
   const [error, setError] = useState(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [tab, setTab] = useState('diagnostics'); // 'diagnostics' | 'heal'
 
-  const fetchDiagnostics = useCallback(async () => {
+  const fetchDiagnostics = useCallback(async (isManual = false) => {
     setLoading(true);
-    try {
-      const res = await fetch(`${apiBase}/api/system/diagnostics`);
-      if (!res.ok) throw new Error('Diagnostics endpoint unavailable');
-      const json = await res.json();
-      setData(json);
-      setError(null);
-    } catch (err) {
-      // Fallback to basic health
+    if (isManual) { setRetryCount(0); setRetrying(false); }
+    const MAX_ATTEMPTS = 4;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
-        const res = await fetch(`${apiBase}/api/system/health`);
-        if (res.ok) {
-          const json = await res.json();
-          setData({ status: json.status, checks: { hardware: { status: 'ok', ...json.metrics } }, issues: [], warnings: [], summary: { issues_count: 0, warnings_count: 0, checks_passed: 1, checks_total: 1 } });
+        const res = await fetch(`${apiBase}/api/system/diagnostics`);
+        if (!res.ok) throw new Error('Diagnostics endpoint unavailable');
+        const json = await res.json();
+        setData(json);
+        setError(null);
+        setRetrying(false);
+        setRetryCount(0);
+        setLoading(false);
+        return;
+      } catch (err) {
+        // Fallback to basic health
+        try {
+          const res = await fetch(`${apiBase}/api/system/health`);
+          if (res.ok) {
+            const json = await res.json();
+            setData({ status: json.status, checks: { hardware: { status: 'ok', ...json.metrics } }, issues: [], warnings: [], summary: { issues_count: 0, warnings_count: 0, checks_passed: 1, checks_total: 1 } });
+            setError(null);
+            setRetrying(false);
+            setRetryCount(0);
+            setLoading(false);
+            return;
+          }
+        } catch { /* ignore */ }
+        if (attempt < MAX_ATTEMPTS) {
+          setRetrying(true);
+          setRetryCount(attempt);
+          await new Promise(r => setTimeout(r, 4000 * attempt));
+        } else {
+          setError(err.message);
+          setRetrying(false);
         }
-      } catch { /* ignore */ }
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      }
     }
+    setLoading(false);
   }, [apiBase]);
 
   const runSelfHeal = async () => {
@@ -207,7 +228,7 @@ export default function SystemDiagnostics({ open, onClose, apiBase }) {
       fullWidth
       PaperProps={{
         style: {
-          backgroundColor: 'rgba(10, 10, 20, 0.97)',
+          backgroundColor: 'var(--panel-bg)',
           backdropFilter: 'blur(20px)',
           border: `1px solid ${statusColors[data?.status] || 'var(--accent)'}`,
           borderRadius: '16px',
@@ -223,7 +244,7 @@ export default function SystemDiagnostics({ open, onClose, apiBase }) {
               Vesper System Diagnostics
             </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-              {data?.summary ? `${data.summary.checks_passed}/${data.summary.checks_total} checks passed` : 'Scanning...'}
+              {data?.summary ? `${data.summary.checks_passed}/${data.summary.checks_total} checks passed` : retrying ? `⏳ Waking up Railway… retry ${retryCount}/3` : 'Scanning...'}
               {data?.timestamp && ` • ${new Date(data.timestamp).toLocaleTimeString()}`}
             </Typography>
           </Box>
@@ -235,7 +256,7 @@ export default function SystemDiagnostics({ open, onClose, apiBase }) {
             </IconButton>
           </Tooltip>
           <Tooltip title="Rescan">
-            <IconButton onClick={fetchDiagnostics} disabled={loading} sx={{ color: 'var(--accent)' }}>
+            <IconButton onClick={() => fetchDiagnostics(true)} disabled={loading} sx={{ color: 'var(--accent)' }}>
               <RefreshIcon />
             </IconButton>
           </Tooltip>
@@ -248,11 +269,29 @@ export default function SystemDiagnostics({ open, onClose, apiBase }) {
       <DialogContent sx={{ p: 3 }}>
         {loading && !data ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 5, gap: 2 }}>
-            <CircularProgress size={60} sx={{ color: 'var(--accent)' }} />
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)' }}>Running full system scan...</Typography>
+            <CircularProgress size={60} sx={{ color: retrying ? '#ffbb33' : 'var(--accent)' }} />
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center' }}>
+              {retrying ? `⏳ Backend waking up on Railway… retry ${retryCount}/3` : 'Running full system scan...'}
+            </Typography>
+            {retrying && (
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', maxWidth: 300 }}>
+                Railway spins down after inactivity. Give it 15–30s to wake up.
+              </Typography>
+            )}
           </Box>
         ) : error && !data ? (
-          <Alert severity="error" sx={{ bgcolor: 'rgba(255,30,30,0.1)' }}>{error}</Alert>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, p: 4 }}>
+            <Alert severity="error" sx={{ bgcolor: 'rgba(255,30,30,0.1)', width: '100%' }}>{error}</Alert>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>
+              Railway backend may be sleeping. Click Rescan (↻) to try again.
+            </Typography>
+            <Box
+              onClick={() => fetchDiagnostics(true)}
+              sx={{ cursor: 'pointer', color: 'var(--accent)', fontWeight: 700, fontSize: '0.85rem', border: '1px solid var(--accent)', borderRadius: 1.5, px: 2, py: 0.75, '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.1)' } }}
+            >
+              🔄 Wake up + Retry
+            </Box>
+          </Box>
         ) : (
           <Stack spacing={2.5}>
             {/* Overall Status Banner */}

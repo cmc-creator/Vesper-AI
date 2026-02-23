@@ -261,7 +261,7 @@ const NAV = [
 ];
 
 // ─── Voice Persona Assigner Component ──────────────────────────────────
-function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview }) {
+function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview, onSave }) {
   const [personas, setPersonas] = React.useState(null);
   const [saving, setSaving] = React.useState('');
   const [personasError, setPersonasError] = React.useState(false);
@@ -297,6 +297,7 @@ function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview }) {
         setPersonas(prev => ({ ...prev, [personaId]: { ...prev[personaId], voice_id: voiceId } }));
         const voiceName = voiceId ? (cloudVoices.find(v => v.id === voiceId)?.name || voiceId) : 'Default';
         setToast(`✅ ${personas[personaId]?.label}: ${voiceName}`);
+        if (onSave) onSave(); // refresh App-level persona cache
       } else {
         setToast('Failed: ' + (data.error || 'Unknown'));
       }
@@ -454,6 +455,7 @@ function App() {
   const [soundEnabled, setSoundEnabled] = useState(() => safeStorageGet('vesper_sound_enabled', 'true') === 'true');
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [integrationInitialTab, setIntegrationInitialTab] = useState(0);
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [uiScale, setUiScale] = useState(() => parseFloat(safeStorageGet('vesper_ui_scale', '1')));
@@ -809,10 +811,29 @@ export default function App() {
   }, [customizations.chatBoxHeight]);
 
   const apiBase = useMemo(() => {
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
-    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:8000';
-    // Relative to current origin — works with Vercel rewrites, nginx proxy, and any host
-    return typeof window !== 'undefined' ? window.location.origin : '';
+    // VITE_API_URL is the source of truth for the backend URL.
+    // It should be set in the .env file for local dev,
+    // and in Vercel/Railway environment variables for production.
+    const apiUrl = import.meta.env.VITE_API_URL;
+
+    // If VITE_API_URL is defined, use it.
+    if (apiUrl) {
+      return apiUrl.replace(/\/$/, '');
+    }
+
+    // For local development, if VITE_API_URL is NOT set,
+    // we fall back to a relative path. This relies on the Vite
+    // proxy you have configured in vite.config.js to forward
+    // /api requests to your local backend on port 8000.
+    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) {
+      return '';
+    }
+
+    // In a production environment (like Vercel) where VITE_API_URL is not set,
+    // this will default to the frontend's own origin. For Vercel, we want
+    // to use relative paths so the vercel.json rewrites can handle it.
+    // A blank string '' ensures requests are relative (e.g., /api/chat).
+    return '';
   }, []);
 
   const firebaseAuthEnabled = useMemo(
@@ -825,12 +846,17 @@ export default function App() {
   );
 
   const chatBase = useMemo(() => {
-    if (import.meta.env.VITE_CHAT_API_URL) return import.meta.env.VITE_CHAT_API_URL.replace(/\/$/, '');
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
-    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) return 'http://localhost:8000';
-    // Relative to current origin — works with Vercel rewrites, nginx proxy, and any host
-    return typeof window !== 'undefined' ? window.location.origin : '';
-  }, []);
+    // This logic ensures the correct API endpoint is used for the chat stream.
+    // It prioritizes a specific chat URL if provided, otherwise falls back
+    // to the main apiBase logic. This is useful if your streaming endpoint
+    // is on a different domain or path.
+    const chatApiUrl = import.meta.env.VITE_CHAT_API_URL;
+    if (chatApiUrl) {
+      return chatApiUrl.replace(/\/$/, '');
+    }
+    // If no specific chat URL, use the same logic as apiBase.
+    return apiBase;
+  }, [apiBase]);
 
   const addLocalMessage = async (role, content, extras = {}) => {
     const message = {
@@ -971,9 +997,10 @@ export default function App() {
   }, [apiBase]);
 
   // ── Keepalive: ping backend every 4 min to prevent Railway cold starts ──
+  // /health is rewritten by vercel.json to Railway directly
   useEffect(() => {
     if (!apiBase) return;
-    const ping = () => fetch(`${apiBase}/health`, { method: 'GET' }).catch(() => {});
+    const ping = () => fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' }).catch(() => {});
     ping(); // warm it up immediately on mount
     const keepaliveInterval = setInterval(ping, 4 * 60 * 1000);
     return () => clearInterval(keepaliveInterval);
@@ -1206,9 +1233,33 @@ export default function App() {
         model: selectedModel !== 'auto' ? selectedModel : null,
       };
 
-      // ── Use SSE streaming endpoint (with retry for Railway cold starts) ──
+      // ── Pre-warm: ping /health until Railway responds (up to 45s) ──
+      setThinkingStatus('Connecting to Vesper...');
+      const PREWARM_TIMEOUT = 45000;
+      const prewarmStart = Date.now();
+      let prewarmOk = false;
+      while (Date.now() - prewarmStart < PREWARM_TIMEOUT) {
+        if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+        try {
+          const pingRes = await Promise.race([
+            fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' }),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('ping timeout')), 5000)),
+          ]);
+          if (pingRes.ok) { prewarmOk = true; break; }
+        } catch { /* still waking */ }
+        const elapsed = Math.round((Date.now() - prewarmStart) / 1000);
+        setThinkingStatus(`Waking up Railway… ${elapsed}s`);
+        await new Promise(r => setTimeout(r, 2500));
+      }
+      if (!prewarmOk) {
+        console.warn('⚠️ Railway health check timed out — attempting chat anyway');
+      }
+      setThinkingStatus('Thinking...');
+
+      // ── Use SSE streaming endpoint (with retry) ──
       let response;
       let _fetchAttempts = 0;
+      const MAX_FETCH_ATTEMPTS = 3;
       while (true) {
         try {
           response = await fetch(`${chatBase}/api/chat/stream`, {
@@ -1222,10 +1273,10 @@ export default function App() {
         } catch (fetchErr) {
           if (fetchErr.name === 'AbortError') throw fetchErr; // user stopped — don't retry
           _fetchAttempts++;
-          if (_fetchAttempts >= 3) throw fetchErr; // give up after 3 attempts
-          console.warn(`⚡ Connection attempt ${_fetchAttempts} failed, retrying in 3s...`, fetchErr.message);
-          setThinkingStatus(`Reconnecting... (${_fetchAttempts}/2)`);
-          await new Promise(r => setTimeout(r, 3000));
+          if (_fetchAttempts >= MAX_FETCH_ATTEMPTS) throw fetchErr; // give up after 3 attempts
+          console.warn(`⚡ Connection attempt ${_fetchAttempts} failed, retrying in 4s...`, fetchErr.message);
+          setThinkingStatus(`Reconnecting... (${_fetchAttempts}/${MAX_FETCH_ATTEMPTS - 1})`);
+          await new Promise(r => setTimeout(r, 4000));
         }
       }
       
@@ -1342,7 +1393,9 @@ export default function App() {
       }
       console.error('❌ Chat error:', error);
       playSound('error');
-      const errorMsg = "Connection failed after 3 attempts — Railway might still be waking up. Give it a moment and try again!";
+      // Restore the user's message so they can re-send without retyping
+      setInput(userMessage);
+      const errorMsg = "⚠️ Couldn't reach the backend — Railway may still be waking up. Your message has been restored in the input box. Wait a moment, then hit Send again.";
       addLocalMessage('assistant', errorMsg);
       await saveMessageToThread('assistant', errorMsg);
       if (autoSpeak) speak(errorMsg);
@@ -2708,13 +2761,23 @@ export default function App() {
   const [cloudVoices, setCloudVoices] = useState([]);
   const [defaultVoiceId, setDefaultVoiceId] = useState('');
   const [voicesLoading, setVoicesLoading] = useState(false);
+  // Local persona cache — avoids a network round-trip on every TTS call
+  const voicePersonaCacheRef = useRef({});
+
+  const fetchPersonaCache = useCallback(async () => {
+    try {
+      const r = await fetch(`${apiBase}/api/voice/personas`);
+      const d = await r.json();
+      if (d.personas) voicePersonaCacheRef.current = d.personas;
+    } catch { /* non-fatal */ }
+  }, [apiBase]);
 
   const fetchVoices = useCallback(async () => {
     if (!apiBase || voicesLoading) return;
     setVoicesLoading(true);
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const r = await fetch(`${apiBase}/api/tts/voices`);
+        const r = await fetch(`${apiBase}/api/elevenlabs/voices`);
         const data = await r.json();
         if (data.voices) {
           setCloudVoices(data.voices);
@@ -2730,11 +2793,12 @@ export default function App() {
   }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch on mount
-  useEffect(() => { fetchVoices(); }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchVoices(); fetchPersonaCache(); }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-fetch when Voice Lab opens if voices still empty (e.g. Railway was cold at page load)
   useEffect(() => {
     if (voiceLabOpen && cloudVoices.length === 0) fetchVoices();
+    if (voiceLabOpen) fetchPersonaCache(); // always refresh persona cache when lab opens
   }, [voiceLabOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch available AI models for model picker
@@ -2770,8 +2834,26 @@ export default function App() {
       .trim();
   };
 
-  // Resolve voice for a context (game, chat, task, etc.)
+  // Context → persona key mapping (mirrors backend)
+  const CONTEXT_PERSONA_MAP = {
+    game: 'narrator', quest: 'narrator', combat: 'narrator',
+    chat: 'casual', memory: 'casual',
+    task: 'assistant', default: 'assistant',
+    research: 'teacher',
+    achievement: 'hype',
+  };
+
+  // Resolve voice for a context — uses local cache first, network fallback
   const resolveVoiceForContext = async (context) => {
+    // Try local cache first (instant, no network)
+    const cache = voicePersonaCacheRef.current;
+    if (cache && Object.keys(cache).length > 0) {
+      const personaKey = CONTEXT_PERSONA_MAP[context] || 'assistant';
+      const persona = cache[personaKey];
+      if (persona?.voice_id) return persona.voice_id;
+      return null; // persona exists but no voice assigned — use main voice
+    }
+    // Cache empty (first load / cold start) — fall back to network
     try {
       const res = await fetch(`${apiBase}/api/voice/resolve`, {
         method: 'POST',
@@ -2793,11 +2875,13 @@ export default function App() {
 
     setIsSpeaking(true);
 
-    // Resolve voice: persona context → user selection → default (ElevenLabs only, never robotic)
-    let voice = selectedVoiceName || defaultVoiceId || (cloudVoices.length > 0 ? cloudVoices[0].id : '');
-    if (!selectedVoiceName) {
-      const contextVoice = await resolveVoiceForContext(context);
-      if (contextVoice) voice = contextVoice;
+    // Resolve voice: persona context ALWAYS takes priority → user selection → default
+    let voice = '';
+    const contextVoice = await resolveVoiceForContext(context);
+    if (contextVoice) {
+      voice = contextVoice;
+    } else {
+      voice = selectedVoiceName || defaultVoiceId || (cloudVoices.length > 0 ? cloudVoices[0].id : '');
     }
 
     const isElevenLabs = voice.startsWith('eleven:');
@@ -3154,12 +3238,14 @@ export default function App() {
 
   const STATUS_ORDER = ['inbox', 'doing', 'done'];
 
-  // Draggable Board Wrapper Component
-  const DraggableBoard = ({ id, children }) => {
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-      id,
-    });
+  // Context for passing drag-handle ref/listeners down to board headers only
+  const DragHandleContext = React.createContext(null);
 
+  // Draggable Board Wrapper Component
+  // Drag is activated ONLY via the board-header (DragHandleArea) — not the whole panel.
+  // This means scroll and button clicks inside the panel work correctly.
+  const DraggableBoard = ({ id, children }) => {
+    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({ id });
     const position = boardPositions[id] || { x: 0, y: 0 };
 
     const style = {
@@ -3167,26 +3253,39 @@ export default function App() {
       top: '80px',
       left: '280px',
       zIndex: isDragging ? 1000 : 10,
-      cursor: 'grab',
+      cursor: 'default',
       transform: `translate3d(${position.x + (transform?.x || 0)}px, ${position.y + (transform?.y || 0)}px, 0)`,
       transition: isDragging ? 'none' : 'transform 0.2s ease',
       width: 'calc(100vw - 320px)',
       maxWidth: '1000px',
       maxHeight: 'calc(100vh - 120px)',
       overflow: 'auto',
-      touchAction: 'none',
+      // No touchAction here — allows trackpad/touch scroll in the panel content
     };
 
     return (
-      <div 
-        ref={setNodeRef} 
-        style={style} 
-        {...listeners} 
-        {...attributes}
-        data-draggable={id}
+      <DragHandleContext.Provider value={{ setActivatorNodeRef, listeners, attributes, isDragging }}>
+        <div ref={setNodeRef} style={style} data-draggable={id}>
+          {children}
+        </div>
+      </DragHandleContext.Provider>
+    );
+  };
+
+  // Apply to every <DragHandleArea className="board-header"> — makes ONLY the header draggable
+  const DragHandleArea = ({ className, children }) => {
+    const ctx = React.useContext(DragHandleContext);
+    if (!ctx) return <Box className={className}>{children}</Box>;
+    return (
+      <Box
+        ref={ctx.setActivatorNodeRef}
+        {...ctx.listeners}
+        {...ctx.attributes}
+        className={className}
+        sx={{ cursor: ctx.isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none' }}
       >
         {children}
-      </div>
+      </Box>
     );
   };
 
@@ -3196,7 +3295,7 @@ export default function App() {
         return (
           <DraggableBoard id="research">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Research Tools</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -3211,7 +3310,7 @@ export default function App() {
                     </IconButton>
                   </Tooltip>
                 </Box>
-              </Box>
+              </DragHandleArea>
             <Grid container spacing={2}>
               {/* Add Research */}
               <Grid item xs={12} md={4}>
@@ -3363,7 +3462,7 @@ export default function App() {
         return (
           <DraggableBoard id="documents">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>📄 Document Library</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -3375,7 +3474,7 @@ export default function App() {
                     <ArrowBackIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-              </Box>
+              </DragHandleArea>
               <Stack spacing={2}>
                 {/* Upload Section */}
                 <Box>
@@ -3454,7 +3553,7 @@ export default function App() {
         return (
           <DraggableBoard id="memory">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Memory Core</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -3469,7 +3568,7 @@ export default function App() {
                   </IconButton>
                 </Tooltip>
               </Box>
-            </Box>
+            </DragHandleArea>
             <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
               <Chip
                 label="History"
@@ -3842,7 +3941,7 @@ export default function App() {
         return (
           <DraggableBoard id="tasks">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Task Matrix</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -3857,7 +3956,7 @@ export default function App() {
                   </IconButton>
                 </Tooltip>
               </Box>
-            </Box>
+            </DragHandleArea>
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
                 <Stack spacing={1}>
@@ -4027,7 +4126,7 @@ export default function App() {
         );
       case 'integrations':
         return (
-          <IntegrationsHub apiBase={apiBase} onBack={() => setActiveSection('chat')} />
+          <IntegrationsHub apiBase={apiBase} onBack={() => { setActiveSection('chat'); setIntegrationInitialTab(0); }} initialTab={integrationInitialTab} />
         );
       case 'gallery':
         return (
@@ -4072,7 +4171,7 @@ export default function App() {
         return (
           <DraggableBoard id="analytics">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Analytics Dashboard</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -4099,7 +4198,7 @@ export default function App() {
                     </IconButton>
                   </Tooltip>
                 </Box>
-              </Box>
+              </DragHandleArea>
               {analyticsLoading ? (
                 <CircularProgress sx={{ color: 'var(--accent)', mt: 2 }} />
               ) : analytics ? (
@@ -4174,7 +4273,7 @@ export default function App() {
         return (
           <DraggableBoard id="personality">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Personality Configuration</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -4186,7 +4285,7 @@ export default function App() {
                     <ArrowBackIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-              </Box>
+              </DragHandleArea>
               
               {personalityLoading ? (
                 <CircularProgress sx={{ color: 'var(--accent)', mt: 2 }} />
@@ -4218,6 +4317,17 @@ export default function App() {
                         </Grid>
                       ))}
                     </Grid>
+                    {personalities.length === 0 && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', flex: 1 }}>
+                          Presets not loaded yet — backend may still be starting up
+                        </Typography>
+                        <Button size="small" onClick={fetchPersonalityPresets}
+                          sx={{ color: 'var(--accent)', fontSize: '0.72rem', textTransform: 'none', fontWeight: 700, minWidth: 0, flexShrink: 0 }}>
+                          🔄 Retry
+                        </Button>
+                      </Box>
+                    )}
                   </Box>
 
                   {personality && (
@@ -4307,7 +4417,7 @@ export default function App() {
         return (
           <DraggableBoard id="settings">
             <Paper className="intel-board glass-card">
-              <Box className="board-header">
+              <DragHandleArea className="board-header">
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Settings</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -4319,11 +4429,56 @@ export default function App() {
                   <ArrowBackIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-            </Box>
+            </DragHandleArea>
             <Stack spacing={2.5}>
-              {/* Appearance */}
+              {/* ── Quick Navigation ── */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Appearance — Theme Catalog</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', letterSpacing: 1, textTransform: 'uppercase' }}>Quick Links</Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {[
+                    { id: 'personality', label: '🎭 Personality', color: '#00d0ff', tab: null },
+                    { id: 'integrations', label: '🏢 Brand Kit', color: '#aa88ff', tab: 1 },
+                    { id: 'sassy', label: '👗 Wardrobe', color: '#ff88ff', tab: null },
+                    { id: 'analytics', label: '📊 Analytics', color: '#ffbb44', tab: null },
+                    { id: 'nyxshift', label: '🎨 Creative Suite', color: '#ff6680', tab: null },
+                  ].map(({ id, label, color, tab }) => (
+                    <Chip
+                      key={id}
+                      label={label}
+                      size="small"
+                      onClick={() => {
+                        if (tab !== null) setIntegrationInitialTab(tab);
+                        setActiveSection(id);
+                        playSound('click');
+                      }}
+                      sx={{
+                        bgcolor: 'rgba(255,255,255,0.05)',
+                        border: `1px solid ${color}44`,
+                        color,
+                        fontWeight: 600,
+                        fontSize: '0.72rem',
+                        cursor: 'pointer',
+                        '&:hover': { bgcolor: `${color}18`, borderColor: color },
+                        transition: 'all 0.2s',
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              <Box>
+                <Box
+                  onClick={() => setThemeMenuAnchor(true)}
+                  sx={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    mb: 1.5, cursor: 'pointer', borderRadius: 1.5, px: 0.5, py: 0.5,
+                    '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.08)' },
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>🎨 Appearance</Typography>
+                  <Typography variant="caption" sx={{ color: 'var(--accent)', opacity: 0.7, fontSize: '0.65rem', letterSpacing: 1 }}>OPEN THEMES →</Typography>
+                </Box>
                 <Stack spacing={1.5}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
@@ -4480,6 +4635,34 @@ export default function App() {
                       </Box>
                     </Box>
                   </Dialog>
+
+                  {/* Wallpaper */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Wallpaper</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                        {customBackground ? `Active: ${customBackground.name}` : 'Custom background image'}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      {customBackground && (
+                        <Button
+                          size="small"
+                          onClick={() => { setCustomBackground(null); try { localStorage.removeItem('vesper_custom_bg'); } catch(e) {} setToast('Background cleared'); }}
+                          sx={{ color: 'rgba(255,255,255,0.4)', textTransform: 'none', fontSize: '0.7rem', p: '2px 6px', minWidth: 0 }}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                      <IconButton
+                        size="small"
+                        onClick={() => setBackgroundStudioOpen(true)}
+                        sx={{ bgcolor: 'rgba(255,136,255,0.15)', color: '#ff88ff', '&:hover': { bgcolor: 'rgba(255,136,255,0.25)' } }}
+                      >
+                        <PhotoLibrary fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                  </Box>
                 </Stack>
               </Box>
 
@@ -4625,59 +4808,6 @@ export default function App() {
                 </Stack>
               </Box>
 
-              {/* Background Studio */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#ff88ff' }}>🖼️ Background Studio</Typography>
-                <Box sx={{
-                  p: 2, border: '1px solid rgba(255,136,255,0.2)', borderRadius: 2, bgcolor: 'rgba(255,136,255,0.03)',
-                  position: 'relative', overflow: 'hidden',
-                }}>
-                  {/* Mini preview of current background */}
-                  {customBackground?.url && (
-                    <Box sx={{
-                      position: 'absolute', inset: 0, opacity: 0.15,
-                      backgroundImage: `url(${customBackground.url})`,
-                      backgroundSize: 'cover', backgroundPosition: 'center',
-                      filter: 'blur(4px)',
-                    }} />
-                  )}
-                  <Box sx={{ position: 'relative', zIndex: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: '#ff88ff' }}>
-                      Custom Backgrounds
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1.5 }}>
-                      {customBackground
-                        ? `Active: ${customBackground.name}`
-                        : 'Set custom wallpapers, upload images, or pick from curated collections'
-                      }
-                    </Typography>
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => setBackgroundStudioOpen(true)}
-                        sx={{ borderColor: '#ff88ff', color: '#ff88ff', textTransform: 'none', fontWeight: 600, flex: 1 }}
-                      >
-                        Open Studio
-                      </Button>
-                      {customBackground && (
-                        <Button
-                          size="small"
-                          onClick={() => {
-                            setCustomBackground(null);
-                            try { localStorage.removeItem('vesper_custom_bg'); } catch (e) {}
-                            setToast('Background cleared');
-                          }}
-                          sx={{ color: 'rgba(255,255,255,0.4)', textTransform: 'none', fontSize: '0.75rem' }}
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </Stack>
-                  </Box>
-                </Box>
-              </Box>
-              
               {/* Audio & Voice */}
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Audio & Voice</Typography>
@@ -4741,6 +4871,16 @@ export default function App() {
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
                         Choose Vesper's voice for all speech
                       </Typography>
+
+                      {selectedVoiceName && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, p: 0.75, px: 1, bgcolor: 'rgba(0,255,136,0.08)', borderRadius: 1, border: '1px solid rgba(0,255,136,0.2)' }}>
+                          <Typography sx={{ fontSize: '0.65rem', color: '#00ff88' }}>💾</Typography>
+                          <Typography variant="caption" sx={{ color: '#00ff88', fontWeight: 700, fontSize: '0.72rem' }}>
+                            Saved default: {cloudVoices.find(v => v.id === selectedVoiceName)?.name || selectedVoiceName}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', ml: 'auto' }}>persists across sessions</Typography>
+                        </Box>
+                      )}
 
                       <Box sx={{
                         maxHeight: 200, overflowY: 'auto', borderRadius: 1,
@@ -4821,21 +4961,6 @@ export default function App() {
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>System Diagnostics</Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Check health & performance</Typography>
-                    </Box>
-                    <Button 
-                      onClick={() => setDiagnosticsOpen(true)}
-                      size="small"
-                      variant="outlined"
-                      sx={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-                      startIcon={<SpeedIcon />}
-                    >
-                      Run Check
-                    </Button>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>UI Sound Effects</Typography>
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Button clicks and notifications</Typography>
                     </Box>
@@ -4869,9 +4994,17 @@ export default function App() {
 
               {/* Voice Lab (ElevenLabs Premium) */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#ffbb44' }}>
-                  ★ Voice Lab
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#ffbb44' }}>★ Voice Lab</Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => { setVoiceLabOpen(true); setVoiceLabTab('sfx'); }}
+                    sx={{ borderColor: '#ffbb44', color: '#ffbb44', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem', py: 0.25 }}
+                  >
+                    Open Full Lab ↗
+                  </Button>
+                </Box>
                 <Stack spacing={1.5}>
                   {/* Sound Effects Generator */}
                   <Box sx={{ p: 1.5, border: '1px solid rgba(255,180,50,0.3)', borderRadius: 2, bgcolor: 'rgba(255,180,50,0.05)' }}>
@@ -4934,7 +5067,7 @@ export default function App() {
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
                       Assign different voices for different contexts — Vesper adapts automatically
                     </Typography>
-                    <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} playVoicePreview={playVoicePreview} />
+                    <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} playVoicePreview={playVoicePreview} onSave={fetchPersonaCache} />
                   </Box>
 
                   {/* Voice Cloning */}
@@ -5022,39 +5155,59 @@ export default function App() {
 
               {/* AI Models */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>AI Models</Typography>
-                <Stack spacing={1}>
-                  <Box sx={{ p: 1.5, border: '2px solid #4ade80', borderRadius: '8px', bgcolor: 'rgba(74, 222, 128, 0.05)' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>Ollama (Local)</Typography>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Free • Private • Fast</Typography>
-                      </Box>
-                      <Chip label="PRIMARY" size="small" sx={{ bgcolor: '#4ade80', color: '#000', fontWeight: 700 }} />
-                    </Box>
-                  </Box>
-                  <Box sx={{ p: 1.5, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>Cloud Models</Typography>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Claude, GPT, Gemini</Typography>
-                      </Box>
-                      <Chip label="Fallback" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }} />
-                    </Box>
-                  </Box>
-                </Stack>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
-                  Auto-routes to best available model. Ollama runs locally for privacy.
-                </Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>🤖 AI Model</Typography>
+                <Box sx={{ p: 1.5, border: '1px solid rgba(var(--accent-rgb),0.25)', borderRadius: 2, bgcolor: 'rgba(var(--accent-rgb),0.04)' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.75 }}>Active Model</Typography>
+                  <Select
+                    size="small"
+                    fullWidth
+                    value={selectedModel}
+                    onChange={(e) => {
+                      setSelectedModel(e.target.value);
+                      try { localStorage.setItem('vesper_model', e.target.value); } catch(ex) {}
+                      setToast(`Model set: ${e.target.value === 'auto' ? 'Auto (best available)' : e.target.value}`);
+                    }}
+                    sx={{
+                      color: 'var(--accent)', bgcolor: 'rgba(0,0,0,0.25)',
+                      '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(var(--accent-rgb),0.3)' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--accent)' },
+                      '.MuiSvgIcon-root': { color: 'var(--accent)' },
+                    }}
+                    MenuProps={{ PaperProps: { sx: { bgcolor: 'rgba(8,8,18,0.97)', backdropFilter: 'blur(20px)', border: '1px solid rgba(0,255,255,0.15)', '& .MuiMenuItem-root': { color: '#fff', fontSize: '0.85rem' }, '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(0,255,255,0.1)' } } } }}
+                  >
+                    <MenuItem value="auto">🔄 Auto (best available)</MenuItem>
+                    {availableModels.map(m => (
+                      <MenuItem key={m.id} value={m.id}>{m.icon} {m.label}</MenuItem>
+                    ))}
+                    {availableModels.length === 0 && (
+                      <MenuItem value="gpt-4o-mini">☁️ GPT-4o-mini (cloud)</MenuItem>
+                    )}
+                  </Select>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', mt: 0.75, display: 'block' }}>
+                    {availableModels.length > 0 ? `${availableModels.length} models detected` : 'Connect to Ollama for local models'}
+                  </Typography>
+                </Box>
               </Box>
 
               {/* System Info */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>System Status</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>System Status</Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setDiagnosticsOpen(true)}
+                    startIcon={<SpeedIcon sx={{ fontSize: '0.85rem !important' }} />}
+                    sx={{ borderColor: 'var(--accent)', color: 'var(--accent)', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem', py: 0.25 }}
+                  >
+                    Run Diagnostics
+                  </Button>
+                </Box>
                 <Stack spacing={1.5}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Memory Database</Typography>
-                    <Chip label="Connected" size="small" sx={{ bgcolor: 'rgba(74, 222, 128, 0.2)', color: '#4ade80', fontWeight: 600 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Backend / Railway</Typography>
+                    <Chip label="Check Status →" size="small" onClick={() => setDiagnosticsOpen(true)}
+                      sx={{ bgcolor: 'rgba(0,255,255,0.12)', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,255,255,0.2)' } }} />
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>Conversations</Typography>
@@ -5062,7 +5215,7 @@ export default function App() {
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>Storage</Typography>
-                    <Chip label="Auto-Save" size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)', fontWeight: 600 }} />
+                    <Chip label="Auto-Save ON" size="small" sx={{ bgcolor: 'rgba(74,222,128,0.2)', color: '#4ade80', fontWeight: 600 }} />
                   </Box>
                 </Stack>
               </Box>
@@ -6531,7 +6684,7 @@ export default function App() {
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
                         Override the voice for specific contexts (optional)
                       </Typography>
-                      <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} playVoicePreview={playVoicePreview} />
+                      <PersonaAssigner apiBase={apiBase} cloudVoices={cloudVoices} setToast={setToast} playVoicePreview={playVoicePreview} onSave={fetchPersonaCache} />
                     </Box>
                   </Box>
                 )}
