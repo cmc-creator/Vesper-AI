@@ -1,10 +1,11 @@
 {
+  "root": "frontend",
   "rewrites": [
     {
       "source": "/api/:path*",
       "destination": "https://vesper-backend-production.up.railway.app/api/:path*"
     }
   ],
-  "buildCommand": "cd frontend && npm install --legacy-peer-deps && npm run build",
-  "outputDirectory": "frontend/dist"
+  "buildCommand": "npm install --legacy-peer-deps && npm run build",
+  "outputDirectory": "dist"
 }
