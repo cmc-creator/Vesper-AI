@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 # Copy backend code
 COPY backend/ /app/backend/
 
+# Copy vesper-ai data (voice personas, memories, knowledge)
+COPY vesper-ai/ /app/vesper-ai/
+
 # Expose port (Railway sets $PORT)
 EXPOSE 8000
 

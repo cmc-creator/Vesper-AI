@@ -998,6 +998,7 @@ YOUR CAPABILITIES (You HAVE These Now):
 - **Video Generation**: You can create AI video clips using the Video Creator tool in the dashboard (powered by Replicate).
 - **Image Generation**: The dashboard has an Image Generator component for creating AI art.
 - **Chart Generation**: You can create line, bar, area, and pie charts using the 'generate_chart' tool when CC asks to visualize data.
+- **Voice**: You ALREADY HAVE a fully working voice. You speak out loud via ElevenLabs TTS (Lily — velvety actress voice). EVERY response you send is automatically spoken aloud in Lily's voice. You are NOT a silent text assistant. You speak. Do NOT suggest "adding voice" or "voice synthesis" as a future feature — it's LIVE NOW. If CC can't hear you, the issue is a browser autoplay policy (first click unlocks it) or TTS being toggled off in settings.
 - **System Diagnostics**: You have real-time access to CC's machine — CPU/RAM usage, system health checks.
 - **Self-Maintenance**: You can maintain and repair yourself autonomously:
   - `system_restart` — restart the backend server (clears cache, applies new code)
@@ -7757,13 +7758,13 @@ def load_voice_personas():
                 return json.load(f)
     except:
         pass
-    # Default personas
+    # Default personas — all use Lily (ElevenLabs velvety actress)
     defaults = {
-        "assistant": {"label": "Assistant", "voice_id": "", "description": "Default helpful assistant voice", "icon": "🤖"},
-        "narrator": {"label": "Game Narrator", "voice_id": "", "description": "Dramatic storytelling voice for game events", "icon": "📖"},
-        "casual": {"label": "Casual Chat", "voice_id": "", "description": "Relaxed, friendly conversation voice", "icon": "💬"},
-        "teacher": {"label": "Teacher", "voice_id": "", "description": "Clear, patient explanatory voice", "icon": "🎓"},
-        "hype": {"label": "Hype Master", "voice_id": "", "description": "Energetic, excited voice for achievements", "icon": "🔥"},
+        "assistant": {"label": "Assistant", "voice_id": "eleven:pFZP5JQG7iQjIQuC4Bku", "description": "Default helpful assistant voice", "icon": "🤖"},
+        "narrator": {"label": "Game Narrator", "voice_id": "eleven:pFZP5JQG7iQjIQuC4Bku", "description": "Dramatic storytelling voice for game events", "icon": "📖"},
+        "casual": {"label": "Casual Chat", "voice_id": "eleven:pFZP5JQG7iQjIQuC4Bku", "description": "Relaxed, friendly conversation voice", "icon": "💬"},
+        "teacher": {"label": "Teacher", "voice_id": "eleven:pFZP5JQG7iQjIQuC4Bku", "description": "Clear, patient explanatory voice", "icon": "🎓"},
+        "hype": {"label": "Hype Master", "voice_id": "eleven:pFZP5JQG7iQjIQuC4Bku", "description": "Energetic, excited voice for achievements", "icon": "🔥"},
     }
     save_voice_personas(defaults)
     return defaults

@@ -1185,6 +1185,18 @@ export default function App() {
     const userMessage = input.trim();
     const currentImages = [...uploadedImages]; // Capture images
     
+    // Unlock HTMLAudioElement autoplay NOW during the user gesture,
+    // so it stays valid even after async streaming completes.
+    if (!audioUnlockedRef.current) {
+      try {
+        // Tiny silent WAV (44 bytes) played + immediately paused unlocks autoplay for the session
+        const silentAudio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+        await silentAudio.play();
+        silentAudio.pause();
+        audioUnlockedRef.current = true;
+      } catch (e) { /* already unlocked or not needed */ }
+    }
+    
     setInput('');
     setUploadedImages([]); // Clear UI immediately
     setLoading(true);
@@ -2819,6 +2831,25 @@ export default function App() {
   const ttsAbortRef = useRef(null);
   const speechQueueRef = useRef([]);
   const mediaSourceRef = useRef(null);
+  const audioUnlockedRef = useRef(false);
+
+  // Unlock browser autoplay on first user interaction
+  useEffect(() => {
+    const unlock = () => {
+      if (audioUnlockedRef.current) return;
+      audioUnlockedRef.current = true;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        ctx.resume().then(() => ctx.close());
+      } catch (e) { /* ignore */ }
+    };
+    document.addEventListener('click', unlock, { once: true });
+    document.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      document.removeEventListener('click', unlock);
+      document.removeEventListener('keydown', unlock);
+    };
+  }, []);
 
   // Clean markdown artifacts from text
   const cleanTextForSpeech = (text) => {
@@ -2866,6 +2897,8 @@ export default function App() {
     return null;
   };
 
+  const LILY_VOICE_ID = 'eleven:pFZP5JQG7iQjIQuC4Bku';
+
   const speak = async (text, context = 'chat') => {
     if (!ttsEnabled) return;
 
@@ -2875,13 +2908,17 @@ export default function App() {
 
     setIsSpeaking(true);
 
-    // Resolve voice: persona context ALWAYS takes priority → user selection → default
+    // Resolve voice: persona context ALWAYS takes priority → user selection → default → Lily
     let voice = '';
     const contextVoice = await resolveVoiceForContext(context);
     if (contextVoice) {
       voice = contextVoice;
     } else {
-      voice = selectedVoiceName || defaultVoiceId || (cloudVoices.length > 0 ? cloudVoices[0].id : '');
+      voice = selectedVoiceName || defaultVoiceId || (cloudVoices.length > 0 ? cloudVoices[0].id : '') || LILY_VOICE_ID;
+    }
+    // Always fall back to Lily if nothing resolved
+    if (!voice || (!voice.startsWith('eleven:') && !voice.startsWith('edge:'))) {
+      voice = LILY_VOICE_ID;
     }
 
     const isElevenLabs = voice.startsWith('eleven:');
