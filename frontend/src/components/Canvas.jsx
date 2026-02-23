@@ -315,7 +315,8 @@ export default function App() {
       const canvasData = canvasRef.current.toDataURL('image/png');
       const filename = `${shareTitle.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.png`;
       
-      const response = await fetch('https://vesper-backend-production-b486.up.railway.app/api/storage/save-canvas', {
+      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const response = await fetch(`${apiBase}/api/storage/save-canvas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ canvas_data: canvasData, filename }),
