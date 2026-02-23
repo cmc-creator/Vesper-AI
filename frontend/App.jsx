@@ -5469,8 +5469,8 @@ export default function App() {
 
       {/* Background layers removed from here — they're now above the transform Box */}
       
-      {/* Subtle Matrix binary - vertical stacked digits, each column different speed */}
-      {[...Array(8)].map((_, i) => {
+      {/* Subtle Matrix binary - only shown on Neon Green theme */}
+      {activeTheme.id === 'green' && [...Array(8)].map((_, i) => {
         const digits = Array.from({ length: 60 }, () => Math.random() > 0.5 ? '1' : '0');
         return (
           <div 
