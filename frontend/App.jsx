@@ -6150,29 +6150,6 @@ export default function App() {
               <Chip label="Hold V to speak" className="chip-ghost" />
             </Stack>
 
-            {/* ── Talking Avatar Panel (always visible — uses /model.fbx by default, or RPM URL if set) ── */}
-            <Box sx={{
-              position: 'fixed',
-              bottom: 90,
-              right: 24,
-              zIndex: 1300,
-              width: 190,
-              borderRadius: 3,
-              overflow: 'hidden',
-              transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
-              transform: isSpeaking ? 'scale(1.04)' : 'scale(1)',
-              filter: isSpeaking ? `drop-shadow(0 0 18px ${activeTheme.accent}88)` : 'none',
-            }}>
-              <TalkingAvatar
-                avatarUrl={rpmAvatarUrl || undefined}
-                isSpeaking={isSpeaking}
-                analyserRef={analyserRef}
-                height={220}
-                accentColor={activeTheme.accent || '#a855f7'}
-                showControls={false}
-              />
-            </Box>
-
             <Paper 
               ref={chatContainerRef} 
               className="chat-window glass-card"
@@ -6181,6 +6158,28 @@ export default function App() {
               onDrop={handleDrop}
               sx={{ position: 'relative' }}
             >
+              {/* ── Talking Avatar Panel — absolute top-right inside chat window ── */}
+              <Box sx={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                zIndex: 10,
+                width: 160,
+                borderRadius: 3,
+                overflow: 'hidden',
+                transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+                transform: isSpeaking ? 'scale(1.04)' : 'scale(1)',
+                filter: isSpeaking ? `drop-shadow(0 0 18px ${activeTheme.accent}88)` : 'none',
+              }}>
+                <TalkingAvatar
+                  avatarUrl={rpmAvatarUrl || undefined}
+                  isSpeaking={isSpeaking}
+                  analyserRef={analyserRef}
+                  height={190}
+                  accentColor={activeTheme.accent || '#a855f7'}
+                  showControls={false}
+                />
+              </Box>
               {/* Drag overlay */}
               {isDraggingFile && (
                 <Box sx={{

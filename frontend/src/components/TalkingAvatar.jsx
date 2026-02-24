@@ -220,7 +220,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 0.15, compact ? 2.8 : 3.2], fov: 45 }}
+        camera={{ position: [0, 0.65, compact ? 1.5 : 1.8], fov: 32 }}
         gl={{ antialias: true, alpha: true, toneMappingExposure: 1.6 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
@@ -244,7 +244,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
             analyserRef={analyserRef}
             isSpeaking={isSpeaking}
             scale={compact ? 1.3 : 1.6}
-            position={compact ? [0, -0.9, 0] : [0, -1.1, 0]}
+            position={compact ? [0, -0.3, 0] : [0, -0.4, 0]}
           />
           <ContactShadows position={[0, -1.2, 0]} opacity={0.35} scale={8} blur={2.5} />
           <Environment preset="warehouse" />
