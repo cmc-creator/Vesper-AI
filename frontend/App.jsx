@@ -3006,7 +3006,11 @@ export default function App() {
         signal: controller.signal,
       });
 
-      if (!response.ok) throw new Error('Cloud TTS failed');
+      if (!response.ok) {
+        let errMsg = `TTS ${response.status}`;
+        try { const j = await response.json(); errMsg = j.detail || j.error || errMsg; } catch (_) {}
+        throw new Error(errMsg);
+      }
 
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
@@ -3022,6 +3026,7 @@ export default function App() {
     } catch (e) {
       if (e.name === 'AbortError') { setIsSpeaking(false); return; }
       console.warn('[TTS] Cloud TTS unavailable:', e.message);
+      setToast(`🔇 Voice error: ${e.message}`);
     }
 
     // No browser fallback — ElevenLabs only (robotic voices are banned)
@@ -6136,34 +6141,28 @@ export default function App() {
               <Chip label="Hold V to speak" className="chip-ghost" />
             </Stack>
 
-            {/* ── Talking Avatar Panel (fixed bottom-right, shows when avatar URL is set) ── */}
-            {rpmAvatarUrl && ttsEnabled && (
-              <Box sx={{
-                position: 'fixed',
-                bottom: 90,
-                right: 24,
-                zIndex: 1300,
-                width: 190,
-                borderRadius: 3,
-                overflow: 'hidden',
-                transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
-                transform: isSpeaking ? 'scale(1.04)' : 'scale(1)',
-                filter: isSpeaking ? `drop-shadow(0 0 18px ${activeTheme.accent}88)` : 'none',
-                cursor: 'pointer',
-              }}
-              onClick={() => setRpmAvatarUrl('')}  // click to dismiss, long-press to re-set
-              title="Click to hide avatar"
-              >
-                <TalkingAvatar
-                  avatarUrl={rpmAvatarUrl}
-                  isSpeaking={isSpeaking}
-                  analyserRef={analyserRef}
-                  height={220}
-                  accentColor={activeTheme.accent || '#a855f7'}
-                  showControls={false}
-                />
-              </Box>
-            )}
+            {/* ── Talking Avatar Panel (always visible — uses /model.fbx by default, or RPM URL if set) ── */}
+            <Box sx={{
+              position: 'fixed',
+              bottom: 90,
+              right: 24,
+              zIndex: 1300,
+              width: 190,
+              borderRadius: 3,
+              overflow: 'hidden',
+              transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+              transform: isSpeaking ? 'scale(1.04)' : 'scale(1)',
+              filter: isSpeaking ? `drop-shadow(0 0 18px ${activeTheme.accent}88)` : 'none',
+            }}>
+              <TalkingAvatar
+                avatarUrl={rpmAvatarUrl || undefined}
+                isSpeaking={isSpeaking}
+                analyserRef={analyserRef}
+                height={220}
+                accentColor={activeTheme.accent || '#a855f7'}
+                showControls={false}
+              />
+            </Box>
 
             <Paper 
               ref={chatContainerRef} 
