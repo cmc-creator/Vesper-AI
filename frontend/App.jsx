@@ -6150,23 +6150,18 @@ export default function App() {
               <Chip label="Hold V to speak" className="chip-ghost" />
             </Stack>
 
-            <Paper 
-              ref={chatContainerRef} 
-              className="chat-window glass-card"
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              sx={{ position: 'relative' }}
-            >
-              {/* ── Talking Avatar Panel — absolute top-right inside chat window ── */}
+            {/* ── Chat window + avatar wrapper (relative so avatar can float over Paper without being clipped by its overflow) ── */}
+            <Box sx={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              {/* ── Talking Avatar Panel — overlays top-right of chat window, outside the overflow-clipping Paper ── */}
               <Box sx={{
                 position: 'absolute',
                 top: 8,
                 right: 8,
-                zIndex: 10,
+                zIndex: 20,
                 width: 160,
                 borderRadius: 3,
                 overflow: 'hidden',
+                pointerEvents: 'none',
                 transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
                 transform: isSpeaking ? 'scale(1.04)' : 'scale(1)',
                 filter: isSpeaking ? `drop-shadow(0 0 18px ${activeTheme.accent}88)` : 'none',
@@ -6180,6 +6175,15 @@ export default function App() {
                   showControls={false}
                 />
               </Box>
+
+            <Paper 
+              ref={chatContainerRef} 
+              className="chat-window glass-card"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              sx={{ flex: 1, minHeight: 0 }}
+            >
               {/* Drag overlay */}
               {isDraggingFile && (
                 <Box sx={{
@@ -6214,6 +6218,7 @@ export default function App() {
               )}
               <div ref={messagesEndRef} />
             </Paper>
+            </Box>{/* end chat+avatar wrapper */}
 
             {/* Chat Box Resize Handle */}
             <Box
