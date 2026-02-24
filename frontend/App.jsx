@@ -105,6 +105,7 @@ import Sassy from './src/components/Sassy';
 import MediaGallery from './src/components/MediaGallery';
 import AvatarStudio from './src/components/AvatarStudio';
 import VesperAvatar3D from './src/components/VesperAvatar3D';
+import TalkingAvatar from './src/components/TalkingAvatar';
 import IntegrationsHub from './src/components/IntegrationsHub';
 import BackgroundStudio from './src/components/BackgroundStudio';
 
@@ -2772,6 +2773,8 @@ export default function App() {
   // Load available ElevenLabs voices from backend (no browser voices — they sound robotic)
   const [cloudVoices, setCloudVoices] = useState([]);
   const [defaultVoiceId, setDefaultVoiceId] = useState('');
+  // Ready Player Me avatar URL — set via Settings or Voice Lab
+  const [rpmAvatarUrl, setRpmAvatarUrl] = useState(() => safeStorageGet('vesper_rpm_avatar', ''));
   const [voicesLoading, setVoicesLoading] = useState(false);
   // Local persona cache — avoids a network round-trip on every TTS call
   const voicePersonaCacheRef = useRef({});
@@ -2832,6 +2835,35 @@ export default function App() {
   const speechQueueRef = useRef([]);
   const mediaSourceRef = useRef(null);
   const audioUnlockedRef = useRef(false);
+  // Web Audio API refs for lip sync
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const mediaSourceNodeRef = useRef(null);
+
+  // Connect an HTMLAudioElement to the shared AnalyserNode for lip sync
+  const connectAudioToAnalyser = useCallback((audio) => {
+    try {
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      if (!analyserRef.current) {
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.72;
+        analyserRef.current = analyser;
+        analyser.connect(ctx.destination);
+      }
+      // Disconnect old source node so we don't double-connect
+      try { mediaSourceNodeRef.current?.disconnect(); } catch (_) {}
+      const src = ctx.createMediaElementSource(audio);
+      mediaSourceNodeRef.current = src;
+      src.connect(analyserRef.current);
+    } catch (e) {
+      console.warn('[TTS Analyser] setup failed:', e.message);
+    }
+  }, []);
 
   // Unlock browser autoplay on first user interaction
   useEffect(() => {
@@ -2949,7 +2981,9 @@ export default function App() {
         const audioBlob = new Blob(chunks, { type: 'audio/mpeg' });
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
+        audio.crossOrigin = 'anonymous';
         ttsAudioRef.current = audio;
+        connectAudioToAnalyser(audio);
 
         audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
         audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
@@ -2978,7 +3012,9 @@ export default function App() {
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
+      audio.crossOrigin = 'anonymous';
       ttsAudioRef.current = audio;
+      connectAudioToAnalyser(audio);
 
       audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
       audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
@@ -5029,6 +5065,55 @@ export default function App() {
                 </Stack>
               </Box>
 
+              {/* 3D Avatar Settings */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)', mb: 1.5 }}>
+                  👤 3D Talking Avatar
+                </Typography>
+                <Stack spacing={1.5}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', display: 'block', mb: 0.75 }}>
+                      Ready Player Me Avatar URL (.glb)
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="https://models.readyplayer.me/XXXXXXX.glb"
+                        value={rpmAvatarUrl}
+                        onChange={(e) => {
+                          setRpmAvatarUrl(e.target.value);
+                          try { localStorage.setItem('vesper_rpm_avatar', e.target.value); } catch(_) {}
+                        }}
+                        style={{
+                          flex: 1, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.18)',
+                          borderRadius: 6, padding: '7px 10px', color: '#fff', fontSize: '0.8rem', outline: 'none',
+                        }}
+                      />
+                      {rpmAvatarUrl && (
+                        <Button size="small" onClick={() => { setRpmAvatarUrl(''); try { localStorage.removeItem('vesper_rpm_avatar'); } catch(_) {} }}
+                          sx={{ minWidth: 32, color: 'rgba(255,255,255,0.4)', p: 0.5 }}>✕</Button>
+                      )}
+                    </Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', mt: 0.5, display: 'block' }}>
+                      Create yours at readyplayer.me · Click "Done" → copy the .glb URL
+                    </Typography>
+                  </Box>
+                  {rpmAvatarUrl ? (
+                    <Box sx={{ p: 1, bgcolor: 'rgba(0,255,200,0.08)', borderRadius: 1.5, border: '1px solid rgba(0,255,200,0.2)' }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(0,255,200,0.8)' }}>
+                        ✓ Avatar loaded — appears bottom-right of chat and lip-syncs to Lily's voice
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1.5, border: '1px dashed rgba(255,255,255,0.12)' }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+                        No avatar set — chat panel will show the animated orb instead
+                      </Typography>
+                    </Box>
+                  )}
+                </Stack>
+              </Box>
+
               {/* Voice Lab (ElevenLabs Premium) */}
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
@@ -6051,6 +6136,35 @@ export default function App() {
               <Chip label="Cmd/Ctrl+K" className="chip-ghost" />
               <Chip label="Hold V to speak" className="chip-ghost" />
             </Stack>
+
+            {/* ── Talking Avatar Panel (fixed bottom-right, shows when avatar URL is set) ── */}
+            {rpmAvatarUrl && ttsEnabled && (
+              <Box sx={{
+                position: 'fixed',
+                bottom: 90,
+                right: 24,
+                zIndex: 1300,
+                width: 190,
+                borderRadius: 3,
+                overflow: 'hidden',
+                transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+                transform: isSpeaking ? 'scale(1.04)' : 'scale(1)',
+                filter: isSpeaking ? `drop-shadow(0 0 18px ${activeTheme.accent}88)` : 'none',
+                cursor: 'pointer',
+              }}
+              onClick={() => setRpmAvatarUrl('')}  // click to dismiss, long-press to re-set
+              title="Click to hide avatar"
+              >
+                <TalkingAvatar
+                  avatarUrl={rpmAvatarUrl}
+                  isSpeaking={isSpeaking}
+                  analyserRef={analyserRef}
+                  height={220}
+                  accentColor={activeTheme.accent || '#a855f7'}
+                  showControls={false}
+                />
+              </Box>
+            )}
 
             <Paper 
               ref={chatContainerRef} 
