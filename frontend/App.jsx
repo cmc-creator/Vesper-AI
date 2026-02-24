@@ -5976,6 +5976,10 @@ export default function App() {
 
         <main className="content-grid">
           <section className="chat-panel glass-panel">
+            {/* ── Side-by-side: chat on left, avatar on right ── */}
+            <Box sx={{ display: 'flex', gap: 1.5, height: '100%', overflow: 'hidden' }}>
+            {/* ── Left: all existing chat UI ── */}
+            <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexShrink: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {/* Hamburger – mobile only */}
@@ -6825,6 +6829,30 @@ export default function App() {
                 )}
               </Box>
             )}
+            </Box>{/* end left chat column */}
+
+            {/* ── Right: Talking Avatar ── */}
+            <Box sx={{
+              width: 220,
+              flexShrink: 0,
+              alignSelf: 'stretch',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 2,
+              overflow: 'hidden',
+              border: `1px solid ${activeTheme.accent}33`,
+              background: `radial-gradient(ellipse at 50% 20%, ${activeTheme.accent}12 0%, rgba(0,0,0,0.6) 70%)`,
+            }}>
+              <TalkingAvatar
+                avatarUrl={rpmAvatarUrl || undefined}
+                isSpeaking={isSpeaking}
+                analyserRef={analyserRef}
+                fill
+                accentColor={activeTheme.accent || '#a855f7'}
+                showControls={false}
+              />
+            </Box>
+            </Box>{/* end flex row */}
           </section>
 
           <section className="ops-panel">

@@ -189,6 +189,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
   isSpeaking = false,
   analyserRef,
   height = 300,
+  fill = false,
   compact = false,
   accentColor = '#a855f7',
   showControls = true,
@@ -218,7 +219,8 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
   return (
     <Box sx={{
       position: 'relative',
-      height: compact ? 130 : height,
+      height: fill ? '100%' : (compact ? 130 : height),
+      flex: fill ? 1 : undefined,
       borderRadius: 2,
       overflow: 'hidden',
       background: `radial-gradient(ellipse at 50% 30%, ${accentColor}18 0%, #0d0d1a 70%)`,
