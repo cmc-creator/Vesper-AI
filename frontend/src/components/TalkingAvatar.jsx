@@ -14,7 +14,7 @@ import { GraphicEq } from '@mui/icons-material';
 import * as THREE from 'three';
 
 // ── Default model served from /public ──────────────────────────────────────────
-const DEFAULT_AVATAR_URL = '/model.fbx';
+const DEFAULT_AVATAR_URL = '/model.glb';
 
 // ── Point camera at a world-space target (head/chest region) ──────────────────
 function CameraSetup({ target = [0, 0.7, 0] }) {
