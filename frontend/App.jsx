@@ -106,6 +106,7 @@ import MediaGallery from './src/components/MediaGallery';
 import AvatarStudio from './src/components/AvatarStudio';
 import VesperAvatar3D from './src/components/VesperAvatar3D';
 import TalkingAvatar from './src/components/TalkingAvatar';
+import MetaPersonCreator from './src/components/MetaPersonCreator';
 import IntegrationsHub from './src/components/IntegrationsHub';
 import BackgroundStudio from './src/components/BackgroundStudio';
 
@@ -2775,6 +2776,9 @@ export default function App() {
   const [defaultVoiceId, setDefaultVoiceId] = useState('');
   // Ready Player Me avatar URL — set via Settings or Voice Lab
   const [rpmAvatarUrl, setRpmAvatarUrl] = useState(() => safeStorageGet('vesper_rpm_avatar', ''));
+  const [metaPersonOpen, setMetaPersonOpen] = useState(false);
+  const [metaPersonClientId, setMetaPersonClientId] = useState(() => safeStorageGet('vesper_mp_client_id', ''));
+  const [metaPersonClientSecret, setMetaPersonClientSecret] = useState(() => safeStorageGet('vesper_mp_client_secret', ''));
   const [voicesLoading, setVoicesLoading] = useState(false);
   // Local persona cache — avoids a network round-trip on every TTS call
   const voicePersonaCacheRef = useRef({});
@@ -5071,47 +5075,81 @@ export default function App() {
 
               {/* 3D Avatar Settings */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)', mb: 1.5 }}>
-                  👤 3D Talking Avatar
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>
+                    👤 3D Talking Avatar
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => setMetaPersonOpen(true)}
+                    sx={{ bgcolor: 'var(--accent)', color: '#000', fontWeight: 700, textTransform: 'none', fontSize: '0.72rem', py: 0.25,
+                      '&:hover': { filter: 'brightness(1.2)' } }}
+                  >
+                    ✨ Open Avatar Creator
+                  </Button>
+                </Box>
                 <Stack spacing={1.5}>
+
+                  {/* MetaPerson credentials */}
+                  <Box sx={{ p: 1.25, bgcolor: 'rgba(0,0,0,0.25)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1, fontSize: '0.68rem' }}>
+                      MetaPerson Creator credentials — get them free at{' '}
+                      <a href="https://avatarsdk.com/metaperson-creator/" target="_blank" rel="noopener"
+                        style={{ color: 'var(--accent)' }}>avatarsdk.com</a>
+                    </Typography>
+                    <Stack spacing={0.75}>
+                      {[['Client ID', 'vesper_mp_client_id', metaPersonClientId, setMetaPersonClientId],
+                        ['Client Secret', 'vesper_mp_client_secret', metaPersonClientSecret, setMetaPersonClientSecret]].map(([label, key, val, set]) => (
+                        <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', minWidth: 84, fontSize: '0.7rem' }}>{label}</Typography>
+                          <input
+                            type="password"
+                            placeholder={`Enter ${label}...`}
+                            value={val}
+                            onChange={(e) => { set(e.target.value); try { localStorage.setItem(key, e.target.value); } catch(_) {} }}
+                            style={{ flex: 1, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)',
+                              borderRadius: 5, padding: '5px 8px', color: '#fff', fontSize: '0.75rem', outline: 'none' }}
+                          />
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Box>
+
+                  {/* Manual GLB URL override */}
                   <Box>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', display: 'block', mb: 0.75 }}>
-                      Ready Player Me Avatar URL (.glb)
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', display: 'block', mb: 0.5, fontSize: '0.68rem' }}>
+                      Or paste a GLB URL directly (Ready Player Me / any .glb)
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center' }}>
                       <input
                         type="text"
-                        placeholder="https://models.readyplayer.me/XXXXXXX.glb"
+                        placeholder="https://…/avatar.glb"
                         value={rpmAvatarUrl}
                         onChange={(e) => {
                           setRpmAvatarUrl(e.target.value);
                           try { localStorage.setItem('vesper_rpm_avatar', e.target.value); } catch(_) {}
                         }}
-                        style={{
-                          flex: 1, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.18)',
-                          borderRadius: 6, padding: '7px 10px', color: '#fff', fontSize: '0.8rem', outline: 'none',
-                        }}
+                        style={{ flex: 1, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.14)',
+                          borderRadius: 6, padding: '6px 10px', color: '#fff', fontSize: '0.78rem', outline: 'none' }}
                       />
                       {rpmAvatarUrl && (
                         <Button size="small" onClick={() => { setRpmAvatarUrl(''); try { localStorage.removeItem('vesper_rpm_avatar'); } catch(_) {} }}
-                          sx={{ minWidth: 32, color: 'rgba(255,255,255,0.4)', p: 0.5 }}>✕</Button>
+                          sx={{ minWidth: 32, color: 'rgba(255,255,255,0.35)', p: 0.5 }}>✕</Button>
                       )}
                     </Box>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', mt: 0.5, display: 'block' }}>
-                      Create yours at readyplayer.me · Click "Done" → copy the .glb URL
-                    </Typography>
                   </Box>
+
                   {rpmAvatarUrl ? (
-                    <Box sx={{ p: 1, bgcolor: 'rgba(0,255,200,0.08)', borderRadius: 1.5, border: '1px solid rgba(0,255,200,0.2)' }}>
+                    <Box sx={{ p: 1, bgcolor: 'rgba(0,255,200,0.07)', borderRadius: 1.5, border: '1px solid rgba(0,255,200,0.2)' }}>
                       <Typography variant="caption" sx={{ color: 'rgba(0,255,200,0.8)' }}>
-                        ✓ Avatar loaded — appears bottom-right of chat and lip-syncs to Lily's voice
+                        ✓ Custom avatar active — lip-syncs to Lily’s voice
                       </Typography>
                     </Box>
                   ) : (
-                    <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1.5, border: '1px dashed rgba(255,255,255,0.12)' }}>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-                        No avatar set — chat panel will show the animated orb instead
+                    <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1.5, border: '1px dashed rgba(255,255,255,0.1)' }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)' }}>
+                        Using bundled model.fbx — click “Open Avatar Creator” to customise
                       </Typography>
                     </Box>
                   )}
@@ -7300,6 +7338,20 @@ export default function App() {
           <ZoomOutIcon sx={{ fontSize: 16 }} />
         </IconButton>
       </Box>
+
+      {/* MetaPerson Creator fullscreen dialog */}
+      <MetaPersonCreator
+        open={metaPersonOpen}
+        onClose={() => setMetaPersonOpen(false)}
+        onAvatarExported={(url) => {
+          setRpmAvatarUrl(url);
+          try { localStorage.setItem('vesper_rpm_avatar', url); } catch(_) {}
+          setToast('✨ Avatar exported! Vesper’s new look is active.');
+        }}
+        clientId={metaPersonClientId}
+        clientSecret={metaPersonClientSecret}
+        accentColor={activeTheme?.accent || '#a855f7'}
+      />
 
       </Box>
     </ThemeProvider>
