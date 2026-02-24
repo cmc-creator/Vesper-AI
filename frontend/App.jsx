@@ -106,7 +106,6 @@ import MediaGallery from './src/components/MediaGallery';
 import AvatarStudio from './src/components/AvatarStudio';
 import VesperAvatar3D from './src/components/VesperAvatar3D';
 import TalkingAvatar from './src/components/TalkingAvatar';
-import MetaPersonCreator from './src/components/MetaPersonCreator';
 import IntegrationsHub from './src/components/IntegrationsHub';
 import BackgroundStudio from './src/components/BackgroundStudio';
 
@@ -2776,9 +2775,6 @@ export default function App() {
   const [defaultVoiceId, setDefaultVoiceId] = useState('');
   // Ready Player Me avatar URL — set via Settings or Voice Lab
   const [rpmAvatarUrl, setRpmAvatarUrl] = useState(() => safeStorageGet('vesper_rpm_avatar', ''));
-  const [metaPersonOpen, setMetaPersonOpen] = useState(false);
-  const [metaPersonClientId, setMetaPersonClientId] = useState(() => safeStorageGet('vesper_mp_client_id', ''));
-  const [metaPersonClientSecret, setMetaPersonClientSecret] = useState(() => safeStorageGet('vesper_mp_client_secret', ''));
   const [voicesLoading, setVoicesLoading] = useState(false);
   // Local persona cache — avoids a network round-trip on every TTS call
   const voicePersonaCacheRef = useRef({});
@@ -7313,18 +7309,6 @@ export default function App() {
           <ZoomOutIcon sx={{ fontSize: 16 }} />
         </IconButton>
       </Box>
-
-      {/* MetaPerson Creator fullscreen dialog */}
-      <MetaPersonCreator
-        open={metaPersonOpen}
-        onClose={() => setMetaPersonOpen(false)}
-        onAvatarExported={(url) => {
-          setRpmAvatarUrl(url);
-          try { localStorage.setItem('vesper_rpm_avatar', url); } catch(_) {}
-          setToast('✨ Avatar exported! Vesper’s new look is active.');
-        }}
-        accentColor={activeTheme?.accent || '#a855f7'}
-      />
 
       </Box>
     </ThemeProvider>
