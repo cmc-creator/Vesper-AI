@@ -5091,31 +5091,6 @@ export default function App() {
                 </Box>
                 <Stack spacing={1.5}>
 
-                  {/* MetaPerson credentials */}
-                  <Box sx={{ p: 1.25, bgcolor: 'rgba(0,0,0,0.25)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1, fontSize: '0.68rem' }}>
-                      MetaPerson Creator credentials — get them free at{' '}
-                      <a href="https://avatarsdk.com/metaperson-creator/" target="_blank" rel="noopener"
-                        style={{ color: 'var(--accent)' }}>avatarsdk.com</a>
-                    </Typography>
-                    <Stack spacing={0.75}>
-                      {[['Client ID', 'vesper_mp_client_id', metaPersonClientId, setMetaPersonClientId],
-                        ['Client Secret', 'vesper_mp_client_secret', metaPersonClientSecret, setMetaPersonClientSecret]].map(([label, key, val, set]) => (
-                        <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', minWidth: 84, fontSize: '0.7rem' }}>{label}</Typography>
-                          <input
-                            type="password"
-                            placeholder={`Enter ${label}...`}
-                            value={val}
-                            onChange={(e) => { set(e.target.value); try { localStorage.setItem(key, e.target.value); } catch(_) {} }}
-                            style={{ flex: 1, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)',
-                              borderRadius: 5, padding: '5px 8px', color: '#fff', fontSize: '0.75rem', outline: 'none' }}
-                          />
-                        </Box>
-                      ))}
-                    </Stack>
-                  </Box>
-
                   {/* Manual GLB URL override */}
                   <Box>
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', display: 'block', mb: 0.5, fontSize: '0.68rem' }}>
@@ -7348,8 +7323,6 @@ export default function App() {
           try { localStorage.setItem('vesper_rpm_avatar', url); } catch(_) {}
           setToast('✨ Avatar exported! Vesper’s new look is active.');
         }}
-        clientId={metaPersonClientId}
-        clientSecret={metaPersonClientSecret}
         accentColor={activeTheme?.accent || '#a855f7'}
       />
 

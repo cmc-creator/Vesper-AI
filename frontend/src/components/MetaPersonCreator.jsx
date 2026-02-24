@@ -1,206 +1,162 @@
 /**
- * MetaPersonCreator.jsx
- * Embeds the MetaPerson Creator iframe (avatarsdk.com) in a fullscreen dialog.
- * Handles the JS postMessage API:
- *   - Authenticates when creator is loaded
- *   - Captures the exported GLB URL and calls onAvatarExported(url)
- *   - Sends UI / export configuration on load
- *
- * Props:
- *   open            {boolean}   - Whether the dialog is open
- *   onClose         {function}  - Called when user closes
- *   onAvatarExported{function}  - Called with the exported .glb URL string
- *   clientId        {string}    - avatarsdk.com CLIENT_ID
- *   clientSecret    {string}    - avatarsdk.com CLIENT_SECRET
- *   accentColor     {string}    - Theme accent colour
+ * MetaPersonCreator.jsx  (renamed component: AvatarCreatorDialog)
+ * Embeds the Ready Player Me avatar creator — completely free, no API key needed.
+ * RPM sends a postMessage when the user clicks "Done" containing the .glb URL.
+ * That URL is passed to onAvatarExported() and automatically used as Vesper's face.
  */
 import React, { useRef, useEffect, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, IconButton,
-  Box, Typography, CircularProgress, Alert, Button,
+  Box, Typography, CircularProgress, Button, TextField,
 } from '@mui/material';
-import { Close, OpenInNew } from '@mui/icons-material';
+import { Close } from '@mui/icons-material';
 
-const METAPERSON_URL = 'https://metaperson.avatarsdk.com/iframe.html';
+// Ready Player Me free iframe — no credentials required
+const RPM_URL = 'https://readyplayer.me/avatar?frameApi&clearCache';
 
 export default function MetaPersonCreator({
   open,
   onClose,
   onAvatarExported,
-  clientId = '',
-  clientSecret = '',
   accentColor = '#a855f7',
 }) {
   const iframeRef = useRef(null);
-  const [status, setStatus] = React.useState('loading'); // 'loading' | 'ready' | 'exporting' | 'error'
-  const [errorMsg, setErrorMsg] = React.useState('');
+  const [loading, setLoading] = React.useState(true);
+  const [manualUrl, setManualUrl] = React.useState('');
 
-  // ── postMessage handler ─────────────────────────────────────────────────────
+  // ── Ready Player Me postMessage events ──────────────────────────────────────
   const handleMessage = useCallback((evt) => {
-    if (evt.data?.source !== 'metaperson_creator') return;
+    // RPM sends messages from readyplayer.me origin
+    const src = evt.data?.source;
+    const eventName = evt.data?.eventName;
+    const data = evt.data?.data;
 
-    const { eventName, data } = evt.data;
-
-    switch (eventName) {
-      // Creator loaded → authenticate + configure
-      case 'metaperson_creator_loaded': {
-        setStatus('ready');
-
-        // 1. Authenticate
-        if (clientId && clientSecret) {
-          evt.source.postMessage({
-            eventName: 'authenticate',
-            clientId,
-            clientSecret,
-          }, '*');
-        } else {
-          setErrorMsg('No MetaPerson credentials — export may be disabled. Add CLIENT_ID & CLIENT_SECRET in Settings.');
-        }
-
-        // 2. Configure export to GLB format with morph targets for lip sync
-        evt.source.postMessage({
-          eventName: 'set_export_parameters',
-          format: 'glb',
-          lod: 1,
-          textureProfile: '1K.jpg',
-        }, '*');
-
-        // 3. Configure UI — hide unnecessary panels
-        evt.source.postMessage({
-          eventName: 'set_ui_parameters',
-          isExportButtonVisible: true,
-          isLoginButtonVisible: false,
-        }, '*');
-        break;
+    // v1 frame API format
+    if (src === 'readyplayerme') {
+      if (eventName === 'v1.frame.ready') {
+        setLoading(false);
+        // Subscribe to avatar exported events
+        iframeRef.current?.contentWindow?.postMessage(
+          JSON.stringify({ target: 'readyplayerme', type: 'subscribe', eventName: 'v1.avatar.exported' }),
+          '*'
+        );
       }
-
-      // Avatar exported
-      case 'model_exported': {
-        setStatus('ready');
-        const url = data?.url || evt.data?.url || evt.data?.link;
+      if (eventName === 'v1.avatar.exported') {
+        const url = data?.url || evt.data?.url;
         if (url) {
           onAvatarExported?.(url);
           onClose?.();
-        } else {
-          setErrorMsg('Export completed but no URL was returned. Try again.');
         }
-        break;
       }
-
-      // Export started
-      case 'export_started':
-        setStatus('exporting');
-        break;
-
-      // Auth result
-      case 'authenticated':
-        if (evt.data?.isAuthenticated === false) {
-          setErrorMsg('MetaPerson auth failed — check CLIENT_ID and CLIENT_SECRET.');
-        }
-        break;
-
-      default:
-        break;
     }
-  }, [clientId, clientSecret, onAvatarExported, onClose]);
 
-  // Attach / detach listener
+    // Some RPM builds send a plain string URL directly
+    if (typeof evt.data === 'string' && evt.data.includes('readyplayer.me') && evt.data.endsWith('.glb')) {
+      onAvatarExported?.(evt.data);
+      onClose?.();
+    }
+  }, [onAvatarExported, onClose]);
+
   useEffect(() => {
     if (!open) return;
-    setStatus('loading');
-    setErrorMsg('');
+    setLoading(true);
+    setManualUrl('');
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [open, handleMessage]);
+
+  const handleManualSubmit = () => {
+    const trimmed = manualUrl.trim();
+    if (!trimmed) return;
+    // Accept any GLB/FBX URL
+    onAvatarExported?.(trimmed);
+    onClose?.();
+  };
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
       fullScreen
-      PaperProps={{
-        sx: {
-          background: '#0a0a12',
-          color: '#fff',
-          position: 'relative',
-        },
-      }}
+      PaperProps={{ sx: { background: '#090b14', color: '#fff' } }}
     >
-      {/* Header bar */}
+      {/* Header */}
       <DialogTitle sx={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        py: 1, px: 2,
-        background: 'rgba(0,0,0,0.6)',
+        py: 1, px: 2, flexShrink: 0,
+        background: 'rgba(0,0,0,0.7)',
         borderBottom: `1px solid ${accentColor}33`,
-        flexShrink: 0,
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, fontFamily: 'monospace', color: accentColor }}>
-            MetaPerson Creator
+            Avatar Creator
           </Typography>
-          {status === 'loading' && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              <CircularProgress size={14} sx={{ color: accentColor }} />
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Loading…</Typography>
-            </Box>
-          )}
-          {status === 'exporting' && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              <CircularProgress size={14} sx={{ color: '#4ade80' }} />
-              <Typography variant="caption" sx={{ color: '#4ade80' }}>Exporting avatar…</Typography>
-            </Box>
-          )}
-          {status === 'ready' && !errorMsg && (
-            <Typography variant="caption" sx={{ color: '#4ade80' }}>✓ Ready — click Export when done</Typography>
-          )}
+          {loading
+            ? <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <CircularProgress size={13} sx={{ color: accentColor }} />
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)' }}>Loading…</Typography>
+              </Box>
+            : <Typography variant="caption" sx={{ color: '#4ade80' }}>
+                ✓ Customise → click <strong>Next</strong> → click <strong>Done</strong>
+              </Typography>
+          }
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <Button
-            size="small"
-            startIcon={<OpenInNew sx={{ fontSize: 14 }} />}
-            href="https://avatarsdk.com/metaperson-creator/"
-            target="_blank"
-            rel="noopener"
-            sx={{ color: 'rgba(255,255,255,0.4)', textTransform: 'none', fontSize: '0.72rem' }}
-          >
-            Get credentials
-          </Button>
-          <IconButton onClick={onClose} sx={{ color: 'rgba(255,255,255,0.6)', '&:hover': { color: '#fff' } }}>
-            <Close />
-          </IconButton>
-        </Box>
+        <IconButton onClick={onClose} sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#fff' } }}>
+          <Close />
+        </IconButton>
       </DialogTitle>
 
-      {/* Error banner */}
-      {errorMsg && (
-        <Alert severity="warning" sx={{ borderRadius: 0, py: 0.5 }} onClose={() => setErrorMsg('')}>
-          {errorMsg}
-        </Alert>
-      )}
-
-      {/* Instructions bar */}
+      {/* Steps bar */}
       <Box sx={{
-        px: 2, py: 0.75,
-        bgcolor: `${accentColor}11`,
-        borderBottom: `1px solid ${accentColor}22`,
-        display: 'flex', gap: 3, flexWrap: 'wrap',
+        px: 2, py: 0.6, display: 'flex', gap: 3, flexWrap: 'wrap',
+        bgcolor: `${accentColor}0d`, borderBottom: `1px solid ${accentColor}1a`,
       }}>
-        {['① Customise your avatar', '② Click Export (top-right)', '③ Vesper loads automatically'].map((s) => (
-          <Typography key={s} variant="caption" sx={{ color: `${accentColor}cc`, fontFamily: 'monospace' }}>{s}</Typography>
+        {['① Pick a style & customise', '② Click Next → Done', '③ Vesper updates automatically'].map(s => (
+          <Typography key={s} variant="caption" sx={{ color: `${accentColor}bb`, fontFamily: 'monospace' }}>{s}</Typography>
         ))}
       </Box>
 
-      {/* iframe */}
+      {/* RPM iframe */}
       <DialogContent sx={{ p: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <iframe
           ref={iframeRef}
-          id="metaperson_iframe"
-          src={METAPERSON_URL}
-          allow="fullscreen; microphone"
+          src={RPM_URL}
+          allow="camera; microphone; fullscreen"
           frameBorder="0"
           style={{ width: '100%', flex: 1, border: 'none', display: 'block' }}
-          title="MetaPerson Creator"
+          title="Ready Player Me Avatar Creator"
+          onLoad={() => setLoading(false)}
         />
+
+        {/* Manual URL fallback at the bottom */}
+        <Box sx={{
+          px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1,
+          background: 'rgba(0,0,0,0.6)', borderTop: `1px solid rgba(255,255,255,0.08)`,
+          flexShrink: 0,
+        }}>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap', minWidth: 130 }}>
+            Or paste any .glb / .fbx URL:
+          </Typography>
+          <input
+            type="text"
+            placeholder="https://models.readyplayer.me/…glb"
+            value={manualUrl}
+            onChange={e => setManualUrl(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleManualSubmit()}
+            style={{
+              flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 6, padding: '6px 10px', color: '#fff', fontSize: '0.8rem', outline: 'none',
+            }}
+          />
+          <Button
+            size="small" variant="contained" onClick={handleManualSubmit}
+            disabled={!manualUrl.trim()}
+            sx={{ bgcolor: accentColor, color: '#000', fontWeight: 700, textTransform: 'none',
+              minWidth: 64, '&:hover': { filter: 'brightness(1.15)' } }}
+          >
+            Use
+          </Button>
+        </Box>
       </DialogContent>
     </Dialog>
   );
