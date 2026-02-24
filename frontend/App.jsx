@@ -2836,7 +2836,6 @@ export default function App() {
   const mediaSourceRef = useRef(null);
   const audioUnlockedRef = useRef(false);
   // Web Audio API refs for lip sync
-  const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const mediaSourceNodeRef = useRef(null);
 
