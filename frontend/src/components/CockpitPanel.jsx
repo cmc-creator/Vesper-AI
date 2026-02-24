@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Box, Typography, Slider, Switch, Tooltip, LinearProgress, Chip } from '@mui/material';
+import TalkingAvatar from './TalkingAvatar';
 
 // ─── Utility: Random data generators ────────────────────────────────────────
 const randHex = () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0').toUpperCase();
@@ -228,7 +229,7 @@ function SubsystemPanel({ title, color, icon, children }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ███ MAIN COCKPIT PANEL ████████████████████████████████████████████████████████
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function CockpitPanel() {
+export default function CockpitPanel({ analyserRef, isSpeaking = false, accentColor = '#00ffff' }) {
   // Live data — simulated real-time updates
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -404,18 +405,16 @@ export default function CockpitPanel() {
           </Box>
         </SubsystemPanel>
 
-        {/* Misc / Decorative */}
-        <SubsystemPanel title="Diagnostics" color="#ff6ad5" icon="🔬">
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
-            {['A0', 'A1', 'B0', 'B1', 'C0', 'C1', 'D0', 'D1'].map((ch, i) => (
-              <StatusLED key={ch} color={i < 6 ? '#00ff64' : (tick % 2 === 0 ? '#ffaa00' : '#ff4444')} label={ch} blink={i >= 6} size={5} />
-            ))}
-          </Box>
-          <DiagBar label="FPS" value={liveData.fps} color="#ff6ad5" suffix="" />
-          <DiagBar label="THR" value={Math.min(100, liveData.threads * 6)} color="#00ffff" suffix="" />
-          <SliderControl label="BIAS" defaultValue={50} color="#ff6ad5" min={-100} max={100} />
-          <ToggleRow label="Debug Mode" color="#ff6ad5" />
-          <ToggleRow label="Verbose Log" color="#ffaa00" />
+        {/* Neural Interface — Vesper avatar */}
+        <SubsystemPanel title="Neural Interface" color={accentColor} icon="🤖">
+          <TalkingAvatar
+            isSpeaking={isSpeaking}
+            analyserRef={analyserRef}
+            height={220}
+            compact={false}
+            accentColor={accentColor}
+            showControls={false}
+          />
         </SubsystemPanel>
       </Box>
 

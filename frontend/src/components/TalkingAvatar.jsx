@@ -7,7 +7,7 @@
 import React, {
   Suspense, useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle,
 } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useFBX, OrbitControls, Environment, ContactShadows, Html } from '@react-three/drei';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import { GraphicEq } from '@mui/icons-material';
@@ -15,6 +15,15 @@ import * as THREE from 'three';
 
 // ── Default model served from /public ──────────────────────────────────────────
 const DEFAULT_AVATAR_URL = '/model.fbx';
+
+// ── Point camera at a world-space target (head/chest region) ──────────────────
+function CameraSetup({ target = [0, 0.7, 0] }) {
+  const { camera } = useThree();
+  React.useEffect(() => {
+    camera.lookAt(...target);
+  }, [camera, target[0], target[1], target[2]]);
+  return null;
+}
 
 // ─── Viseme cycle (rotates through adjacent mouth shapes while speaking) ─────
 const VISEME_SHAPES = [
@@ -220,11 +229,12 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 0.65, compact ? 1.5 : 1.8], fov: 32 }}
+        camera={{ position: [0, 1.0, compact ? 1.6 : 2.0], fov: 32 }}
         gl={{ antialias: true, alpha: true, toneMappingExposure: 1.6 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
       >
+        <CameraSetup target={[0, 0.65, 0]} />
         {/* Bright ambient so dark-textured models stay visible */}
         <ambientLight intensity={2.2} />
         {/* Strong front key light */}
@@ -244,7 +254,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
             analyserRef={analyserRef}
             isSpeaking={isSpeaking}
             scale={compact ? 1.3 : 1.6}
-            position={compact ? [0, -0.3, 0] : [0, -0.4, 0]}
+            position={[0, 0, 0]}
           />
           <ContactShadows position={[0, -1.2, 0]} opacity={0.35} scale={8} blur={2.5} />
           <Environment preset="warehouse" />
