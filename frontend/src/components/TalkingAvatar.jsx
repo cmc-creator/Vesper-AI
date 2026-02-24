@@ -1,17 +1,20 @@
 /**
  * TalkingAvatar.jsx
- * Real-time lip-synced 3D avatar using Ready Player Me GLB + Web Audio API.
- * Drives mouthOpen and viseme morph targets from live audio amplitude.
- * Drop-in replacement/wrapper for VesperAvatar3D with speaking support.
+ * Real-time lip-synced 3D avatar — supports FBX and GLB/GLTF.
+ * Drives mouthOpen + viseme morph targets from live Web Audio amplitude.
+ * Defaults to /model.fbx (local file) when no avatarUrl is provided.
  */
 import React, {
-  Suspense, useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle
+  Suspense, useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle,
 } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { useGLTF, OrbitControls, Environment, ContactShadows, Html } from '@react-three/drei';
-import { Box, Typography, CircularProgress, Tooltip, IconButton } from '@mui/material';
-import { GraphicEq, VolumeOff, VolumeUp } from '@mui/icons-material';
+import { useGLTF, useFBX, OrbitControls, Environment, ContactShadows, Html } from '@react-three/drei';
+import { Box, Typography, CircularProgress } from '@mui/material';
+import { GraphicEq } from '@mui/icons-material';
 import * as THREE from 'three';
+
+// ── Default model served from /public ──────────────────────────────────────────
+const DEFAULT_AVATAR_URL = '/model.fbx';
 
 // ─── Viseme cycle (rotates through adjacent mouth shapes while speaking) ─────
 const VISEME_SHAPES = [
@@ -20,97 +23,86 @@ const VISEME_SHAPES = [
   'viseme_kk', 'viseme_CH', 'viseme_SS', 'viseme_nn', 'viseme_RR',
 ];
 
-// ─── The 3D model with live morph-target control ──────────────────────────────
-function LipSyncModel({ url, analyserRef, isSpeaking, scale = 1.6, position = [0, -1.1, 0] }) {
-  const groupRef = useRef();
-  const meshesRef = useRef([]);          // meshes that have morph targets
+// ── Shared lip-sync hook (works for both FBX and GLB meshes) ──────────────────
+function useLipSync(sceneObject, analyserRef, isSpeaking) {
+  const meshesRef = useRef([]);
+  const smoothAmplitude = useRef(0);
   const currentVisemeRef = useRef(0);
   const visemeTimerRef = useRef(0);
-  const smoothAmplitude = useRef(0);
 
-  const { scene } = useGLTF(url);
-  const clonedScene = React.useMemo(() => scene.clone(true), [scene]);
-
-  // Gather all morph-target meshes once the scene loads
   useEffect(() => {
+    if (!sceneObject) return;
     const meshes = [];
-    clonedScene.traverse((obj) => {
-      if (obj.isMesh && obj.morphTargetInfluences && obj.morphTargetDictionary) {
-        meshes.push(obj);
-      }
+    sceneObject.traverse((obj) => {
+      if (obj.isMesh && obj.morphTargetInfluences && obj.morphTargetDictionary) meshes.push(obj);
     });
     meshesRef.current = meshes;
-  }, [clonedScene]);
+  }, [sceneObject]);
 
-  // Helper: set a named morph target on all meshes that have it
   const setMorph = useCallback((name, value) => {
     for (const mesh of meshesRef.current) {
       const idx = mesh.morphTargetDictionary?.[name];
-      if (idx !== undefined) {
-        mesh.morphTargetInfluences[idx] = Math.max(0, Math.min(1, value));
-      }
+      if (idx !== undefined) mesh.morphTargetInfluences[idx] = Math.max(0, Math.min(1, value));
     }
   }, []);
 
-  // Reset all mouth morphs to zero
-  const resetMorphs = useCallback(() => {
-    const allMorphNames = ['mouthOpen', 'mouthSmile', ...VISEME_SHAPES];
-    for (const name of allMorphNames) setMorph(name, 0);
-  }, [setMorph]);
-
-  useFrame((state, delta) => {
-    // Subtle hover
-    if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.7) * 0.04;
-    }
-
+  return useCallback((delta) => {
     if (!isSpeaking || !analyserRef?.current) {
-      // Decay to zero when not speaking
       smoothAmplitude.current = THREE.MathUtils.lerp(smoothAmplitude.current, 0, 0.15);
       setMorph('mouthOpen', smoothAmplitude.current * 0.3);
       return;
     }
-
-    // Read amplitude from live audio
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
     analyserRef.current.getByteFrequencyData(dataArray);
-
-    // Focus on speech-frequency range (roughly 300–3000 Hz)
     const sliceWidth = dataArray.length / 4;
     let sum = 0;
-    for (let i = Math.floor(sliceWidth * 0.1); i < Math.floor(sliceWidth * 1.5); i++) {
-      sum += dataArray[i];
-    }
-    const rawAmplitude = sum / (sliceWidth * 1.4 * 255);  // 0–1
-    smoothAmplitude.current = THREE.MathUtils.lerp(smoothAmplitude.current, rawAmplitude, 0.4);
-
+    for (let i = Math.floor(sliceWidth * 0.1); i < Math.floor(sliceWidth * 1.5); i++) sum += dataArray[i];
+    const rawAmp = sum / (sliceWidth * 1.4 * 255);
+    smoothAmplitude.current = THREE.MathUtils.lerp(smoothAmplitude.current, rawAmp, 0.4);
     const amp = smoothAmplitude.current;
-
-    // Drive primary mouth open
     setMorph('mouthOpen', amp * 0.85);
-
-    // Cycle through viseme shapes based on amplitude (gives natural look)
     visemeTimerRef.current += delta;
-    const switchInterval = 0.06 + (1 - amp) * 0.12; // faster when louder
-    if (visemeTimerRef.current >= switchInterval) {
+    const interval = 0.06 + (1 - amp) * 0.12;
+    if (visemeTimerRef.current >= interval) {
       visemeTimerRef.current = 0;
-      // Fade out current viseme
       setMorph(VISEME_SHAPES[currentVisemeRef.current], 0);
-      // Pick next (slightly randomised)
       currentVisemeRef.current = (currentVisemeRef.current + 1 + Math.floor(Math.random() * 3)) % VISEME_SHAPES.length;
-      // Apply new one proportional to amplitude
       setMorph(VISEME_SHAPES[currentVisemeRef.current], amp * 0.6);
     }
-
-    // Small smile while speaking — feels more natural
     setMorph('mouthSmile', amp * 0.2);
-  });
+  }, [analyserRef, isSpeaking, setMorph]);
+}
 
-  return (
-    <group ref={groupRef} position={position} scale={scale}>
-      <primitive object={clonedScene} />
-    </group>
-  );
+// ── GLB/GLTF model ─────────────────────────────────────────────────────────────
+function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
+  const groupRef = useRef();
+  const { scene } = useGLTF(url);
+  const cloned = React.useMemo(() => scene.clone(true), [scene]);
+  const tick = useLipSync(cloned, analyserRef, isSpeaking);
+  useFrame(({ clock }, delta) => {
+    if (groupRef.current) groupRef.current.position.y = position[1] + Math.sin(clock.elapsedTime * 0.7) * 0.04;
+    tick(delta);
+  });
+  return <group ref={groupRef} position={position} scale={scale}><primitive object={cloned} /></group>;
+}
+
+// ── FBX model ──────────────────────────────────────────────────────────────────
+function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
+  const groupRef = useRef();
+  const fbx = useFBX(url);
+  const cloned = React.useMemo(() => fbx.clone(true), [fbx]);
+  const tick = useLipSync(cloned, analyserRef, isSpeaking);
+  useFrame(({ clock }, delta) => {
+    if (groupRef.current) groupRef.current.position.y = position[1] + Math.sin(clock.elapsedTime * 0.7) * 0.04;
+    tick(delta);
+  });
+  return <group ref={groupRef} position={position} scale={scale}><primitive object={cloned} /></group>;
+}
+
+// ── Router: pick loader by file extension ──────────────────────────────────────
+function LipSyncModel({ url, ...props }) {
+  if (url?.toLowerCase().endsWith('.fbx')) return <LipSyncModelFBX url={url} {...props} />;
+  return <LipSyncModelGLTF url={url} {...props} />;
 }
 
 // ─── Loading placeholder ──────────────────────────────────────────────────────
@@ -174,26 +166,10 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
 }, ref) {
   const [loadError, setLoadError] = useState(false);
 
-  // Allow parent to know if model loaded ok
-  useImperativeHandle(ref, () => ({ hasError: loadError }));
+  // Fall back to bundled local model when no URL provided
+  const resolvedUrl = avatarUrl || DEFAULT_AVATAR_URL;
 
-  if (!avatarUrl) {
-    return (
-      <Box sx={{
-        height: compact ? 130 : height,
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', gap: 1,
-        background: 'rgba(0,0,0,0.4)',
-        borderRadius: 2,
-        border: `1px dashed ${accentColor}33`,
-      }}>
-        <Typography variant="caption" sx={{ color: `${accentColor}88`, fontFamily: 'monospace', textAlign: 'center', px: 2 }}>
-          No avatar URL set.{'\n'}
-          Create one at readyplayer.me and paste the .glb URL in Settings.
-        </Typography>
-      </Box>
-    );
-  }
+  useImperativeHandle(ref, () => ({ hasError: loadError }));
 
   if (loadError) {
     return (
@@ -234,7 +210,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
 
         <Suspense fallback={<LoadingFallback accentColor={accentColor} />}>
           <LipSyncModel
-            url={avatarUrl}
+            url={resolvedUrl}
             analyserRef={analyserRef}
             isSpeaking={isSpeaking}
             scale={compact ? 1.3 : 1.6}
