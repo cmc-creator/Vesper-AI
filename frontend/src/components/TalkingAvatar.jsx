@@ -92,11 +92,31 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
   const fbx = useFBX(url);
   const cloned = React.useMemo(() => fbx.clone(true), [fbx]);
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
+
+  // Auto-normalise: measure bounding box and scale so the model is ~1.8 units tall
+  const normScale = React.useMemo(() => {
+    const box = new THREE.Box3().setFromObject(cloned);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const tallest = Math.max(size.x, size.y, size.z);
+    if (tallest < 0.01) return scale; // fallback if empty
+    return (1.8 / tallest) * scale;
+  }, [cloned, scale]);
+
+  // Center the model vertically on its own bounding box
+  const normPosition = React.useMemo(() => {
+    const box = new THREE.Box3().setFromObject(cloned);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    return [position[0] - center.x * normScale, position[1] - center.y * normScale, position[2]];
+  }, [cloned, normScale, position]);
+
   useFrame(({ clock }, delta) => {
-    if (groupRef.current) groupRef.current.position.y = position[1] + Math.sin(clock.elapsedTime * 0.7) * 0.04;
+    if (groupRef.current)
+      groupRef.current.position.y = normPosition[1] + Math.sin(clock.elapsedTime * 0.7) * 0.03;
     tick(delta);
   });
-  return <group ref={groupRef} position={position} scale={scale}><primitive object={cloned} /></group>;
+  return <group ref={groupRef} position={normPosition} scale={normScale}><primitive object={cloned} /></group>;
 }
 
 // ── Router: pick loader by file extension ──────────────────────────────────────
@@ -192,21 +212,31 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
       height: compact ? 130 : height,
       borderRadius: 2,
       overflow: 'hidden',
-      background: 'radial-gradient(ellipse at 50% 80%, rgba(168,85,247,0.08), rgba(0,0,0,0.6))',
-      border: `1px solid ${accentColor}22`,
+      background: `radial-gradient(ellipse at 50% 30%, ${accentColor}18 0%, #0d0d1a 70%)`,
+      border: `1px solid ${accentColor}33`,
       transition: 'box-shadow 0.4s ease',
-      boxShadow: isSpeaking ? `0 0 30px ${accentColor}44` : 'none',
+      boxShadow: isSpeaking
+        ? `0 0 30px ${accentColor}55, inset 0 0 40px ${accentColor}0a`
+        : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 0.4, compact ? 2.2 : 3], fov: 40 }}
-        gl={{ antialias: true, alpha: true }}
+        camera={{ position: [0, 0.15, compact ? 2.8 : 3.2], fov: 45 }}
+        gl={{ antialias: true, alpha: true, toneMappingExposure: 1.6 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
       >
-        <ambientLight intensity={0.55} />
-        <directionalLight position={[3, 5, 4]} intensity={0.9} castShadow />
-        <directionalLight position={[-3, 2, -2]} intensity={0.35} color={accentColor} />
-        <pointLight position={[0, 3, 1]} intensity={isSpeaking ? 0.8 : 0.25} color={accentColor} />
+        {/* Bright ambient so dark-textured models stay visible */}
+        <ambientLight intensity={2.2} />
+        {/* Strong front key light */}
+        <directionalLight position={[0, 2, 4]} intensity={2.5} />
+        {/* Accent fill from the theme colour */}
+        <directionalLight position={[-2, 1, 2]} intensity={1.2} color={accentColor} />
+        {/* Rim light from behind */}
+        <directionalLight position={[0, 3, -3]} intensity={0.8} color="#ffffff" />
+        {/* Hemisphere sky/ground */}
+        <hemisphereLight skyColor="#e0e8ff" groundColor="#1a0a2e" intensity={1.0} />
+        {/* Speaking pulse light */}
+        <pointLight position={[0, 1, 1.5]} intensity={isSpeaking ? 1.5 : 0.4} color={accentColor} />
 
         <Suspense fallback={<LoadingFallback accentColor={accentColor} />}>
           <LipSyncModel
@@ -217,7 +247,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
             position={compact ? [0, -0.9, 0] : [0, -1.1, 0]}
           />
           <ContactShadows position={[0, -1.2, 0]} opacity={0.35} scale={8} blur={2.5} />
-          <Environment preset="night" />
+          <Environment preset="warehouse" />
         </Suspense>
 
         {showControls && (
