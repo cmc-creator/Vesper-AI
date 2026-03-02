@@ -4674,6 +4674,25 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "generate_image",
+                "description": "Generate an AI image from a text description. Use this when CC asks to create, draw, generate, or make any image, picture, artwork, or visual. Call this directly — do NOT say you can't create images.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "prompt": {
+                            "type": "string",
+                            "description": "Detailed description of the image to generate"
+                        },
+                        "size": {
+                            "type": "string",
+                            "enum": ["1024x1024", "1024x1792", "1792x1024"],
+                            "description": "Image dimensions (default: 1024x1024)"
+                        }
+                    },
+                    "required": ["prompt"]
+                }
+            },
+            {
                 "name": "generate_chart",
                 "description": "Create a data visualization (chart) for the user. Use this when the user asks to 'plot', 'graph', 'visualize' data, or when showing trends/comparisons.",
                 "input_schema": {
@@ -5428,6 +5447,37 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "get_weather":
                     location = tool_input.get("location", "")
                     tool_result = get_weather_data(location)
+
+                elif tool_name == "generate_image":
+                    import urllib.parse as _uparse
+                    import datetime as _dt
+                    img_prompt = tool_input.get("prompt", "")
+                    img_size = tool_input.get("size", "1024x1024")
+                    if os.getenv("OPENAI_API_KEY"):
+                        try:
+                            import openai as _oai
+                            _oai.api_key = os.getenv("OPENAI_API_KEY")
+                            _resp = _oai.images.generate(model="dall-e-3", prompt=img_prompt, n=1, size=img_size)
+                            img_url = _resp.data[0].url
+                            provider = "DALL-E 3"
+                        except Exception as _e:
+                            img_url = None
+                            provider = "failed"
+                    else:
+                        img_url = None
+                        provider = None
+                    if not img_url:
+                        _seed = int(_dt.datetime.now().timestamp())
+                        _w, _h = img_size.split("x") if "x" in img_size else ("1024", "1024")
+                        img_url = f"https://image.pollinations.ai/prompt/{_uparse.quote(img_prompt)}?width={_w}&height={_h}&seed={_seed}&nologo=true"
+                        provider = "Pollinations.ai"
+                    tool_result = {
+                        "type": "image_generation",
+                        "image_url": img_url,
+                        "prompt": img_prompt,
+                        "provider": provider,
+                    }
+                    visualizations.append(tool_result)
 
                 elif tool_name == "generate_chart":
                     # This tool just passes data through so it can be returned as a structured result

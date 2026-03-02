@@ -1342,6 +1342,8 @@ export default function App() {
               data.data.forEach(viz => {
                 if (viz.type === 'chart_visualization') {
                   addLocalMessage('assistant', 'Generated Chart', { type: 'chart', chartData: viz });
+                } else if (viz.type === 'image_generation') {
+                  addLocalMessage('assistant', `Here's your image ✨`, { type: 'image', imageUrl: viz.image_url, imagePrompt: viz.prompt, imageProvider: viz.provider });
                 }
               });
             } else if (data.type === 'done') {
@@ -3112,7 +3114,7 @@ export default function App() {
            initial={{ opacity: 0, y: 10 }}
            animate={{ opacity: 1, y: 0 }}
            transition={{ duration: 0.3 }}
-           style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }} // Centered
+           style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}
            key={message.id}
         >
            <Box sx={{ width: '90%', maxWidth: '800px' }}>
@@ -3124,6 +3126,31 @@ export default function App() {
                  yKey={message.chartData.keys.y}
               />
            </Box>
+        </motion.div>
+      );
+    }
+
+    // Handle Generated Images
+    if (message.type === 'image' && message.imageUrl) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+          key={message.id}
+        >
+          <Typography variant="caption" sx={{ color: 'var(--accent)', mb: 0.5, fontFamily: 'monospace', letterSpacing: 1 }}>
+            VESPER · {ts}
+          </Typography>
+          <Box sx={{ maxWidth: 480, borderRadius: 2, overflow: 'hidden', border: '1px solid var(--accent)33' }}>
+            <img src={message.imageUrl} alt={message.imagePrompt || 'Generated'} style={{ width: '100%', display: 'block' }} />
+            <Box sx={{ px: 1.5, py: 0.8, bgcolor: 'rgba(0,0,0,0.5)' }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem' }}>
+                {message.imagePrompt} · {message.imageProvider}
+              </Typography>
+            </Box>
+          </Box>
         </motion.div>
       );
     }
@@ -6831,23 +6858,23 @@ export default function App() {
             )}
             </Box>{/* end left chat column */}
 
-            {/* ── Right: Talking Avatar ── */}
+            {/* ── Right: Talking Avatar — small portrait beside chat ── */}
             <Box sx={{
-              width: 220,
+              width: 160,
               flexShrink: 0,
-              alignSelf: 'stretch',
-              display: 'flex',
-              flexDirection: 'column',
+              alignSelf: 'flex-start',
               borderRadius: 2,
               overflow: 'hidden',
-              border: `1px solid ${activeTheme.accent}33`,
-              background: `radial-gradient(ellipse at 50% 20%, ${activeTheme.accent}12 0%, rgba(0,0,0,0.6) 70%)`,
+              border: `1px solid ${activeTheme.accent}44`,
+              background: `radial-gradient(ellipse at 50% 20%, ${activeTheme.accent}18 0%, rgba(0,0,0,0.7) 70%)`,
+              transition: 'box-shadow 0.4s ease',
+              boxShadow: isSpeaking ? `0 0 20px ${activeTheme.accent}66` : 'none',
             }}>
               <TalkingAvatar
                 avatarUrl={rpmAvatarUrl || undefined}
                 isSpeaking={isSpeaking}
                 analyserRef={analyserRef}
-                fill
+                height={240}
                 accentColor={activeTheme.accent || '#a855f7'}
                 showControls={false}
               />

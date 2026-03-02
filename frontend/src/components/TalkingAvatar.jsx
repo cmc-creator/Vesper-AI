@@ -16,8 +16,8 @@ import * as THREE from 'three';
 // ── Default model served from /public ──────────────────────────────────────────
 const DEFAULT_AVATAR_URL = '/model.glb';
 
-// ── Point camera at a world-space target (head/chest region) ──────────────────
-function CameraSetup({ target = [0, 0.7, 0] }) {
+// ── Point camera at a world-space target (head/face region) ──────────────────
+function CameraSetup({ target = [0, 1.55, 0] }) {
   const { camera } = useThree();
   React.useEffect(() => {
     camera.lookAt(...target);
@@ -231,12 +231,12 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 1.0, compact ? 1.6 : 2.0], fov: 32 }}
+        camera={{ position: [0, 1.55, 0.65], fov: 28 }}
         gl={{ antialias: true, alpha: true, toneMappingExposure: 1.6 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
       >
-        <CameraSetup target={[0, 0.65, 0]} />
+        <CameraSetup target={[0, 1.55, 0]} />
         {/* Bright ambient so dark-textured models stay visible */}
         <ambientLight intensity={2.2} />
         {/* Strong front key light */}
@@ -258,7 +258,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
             scale={compact ? 1.3 : 1.6}
             position={[0, 0, 0]}
           />
-          <ContactShadows position={[0, -1.2, 0]} opacity={0.35} scale={8} blur={2.5} />
+          <ContactShadows position={[0, 0, 0]} opacity={0.3} scale={4} blur={2} />
           <Environment preset="warehouse" />
         </Suspense>
 
