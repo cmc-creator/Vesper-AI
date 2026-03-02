@@ -90,44 +90,44 @@ export default function CreativeSuite({ apiBase, onBack }) {
 
   // Data Loading
   const loadBrands = useCallback(async () => {
-    if (!apiBase) return;
+    if (apiBase == null) return;
     try { const r = await fetch(`${apiBase}/api/brands`); const d = await r.json(); setBrands(Array.isArray(d) ? d : d.brands || []); } catch { setBrands([]); }
   }, [apiBase]);
 
   const loadContent = useCallback(async () => {
-    if (!apiBase) return;
+    if (apiBase == null) return;
     try { const r = await fetch(`${apiBase}/api/creative/content`); const d = await r.json(); setContentItems(Array.isArray(d) ? d : d.items || []); } catch { setContentItems([]); }
   }, [apiBase]);
 
   const loadStrategies = useCallback(async () => {
-    if (!apiBase) return;
+    if (apiBase == null) return;
     try { const r = await fetch(`${apiBase}/api/creative/strategies`); const d = await r.json(); setStrategies(Array.isArray(d) ? d : d.items || []); } catch { setStrategies([]); }
   }, [apiBase]);
 
   const loadCampaigns = useCallback(async () => {
-    if (!apiBase) return;
+    if (apiBase == null) return;
     try { const r = await fetch(`${apiBase}/api/creative/campaigns`); const d = await r.json(); setCampaigns(Array.isArray(d) ? d : d.items || []); } catch { setCampaigns([]); }
   }, [apiBase]);
 
   const checkGoogleStatus = useCallback(async () => {
-    if (!apiBase) return;
+    if (apiBase == null) return;
     setGoogleLoading(true);
     try { const r = await fetch(`${apiBase}/api/google/status`); const d = await r.json(); setGoogleStatus(d); } catch (e) { setGoogleStatus({ connected: false, error: e.message }); }
     setGoogleLoading(false);
   }, [apiBase]);
 
   const loadDriveFiles = useCallback(async () => {
-    if (!apiBase) return;
+    if (apiBase == null) return;
     try { const r = await fetch(`${apiBase}/api/google/drive/files?page_size=15`); const d = await r.json(); setDriveFiles(d.files || []); } catch { setDriveFiles([]); }
   }, [apiBase]);
 
   const loadCalendarEvents = useCallback(async () => {
-    if (!apiBase) return;
+    if (apiBase == null) return;
     try { const r = await fetch(`${apiBase}/api/google/calendar/events`); const d = await r.json(); setCalendarEvents(d.events || []); } catch { setCalendarEvents([]); }
   }, [apiBase]);
 
   const loadProjects = useCallback(async () => {
-    if (!apiBase) return;
+    if (apiBase == null) return;
     try { const r = await fetch(`${apiBase}/api/projects`); const d = await r.json(); setProjects(Array.isArray(d) ? d : d.projects || []); } catch { setProjects([]); }
   }, [apiBase]);
 
