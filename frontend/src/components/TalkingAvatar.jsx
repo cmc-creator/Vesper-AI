@@ -231,12 +231,12 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 1.55, 0.65], fov: 28 }}
+        camera={{ position: [0, 1.62, 0.9], fov: 38 }}
         gl={{ antialias: true, alpha: true, toneMappingExposure: 1.6 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
       >
-        <CameraSetup target={[0, 1.55, 0]} />
+        <CameraSetup target={[0, 1.62, 0]} />
         {/* Bright ambient so dark-textured models stay visible */}
         <ambientLight intensity={2.2} />
         {/* Strong front key light */}

@@ -6003,10 +6003,31 @@ export default function App() {
 
         <main className="content-grid">
           <section className="chat-panel glass-panel">
-            {/* ── Side-by-side: chat on left, avatar on right ── */}
-            <Box sx={{ display: 'flex', gap: 1.5, height: '100%', overflow: 'hidden' }}>
-            {/* ── Left: all existing chat UI ── */}
-            <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* ── Talking Avatar: fixed floating portrait overlay ── */}
+            <Box sx={{
+              position: 'fixed',
+              bottom: 90,
+              right: 20,
+              width: 170,
+              height: 230,
+              zIndex: 1200,
+              borderRadius: 2,
+              overflow: 'hidden',
+              border: `1px solid ${activeTheme.accent}44`,
+              background: `radial-gradient(ellipse at 50% 30%, ${activeTheme.accent}18 0%, rgba(0,0,0,0.8) 70%)`,
+              transition: 'box-shadow 0.4s ease',
+              boxShadow: isSpeaking ? `0 0 22px ${activeTheme.accent}66` : `0 4px 24px rgba(0,0,0,0.6)`,
+            }}>
+              <TalkingAvatar
+                avatarUrl={rpmAvatarUrl || undefined}
+                isSpeaking={isSpeaking}
+                analyserRef={analyserRef}
+                height={230}
+                accentColor={activeTheme.accent || '#a855f7'}
+                showControls={false}
+              />
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexShrink: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {/* Hamburger – mobile only */}
@@ -6856,30 +6877,7 @@ export default function App() {
                 )}
               </Box>
             )}
-            </Box>{/* end left chat column */}
-
-            {/* ── Right: Talking Avatar — small portrait beside chat ── */}
-            <Box sx={{
-              width: 160,
-              flexShrink: 0,
-              alignSelf: 'flex-start',
-              borderRadius: 2,
-              overflow: 'hidden',
-              border: `1px solid ${activeTheme.accent}44`,
-              background: `radial-gradient(ellipse at 50% 20%, ${activeTheme.accent}18 0%, rgba(0,0,0,0.7) 70%)`,
-              transition: 'box-shadow 0.4s ease',
-              boxShadow: isSpeaking ? `0 0 20px ${activeTheme.accent}66` : 'none',
-            }}>
-              <TalkingAvatar
-                avatarUrl={rpmAvatarUrl || undefined}
-                isSpeaking={isSpeaking}
-                analyserRef={analyserRef}
-                height={240}
-                accentColor={activeTheme.accent || '#a855f7'}
-                showControls={false}
-              />
             </Box>
-            </Box>{/* end flex row */}
           </section>
 
           <section className="ops-panel">
