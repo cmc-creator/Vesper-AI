@@ -105,14 +105,15 @@ function findUpperArmBones(sceneObject) {
 
 // ── GLB/GLTF model ─────────────────────────────────────────────────────────────
 function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
-  const groupRef  = useRef();
-  const mixerRef  = useRef(null);
+  const groupRef    = useRef();
+  const headRef     = useRef(null);
+  const spineRef    = useRef(null);
   const armBonesRef = useRef({ leftArms: [], rightArms: [] });
 
-  const { scene, animations } = useGLTF(url);
+  const { scene } = useGLTF(url);
+  // NOTE: We intentionally do NOT load animations — walking anim fights arm override.
+  // Procedural idle (breathing + head sway) is added in useFrame instead.
 
-  // Use SkeletonUtils.clone() — properly rebinds SkinnedMesh skeleton to cloned bones.
-  // scene.clone(true) does NOT do this, so modifying clone bones has zero effect on rendering.
   const cloned = React.useMemo(() => {
     const c = skeletonClone(scene);
     c.traverse((obj) => {
@@ -127,55 +128,48 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
     return c;
   }, [scene]);
 
-  // Start AnimationMixer + play first animation (idle)
   useEffect(() => {
     if (!cloned) return;
-    // Log ALL bone/node names so we can see what this specific GLB uses
-    const names = [];
-    cloned.traverse((obj) => { if (obj.name) names.push(`${obj.type}: ${obj.name}`); });
-    console.log('[Avatar] Scene nodes:', names.filter(n => /arm|shoulder|spine|hip|leg/i.test(n)).join('\n'));
+    const arms = findUpperArmBones(cloned);
+    armBonesRef.current = arms;
 
-    // Collect arm bones for per-frame override
-    armBonesRef.current = findUpperArmBones(cloned);
-    console.log('[Avatar] Found arm bones — left:', armBonesRef.current.leftArms.map(b=>b.name), 'right:', armBonesRef.current.rightArms.map(b=>b.name));
+    // Cache head + spine for procedural idle
+    cloned.traverse((obj) => {
+      const n = obj.name.toLowerCase();
+      if (!headRef.current   && (n === 'head' || n.includes('head')))              headRef.current  = obj;
+      if (!spineRef.current  && (n.includes('spine2') || n.includes('chest') || n.includes('upperchest'))) spineRef.current = obj;
+    });
 
-    if (animations && animations.length > 0) {
-      const mixer = new THREE.AnimationMixer(cloned);
-      // Play the first clip (usually idle)
-      const action = mixer.clipAction(animations[0]);
-      action.play();
-      mixerRef.current = mixer;
-    }
-    return () => { mixerRef.current?.stopAllAction(); mixerRef.current = null; };
-  }, [cloned, animations]);
+    console.log('[Avatar] arm bones L:', arms.leftArms.map(b=>b.name), 'R:', arms.rightArms.map(b=>b.name));
+  }, [cloned]);
 
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
 
   useFrame(({ clock }, delta) => {
-    // 1. Advance animations
-    mixerRef.current?.update(delta);
+    const t = clock.elapsedTime;
 
-    // 2. Override arm rotation AFTER mixer — set BOTH rotation AND quaternion
+    // 1. Arms down — no mixer fighting us, this is now guaranteed
     const { leftArms, rightArms } = armBonesRef.current;
-    leftArms.forEach(b  => {
-      b.rotation.set(0, 0,  1.4);
-      b.quaternion.setFromEuler(b.rotation);
-      b.matrixAutoUpdate = true;
-      b.updateMatrix();
-    });
-    rightArms.forEach(b => {
-      b.rotation.set(0, 0, -1.4);
-      b.quaternion.setFromEuler(b.rotation);
-      b.matrixAutoUpdate = true;
-      b.updateMatrix();
-    });
+    leftArms.forEach(b  => { b.quaternion.setFromEuler(new THREE.Euler(0, 0,  1.4)); });
+    rightArms.forEach(b => { b.quaternion.setFromEuler(new THREE.Euler(0, 0, -1.4)); });
 
-    // 3. Gentle float bob
-    if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(clock.elapsedTime * 0.7) * 0.04;
+    // 2. Procedural breathing — subtle chest rise
+    if (spineRef.current) {
+      spineRef.current.rotation.x = Math.sin(t * 0.8) * 0.012;
     }
 
-    // 4. Lip sync
+    // 3. Subtle head sway (alive feel)
+    if (headRef.current) {
+      headRef.current.rotation.y = Math.sin(t * 0.4) * 0.04;
+      headRef.current.rotation.z = Math.sin(t * 0.3) * 0.015;
+    }
+
+    // 4. Gentle vertical float on entire group
+    if (groupRef.current) {
+      groupRef.current.position.y = position[1] + Math.sin(t * 0.7) * 0.025;
+    }
+
+    // 5. Lip sync drives morph targets
     tick(delta);
   });
 
@@ -322,12 +316,12 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 1.62, 0.9], fov: 38 }}
-        gl={{ antialias: true, alpha: true, toneMappingExposure: 1.6 }}
+        camera={{ position: [0, 1.68, 0.52], fov: 22 }}
+        gl={{ antialias: true, alpha: true, toneMappingExposure: 1.4 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
       >
-        <CameraSetup target={[0, 1.62, 0]} />
+        <CameraSetup target={[0, 1.68, 0]} />
         {/* Low ambient — keeps shadows so the model reads as 3D */}
         <ambientLight intensity={0.35} />
         {/* Hemisphere for subtle sky/ground colour separation */}
