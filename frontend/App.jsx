@@ -6003,30 +6003,6 @@ export default function App() {
 
         <main className="content-grid">
           <section className="chat-panel glass-panel">
-            {/* ── Talking Avatar: fixed floating portrait overlay ── */}
-            <Box sx={{
-              position: 'fixed',
-              bottom: 90,
-              right: 20,
-              width: 170,
-              height: 230,
-              zIndex: 1200,
-              borderRadius: 2,
-              overflow: 'hidden',
-              border: `1px solid ${activeTheme.accent}44`,
-              background: `radial-gradient(ellipse at 50% 30%, ${activeTheme.accent}18 0%, rgba(0,0,0,0.8) 70%)`,
-              transition: 'box-shadow 0.4s ease',
-              boxShadow: isSpeaking ? `0 0 22px ${activeTheme.accent}66` : `0 4px 24px rgba(0,0,0,0.6)`,
-            }}>
-              <TalkingAvatar
-                avatarUrl={rpmAvatarUrl || undefined}
-                isSpeaking={isSpeaking}
-                analyserRef={analyserRef}
-                height={230}
-                accentColor={activeTheme.accent || '#a855f7'}
-                showControls={false}
-              />
-            </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexShrink: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -6881,12 +6857,27 @@ export default function App() {
           </section>
 
           <section className="ops-panel">
-            {/* ═══ COCKPIT COMMAND CENTER ═══ */}
-            <CockpitPanel
-              analyserRef={analyserRef}
-              isSpeaking={isSpeaking}
-              accentColor={activeTheme.accent || '#a855f7'}
-            />
+            {/* ═══ AVATAR PORTRAIT ═══ */}
+            <Box sx={{
+              width: '100%',
+              height: 260,
+              borderRadius: 3,
+              overflow: 'hidden',
+              border: `1px solid ${activeTheme.accent}44`,
+              background: `radial-gradient(ellipse at 50% 30%, ${activeTheme.accent}18 0%, rgba(0,0,0,0.85) 70%)`,
+              boxShadow: isSpeaking ? `0 0 28px ${activeTheme.accent}66` : `0 4px 24px rgba(0,0,0,0.5)`,
+              transition: 'box-shadow 0.4s ease',
+              mb: 2,
+            }}>
+              <TalkingAvatar
+                avatarUrl={rpmAvatarUrl || undefined}
+                isSpeaking={isSpeaking}
+                analyserRef={analyserRef}
+                height={260}
+                accentColor={activeTheme.accent || '#a855f7'}
+                showControls={false}
+              />
+            </Box>
 
             {/* Dashboard widgets row */}
             <Box className="panel-grid" sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2, mt: 1 }}>
