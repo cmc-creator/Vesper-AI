@@ -82,56 +82,87 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
   }, [analyserRef, isSpeaking, setMorph]);
 }
 
-function poseArmsDown(sceneObject) {
+// ── Collect upper-arm bones for per-frame override ────────────────────────────
+function findUpperArmBones(sceneObject) {
+  const leftArms = [], rightArms = [];
   sceneObject.traverse((obj) => {
     if (!obj.name) return;
     const n = obj.name.toLowerCase();
-    // Must contain "arm"
     if (!n.includes('arm')) return;
-    // Skip forearm / hand / wrist / fingers
     if (n.includes('forearm') || n.includes('lower') || n.includes('hand') ||
         n.includes('wrist')   || n.includes('finger') || n.includes('thumb') ||
         n.includes('index')   || n.includes('middle') || n.includes('ring')  ||
         n.includes('pinky')) return;
-    // Rotate upper arm down ~80°
-    if (n.includes('left'))  { obj.rotation.z =  1.4; obj.rotation.x = 0; obj.rotation.y = 0; }
-    if (n.includes('right')) { obj.rotation.z = -1.4; obj.rotation.x = 0; obj.rotation.y = 0; }
-    obj.updateMatrixWorld(true);
+    if (n.includes('left'))  leftArms.push(obj);
+    if (n.includes('right')) rightArms.push(obj);
   });
+  return { leftArms, rightArms };
 }
 
 // ── GLB/GLTF model ─────────────────────────────────────────────────────────────
 function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
-  const groupRef = useRef();
-  const { scene } = useGLTF(url);
+  const groupRef  = useRef();
+  const mixerRef  = useRef(null);
+  const armBonesRef = useRef({ leftArms: [], rightArms: [] });
 
-  // Deep-clone the scene so materials stay intact (preserves PBR/3D appearance)
+  const { scene, animations } = useGLTF(url);
+
+  // Deep-clone preserving PBR materials
   const cloned = React.useMemo(() => {
     const c = scene.clone(true);
-    // Re-assign cloned materials so PBR shading is preserved
     c.traverse((obj) => {
       if (obj.isMesh) {
-        if (Array.isArray(obj.material)) {
-          obj.material = obj.material.map(m => m.clone());
-        } else if (obj.material) {
-          obj.material = obj.material.clone();
-        }
+        obj.material = Array.isArray(obj.material)
+          ? obj.material.map(m => m.clone())
+          : obj.material.clone();
+        obj.castShadow    = true;
+        obj.receiveShadow = true;
       }
     });
-    // Apply arm pose immediately in useMemo AND again in useEffect
-    poseArmsDown(c);
     return c;
   }, [scene]);
 
-  // Re-apply after Three.js finishes its own scene processing
-  useEffect(() => { poseArmsDown(cloned); }, [cloned]);
+  // Start AnimationMixer + play first animation (idle)
+  useEffect(() => {
+    if (!cloned) return;
+    // Collect arm bones for per-frame override
+    armBonesRef.current = findUpperArmBones(cloned);
+
+    if (animations && animations.length > 0) {
+      const mixer = new THREE.AnimationMixer(cloned);
+      // Play the first clip (usually idle)
+      const action = mixer.clipAction(animations[0]);
+      action.play();
+      mixerRef.current = mixer;
+    }
+    return () => { mixerRef.current?.stopAllAction(); mixerRef.current = null; };
+  }, [cloned, animations]);
 
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
+
   useFrame(({ clock }, delta) => {
-    if (groupRef.current) groupRef.current.position.y = position[1] + Math.sin(clock.elapsedTime * 0.7) * 0.04;
+    // 1. Advance animations
+    mixerRef.current?.update(delta);
+
+    // 2. Override arm rotation AFTER mixer so it can't be undone
+    const { leftArms, rightArms } = armBonesRef.current;
+    leftArms.forEach(b  => { b.rotation.z =  1.4; b.rotation.x = 0; b.rotation.y = 0; });
+    rightArms.forEach(b => { b.rotation.z = -1.4; b.rotation.x = 0; b.rotation.y = 0; });
+
+    // 3. Gentle float bob
+    if (groupRef.current) {
+      groupRef.current.position.y = position[1] + Math.sin(clock.elapsedTime * 0.7) * 0.04;
+    }
+
+    // 4. Lip sync
     tick(delta);
   });
-  return <group ref={groupRef} position={position} scale={scale}><primitive object={cloned} /></group>;
+
+  return (
+    <group ref={groupRef} position={position} scale={scale}>
+      <primitive object={cloned} />
+    </group>
+  );
 }
 
 // ── FBX model ──────────────────────────────────────────────────────────────────
