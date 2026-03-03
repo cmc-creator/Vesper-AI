@@ -84,18 +84,19 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
 
 function poseArmsDown(sceneObject) {
   sceneObject.traverse((obj) => {
-    // Cast wide net — RPM GLBs sometimes use Object3D nodes, not Bone type
     if (!obj.name) return;
-    const n = obj.name;
-    const isForearm = /forearm|lower|hand|wrist|finger|thumb|index|middle|ring|pinky/i.test(n);
-    if (isForearm) return;
-    const isLeftUpper  = /(?:^|_)(left.*upper.*arm|leftarm|leftupperarm|l_upperarm|larm)$/i.test(n);
-    const isRightUpper = /(?:^|_)(right.*upper.*arm|rightarm|rightupperarm|r_upperarm|rarm)$/i.test(n);
-    // Also catch mixamo names
-    const isMixLeft  = /mixamorig.*leftarm$/i.test(n);
-    const isMixRight = /mixamorig.*rightarm$/i.test(n);
-    if (isLeftUpper  || isMixLeft)  { obj.rotation.z =  1.4; obj.rotation.x = 0.0; }
-    if (isRightUpper || isMixRight) { obj.rotation.z = -1.4; obj.rotation.x = 0.0; }
+    const n = obj.name.toLowerCase();
+    // Must contain "arm"
+    if (!n.includes('arm')) return;
+    // Skip forearm / hand / wrist / fingers
+    if (n.includes('forearm') || n.includes('lower') || n.includes('hand') ||
+        n.includes('wrist')   || n.includes('finger') || n.includes('thumb') ||
+        n.includes('index')   || n.includes('middle') || n.includes('ring')  ||
+        n.includes('pinky')) return;
+    // Rotate upper arm down ~80°
+    if (n.includes('left'))  { obj.rotation.z =  1.4; obj.rotation.x = 0; obj.rotation.y = 0; }
+    if (n.includes('right')) { obj.rotation.z = -1.4; obj.rotation.x = 0; obj.rotation.y = 0; }
+    obj.updateMatrixWorld(true);
   });
 }
 
@@ -117,10 +118,12 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
         }
       }
     });
+    // Apply arm pose immediately in useMemo AND again in useEffect
+    poseArmsDown(c);
     return c;
   }, [scene]);
 
-  // Apply arm pose after the cloned scene is ready
+  // Re-apply after Three.js finishes its own scene processing
   useEffect(() => { poseArmsDown(cloned); }, [cloned]);
 
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
