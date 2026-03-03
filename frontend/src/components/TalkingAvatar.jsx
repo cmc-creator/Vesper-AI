@@ -74,22 +74,21 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
   }, [analyserRef, isSpeaking, setMorph]);
 }
 
-// ── Auto-aims camera at the face based on actual model bounding box ───────────
-function AutoCamera({ target }) {
+// ── Fixed portrait camera — calibrated for scale=1.6 RPM model (~2.7 units tall)
+// Eye level ≈ y 2.45  → camera at y 2.4, z 0.8, fov 28 frames face + shoulders
+function CameraSetup() {
   const { camera } = useThree();
   useEffect(() => {
-    if (!target) return;
-    // Position camera close in front of the face target
-    camera.position.set(target.x, target.y, target.z + 0.38);
-    camera.fov = 18;
+    camera.position.set(0, 2.4, 0.8);
+    camera.fov = 28;
     camera.updateProjectionMatrix();
-    camera.lookAt(target.x, target.y, target.z);
-  }, [camera, target]);
+    camera.lookAt(0, 2.3, 0);
+  }, [camera]);
   return null;
 }
 
 // ── GLB/GLTF model ─────────────────────────────────────────────────────────────
-function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position, onFaceTarget }) {
+function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
   const groupRef  = useRef();
   const headRef   = useRef(null);
   const spineRef  = useRef(null);
@@ -112,26 +111,13 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position, onFac
 
   useEffect(() => {
     if (!cloned) return;
-
-    // Measure model bounding box to find face position
-    const box = new THREE.Box3().setFromObject(cloned);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const minY = box.min.y;
-    const height = size.y;
-    // Face target = 88% of the way up (just below crown of head)
-    const faceY = minY + height * 0.88;
-    const centerX = (box.min.x + box.max.x) / 2;
-    const centerZ = (box.min.z + box.max.z) / 2;
-    onFaceTarget?.({ x: centerX * scale, y: faceY * scale, z: centerZ });
-
     // Cache head + spine for procedural motion
     cloned.traverse((obj) => {
       const n = obj.name.toLowerCase();
       if (!headRef.current  && n.includes('head') && !n.includes('headtop') && !n.includes('end')) headRef.current  = obj;
       if (!spineRef.current && (n.includes('spine1') || n.includes('spine2') || n.includes('chest'))) spineRef.current = obj;
     });
-  }, [cloned, scale]);
+  }, [cloned]);
 
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
 
@@ -152,13 +138,6 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position, onFac
     }
     tick(delta);
   });
-
-  return (
-    <group ref={groupRef} position={position} scale={scale}>
-      <primitive object={cloned} />
-    </group>
-  );
-}
 
   return (
     <group ref={groupRef} position={position} scale={scale}>
@@ -201,9 +180,9 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
 }
 
 // ── Router: pick loader by file extension ──────────────────────────────────────
-function LipSyncModel({ url, onFaceTarget, ...props }) {
+function LipSyncModel({ url, ...props }) {
   if (url?.toLowerCase().endsWith('.fbx')) return <LipSyncModelFBX url={url} {...props} />;
-  return <LipSyncModelGLTF url={url} onFaceTarget={onFaceTarget} {...props} />;
+  return <LipSyncModelGLTF url={url} {...props} />;
 }
 
 // ─── Loading placeholder ──────────────────────────────────────────────────────
@@ -267,7 +246,6 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
   showControls = true,
 }, ref) {
   const [loadError, setLoadError] = useState(false);
-  const [faceTarget, setFaceTarget] = useState(null);
 
   // Fall back to bundled local model when no URL provided
   const resolvedUrl = avatarUrl || DEFAULT_AVATAR_URL;
@@ -304,13 +282,12 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 1.6, 0.5], fov: 18 }}
+        camera={{ position: [0, 2.4, 0.8], fov: 28 }}
         gl={{ antialias: true, alpha: true, toneMappingExposure: 1.4 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
       >
-        {/* AutoCamera aims at the face once model bounding box is computed */}
-        {faceTarget && <AutoCamera target={faceTarget} />}
+        <CameraSetup />
         {/* Low ambient — keeps shadows so the model reads as 3D */}
         <ambientLight intensity={0.35} />
         {/* Hemisphere for subtle sky/ground colour separation */}
@@ -331,7 +308,6 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
             isSpeaking={isSpeaking}
             scale={compact ? 1.3 : 1.6}
             position={[0, 0, 0]}
-            onFaceTarget={setFaceTarget}
           />
           <ContactShadows position={[0, 0, 0]} opacity={0.3} scale={4} blur={2} />
           <Environment preset="warehouse" />
