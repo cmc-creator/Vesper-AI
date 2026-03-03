@@ -82,11 +82,35 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
   }, [analyserRef, isSpeaking, setMorph]);
 }
 
+// ── Arm-down bone names used by Ready Player Me & common exporters ────────────
+const ARM_BONE_PATTERNS = [
+  /LeftArm$/i, /RightArm$/i,
+  /LeftUpperArm$/i, /RightUpperArm$/i,
+  /mixamorigLeftArm$/i, /mixamorigRightArm$/i,
+];
+
+function poseArmsDown(sceneObject) {
+  sceneObject.traverse((obj) => {
+    if (!obj.isBone && obj.type !== 'Bone') return;
+    const isLeft  = ARM_BONE_PATTERNS.slice(0, 4).some(p => p.test(obj.name)) || /left.*arm/i.test(obj.name);
+    const isRight = ARM_BONE_PATTERNS.slice(0, 4).some(p => p.test(obj.name)) || /right.*arm/i.test(obj.name);
+    // Only upper-arm (not forearm / hand)
+    const isForearm = /forearm|lower|hand|wrist/i.test(obj.name);
+    if (isForearm) return;
+    if (isLeft && !/right/i.test(obj.name))  { obj.rotation.z =  1.3; obj.rotation.x = 0.05; }
+    if (isRight && !/left/i.test(obj.name))  { obj.rotation.z = -1.3; obj.rotation.x = 0.05; }
+  });
+}
+
 // ── GLB/GLTF model ─────────────────────────────────────────────────────────────
 function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
   const groupRef = useRef();
   const { scene } = useGLTF(url);
-  const cloned = React.useMemo(() => scene.clone(true), [scene]);
+  const cloned = React.useMemo(() => {
+    const c = scene.clone(true);
+    poseArmsDown(c);
+    return c;
+  }, [scene]);
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
   useFrame(({ clock }, delta) => {
     if (groupRef.current) groupRef.current.position.y = position[1] + Math.sin(clock.elapsedTime * 0.7) * 0.04;
@@ -237,18 +261,18 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         onError={() => setLoadError(true)}
       >
         <CameraSetup target={[0, 1.62, 0]} />
-        {/* Bright ambient so dark-textured models stay visible */}
-        <ambientLight intensity={2.2} />
-        {/* Strong front key light */}
-        <directionalLight position={[0, 2, 4]} intensity={2.5} />
-        {/* Accent fill from the theme colour */}
-        <directionalLight position={[-2, 1, 2]} intensity={1.2} color={accentColor} />
-        {/* Rim light from behind */}
-        <directionalLight position={[0, 3, -3]} intensity={0.8} color="#ffffff" />
-        {/* Hemisphere sky/ground */}
-        <hemisphereLight skyColor="#e0e8ff" groundColor="#1a0a2e" intensity={1.0} />
-        {/* Speaking pulse light */}
-        <pointLight position={[0, 1, 1.5]} intensity={isSpeaking ? 1.5 : 0.4} color={accentColor} />
+        {/* Low ambient — keeps shadows so the model reads as 3D */}
+        <ambientLight intensity={0.35} />
+        {/* Hemisphere for subtle sky/ground colour separation */}
+        <hemisphereLight skyColor="#8ab4f8" groundColor="#1a0a2e" intensity={0.6} />
+        {/* Primary key light from upper-front-right */}
+        <directionalLight position={[1.5, 3, 3]} intensity={2.8} castShadow />
+        {/* Soft fill from the left — accent tinted */}
+        <directionalLight position={[-2, 1.5, 1]} intensity={0.9} color={accentColor} />
+        {/* Rim / back light for edge separation */}
+        <directionalLight position={[0, 2, -4]} intensity={0.7} color="#aaccff" />
+        {/* Speaking pulse — front warm point ✓ */}
+        <pointLight position={[0, 1.6, 1.2]} intensity={isSpeaking ? 1.8 : 0.0} color={accentColor} />
 
         <Suspense fallback={<LoadingFallback accentColor={accentColor} />}>
           <LipSyncModel
