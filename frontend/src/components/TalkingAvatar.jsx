@@ -82,23 +82,20 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
   }, [analyserRef, isSpeaking, setMorph]);
 }
 
-// ── Arm-down bone names used by Ready Player Me & common exporters ────────────
-const ARM_BONE_PATTERNS = [
-  /LeftArm$/i, /RightArm$/i,
-  /LeftUpperArm$/i, /RightUpperArm$/i,
-  /mixamorigLeftArm$/i, /mixamorigRightArm$/i,
-];
-
 function poseArmsDown(sceneObject) {
   sceneObject.traverse((obj) => {
-    if (!obj.isBone && obj.type !== 'Bone') return;
-    const isLeft  = ARM_BONE_PATTERNS.slice(0, 4).some(p => p.test(obj.name)) || /left.*arm/i.test(obj.name);
-    const isRight = ARM_BONE_PATTERNS.slice(0, 4).some(p => p.test(obj.name)) || /right.*arm/i.test(obj.name);
-    // Only upper-arm (not forearm / hand)
-    const isForearm = /forearm|lower|hand|wrist/i.test(obj.name);
+    // Cast wide net — RPM GLBs sometimes use Object3D nodes, not Bone type
+    if (!obj.name) return;
+    const n = obj.name;
+    const isForearm = /forearm|lower|hand|wrist|finger|thumb|index|middle|ring|pinky/i.test(n);
     if (isForearm) return;
-    if (isLeft && !/right/i.test(obj.name))  { obj.rotation.z =  1.3; obj.rotation.x = 0.05; }
-    if (isRight && !/left/i.test(obj.name))  { obj.rotation.z = -1.3; obj.rotation.x = 0.05; }
+    const isLeftUpper  = /(?:^|_)(left.*upper.*arm|leftarm|leftupperarm|l_upperarm|larm)$/i.test(n);
+    const isRightUpper = /(?:^|_)(right.*upper.*arm|rightarm|rightupperarm|r_upperarm|rarm)$/i.test(n);
+    // Also catch mixamo names
+    const isMixLeft  = /mixamorig.*leftarm$/i.test(n);
+    const isMixRight = /mixamorig.*rightarm$/i.test(n);
+    if (isLeftUpper  || isMixLeft)  { obj.rotation.z =  1.4; obj.rotation.x = 0.0; }
+    if (isRightUpper || isMixRight) { obj.rotation.z = -1.4; obj.rotation.x = 0.0; }
   });
 }
 
@@ -106,11 +103,26 @@ function poseArmsDown(sceneObject) {
 function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
   const groupRef = useRef();
   const { scene } = useGLTF(url);
+
+  // Deep-clone the scene so materials stay intact (preserves PBR/3D appearance)
   const cloned = React.useMemo(() => {
     const c = scene.clone(true);
-    poseArmsDown(c);
+    // Re-assign cloned materials so PBR shading is preserved
+    c.traverse((obj) => {
+      if (obj.isMesh) {
+        if (Array.isArray(obj.material)) {
+          obj.material = obj.material.map(m => m.clone());
+        } else if (obj.material) {
+          obj.material = obj.material.clone();
+        }
+      }
+    });
     return c;
   }, [scene]);
+
+  // Apply arm pose after the cloned scene is ready
+  useEffect(() => { poseArmsDown(cloned); }, [cloned]);
+
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
   useFrame(({ clock }, delta) => {
     if (groupRef.current) groupRef.current.position.y = position[1] + Math.sin(clock.elapsedTime * 0.7) * 0.04;

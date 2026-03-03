@@ -6859,21 +6859,22 @@ export default function App() {
           <section className="ops-panel">
             {/* ═══ AVATAR PORTRAIT ═══ */}
             <Box sx={{
-              width: '100%',
-              height: 260,
+              width: 170,
+              height: 230,
+              mx: 'auto',
+              mb: 2,
               borderRadius: 3,
               overflow: 'hidden',
               border: `1px solid ${activeTheme.accent}44`,
               background: `radial-gradient(ellipse at 50% 30%, ${activeTheme.accent}18 0%, rgba(0,0,0,0.85) 70%)`,
               boxShadow: isSpeaking ? `0 0 28px ${activeTheme.accent}66` : `0 4px 24px rgba(0,0,0,0.5)`,
               transition: 'box-shadow 0.4s ease',
-              mb: 2,
             }}>
               <TalkingAvatar
                 avatarUrl={rpmAvatarUrl || undefined}
                 isSpeaking={isSpeaking}
                 analyserRef={analyserRef}
-                height={260}
+                height={230}
                 accentColor={activeTheme.accent || '#a855f7'}
                 showControls={false}
               />
