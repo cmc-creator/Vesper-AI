@@ -669,6 +669,7 @@ export default function App() {
   const chatContainerRef = useRef(null);
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
+  const sendingRef = useRef(false); // prevents double-send from onKeyDown + onSubmit racing
 
   // Drag-and-drop sensor setup
   const sensors = useSensors(
@@ -1182,7 +1183,9 @@ export default function App() {
   };
 
   const sendMessage = async () => {
+    if (sendingRef.current) return;
     if ((!input.trim() && uploadedImages.length === 0) || loading) return;
+    sendingRef.current = true;
     const userMessage = input.trim();
     const currentImages = [...uploadedImages]; // Capture images
     
@@ -1404,6 +1407,7 @@ export default function App() {
     } catch (error) {
       if (error.name === 'AbortError') {
         console.log('🛑 Generation stopped by user');
+        sendingRef.current = false;
         return;
       }
       console.error('❌ Chat error:', error);
@@ -1420,6 +1424,7 @@ export default function App() {
       setLoading(false);
       setThinking(false);
       setThinkingStatus('');
+      sendingRef.current = false;
     }
   };
 

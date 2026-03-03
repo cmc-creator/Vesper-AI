@@ -144,10 +144,18 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
     // 1. Advance animations
     mixerRef.current?.update(delta);
 
-    // 2. Override arm rotation AFTER mixer so it can't be undone
+    // 2. Override arm rotation AFTER mixer — force matrix update so GLTF bones actually move
     const { leftArms, rightArms } = armBonesRef.current;
-    leftArms.forEach(b  => { b.rotation.z =  1.4; b.rotation.x = 0; b.rotation.y = 0; });
-    rightArms.forEach(b => { b.rotation.z = -1.4; b.rotation.x = 0; b.rotation.y = 0; });
+    leftArms.forEach(b  => {
+      b.rotation.set(0, 0,  1.4);
+      b.matrixAutoUpdate = true;
+      b.updateMatrix();
+    });
+    rightArms.forEach(b => {
+      b.rotation.set(0, 0, -1.4);
+      b.matrixAutoUpdate = true;
+      b.updateMatrix();
+    });
 
     // 3. Gentle float bob
     if (groupRef.current) {
