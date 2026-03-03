@@ -6349,10 +6349,7 @@ export default function App() {
 
             <Paper
               component="form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                sendMessage();
-              }}
+              onSubmit={(e) => { e.preventDefault(); }}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}

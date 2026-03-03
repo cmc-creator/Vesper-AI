@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useFBX, OrbitControls, Environment, ContactShadows, Html } from '@react-three/drei';
+import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import { GraphicEq } from '@mui/icons-material';
 import * as THREE from 'three';
@@ -88,13 +89,16 @@ function findUpperArmBones(sceneObject) {
   sceneObject.traverse((obj) => {
     if (!obj.name) return;
     const n = obj.name.toLowerCase();
-    if (!n.includes('arm')) return;
-    if (n.includes('forearm') || n.includes('lower') || n.includes('hand') ||
-        n.includes('wrist')   || n.includes('finger') || n.includes('thumb') ||
-        n.includes('index')   || n.includes('middle') || n.includes('ring')  ||
-        n.includes('pinky')) return;
-    if (n.includes('left'))  leftArms.push(obj);
-    if (n.includes('right')) rightArms.push(obj);
+    // Skip anything that is clearly NOT an upper arm
+    const skip = ['forearm','lower','hand','wrist','finger','thumb',
+                  'index','middle','ring','pinky','head','neck','spine',
+                  'hip','leg','knee','foot','toe','jaw','eye','ear'];
+    if (skip.some(s => n.includes(s))) return;
+    // Must mention arm OR shoulder (shoulders also need to be rotated down)
+    if (!n.includes('arm') && !n.includes('shoulder')) return;
+    // Left vs right
+    if (n.includes('left')  || n.startsWith('l_') || / l[._]/i.test(obj.name)) leftArms.push(obj);
+    if (n.includes('right') || n.startsWith('r_') || / r[._]/i.test(obj.name)) rightArms.push(obj);
   });
   return { leftArms, rightArms };
 }
@@ -107,9 +111,10 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
 
   const { scene, animations } = useGLTF(url);
 
-  // Deep-clone preserving PBR materials
+  // Use SkeletonUtils.clone() — properly rebinds SkinnedMesh skeleton to cloned bones.
+  // scene.clone(true) does NOT do this, so modifying clone bones has zero effect on rendering.
   const cloned = React.useMemo(() => {
-    const c = scene.clone(true);
+    const c = skeletonClone(scene);
     c.traverse((obj) => {
       if (obj.isMesh) {
         obj.material = Array.isArray(obj.material)
@@ -125,8 +130,14 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
   // Start AnimationMixer + play first animation (idle)
   useEffect(() => {
     if (!cloned) return;
+    // Log ALL bone/node names so we can see what this specific GLB uses
+    const names = [];
+    cloned.traverse((obj) => { if (obj.name) names.push(`${obj.type}: ${obj.name}`); });
+    console.log('[Avatar] Scene nodes:', names.filter(n => /arm|shoulder|spine|hip|leg/i.test(n)).join('\n'));
+
     // Collect arm bones for per-frame override
     armBonesRef.current = findUpperArmBones(cloned);
+    console.log('[Avatar] Found arm bones — left:', armBonesRef.current.leftArms.map(b=>b.name), 'right:', armBonesRef.current.rightArms.map(b=>b.name));
 
     if (animations && animations.length > 0) {
       const mixer = new THREE.AnimationMixer(cloned);
@@ -144,15 +155,17 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
     // 1. Advance animations
     mixerRef.current?.update(delta);
 
-    // 2. Override arm rotation AFTER mixer — force matrix update so GLTF bones actually move
+    // 2. Override arm rotation AFTER mixer — set BOTH rotation AND quaternion
     const { leftArms, rightArms } = armBonesRef.current;
     leftArms.forEach(b  => {
       b.rotation.set(0, 0,  1.4);
+      b.quaternion.setFromEuler(b.rotation);
       b.matrixAutoUpdate = true;
       b.updateMatrix();
     });
     rightArms.forEach(b => {
       b.rotation.set(0, 0, -1.4);
+      b.quaternion.setFromEuler(b.rotation);
       b.matrixAutoUpdate = true;
       b.updateMatrix();
     });
