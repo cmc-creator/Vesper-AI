@@ -14,17 +14,8 @@ import { Box, Typography, CircularProgress } from '@mui/material';
 import { GraphicEq } from '@mui/icons-material';
 import * as THREE from 'three';
 
-// ── Default model served from /public ──────────────────────────────────────────
+// ── Default model served from /public ─────────────────────────────────────────
 const DEFAULT_AVATAR_URL = '/model.glb';
-
-// ── Point camera at a world-space target (head/face region) ──────────────────
-function CameraSetup({ target = [0, 1.55, 0] }) {
-  const { camera } = useThree();
-  React.useEffect(() => {
-    camera.lookAt(...target);
-  }, [camera, target[0], target[1], target[2]]);
-  return null;
-}
 
 // ─── Viseme cycle (rotates through adjacent mouth shapes while speaking) ─────
 const VISEME_SHAPES = [
@@ -83,36 +74,27 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
   }, [analyserRef, isSpeaking, setMorph]);
 }
 
-// ── Collect upper-arm bones for per-frame override ────────────────────────────
-function findUpperArmBones(sceneObject) {
-  const leftArms = [], rightArms = [];
-  sceneObject.traverse((obj) => {
-    if (!obj.name) return;
-    const n = obj.name.toLowerCase();
-    // Skip anything that is clearly NOT an upper arm
-    const skip = ['forearm','lower','hand','wrist','finger','thumb',
-                  'index','middle','ring','pinky','head','neck','spine',
-                  'hip','leg','knee','foot','toe','jaw','eye','ear'];
-    if (skip.some(s => n.includes(s))) return;
-    // Must mention arm OR shoulder (shoulders also need to be rotated down)
-    if (!n.includes('arm') && !n.includes('shoulder')) return;
-    // Left vs right
-    if (n.includes('left')  || n.startsWith('l_') || / l[._]/i.test(obj.name)) leftArms.push(obj);
-    if (n.includes('right') || n.startsWith('r_') || / r[._]/i.test(obj.name)) rightArms.push(obj);
-  });
-  return { leftArms, rightArms };
+// ── Auto-aims camera at the face based on actual model bounding box ───────────
+function AutoCamera({ target }) {
+  const { camera } = useThree();
+  useEffect(() => {
+    if (!target) return;
+    // Position camera close in front of the face target
+    camera.position.set(target.x, target.y, target.z + 0.38);
+    camera.fov = 18;
+    camera.updateProjectionMatrix();
+    camera.lookAt(target.x, target.y, target.z);
+  }, [camera, target]);
+  return null;
 }
 
 // ── GLB/GLTF model ─────────────────────────────────────────────────────────────
-function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
-  const groupRef    = useRef();
-  const headRef     = useRef(null);
-  const spineRef    = useRef(null);
-  const armBonesRef = useRef({ leftArms: [], rightArms: [] });
+function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position, onFaceTarget }) {
+  const groupRef  = useRef();
+  const headRef   = useRef(null);
+  const spineRef  = useRef(null);
 
   const { scene } = useGLTF(url);
-  // NOTE: We intentionally do NOT load animations — walking anim fights arm override.
-  // Procedural idle (breathing + head sway) is added in useFrame instead.
 
   const cloned = React.useMemo(() => {
     const c = skeletonClone(scene);
@@ -121,7 +103,7 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
         obj.material = Array.isArray(obj.material)
           ? obj.material.map(m => m.clone())
           : obj.material.clone();
-        obj.castShadow    = true;
+        obj.castShadow = true;
         obj.receiveShadow = true;
       }
     });
@@ -130,48 +112,53 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
 
   useEffect(() => {
     if (!cloned) return;
-    const arms = findUpperArmBones(cloned);
-    armBonesRef.current = arms;
 
-    // Cache head + spine for procedural idle
+    // Measure model bounding box to find face position
+    const box = new THREE.Box3().setFromObject(cloned);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const minY = box.min.y;
+    const height = size.y;
+    // Face target = 88% of the way up (just below crown of head)
+    const faceY = minY + height * 0.88;
+    const centerX = (box.min.x + box.max.x) / 2;
+    const centerZ = (box.min.z + box.max.z) / 2;
+    onFaceTarget?.({ x: centerX * scale, y: faceY * scale, z: centerZ });
+
+    // Cache head + spine for procedural motion
     cloned.traverse((obj) => {
       const n = obj.name.toLowerCase();
-      if (!headRef.current   && (n === 'head' || n.includes('head')))              headRef.current  = obj;
-      if (!spineRef.current  && (n.includes('spine2') || n.includes('chest') || n.includes('upperchest'))) spineRef.current = obj;
+      if (!headRef.current  && n.includes('head') && !n.includes('headtop') && !n.includes('end')) headRef.current  = obj;
+      if (!spineRef.current && (n.includes('spine1') || n.includes('spine2') || n.includes('chest'))) spineRef.current = obj;
     });
-
-    console.log('[Avatar] arm bones L:', arms.leftArms.map(b=>b.name), 'R:', arms.rightArms.map(b=>b.name));
-  }, [cloned]);
+  }, [cloned, scale]);
 
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
 
   useFrame(({ clock }, delta) => {
     const t = clock.elapsedTime;
-
-    // 1. Arms down — no mixer fighting us, this is now guaranteed
-    const { leftArms, rightArms } = armBonesRef.current;
-    leftArms.forEach(b  => { b.quaternion.setFromEuler(new THREE.Euler(0, 0,  1.4)); });
-    rightArms.forEach(b => { b.quaternion.setFromEuler(new THREE.Euler(0, 0, -1.4)); });
-
-    // 2. Procedural breathing — subtle chest rise
-    if (spineRef.current) {
-      spineRef.current.rotation.x = Math.sin(t * 0.8) * 0.012;
-    }
-
-    // 3. Subtle head sway (alive feel)
+    // Subtle head sway — alive, not robotic
     if (headRef.current) {
-      headRef.current.rotation.y = Math.sin(t * 0.4) * 0.04;
-      headRef.current.rotation.z = Math.sin(t * 0.3) * 0.015;
+      headRef.current.rotation.y = Math.sin(t * 0.35) * 0.05;
+      headRef.current.rotation.z = Math.sin(t * 0.28) * 0.018;
     }
-
-    // 4. Gentle vertical float on entire group
+    // Breathing
+    if (spineRef.current) {
+      spineRef.current.rotation.x = Math.sin(t * 0.75) * 0.013;
+    }
+    // Gentle float bob
     if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(t * 0.7) * 0.025;
+      groupRef.current.position.y = position[1] + Math.sin(t * 0.6) * 0.02;
     }
-
-    // 5. Lip sync drives morph targets
     tick(delta);
   });
+
+  return (
+    <group ref={groupRef} position={position} scale={scale}>
+      <primitive object={cloned} />
+    </group>
+  );
+}
 
   return (
     <group ref={groupRef} position={position} scale={scale}>
@@ -214,9 +201,9 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
 }
 
 // ── Router: pick loader by file extension ──────────────────────────────────────
-function LipSyncModel({ url, ...props }) {
+function LipSyncModel({ url, onFaceTarget, ...props }) {
   if (url?.toLowerCase().endsWith('.fbx')) return <LipSyncModelFBX url={url} {...props} />;
-  return <LipSyncModelGLTF url={url} {...props} />;
+  return <LipSyncModelGLTF url={url} onFaceTarget={onFaceTarget} {...props} />;
 }
 
 // ─── Loading placeholder ──────────────────────────────────────────────────────
@@ -280,6 +267,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
   showControls = true,
 }, ref) {
   const [loadError, setLoadError] = useState(false);
+  const [faceTarget, setFaceTarget] = useState(null);
 
   // Fall back to bundled local model when no URL provided
   const resolvedUrl = avatarUrl || DEFAULT_AVATAR_URL;
@@ -316,12 +304,13 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 1.68, 0.52], fov: 22 }}
+        camera={{ position: [0, 1.6, 0.5], fov: 18 }}
         gl={{ antialias: true, alpha: true, toneMappingExposure: 1.4 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
       >
-        <CameraSetup target={[0, 1.68, 0]} />
+        {/* AutoCamera aims at the face once model bounding box is computed */}
+        {faceTarget && <AutoCamera target={faceTarget} />}
         {/* Low ambient — keeps shadows so the model reads as 3D */}
         <ambientLight intensity={0.35} />
         {/* Hemisphere for subtle sky/ground colour separation */}
@@ -342,6 +331,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
             isSpeaking={isSpeaking}
             scale={compact ? 1.3 : 1.6}
             position={[0, 0, 0]}
+            onFaceTarget={setFaceTarget}
           />
           <ContactShadows position={[0, 0, 0]} opacity={0.3} scale={4} blur={2} />
           <Environment preset="warehouse" />
