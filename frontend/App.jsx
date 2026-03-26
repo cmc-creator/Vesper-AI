@@ -116,10 +116,54 @@ import './src/enhancements.css';
 const baseTheme = createTheme({
   palette: {
     mode: 'dark',
-    primary: { main: '#00ffff' },
-    background: { default: '#000', paper: 'rgba(8, 10, 24, 0.8)' },
+    primary: { main: '#c9a84c' },
+    secondary: { main: '#8b7cf6' },
+    background: { default: '#0c0c10', paper: 'rgba(14, 14, 20, 0.92)' },
+    text: { primary: '#f1f1f3', secondary: '#8b8b9a' },
+    divider: 'rgba(255, 255, 255, 0.07)',
   },
-  typography: { fontFamily: '"Inter", "Segoe UI", -apple-system, sans-serif' },
+  typography: {
+    fontFamily: '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif',
+    h1: { fontWeight: 700, letterSpacing: '-0.025em' },
+    h2: { fontWeight: 700, letterSpacing: '-0.02em' },
+    h3: { fontWeight: 600, letterSpacing: '-0.015em' },
+    h4: { fontWeight: 600, letterSpacing: '-0.01em' },
+    h5: { fontWeight: 600 },
+    h6: { fontWeight: 600 },
+    body1: { lineHeight: 1.65 },
+    body2: { lineHeight: 1.6 },
+  },
+  shape: { borderRadius: 10 },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 500,
+          letterSpacing: '0.01em',
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: { fontWeight: 500 },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'rgba(255,255,255,0.15)',
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'rgba(201,168,76,0.5)',
+            },
+          },
+        },
+      },
+    },
+  },
 });
 
 // ─── Slash Command Definitions ───────────────────────────────────────────────
@@ -134,128 +178,120 @@ const SLASH_CMD_LIST = [
 
 // ─── Vesper Personality Quips ────────────────────────────────────────────────
 const VESPER_QUIPS = {
-  taskDone:    ['⚡ Task obliterated. You\'re on fire.', '✅ Done deal. Vesper approves.', '💫 Check! Another one bites the dust.', '🔥 That\'s how it\'s done. Boom.', '🎯 Mission accomplished.', '✨ Tick. You magnificent human.'],
-  taskAdded:   ['📋 Task locked and loaded.', '⚙️ Added to the matrix. Let\'s get it.', '🎯 New target acquired.', '📌 Pinned. Don\'t ghost it.'],
-  memoryAdded: ['🧠 Locked in. Vesper won\'t forget.', '💾 Stored in the vault.', '🗝️ Memory crystal archived.', '✨ Remembered. Forever.'],
-  focusStart:  ['🎯 Focus mode: ACTIVATED. No distractions.', '⏲️ 25 minutes. You\'ve got this.', '🔥 All systems focused. Let\'s GO.', '🧠 Deep work mode. Vesper is watching over you.'],
-  focusDone:   ['🎉 Work session complete! Take your break.', '✨ Pomodoro CRUSHED. Rest up.', '🔥 Session done. Vesper is proud.', '💫 That\'s 25 focused minutes. Beautiful.'],
-  breakDone:   ['🎯 Break over — back to domination.', '⚡ Recharged. Let\'s go again.', '💫 Back in the zone.', '🔥 Break\'s done. Finish what you started.'],
+  taskDone:    ['Task complete.', 'Done. Well executed.', 'Finished. Onto the next.', 'Marked complete.', 'Accomplished.'],
+  taskAdded:   ['Task added.', 'Noted. Ready when you are.', 'Added to your queue.', 'On the list.'],
+  memoryAdded: ['Remembered.', 'Stored to memory.', 'Noted for later.', 'Saved.'],
+  focusStart:  ['Focus session started. 25 minutes.', 'Deep work mode. No interruptions.', 'Focus active. You have this.', 'Timer running.'],
+  focusDone:   ['Session complete. Take a break.', '25 minutes done. Rest up.', 'Focus session finished.', 'Good work. Break time.'],
+  breakDone:   ['Break over. Back to it.', 'Recharged. Resume when ready.', 'Break complete.', 'Ready to continue.'],
 };
 
 // ─── Theme Helpers ─────────────────────────────────────────────────────────
 const hexToRgb = (hex) => {
-  if (!hex || !hex.startsWith('#')) return '0, 255, 255';
+  if (!hex || !hex.startsWith('#')) return '201, 168, 76';
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `${r}, ${g}, ${b}`;
 };
 
-// ─── Theme Categories & Massive Theme Catalog ─────────────────────────────
+// ─── Theme Catalog ─────────────────────────────────────────────────────────
 const THEME_CATEGORIES = [
-  { id: 'packages', label: '✨ Theme Packages', desc: 'Full immersive visual worlds — textures, fonts, animations & all' },
-  { id: 'tech', label: '⚡ Tech & Cyber', desc: 'High-tech neon vibes' },
-  { id: 'soft', label: '🌸 Soft & Minimal', desc: 'Clean, gentle aesthetics' },
-  { id: 'dark', label: '🖤 Dark & Moody', desc: 'Deep shadows, rich tones' },
-  { id: 'nature', label: '🌿 Nature & Landscape', desc: 'Earthy, organic hues' },
-  { id: 'season', label: '🍂 Seasons', desc: 'Seasonal color palettes' },
-  { id: 'holiday', label: '🎄 Holidays', desc: 'Festive celebrations' },
-  { id: 'retro', label: '📼 Retro & Vintage', desc: 'Nostalgic throwbacks' },
-  { id: 'cosmic', label: '🌌 Cosmic & Fantasy', desc: 'Otherworldly dreamscapes' },
+  { id: 'signature', label: 'Signature',  desc: "Vesper's curated palette" },
+  { id: 'cool',      label: 'Cool',       desc: 'Blues, purples, greens'    },
+  { id: 'warm',      label: 'Warm',       desc: 'Golds, ambers, embers'     },
 ];
 
 const THEMES = [
-  // ── THEME PACKAGES ─ Full immersive visual worlds ──────────────────────────
-  { id: 'oak-workshop',    label: '🪵 Oak Workshop',    accent: '#d4a855', glow: '#e8b84b', sub: '#a07828', category: 'packages', bg: 'linear-gradient(160deg, #1c0d04 0%, #2a1508 45%, #1a0b03 100%)', panelBg: 'rgba(58,30,10,0.97)',  sound: 'ambient',  scanlines: false, style: 'wood'     },
-  { id: 'iron-forge',      label: '⚙️ Iron Forge',      accent: '#a8c4d8', glow: '#c0d8f0', sub: '#6090b0', category: 'packages', bg: 'linear-gradient(160deg, #080d14 0%, #0d1828 50%, #080d14 100%)', panelBg: 'rgba(18,24,38,0.98)', sound: 'digital',  scanlines: false, style: 'metal'    },
-  { id: 'deep-rainforest', label: '🌴 Deep Rainforest', accent: '#34d058', glow: '#22bb44', sub: '#16803a', category: 'packages', bg: 'linear-gradient(160deg, #030d05 0%, #061508 45%, #030b04 100%)', panelBg: 'rgba(10,32,14,0.97)',  sound: 'nature',   scanlines: false, style: 'forest'   },
-  { id: 'ocean-abyss',     label: '🌊 Ocean Abyss',     accent: '#38bdf8', glow: '#0ea5e9', sub: '#0369a1', category: 'packages', bg: 'linear-gradient(180deg, #010610 0%, #000b1e 50%, #000814 100%)', panelBg: 'rgba(6,16,40,0.97)',   sound: 'ambient',  scanlines: false, style: 'ocean'    },
-  { id: 'volcanic-forge',  label: '🌋 Volcanic Forge',  accent: '#f97316', glow: '#ea580c', sub: '#b91c1c', category: 'packages', bg: 'linear-gradient(160deg, #0d0200 0%, #1a0300 50%, #0d0100 100%)', panelBg: 'rgba(44,14,4,0.98)',   sound: 'dark',     scanlines: false, style: 'volcanic' },
-  { id: 'arctic-glass',    label: '🧊 Arctic Glass',    accent: '#bae6fd', glow: '#e0f2fe', sub: '#7dd3fc', category: 'packages', bg: 'linear-gradient(180deg, #030c18 0%, #051020 50%, #030c18 100%)', panelBg: 'rgba(12,24,46,0.88)',  sound: 'ambient',  scanlines: false, style: 'arctic'   },
+  // ── Signature ──────────────────────────────────────────────────────────────
+  {
+    id: 'vesper-gold', label: 'Vesper Gold',
+    accent: '#c9a84c', glow: '#d4b560', sub: '#a0803a',
+    category: 'signature',
+    bg: 'linear-gradient(160deg, #0a0a0d 0%, #0f0e12 50%, #0a0a0d 100%)',
+    panelBg: 'rgba(12, 12, 18, 0.94)',
+    scanlines: false, sound: 'ambient',
+  },
+  {
+    id: 'obsidian', label: 'Obsidian',
+    accent: '#a8a8b8', glow: '#c4c4d4', sub: '#787888',
+    category: 'signature',
+    bg: 'linear-gradient(160deg, #080808 0%, #0d0d10 50%, #080808 100%)',
+    panelBg: 'rgba(10, 10, 14, 0.96)',
+    scanlines: false, sound: 'dark',
+  },
+  {
+    id: 'midnight-indigo', label: 'Midnight Indigo',
+    accent: '#8b7cf6', glow: '#a99af8', sub: '#6b5dd4',
+    category: 'signature',
+    bg: 'linear-gradient(160deg, #08080f 0%, #0c0b18 50%, #08080f 100%)',
+    panelBg: 'rgba(10, 10, 20, 0.94)',
+    scanlines: false, sound: 'ambient',
+  },
 
-  // ── TECH & CYBER ──────────────────────────────────
-  { id: 'cyan', label: 'Cyan Matrix', accent: '#00ffff', glow: '#00fff2', sub: '#00ff88', category: 'tech', bg: 'linear-gradient(135deg, #000a0f, #001a1a)', panelBg: 'rgba(0,0,0,0.75)', sound: 'digital', scanlines: true },
-  { id: 'green', label: 'Neon Green', accent: '#00ff00', glow: '#00ff00', sub: '#00dd00', category: 'tech', bg: 'linear-gradient(135deg, #000800, #001a00)', panelBg: 'rgba(0,5,0,0.75)', sound: 'digital', scanlines: true },
-  { id: 'purple', label: 'Purple Haze', accent: '#c084fc', glow: '#a855f7', sub: '#7c3aed', category: 'tech', bg: 'linear-gradient(135deg, #0a0015, #150025)', panelBg: 'rgba(10,0,20,0.75)', sound: 'synth' },
-  { id: 'blue', label: 'Electric Blue', accent: '#5ad7ff', glow: '#4ba3ff', sub: '#3b82f6', category: 'tech', bg: 'linear-gradient(135deg, #000a1a, #001030)', panelBg: 'rgba(0,5,15,0.75)', sound: 'digital' },
-  { id: 'pink', label: 'Cyber Pink', accent: '#ff6ad5', glow: '#ff8bd7', sub: '#ff4db8', category: 'tech', bg: 'linear-gradient(135deg, #1a0012, #200018)', panelBg: 'rgba(15,0,10,0.75)', sound: 'synth' },
-  { id: 'orange', label: 'Solar Flare', accent: '#ff8800', glow: '#ff9933', sub: '#ff6600', category: 'tech', bg: 'linear-gradient(135deg, #1a0c00, #201000)', panelBg: 'rgba(10,5,0,0.75)', sound: 'digital' },
-  { id: 'red', label: 'Blood Moon', accent: '#ff0044', glow: '#ff3366', sub: '#cc0033', category: 'tech', bg: 'linear-gradient(135deg, #1a0008, #200010)', panelBg: 'rgba(15,0,5,0.75)', sound: 'dark' },
-  { id: 'lime', label: 'Toxic Waste', accent: '#c0ff00', glow: '#d4ff33', sub: '#a8cc00', category: 'tech', bg: 'linear-gradient(135deg, #0a0d00, #141a00)', panelBg: 'rgba(5,8,0,0.75)', sound: 'digital', scanlines: true },
-  { id: 'hacker', label: 'Hacker Terminal', accent: '#33ff33', glow: '#00ff00', sub: '#009900', category: 'tech', bg: '#000000', panelBg: 'rgba(0,0,0,0.9)', sound: 'digital', scanlines: true },
-  { id: 'vaporwave', label: 'Vaporwave', accent: '#ff71ce', glow: '#01cdfe', sub: '#b967ff', category: 'tech', bg: 'linear-gradient(180deg, #1a0033, #000033, #330033)', panelBg: 'rgba(10,0,20,0.7)', sound: 'synth' },
+  // ── Cool ───────────────────────────────────────────────────────────────────
+  {
+    id: 'deep-ocean', label: 'Deep Ocean',
+    accent: '#4ab8d8', glow: '#68cce8', sub: '#2e98b8',
+    category: 'cool',
+    bg: 'linear-gradient(160deg, #06090f 0%, #080c16 50%, #06090f 100%)',
+    panelBg: 'rgba(8, 12, 22, 0.94)',
+    scanlines: false, sound: 'ambient',
+  },
+  {
+    id: 'sage-stone', label: 'Sage & Stone',
+    accent: '#7aab8c', glow: '#96c4a8', sub: '#5a8b6c',
+    category: 'cool',
+    bg: 'linear-gradient(160deg, #080d09 0%, #0c1210 50%, #080d09 100%)',
+    panelBg: 'rgba(10, 14, 12, 0.94)',
+    scanlines: false, sound: 'nature',
+  },
+  {
+    id: 'arctic', label: 'Arctic',
+    accent: '#90c4d8', glow: '#aad8ec', sub: '#6aaccc',
+    category: 'cool',
+    bg: 'linear-gradient(160deg, #080c10 0%, #0c1218 50%, #080c10 100%)',
+    panelBg: 'rgba(10, 14, 20, 0.94)',
+    scanlines: false, sound: 'ambient',
+  },
 
-  // ── SOFT & MINIMAL ────────────────────────────────
-  { id: 'rose', label: 'Rose Quartz', accent: '#f4a4b8', glow: '#f9c4d2', sub: '#e8849c', category: 'soft', bg: 'linear-gradient(135deg, #1a0f12, #1a1015)', panelBg: 'rgba(20,10,14,0.8)', sound: 'ambient', scanlines: false },
-  { id: 'lavender', label: 'Lavender Dream', accent: '#b8a9e8', glow: '#d1c4f0', sub: '#9b8bd4', category: 'soft', bg: 'linear-gradient(135deg, #100d18, #15102a)', panelBg: 'rgba(12,8,20,0.8)', sound: 'ambient', scanlines: false },
-  { id: 'cream', label: 'Warm Cream', accent: '#e8c99b', glow: '#f0dab8', sub: '#d4aa70', category: 'soft', bg: 'linear-gradient(135deg, #18140c, #1a150d)', panelBg: 'rgba(18,14,8,0.8)', sound: 'ambient', scanlines: false },
-  { id: 'sage', label: 'Sage Mist', accent: '#8fb89a', glow: '#a8d0b3', sub: '#6a9c78', category: 'soft', bg: 'linear-gradient(135deg, #0c140e, #0e180f)', panelBg: 'rgba(8,14,10,0.8)', sound: 'nature', scanlines: false },
-  { id: 'peach', label: 'Peach Blossom', accent: '#ffb399', glow: '#ffc8b3', sub: '#ff9977', category: 'soft', bg: 'linear-gradient(135deg, #1a120c, #1e1410)', panelBg: 'rgba(16,10,8,0.8)', sound: 'ambient', scanlines: false },
-  { id: 'cloud', label: 'Cloud Nine', accent: '#b8d4e3', glow: '#d0e8f5', sub: '#90b8d0', category: 'soft', bg: 'linear-gradient(135deg, #0c1218, #101820)', panelBg: 'rgba(8,12,18,0.8)', sound: 'ambient', scanlines: false },
-  { id: 'blush', label: 'Blush Pink', accent: '#e89bb0', glow: '#f0b8c8', sub: '#d47890', category: 'soft', bg: 'linear-gradient(135deg, #180c10, #1c1014)', panelBg: 'rgba(16,8,12,0.8)', sound: 'ambient', scanlines: false },
-
-  // ── DARK & MOODY ──────────────────────────────────
-  { id: 'gold', label: 'Golden Hour', accent: '#ffd700', glow: '#ffed4e', sub: '#ffb700', category: 'dark', bg: 'linear-gradient(135deg, #0d0a00, #1a1400)', panelBg: 'rgba(8,6,0,0.8)', sound: 'ambient' },
-  { id: 'ice', label: 'Arctic Frost', accent: '#e0f7ff', glow: '#b3e5fc', sub: '#81d4fa', category: 'dark', bg: 'linear-gradient(135deg, #060a0f, #0a1018)', panelBg: 'rgba(4,8,12,0.85)', sound: 'wind' },
-  { id: 'teal', label: 'Deep Ocean', accent: '#00d9ff', glow: '#00bcd4', sub: '#0097a7', category: 'dark', bg: 'linear-gradient(135deg, #000d12, #001418)', panelBg: 'rgba(0,8,12,0.85)', sound: 'ocean' },
-  { id: 'violet', label: 'Midnight Violet', accent: '#9d00ff', glow: '#b24bf3', sub: '#7b00cc', category: 'dark', bg: 'linear-gradient(135deg, #0a0018, #120024)', panelBg: 'rgba(8,0,16,0.85)', sound: 'dark' },
-  { id: 'obsidian', label: 'Obsidian', accent: '#888888', glow: '#aaaaaa', sub: '#666666', category: 'dark', bg: '#050505', panelBg: 'rgba(8,8,8,0.9)', sound: 'dark', scanlines: false },
-  { id: 'ember', label: 'Dying Ember', accent: '#ff4400', glow: '#ff6633', sub: '#cc3300', category: 'dark', bg: 'linear-gradient(135deg, #0d0200, #1a0500)', panelBg: 'rgba(10,2,0,0.85)', sound: 'fire' },
-  { id: 'abyss', label: 'Abyss', accent: '#4466ff', glow: '#6688ff', sub: '#2244cc', category: 'dark', bg: 'linear-gradient(135deg, #000008, #000012)', panelBg: 'rgba(0,0,8,0.9)', sound: 'dark' },
-  { id: 'noir', label: 'Film Noir', accent: '#d4c5a0', glow: '#e8dcc0', sub: '#b8a880', category: 'dark', bg: '#080808', panelBg: 'rgba(6,6,6,0.9)', sound: 'jazz', scanlines: false },
-
-  // ── NATURE & LANDSCAPE ────────────────────────────
-  { id: 'forest', label: 'Forest Canopy', accent: '#4caf50', glow: '#66cc6a', sub: '#388e3c', category: 'nature', bg: 'linear-gradient(180deg, #020d02, #041a04, #021002)', panelBg: 'rgba(2,10,2,0.8)', sound: 'forest', scanlines: false },
-  { id: 'ocean', label: 'Pacific Depths', accent: '#0288d1', glow: '#29b6f6', sub: '#0277bd', category: 'nature', bg: 'linear-gradient(180deg, #000a14, #001828, #000a14)', panelBg: 'rgba(0,6,14,0.8)', sound: 'ocean', scanlines: false },
-  { id: 'desert', label: 'Desert Sand', accent: '#e6a855', glow: '#f0c478', sub: '#cc8833', category: 'nature', bg: 'linear-gradient(180deg, #1a1000, #201808, #1a1000)', panelBg: 'rgba(16,10,0,0.8)', sound: 'wind', scanlines: false },
-  { id: 'aurora', label: 'Northern Lights', accent: '#00e676', glow: '#69f0ae', sub: '#00c853', category: 'nature', bg: 'linear-gradient(180deg, #000510, #001020, #050018)', panelBg: 'rgba(0,4,10,0.75)', sound: 'wind', scanlines: false },
-  { id: 'volcano', label: 'Volcanic', accent: '#ff5722', glow: '#ff7043', sub: '#e64a19', category: 'nature', bg: 'linear-gradient(180deg, #100200, #1a0500, #0d0100)', panelBg: 'rgba(10,2,0,0.85)', sound: 'fire', scanlines: false },
-  { id: 'meadow', label: 'Spring Meadow', accent: '#7cb342', glow: '#9ccc65', sub: '#558b2f', category: 'nature', bg: 'linear-gradient(135deg, #040a02, #081004)', panelBg: 'rgba(4,8,2,0.8)', sound: 'nature', scanlines: false },
-  { id: 'mountain', label: 'Mountain Peak', accent: '#90a4ae', glow: '#b0bec5', sub: '#607d8b', category: 'nature', bg: 'linear-gradient(180deg, #060810, #0a0e16, #060810)', panelBg: 'rgba(6,8,12,0.85)', sound: 'wind', scanlines: false },
-
-  // ── SEASONS ───────────────────────────────────────
-  { id: 'springbloom', label: 'Spring Bloom', accent: '#ff80ab', glow: '#ff99bb', sub: '#ff4081', category: 'season', bg: 'linear-gradient(135deg, #120810, #180c14)', panelBg: 'rgba(12,6,10,0.8)', sound: 'nature', scanlines: false },
-  { id: 'summersky', label: 'Summer Sky', accent: '#00b0ff', glow: '#40c4ff', sub: '#0091ea', category: 'season', bg: 'linear-gradient(180deg, #000814, #001028, #000814)', panelBg: 'rgba(0,6,14,0.75)', sound: 'ocean', scanlines: false },
-  { id: 'autumn', label: 'Autumn Harvest', accent: '#ff9800', glow: '#ffb74d', sub: '#f57c00', category: 'season', bg: 'linear-gradient(135deg, #140a00, #1a0e02)', panelBg: 'rgba(14,8,0,0.8)', sound: 'wind', scanlines: false },
-  { id: 'winter', label: 'Winter Frost', accent: '#b3e5fc', glow: '#e1f5fe', sub: '#81d4fa', category: 'season', bg: 'linear-gradient(180deg, #080c10, #0e1218, #080c10)', panelBg: 'rgba(6,8,12,0.85)', sound: 'wind', scanlines: false },
-  { id: 'monsoon', label: 'Monsoon', accent: '#5c6bc0', glow: '#7986cb', sub: '#3f51b5', category: 'season', bg: 'linear-gradient(180deg, #060810, #0a0e1a, #060810)', panelBg: 'rgba(4,6,12,0.85)', sound: 'rain', scanlines: false },
-
-  // ── HOLIDAYS ──────────────────────────────────────
-  { id: 'christmas', label: 'Christmas', accent: '#ff1744', glow: '#ff5252', sub: '#00c853', category: 'holiday', bg: 'linear-gradient(135deg, #0a0000, #000a04)', panelBg: 'rgba(8,2,2,0.85)', sound: 'bells', scanlines: false },
-  { id: 'halloween', label: 'Halloween', accent: '#ff9100', glow: '#ffab40', sub: '#9c27b0', category: 'holiday', bg: 'linear-gradient(135deg, #0d0600, #100008)', panelBg: 'rgba(10,4,0,0.85)', sound: 'spooky', scanlines: false },
-  { id: 'valentine', label: 'Valentine', accent: '#ff1744', glow: '#ff5252', sub: '#ff80ab', category: 'holiday', bg: 'linear-gradient(135deg, #180008, #200010)', panelBg: 'rgba(16,0,6,0.85)', sound: 'ambient', scanlines: false },
-  { id: 'newyear', label: 'New Year\'s Eve', accent: '#ffd740', glow: '#ffe57f', sub: '#ffc400', category: 'holiday', bg: 'linear-gradient(180deg, #080600, #0a0800, #060400)', panelBg: 'rgba(6,4,0,0.85)', sound: 'bells' },
-  { id: 'stpatricks', label: 'St. Patrick\'s', accent: '#00e676', glow: '#69f0ae', sub: '#00c853', category: 'holiday', bg: 'linear-gradient(135deg, #001a06, #002a0a)', panelBg: 'rgba(0,12,4,0.85)', sound: 'nature', scanlines: false },
-  { id: 'fourthjuly', label: '4th of July', accent: '#ff1744', glow: '#2979ff', sub: '#e0e0e0', category: 'holiday', bg: 'linear-gradient(180deg, #0a0000, #000010, #0a0000)', panelBg: 'rgba(6,0,6,0.85)', sound: 'ambient' },
-  { id: 'easter', label: 'Easter', accent: '#ab47bc', glow: '#ce93d8', sub: '#80cbc4', category: 'holiday', bg: 'linear-gradient(135deg, #0e0814, #080e10)', panelBg: 'rgba(10,6,12,0.8)', sound: 'nature', scanlines: false },
-  { id: 'thanksgiving', label: 'Thanksgiving', accent: '#d4a056', glow: '#e8b870', sub: '#c08040', category: 'holiday', bg: 'linear-gradient(135deg, #140c04, #1a1008)', panelBg: 'rgba(14,10,4,0.85)', sound: 'ambient', scanlines: false },
-
-  // ── RETRO & VINTAGE ───────────────────────────────
-  { id: 'synthwave', label: 'Synthwave', accent: '#ff2a6d', glow: '#ff6b9d', sub: '#05d9e8', category: 'retro', bg: 'linear-gradient(180deg, #0d0021, #1a0035, #0d0021)', panelBg: 'rgba(10,0,18,0.8)', sound: 'synth' },
-  { id: 'retrogame', label: 'Retro Arcade', accent: '#ffeb3b', glow: '#fff176', sub: '#f44336', category: 'retro', bg: '#050005', panelBg: 'rgba(5,0,5,0.9)', sound: 'retro', scanlines: true },
-  { id: 'terminal', label: 'Amber Terminal', accent: '#ffb000', glow: '#ffc844', sub: '#cc8800', category: 'retro', bg: '#000000', panelBg: 'rgba(0,0,0,0.9)', sound: 'digital', scanlines: true },
-  { id: 'crt', label: 'CRT Green', accent: '#33ff33', glow: '#66ff66', sub: '#00cc00', category: 'retro', bg: '#000200', panelBg: 'rgba(0,2,0,0.9)', sound: 'digital', scanlines: true },
-  { id: 'sepia', label: 'Sepia Film', accent: '#c8a874', glow: '#d8c098', sub: '#b08850', category: 'retro', bg: 'linear-gradient(135deg, #0e0a04, #140e08)', panelBg: 'rgba(10,8,4,0.85)', sound: 'jazz', scanlines: false },
-
-  // ── COSMIC & FANTASY ──────────────────────────────
-  { id: 'nebula', label: 'Nebula', accent: '#e040fb', glow: '#ea80fc', sub: '#aa00ff', category: 'cosmic', bg: 'linear-gradient(135deg, #08001a, #1a0030, #08001a)', panelBg: 'rgba(6,0,14,0.8)', sound: 'cosmic' },
-  { id: 'stardust', label: 'Stardust', accent: '#e0e0e0', glow: '#fafafa', sub: '#9e9e9e', category: 'cosmic', bg: 'linear-gradient(180deg, #000004, #020208, #000004)', panelBg: 'rgba(2,2,6,0.85)', sound: 'cosmic', scanlines: false },
-  { id: 'galaxy', label: 'Galaxy Core', accent: '#7c4dff', glow: '#b388ff', sub: '#651fff', category: 'cosmic', bg: 'linear-gradient(135deg, #040010, #0a0020, #040010)', panelBg: 'rgba(4,0,10,0.8)', sound: 'cosmic' },
-  { id: 'enchanted', label: 'Enchanted Forest', accent: '#69f0ae', glow: '#b9f6ca', sub: '#00e676', category: 'cosmic', bg: 'linear-gradient(180deg, #000a04, #001a0a, #000a04)', panelBg: 'rgba(0,8,4,0.8)', sound: 'forest', scanlines: false },
-  { id: 'dragonfire', label: 'Dragon Fire', accent: '#ff6e40', glow: '#ff9e80', sub: '#dd2c00', category: 'cosmic', bg: 'linear-gradient(180deg, #0a0200, #140400, #0a0200)', panelBg: 'rgba(8,2,0,0.85)', sound: 'fire' },
-  { id: 'twilight', label: 'Twilight Zone', accent: '#7e57c2', glow: '#b39ddb', sub: '#512da8', category: 'cosmic', bg: 'linear-gradient(180deg, #06040e, #0e0818, #06040e)', panelBg: 'rgba(6,4,10,0.85)', sound: 'dark', scanlines: false },
+  // ── Warm ───────────────────────────────────────────────────────────────────
+  {
+    id: 'ember', label: 'Ember',
+    accent: '#d47c54', glow: '#e89870', sub: '#b45c38',
+    category: 'warm',
+    bg: 'linear-gradient(160deg, #0d0906 0%, #140e09 50%, #0d0906 100%)',
+    panelBg: 'rgba(16, 12, 8, 0.94)',
+    scanlines: false, sound: 'ambient',
+  },
+  {
+    id: 'amber', label: 'Amber',
+    accent: '#d4943c', glow: '#e8ac58', sub: '#b07428',
+    category: 'warm',
+    bg: 'linear-gradient(160deg, #0d0b06 0%, #141008 50%, #0d0b06 100%)',
+    panelBg: 'rgba(14, 12, 6, 0.94)',
+    scanlines: false, sound: 'ambient',
+  },
+  {
+    id: 'noir', label: 'Noir',
+    accent: '#c8b898', glow: '#dcd0b8', sub: '#a09078',
+    category: 'warm',
+    bg: '#080808',
+    panelBg: 'rgba(8, 8, 8, 0.96)',
+    scanlines: false, sound: 'jazz',
+  },
 ];
 
 const NAV = [
-  { id: 'chat', label: 'Neural Chat', icon: HubRounded },
-  { id: 'research', label: 'Research Tools', icon: ScienceRounded },
+  { id: 'chat', label: 'Chat', icon: HubRounded },
+  { id: 'research', label: 'Research', icon: ScienceRounded },
   { id: 'documents', label: 'Documents', icon: DownloadIcon },
-  { id: 'memory', label: 'Memory Core', icon: StorageRounded },
-  { id: 'tasks', label: 'Task Matrix', icon: ChecklistRounded },
+  { id: 'memory', label: 'Memory', icon: StorageRounded },
+  { id: 'tasks', label: 'Tasks', icon: ChecklistRounded },
   { id: 'nyxshift', label: 'Creative Suite', icon: AutoStories },
-  { id: 'gallery', label: 'Media Gallery', icon: PhotoLibrary },
-  { id: 'sassy', label: 'Vesper\'s Wardrobe', icon: Checkroom },
-  { id: 'integrations', label: 'Command Center', icon: BoltRounded },
+  { id: 'gallery', label: 'Gallery', icon: PhotoLibrary },
+  { id: 'sassy', label: 'Style', icon: Checkroom },
+  { id: 'integrations', label: 'Integrations', icon: BoltRounded },
   { id: 'analytics', label: 'Analytics', icon: BarChart },
   { id: 'personality', label: 'Personality', icon: Person },
   { id: 'settings', label: 'Settings', icon: SettingsRounded },
@@ -321,11 +357,11 @@ function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview, onS
         return (
           <Box key={id} sx={{
             p: 1.5, borderRadius: 2,
-            border: p.voice_id ? '1px solid rgba(0,255,136,0.3)' : '1px solid rgba(255,255,255,0.1)',
-            bgcolor: p.voice_id ? 'rgba(0,255,136,0.04)' : 'rgba(255,255,255,0.02)',
+            border: p.voice_id ? '1px solid rgba(var(--accent-rgb), 0.2)' : '1px solid rgba(255,255,255,0.1)',
+            bgcolor: p.voice_id ? 'rgba(var(--accent-rgb), 0.04)' : 'rgba(255,255,255,0.02)',
           }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: p.voice_id ? '#00ff88' : 'rgba(255,255,255,0.7)' }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: p.voice_id ? 'var(--accent)' : 'rgba(255,255,255,0.7)' }}>
                 {p.icon} {p.label}
               </Typography>
               {saving === id && <CircularProgress size={14} sx={{ color: 'var(--accent)' }} />}
@@ -340,10 +376,10 @@ function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview, onS
                 style={{
                   flex: 1,
                   background: 'rgba(0,0,0,0.4)',
-                  border: '1px solid rgba(0,255,255,0.3)',
+                  border: '1px solid rgba(var(--accent-rgb), 0.2)',
                   borderRadius: 6,
                   padding: '6px 10px',
-                  color: currentVoice ? '#00ff88' : 'rgba(255,255,255,0.5)',
+                  color: currentVoice ? 'var(--accent)' : 'rgba(255,255,255,0.5)',
                   fontSize: '0.8rem',
                   outline: 'none',
                   cursor: 'pointer',
@@ -361,8 +397,8 @@ function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview, onS
                   onClick={() => playVoicePreview(currentVoice.preview_url)}
                   title="Preview voice"
                   style={{
-                    background: 'rgba(0,255,255,0.1)',
-                    border: '1px solid rgba(0,255,255,0.3)',
+                    background: 'rgba(var(--accent-rgb), 0.07)',
+                    border: '1px solid rgba(var(--accent-rgb), 0.2)',
                     borderRadius: 6, padding: '4px 8px',
                     color: 'var(--accent)', cursor: 'pointer', fontSize: '0.9rem',
                   }}
@@ -3178,7 +3214,7 @@ export default function App() {
             sx={{ 
               maxWidth: '80%', 
               mb: 1, 
-              borderLeft: '2px solid rgba(0,255,255,0.3)', 
+              borderLeft: '2px solid rgba(var(--accent-rgb), 0.2)', 
               pl: 1.5, 
               py: 0.5
             }}
@@ -3204,12 +3240,12 @@ export default function App() {
             padding: '12px 16px',
             borderRadius: '16px',
             background: isUser
-              ? 'linear-gradient(135deg, rgba(0, 255, 255, 0.18), rgba(0, 136, 255, 0.12))'
-              : 'rgba(10, 14, 30, 0.8)',
-            border: `1px solid ${isUser ? 'rgba(0, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.12)'}`,
+              ? 'rgba(var(--accent-rgb), 0.07)'
+              : 'rgba(12, 12, 18, 0.85)',
+            border: `1px solid ${isUser ? 'rgba(var(--accent-rgb), 0.2)' : 'rgba(255, 255, 255, 0.07)'}`,
             boxShadow: isUser
-              ? '0 0 24px rgba(0, 255, 255, 0.35)'
-              : '0 8px 32px rgba(0, 0, 0, 0.35)',
+              ? 'none'
+              : '0 2px 12px rgba(0, 0, 0, 0.3)',
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
@@ -3227,10 +3263,10 @@ export default function App() {
                 sx={{
                   height: 20,
                   color: 'var(--accent)',
-                  borderColor: 'rgba(0,255,255,0.4)',
+                  borderColor: 'rgba(var(--accent-rgb), 0.28)',
                   borderStyle: 'solid',
                   borderWidth: 1,
-                  background: 'rgba(0,255,255,0.08)',
+                  background: 'rgba(var(--accent-rgb), 0.06)',
                 }}
               />
             )}
@@ -3297,7 +3333,7 @@ export default function App() {
                     <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 4, right: 4 }}>
                         {isReact && (
                             <Tooltip title="Preview in App Builder">
-                                <IconButton size="small" onClick={openInAppBuilder} sx={{ color: 'var(--accent)', bgcolor: 'rgba(0, 255, 255, 0.1)', '&:hover': { bgcolor: 'rgba(0, 255, 255, 0.2)' } }}>
+                                <IconButton size="small" onClick={openInAppBuilder} sx={{ color: 'var(--accent)', bgcolor: 'rgba(var(--accent-rgb), 0.07)', '&:hover': { bgcolor: 'rgba(0, 255, 255, 0.2)' } }}>
                                     <BoltRounded fontSize="small" />
                                 </IconButton>
                             </Tooltip>
@@ -3406,7 +3442,7 @@ export default function App() {
             <Paper className="intel-board glass-card">
               <DragHandleArea className="board-header">
                 <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Research Tools</Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>Research</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
                     Multi-source research with auto-citations and cross-referencing
                   </Typography>
@@ -3414,7 +3450,7 @@ export default function App() {
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                   <Chip label={researchLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
                   <Tooltip title="Back to Chat">
-                    <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                    <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}>
                       <ArrowBackIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -3579,7 +3615,7 @@ export default function App() {
                   </Typography>
                 </Box>
                 <Tooltip title="Back to Chat">
-                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}>
                     <ArrowBackIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
@@ -3664,7 +3700,7 @@ export default function App() {
             <Paper className="intel-board glass-card">
               <DragHandleArea className="board-header">
                 <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Memory Core</Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>Memory</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
                     {memoryView === 'history' ? 'Chat history with pinning' : 'Fast, file-backed memory store'}
                 </Typography>
@@ -3672,7 +3708,7 @@ export default function App() {
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                 <Chip label={memoryView === 'history' ? (threadsLoading ? 'Loading…' : 'Loaded') : (memoryLoading ? 'Syncing…' : 'Synced')} size="small" className="chip-soft" />
                 <Tooltip title="Back to Chat">
-                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}>
                     <ArrowBackIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
@@ -3801,7 +3837,7 @@ export default function App() {
                         gap: 1, 
                         py: 1.2,
                         px: 1.5,
-                        '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' },
+                        '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.04)' },
                         borderLeft: selectedThreadIds.includes(thread.id) ? '2px solid var(--accent)' : 'none',
                       }}
                     >
@@ -3856,7 +3892,7 @@ export default function App() {
                       )}
                     </Box>
                   ))}
-                        <Box sx={{ borderBottom: '1px solid rgba(0,255,255,0.15)', my: 1 }} />
+                        <Box sx={{ borderBottom: '1px solid rgba(var(--accent-rgb), 0.1)', my: 1 }} />
                       </>
                     )}
                     {/* Recent Conversations Section */}
@@ -3877,7 +3913,7 @@ export default function App() {
                         gap: 1, 
                         py: 1.2,
                         px: 1.5,
-                        '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' },
+                        '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.04)' },
                         borderLeft: selectedThreadIds.includes(thread.id) ? '2px solid var(--accent)' : 'none',
                       }}
                     >
@@ -4052,7 +4088,7 @@ export default function App() {
             <Paper className="intel-board glass-card">
               <DragHandleArea className="board-header">
                 <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Task Matrix</Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>Tasks</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
                     Track tasks by status, priority, and deadline.
                 </Typography>
@@ -4060,7 +4096,7 @@ export default function App() {
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                 <Chip label={tasksLoading ? 'Syncing…' : 'Synced'} size="small" className="chip-soft" />
                 <Tooltip title="Back to Chat">
-                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}>
                     <ArrowBackIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
@@ -4263,11 +4299,11 @@ export default function App() {
                     position: 'absolute', top: 12, right: 48,
                     color: 'var(--accent)', fontSize: '0.7rem',
                     textTransform: 'none', fontWeight: 700,
-                    border: '1px solid rgba(0,255,255,0.2)',
+                    border: '1px solid rgba(var(--accent-rgb), 0.12)',
                     borderRadius: 2, px: 1.5, py: 0.5,
                     backdropFilter: 'blur(10px)',
-                    bgcolor: 'rgba(0,255,255,0.05)',
-                    '&:hover': { bgcolor: 'rgba(0,255,255,0.12)' },
+                    bgcolor: 'rgba(var(--accent-rgb), 0.04)',
+                    '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.08)' },
                   }}
                 >
                   🧬 Avatar Studio
@@ -4302,7 +4338,7 @@ export default function App() {
                     InputProps={{ sx: { color: '#fff' } }}
                   />
                   <Tooltip title="Back to Chat">
-                    <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                    <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}>
                       <ArrowBackIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -4390,7 +4426,7 @@ export default function App() {
                   </Typography>
                 </Box>
                 <Tooltip title="Back to Chat">
-                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}>
                     <ArrowBackIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
@@ -4534,7 +4570,7 @@ export default function App() {
                 </Typography>
               </Box>
               <Tooltip title="Back to Chat">
-                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+                <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}>
                   <ArrowBackIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
@@ -4626,11 +4662,11 @@ export default function App() {
                     <Box sx={{ p: 3 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
                         <Box>
-                          <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--accent)' }}>
-                            🎨 Theme Catalog
+                          <Typography variant="h5" sx={{ fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.01em' }}>
+                            Appearance
                           </Typography>
-                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mt: 0.5 }}>
-                            {THEMES.length} themes across {THEME_CATEGORIES.length} categories
+                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)', mt: 0.5 }}>
+                            {THEMES.length} curated themes
                           </Typography>
                         </Box>
                         <IconButton onClick={() => setThemeMenuAnchor(null)} sx={{ color: 'rgba(255,255,255,0.5)' }}>
@@ -4686,7 +4722,7 @@ export default function App() {
                                       mb: 0.75,
                                       background: t.bg || '#000',
                                       border: `2px solid ${t.accent}`,
-                                      boxShadow: activeTheme.id === t.id ? `0 0 12px ${t.accent}` : 'none',
+                                      boxShadow: activeTheme.id === t.id ? `0 0 0 2px ${t.accent}44` : 'none',
                                       position: 'relative',
                                       overflow: 'hidden',
                                     }}>
@@ -4720,7 +4756,7 @@ export default function App() {
                                     </Typography>
                                     {t.sound && (
                                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.55rem' }}>
-                                        🔊 {t.sound}
+                                        {t.sound}
                                       </Typography>
                                     )}
                                   </Box>
@@ -4733,7 +4769,7 @@ export default function App() {
 
                       <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)' }}>
-                          Active: {activeTheme.label} • Sound: {activeTheme.sound || 'default'} • {activeTheme.scanlines !== false ? 'Scanlines ON' : 'Scanlines OFF'}
+                          Active: {activeTheme.label} • Ambience: {activeTheme.sound || 'off'}
                         </Typography>
                         <Button 
                           onClick={() => setThemeMenuAnchor(null)} 
@@ -4855,9 +4891,9 @@ export default function App() {
                                 sx: {
                                   bgcolor: 'rgba(10,10,25,0.95)',
                                   backdropFilter: 'blur(20px)',
-                                  border: '1px solid rgba(0,255,255,0.15)',
+                                  border: '1px solid rgba(var(--accent-rgb), 0.1)',
                                   '& .MuiMenuItem-root': { color: '#fff', fontSize: '0.85rem' },
-                                  '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(0,255,255,0.1)' },
+                                  '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' },
                                 }
                               }
                             }}
@@ -4973,8 +5009,8 @@ export default function App() {
 
                   {/* ── Default Voice Picker ── */}
                   {ttsEnabled && (
-                    <Box sx={{ p: 1.5, border: '1px solid rgba(0,255,136,0.2)', borderRadius: 2, bgcolor: 'rgba(0,255,136,0.03)' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: '#00ff88' }}>
+                    <Box sx={{ p: 1.5, border: '1px solid rgba(var(--accent-rgb), 0.14)', borderRadius: 2, bgcolor: 'rgba(var(--accent-rgb), 0.03)' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: 'var(--accent)' }}>
                         🎙️ Default Voice
                       </Typography>
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1 }}>
@@ -4982,9 +5018,9 @@ export default function App() {
                       </Typography>
 
                       {selectedVoiceName && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, p: 0.75, px: 1, bgcolor: 'rgba(0,255,136,0.08)', borderRadius: 1, border: '1px solid rgba(0,255,136,0.2)' }}>
-                          <Typography sx={{ fontSize: '0.65rem', color: '#00ff88' }}>💾</Typography>
-                          <Typography variant="caption" sx={{ color: '#00ff88', fontWeight: 700, fontSize: '0.72rem' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, p: 0.75, px: 1, bgcolor: 'rgba(0,255,136,0.08)', borderRadius: 1, border: '1px solid rgba(var(--accent-rgb), 0.14)' }}>
+                          <Typography sx={{ fontSize: '0.65rem', color: 'var(--accent)' }}>💾</Typography>
+                          <Typography variant="caption" sx={{ color: 'var(--accent)', fontWeight: 700, fontSize: '0.72rem' }}>
                             Saved default: {cloudVoices.find(v => v.id === selectedVoiceName)?.name || selectedVoiceName}
                           </Typography>
                           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', ml: 'auto' }}>persists across sessions</Typography>
@@ -4995,7 +5031,7 @@ export default function App() {
                         maxHeight: 200, overflowY: 'auto', borderRadius: 1,
                         border: '1px solid rgba(0,255,136,0.15)', p: 0.5,
                         '&::-webkit-scrollbar': { width: 4 },
-                        '&::-webkit-scrollbar-thumb': { background: '#00ff88', borderRadius: 2 },
+                        '&::-webkit-scrollbar-thumb': { background: 'var(--accent)', borderRadius: 2 },
                       }}>
                         {cloudVoices.length > 0 ? cloudVoices.map((v) => {
                           const isActive = selectedVoiceName === v.id || (!selectedVoiceName && v.id === defaultVoiceId);
@@ -5017,9 +5053,9 @@ export default function App() {
                               }}
                             >
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                {isActive && <Typography sx={{ fontSize: '0.65rem', color: '#00ff88' }}>✓</Typography>}
+                                {isActive && <Typography sx={{ fontSize: '0.65rem', color: 'var(--accent)' }}>✓</Typography>}
                                 <Typography variant="caption" sx={{
-                                  color: isActive ? '#00ff88' : 'rgba(255,255,255,0.7)', fontWeight: isActive ? 700 : 500, fontSize: '0.75rem',
+                                  color: isActive ? 'var(--accent)' : 'rgba(255,255,255,0.7)', fontWeight: isActive ? 700 : 500, fontSize: '0.75rem',
                                 }}>
                                   {v.name}
                                 </Typography>
@@ -5096,7 +5132,7 @@ export default function App() {
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>Voice Input</Typography>
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>Hold V to speak</Typography>
                     </Box>
-                    <Chip label="Always On" size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)' }} />
+                    <Chip label="Always On" size="small" sx={{ bgcolor: 'rgba(var(--accent-rgb), 0.12)', color: 'var(--accent)' }} />
                   </Box>
                 </Stack>
               </Box>
@@ -5229,7 +5265,7 @@ export default function App() {
                   </Box>
 
                   {/* Voice Personas — inline assignment */}
-                  <Box sx={{ p: 1.5, border: '1px solid rgba(0,255,255,0.2)', borderRadius: 2, bgcolor: 'rgba(0,255,255,0.03)' }}>
+                  <Box sx={{ p: 1.5, border: '1px solid rgba(var(--accent-rgb), 0.12)', borderRadius: 2, bgcolor: 'rgba(0,255,255,0.03)' }}>
                     <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: 'var(--accent)' }}>Voice Personas</Typography>
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
                       Assign different voices for different contexts — Vesper adapts automatically
@@ -5340,7 +5376,7 @@ export default function App() {
                       '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--accent)' },
                       '.MuiSvgIcon-root': { color: 'var(--accent)' },
                     }}
-                    MenuProps={{ PaperProps: { sx: { bgcolor: 'rgba(8,8,18,0.97)', backdropFilter: 'blur(20px)', border: '1px solid rgba(0,255,255,0.15)', '& .MuiMenuItem-root': { color: '#fff', fontSize: '0.85rem' }, '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(0,255,255,0.1)' } } } }}
+                    MenuProps={{ PaperProps: { sx: { bgcolor: 'rgba(8,8,18,0.97)', backdropFilter: 'blur(20px)', border: '1px solid rgba(var(--accent-rgb), 0.1)', '& .MuiMenuItem-root': { color: '#fff', fontSize: '0.85rem' }, '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } } } }}
                   >
                     <MenuItem value="auto">🔄 Auto (best available)</MenuItem>
                     {availableModels.map(m => (
@@ -5374,11 +5410,11 @@ export default function App() {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>Backend / Railway</Typography>
                     <Chip label="Check Status →" size="small" onClick={() => setDiagnosticsOpen(true)}
-                      sx={{ bgcolor: 'rgba(0,255,255,0.12)', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,255,255,0.2)' } }} />
+                      sx={{ bgcolor: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.12)' } }} />
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>Conversations</Typography>
-                    <Chip label={`${threads.length} saved`} size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)', fontWeight: 600 }} />
+                    <Chip label={`${threads.length} saved`} size="small" sx={{ bgcolor: 'rgba(var(--accent-rgb), 0.12)', color: 'var(--accent)', fontWeight: 600 }} />
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>Storage</Typography>
@@ -5403,7 +5439,7 @@ export default function App() {
                       borderColor: 'var(--accent)', 
                       color: 'var(--accent)',
                       textTransform: 'none',
-                      '&:hover': { bgcolor: 'rgba(0,255,255,0.1)', borderColor: 'var(--accent)' }
+                      '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)', borderColor: 'var(--accent)' }
                     }}
                   >
                     Export All Data
@@ -5636,45 +5672,15 @@ export default function App() {
 
       {/* Background layers removed from here — they're now above the transform Box */}
       
-      {/* Subtle Matrix binary - only shown on Neon Green theme */}
-      {activeTheme.id === 'green' && [...Array(8)].map((_, i) => {
-        const digits = Array.from({ length: 60 }, () => Math.random() > 0.5 ? '1' : '0');
-        return (
-          <div 
-            key={i} 
-            className="binary-column-stack" 
-            style={{
-              left: `${15 + (i * 10)}%`,
-              animationDuration: `${12 + Math.random() * 12}s`,
-              animationDelay: `${Math.random() * 5}s`,
-              fontSize: `${9 + Math.random() * 6}px`,
-            }}
-          >
-            {digits.map((digit, idx) => (
-              <div key={idx} className="single-digit">{digit}</div>
-            ))}
-          </div>
-        );
-      })}
-
-      <Box className="app-shell" style={themeVars} data-style={activeTheme.style || 'cyber'}>
-        {/* Scanlines overlay - renders when theme has scanlines enabled */}
-        {activeTheme.scanlines && (
-          <div className="scanlines" style={{
-            position: 'fixed',
-            inset: 0,
-            pointerEvents: 'none',
-            zIndex: 9999,
-          }} />
-        )}
+      <Box className="app-shell" style={themeVars} data-style={activeTheme.style || 'default'}>
         <aside className={`sidebar glass-panel${mobileSidebarOpen ? ' mobile-open' : ''}`}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, pt: 0.5 }}>
             <Box>
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 2 }}>
-                VESPER AI
+              <Typography variant="body2" sx={{ color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.08em', fontSize: '0.78rem', textTransform: 'uppercase' }}>
+                Vesper
               </Typography>
-              <Typography variant="h6" sx={{ color: 'var(--accent)', fontWeight: 800 }}>
-                Ops Console
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em', fontSize: '0.7rem' }}>
+                AI Assistant
               </Typography>
             </Box>
           </Box>
@@ -5747,8 +5753,8 @@ export default function App() {
                     sx={{
                       p: '8px 10px',
                       borderRadius: '8px',
-                      bgcolor: currentThreadId === thread.id ? 'rgba(0,255,255,0.15)' : 'transparent',
-                      border: currentThreadId === thread.id ? '1px solid rgba(0,255,255,0.4)' : '1px solid transparent',
+                      bgcolor: currentThreadId === thread.id ? 'rgba(var(--accent-rgb), 0.1)' : 'transparent',
+                      border: currentThreadId === thread.id ? '1px solid rgba(var(--accent-rgb), 0.28)' : '1px solid transparent',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       display: 'flex',
@@ -5756,8 +5762,8 @@ export default function App() {
                       justifyContent: 'space-between',
                       gap: 0.5,
                       '&:hover': {
-                        bgcolor: 'rgba(0,255,255,0.1)',
-                        borderColor: 'rgba(0,255,255,0.3)',
+                        bgcolor: 'rgba(var(--accent-rgb), 0.07)',
+                        borderColor: 'rgba(var(--accent-rgb), 0.2)',
                       },
                       group: 'hover'
                     }}
@@ -5817,7 +5823,7 @@ export default function App() {
                             sx={{ 
                               p: 0.2,
                               color: 'var(--accent)',
-                              '&:hover': { color: '#00ff88' }
+                              '&:hover': { color: 'var(--accent)' }
                             }}
                           >
                             <ChecklistRounded fontSize="small" />
@@ -5943,7 +5949,7 @@ export default function App() {
                             📌 Pinned
                           </Typography>
                           {sidebarPinned.map(renderSidebarThread)}
-                          <Box sx={{ borderBottom: '1px solid rgba(0,255,255,0.15)', my: 0.5, mx: 1 }} />
+                          <Box sx={{ borderBottom: '1px solid rgba(var(--accent-rgb), 0.1)', my: 0.5, mx: 1 }} />
                         </>
                       )}
                       {sidebarRecent.length > 0 && (
@@ -5989,7 +5995,7 @@ export default function App() {
               py: 1,
               mt: 1,
               '&:hover': {
-                bgcolor: 'rgba(0,255,255,0.1)',
+                bgcolor: 'rgba(var(--accent-rgb), 0.07)',
                 borderColor: 'var(--accent)',
               }
             }}
@@ -6016,14 +6022,14 @@ export default function App() {
                   className="mobile-menu-btn"
                   size="small"
                   onClick={() => setMobileSidebarOpen(o => !o)}
-                  sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}
+                  sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}
                 >
                   <MenuIcon fontSize="small" />
                 </IconButton>
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--accent)' }}>
-                    Neural Chat
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.01em' }}>
+                    Chat
                   </Typography>
                   {vesperIdentity?.mood && (
                     <Chip
@@ -6031,7 +6037,7 @@ export default function App() {
                       size="small"
                       onClick={() => setActiveSection('settings')}
                       sx={{
-                        bgcolor: vesperIdentity.mood?.color ? `${vesperIdentity.mood.color}22` : 'rgba(0,255,255,0.1)',
+                        bgcolor: vesperIdentity.mood?.color ? `${vesperIdentity.mood.color}22` : 'rgba(var(--accent-rgb), 0.07)',
                         color: vesperIdentity.mood?.color || 'var(--accent)',
                         border: `1px solid ${vesperIdentity.mood?.color || 'var(--accent)'}44`,
                         fontWeight: 600,
@@ -6040,7 +6046,7 @@ export default function App() {
                         cursor: 'pointer',
                         transition: 'all 0.3s ease',
                         '&:hover': {
-                          bgcolor: vesperIdentity.mood?.color ? `${vesperIdentity.mood.color}44` : 'rgba(0,255,255,0.2)',
+                          bgcolor: vesperIdentity.mood?.color ? `${vesperIdentity.mood.color}44` : 'rgba(var(--accent-rgb), 0.12)',
                           transform: 'scale(1.05)',
                         },
                       }}
@@ -6062,7 +6068,7 @@ export default function App() {
                         px: 1,
                         borderColor: 'var(--accent)',
                         color: 'var(--accent)',
-                        '&:hover': { bgcolor: 'rgba(0,255,255,0.1)', borderColor: 'var(--accent)' }
+                        '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)', borderColor: 'var(--accent)' }
                       }}
                     >
                       New Chat
@@ -6086,7 +6092,7 @@ export default function App() {
                       minWidth: 100,
                       fontSize: '0.75rem',
                       color: 'var(--accent)',
-                      '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,255,255,0.25)' },
+                      '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(var(--accent-rgb), 0.16)' },
                       '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--accent)' },
                       '.MuiSvgIcon-root': { color: 'var(--accent)', fontSize: 16 },
                       bgcolor: 'rgba(0,0,0,0.2)',
@@ -6107,10 +6113,10 @@ export default function App() {
                     size="small"
                     onClick={toggleAutoSpeak}
                     sx={{
-                      color: autoSpeak ? '#00ff88' : 'rgba(255,255,255,0.3)',
+                      color: autoSpeak ? 'var(--accent)' : 'rgba(255,255,255,0.3)',
                       bgcolor: autoSpeak ? 'rgba(0,255,136,0.1)' : 'transparent',
                       border: autoSpeak ? '1px solid rgba(0,255,136,0.4)' : '1px solid rgba(255,255,255,0.15)',
-                      '&:hover': { color: '#00ff88', bgcolor: 'rgba(0,255,136,0.15)' },
+                      '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(0,255,136,0.15)' },
                       width: 32, height: 32,
                     }}
                   >
@@ -6125,7 +6131,7 @@ export default function App() {
                     onClick={() => exportChat('markdown')}
                     sx={{
                       color: 'rgba(255,255,255,0.4)',
-                      '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(0,255,255,0.1)' },
+                      '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(var(--accent-rgb), 0.07)' },
                       width: 32, height: 32,
                     }}
                   >
@@ -6140,9 +6146,9 @@ export default function App() {
                     onClick={toggleTTS}
                     sx={{ 
                       color: ttsEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.3)',
-                      bgcolor: ttsEnabled ? 'rgba(0,255,255,0.1)' : 'transparent',
+                      bgcolor: ttsEnabled ? 'rgba(var(--accent-rgb), 0.07)' : 'transparent',
                       border: ttsEnabled ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.15)',
-                      '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(0,255,255,0.15)' },
+                      '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(var(--accent-rgb), 0.1)' },
                       width: 32, height: 32,
                     }}
                   >
@@ -6159,7 +6165,7 @@ export default function App() {
                     onClick={stopSpeaking}
                     sx={{ 
                       height: 24,
-                      bgcolor: 'rgba(0,255,255,0.15)',
+                      bgcolor: 'rgba(var(--accent-rgb), 0.1)',
                       color: 'var(--accent)',
                       borderColor: 'var(--accent)',
                       borderWidth: 1,
@@ -6233,12 +6239,12 @@ export default function App() {
               sx={{
                 height: '8px',
                 cursor: 'ns-resize',
-                background: 'linear-gradient(to bottom, rgba(0,255,255,0.3), rgba(0,255,255,0.1))',
+                background: 'linear-gradient(to bottom, rgba(var(--accent-rgb), 0.2), rgba(var(--accent-rgb), 0.07))',
                 borderRadius: '0 0 8px 8px',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  background: 'linear-gradient(to bottom, rgba(0,255,255,0.6), rgba(0,255,255,0.3))',
-                  boxShadow: '0 0 10px rgba(0,255,255,0.4)',
+                  background: 'linear-gradient(to bottom, rgba(0,255,255,0.6), rgba(var(--accent-rgb), 0.2))',
+                  boxShadow: '0 0 10px rgba(var(--accent-rgb), 0.28)',
                 },
                 display: 'flex',
                 alignItems: 'center',
@@ -6247,7 +6253,7 @@ export default function App() {
               }}
               title="Drag to resize chat window"
             >
-              <Box sx={{ width: '30px', height: '2px', bgcolor: 'rgba(0,255,255,0.4)' }} />
+              <Box sx={{ width: '30px', height: '2px', bgcolor: 'rgba(var(--accent-rgb), 0.28)' }} />
             </Box>
 
             {/* Image Preview Area */}
@@ -6287,7 +6293,7 @@ export default function App() {
                 mb: 1, px: 1.5, py: 1, 
                 bgcolor: 'rgba(0,255,255,0.06)', 
                 borderRadius: 2,
-                border: '1px solid rgba(0,255,255,0.15)',
+                border: '1px solid rgba(var(--accent-rgb), 0.1)',
                 animation: 'fadeIn 0.5s ease',
               }}>
                 <Typography variant="body2" sx={{ color: 'var(--accent)', fontStyle: 'italic', fontWeight: 500, fontSize: '0.85rem' }}>
@@ -6336,11 +6342,11 @@ export default function App() {
                     }}
                     onDelete={() => setSuggestions(prev => prev.filter((_, idx) => idx !== i))}
                     sx={{ 
-                      bgcolor: 'rgba(0,255,255,0.1)', 
+                      bgcolor: 'rgba(var(--accent-rgb), 0.07)', 
                       backdropFilter: 'blur(5px)',
-                      border: '1px solid rgba(0,255,255,0.3)',
+                      border: '1px solid rgba(var(--accent-rgb), 0.2)',
                       color: 'var(--accent)',
-                      '&:hover': { bgcolor: 'rgba(0,255,255,0.2)' }
+                      '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.12)' }
                     }} 
                   />
                 ))}
@@ -6542,9 +6548,9 @@ export default function App() {
                     color: 'rgba(255,255,255,0.7)',
                     fontSize: '0.75rem',
                     transition: 'all 0.2s ease',
-                    border: '1px solid rgba(0,255,255,0.2)',
+                    border: '1px solid rgba(var(--accent-rgb), 0.12)',
                     '&:hover': {
-                      bgcolor: 'rgba(0,255,255,0.1)',
+                      bgcolor: 'rgba(var(--accent-rgb), 0.07)',
                       color: '#fff',
                       borderColor: 'var(--accent)',
                     }
@@ -6799,7 +6805,7 @@ export default function App() {
                           >
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                               <Typography variant="caption" sx={{
-                                color: isActive ? '#00ff88' : '#ffbb44', fontWeight: isActive ? 700 : 600, fontSize: '0.75rem',
+                                color: isActive ? 'var(--accent)' : '#ffbb44', fontWeight: isActive ? 700 : 600, fontSize: '0.75rem',
                               }}>
                                 {v.name}
                               </Typography>
@@ -6941,7 +6947,7 @@ export default function App() {
                   border: '2px solid var(--accent)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   mb: 1.5, transition: 'all 0.3s ease',
-                  boxShadow: '0 0 30px rgba(0,255,255,0.15)',
+                  boxShadow: '0 0 30px rgba(var(--accent-rgb), 0.1)',
                 }}>
                   <Typography sx={{ fontSize: 28 }}>🌐</Typography>
                 </Box>
@@ -7144,19 +7150,19 @@ export default function App() {
         anchorEl={threadMenuAnchor}
         open={Boolean(threadMenuAnchor)}
         onClose={() => { setThreadMenuAnchor(null); setThreadMenuThread(null); }}
-        PaperProps={{ sx: { bgcolor: 'rgba(15,18,35,0.95)', border: '1px solid rgba(0,255,255,0.15)', backdropFilter: 'blur(12px)', minWidth: 180 } }}
+        PaperProps={{ sx: { bgcolor: 'rgba(15,18,35,0.95)', border: '1px solid rgba(var(--accent-rgb), 0.1)', backdropFilter: 'blur(12px)', minWidth: 180 } }}
       >
         {threadMenuThread && [
           <MenuItem key="rename" onClick={() => {
             startRenameThread(threadMenuThread.id, threadMenuThread.title);
             setThreadMenuAnchor(null); setThreadMenuThread(null);
-          }} sx={{ color: '#fff', fontSize: '0.875rem', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+          }} sx={{ color: '#fff', fontSize: '0.875rem', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}>
             <EditIcon fontSize="small" sx={{ mr: 1.5, color: 'var(--accent)' }} /> Rename
           </MenuItem>,
           <MenuItem key="pin" onClick={() => {
             togglePinThread(threadMenuThread.id);
             setThreadMenuAnchor(null); setThreadMenuThread(null);
-          }} sx={{ color: '#fff', fontSize: '0.875rem', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+          }} sx={{ color: '#fff', fontSize: '0.875rem', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}>
             {threadMenuThread.pinned
               ? <><PinIcon fontSize="small" sx={{ mr: 1.5, color: 'var(--accent)' }} /> Unpin</>
               : <><PinOutlinedIcon fontSize="small" sx={{ mr: 1.5, color: 'rgba(255,255,255,0.6)' }} /> Pin</>
@@ -7166,7 +7172,7 @@ export default function App() {
             setExportThreadData({ id: threadMenuThread.id, title: threadMenuThread.title });
             setExportMenuAnchor(e.currentTarget);
             setThreadMenuAnchor(null); setThreadMenuThread(null);
-          }} sx={{ color: '#fff', fontSize: '0.875rem', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
+          }} sx={{ color: '#fff', fontSize: '0.875rem', '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}>
             <DownloadIcon fontSize="small" sx={{ mr: 1.5, color: 'rgba(255,255,255,0.6)' }} /> Export
           </MenuItem>,
           <Divider key="divider" sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />,
@@ -7322,7 +7328,7 @@ export default function App() {
         <IconButton
           size="small"
           onClick={() => { const v = Math.min(uiScale + 0.1, 1.5); setUiScale(v); localStorage.setItem('vesper_ui_scale', v.toString()); }}
-          sx={{ color: 'var(--accent)', width: 28, height: 28, '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}
+          sx={{ color: 'var(--accent)', width: 28, height: 28, '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}
         >
           <ZoomInIcon sx={{ fontSize: 16 }} />
         </IconButton>
@@ -7332,7 +7338,7 @@ export default function App() {
         <IconButton
           size="small"
           onClick={() => { const v = Math.max(uiScale - 0.1, 0.5); setUiScale(v); localStorage.setItem('vesper_ui_scale', v.toString()); }}
-          sx={{ color: 'var(--accent)', width: 28, height: 28, '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}
+          sx={{ color: 'var(--accent)', width: 28, height: 28, '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.07)' } }}
         >
           <ZoomOutIcon sx={{ fontSize: 16 }} />
         </IconButton>
