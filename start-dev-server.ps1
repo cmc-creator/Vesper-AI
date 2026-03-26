@@ -5,13 +5,25 @@
 Write-Host ">>> Starting Vesper AI Development Environment..." -ForegroundColor Cyan
 Write-Host ""
 
+$pythonVersionOutput = & python --version 2>&1
+$pythonVersionText = [string]$pythonVersionOutput
+if ($pythonVersionText -match 'Python (\d+)\.(\d+)') {
+    $pythonMajor = [int]$matches[1]
+    $pythonMinor = [int]$matches[2]
+    if ($pythonMajor -ne 3 -or $pythonMinor -lt 11 -or $pythonMinor -gt 12) {
+        Write-Host "[!] Unsupported Python version: $pythonVersionText" -ForegroundColor Red
+        Write-Host "[!] Use Python 3.11 or 3.12 before starting the backend." -ForegroundColor Yellow
+        exit 1
+    }
+}
+
 # Check if Python virtual environment exists
 if (-not (Test-Path ".venv\Scripts\Activate.ps1")) {
     Write-Host "[!] Python virtual environment not found. Creating..." -ForegroundColor Yellow
     python -m venv .venv
     # Cannot dot-source in same scope easily in script, so we just run pip directly after
     Write-Host "[+] Installing Python dependencies..." -ForegroundColor Yellow
-    & .\.venv\Scripts\pip install -r requirements.txt
+    & .\.venv\Scripts\pip install -r backend\requirements.txt
 }
 
 Write-Host "[OK] Python environment check complete" -ForegroundColor Green
@@ -20,7 +32,7 @@ Write-Host "[OK] Python environment check complete" -ForegroundColor Green
 if (-not (Test-Path "frontend\node_modules")) {
     Write-Host "[+] Installing Node.js dependencies..." -ForegroundColor Yellow
     Push-Location frontend
-    npm install
+    npm install --legacy-peer-deps
     Pop-Location
 }
 

@@ -9,9 +9,19 @@ Write-Host "Checking prerequisites..." -ForegroundColor Yellow
 # Check Python
 try {
     $pythonVersion = & python --version 2>&1
-    Write-Host "✓ Python: $pythonVersion" -ForegroundColor Green
+    $pythonVersionText = [string]$pythonVersion
+    if ($pythonVersionText -match 'Python (\d+)\.(\d+)') {
+        $pythonMajor = [int]$matches[1]
+        $pythonMinor = [int]$matches[2]
+        if ($pythonMajor -ne 3 -or $pythonMinor -lt 11 -or $pythonMinor -gt 12) {
+            Write-Host "✗ Unsupported Python version: $pythonVersionText" -ForegroundColor Red
+            Write-Host "  Use Python 3.11 or 3.12 for reliable dependency wheels." -ForegroundColor Yellow
+            exit 1
+        }
+    }
+    Write-Host "✓ Python: $pythonVersionText" -ForegroundColor Green
 } catch {
-    Write-Host "✗ Python not found. Please install Python 3.10+" -ForegroundColor Red
+    Write-Host "✗ Python not found. Please install Python 3.11 or 3.12" -ForegroundColor Red
     exit 1
 }
 
@@ -38,13 +48,13 @@ if (!(Test-Path ".venv")) {
 }
 
 Write-Host "[2/4] Installing Python dependencies..." -ForegroundColor Cyan
-& .\.venv\Scripts\pip.exe install -r requirements.txt --quiet
+& .\.venv\Scripts\pip.exe install -r backend\requirements.txt --quiet
 Write-Host "✓ Python packages installed" -ForegroundColor Green
 
 # Setup frontend
 Write-Host "[3/4] Installing frontend dependencies..." -ForegroundColor Cyan
 Set-Location frontend
-npm install --silent
+npm install --legacy-peer-deps --silent
 Write-Host "✓ Node packages installed" -ForegroundColor Green
 Set-Location ..
 

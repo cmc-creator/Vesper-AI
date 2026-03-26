@@ -16,11 +16,20 @@ Your personal AI companion with persistent memory. Just for you and Vesper.
 
 ## Setup Instructions
 
+Recommended local environment:
+- Python 3.11 or 3.12
+- Node.js 18+
+
 1. **Install Dependencies**
    ```
    cd C:\Users\conni\VesperApp
+   python -m venv .venv
+   .\.venv\Scripts\activate
+   pip install -r backend\requirements.txt
    npm install
    ```
+
+   Note: the root install uses `frontend`'s `--legacy-peer-deps` mode automatically.
 
 2. **Add Your API Key**
    - Copy `.env.example` to `.env`

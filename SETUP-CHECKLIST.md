@@ -3,7 +3,7 @@
 Follow this checklist to get Vesper AI running locally.
 
 ## Prerequisites ✓
-- [ ] Python 3.9+ installed (`python --version`)
+- [ ] Python 3.11 or 3.12 installed (`python --version`)
 - [ ] Node.js 18+ installed (`node --version`)
 - [ ] Git installed
 - [ ] Code editor (VS Code recommended)
@@ -23,13 +23,13 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
 # Install Python dependencies
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 ## Step 3: Frontend Setup ✓
 ```bash
 cd frontend
-npm install
+npm install --legacy-peer-deps
 cd ..
 ```
 
@@ -129,11 +129,11 @@ npm run dev
 ### ❌ "Module not found" errors
 ```bash
 # Backend:
-pip install -r requirements.txt --force-reinstall
+pip install -r backend/requirements.txt --force-reinstall
 
 # Frontend:
 cd frontend
-npm install
+npm install --legacy-peer-deps
 ```
 
 ### ❌ Chat not working
@@ -204,8 +204,8 @@ npm run build
 
 **Minimum to run:**
 1. Install Python & Node.js
-2. Run `pip install -r requirements.txt`
-3. Run `npm install` in frontend folder
+2. Use Python `3.11` or `3.12`, then run `pip install -r backend/requirements.txt`
+3. Run `npm install --legacy-peer-deps` in frontend folder
 4. Run `.\start-dev-server.ps1`
 5. Open http://localhost:5173
 
