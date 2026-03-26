@@ -102,6 +102,22 @@ npm run dev
 
 ## Common Issues & Fixes
 
+### ❌ Python 3.14 (or wrong version) breaks dependency install
+Python 3.14 is **not supported**. Many required packages (`pydantic-core`, `numpy`, `pandas`) lack
+pre-built wheels for Python 3.14 on Windows, causing pip to attempt source builds that fail without
+a full Rust + C toolchain.
+
+**Fix:** install Python 3.11 or 3.12 alongside your existing installation, then use the launcher
+scripts which auto-select the right interpreter:
+```powershell
+# Install 3.11 via pyenv-win:
+pyenv install 3.11.9
+
+# Or download directly from:
+# https://www.python.org/downloads/release/python-3119/
+```
+The repo `.python-version` file pins `3.11`. pyenv-win will pick this up automatically.
+
 ### ❌ Backend won't start
 ```bash
 # Check if port 8000 is in use

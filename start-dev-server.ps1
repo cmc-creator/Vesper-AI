@@ -5,23 +5,31 @@
 Write-Host ">>> Starting Vesper AI Development Environment..." -ForegroundColor Cyan
 Write-Host ""
 
-$pythonVersionOutput = & python --version 2>&1
-$pythonVersionText = [string]$pythonVersionOutput
-if ($pythonVersionText -match 'Python (\d+)\.(\d+)') {
-    $pythonMajor = [int]$matches[1]
-    $pythonMinor = [int]$matches[2]
-    if ($pythonMajor -ne 3 -or $pythonMinor -lt 11 -or $pythonMinor -gt 12) {
-        Write-Host "[!] Unsupported Python version: $pythonVersionText" -ForegroundColor Red
-        Write-Host "[!] Use Python 3.11 or 3.12 before starting the backend." -ForegroundColor Yellow
-        exit 1
-    }
+# Auto-detect supported Python (3.11 preferred, 3.12 accepted)
+$pythonExe = $null; $pythonExeArgs = @()
+foreach ($candidate in @('py -3.11', 'py -3.12', 'python3.11', 'python3.12', 'python')) {
+    try {
+        $parts = $candidate -split ' '
+        $verOut = & $parts[0] ($parts[1..99] + @('--version')) 2>&1
+        if (([string]$verOut) -match 'Python (3\.(?:11|12))') {
+            $pythonExe = $parts[0]
+            $pythonExeArgs = if ($parts.Count -gt 1) { $parts[1..($parts.Count-1)] } else { @() }
+            Write-Host "[OK] Python: $([string]$verOut)  (via '$candidate')" -ForegroundColor Green
+            break
+        }
+    } catch {}
+}
+if (-not $pythonExe) {
+    Write-Host "[!] Python 3.11 or 3.12 not found." -ForegroundColor Red
+    Write-Host "[!] Install from https://www.python.org/downloads/" -ForegroundColor Yellow
+    Write-Host "[!] Python 3.14 is NOT supported — binary wheels are missing for key packages." -ForegroundColor Yellow
+    exit 1
 }
 
 # Check if Python virtual environment exists
 if (-not (Test-Path ".venv\Scripts\Activate.ps1")) {
     Write-Host "[!] Python virtual environment not found. Creating..." -ForegroundColor Yellow
-    python -m venv .venv
-    # Cannot dot-source in same scope easily in script, so we just run pip directly after
+    & $pythonExe ($pythonExeArgs + @('-m', 'venv', '.venv'))
     Write-Host "[+] Installing Python dependencies..." -ForegroundColor Yellow
     & .\.venv\Scripts\pip install -r backend\requirements.txt
 }
