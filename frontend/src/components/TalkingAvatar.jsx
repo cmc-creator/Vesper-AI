@@ -139,6 +139,8 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
   const smoothAmplitude = useRef(0);
   const currentVisemeRef = useRef(0);
   const visemeTimerRef = useRef(0);
+  const blinkTimerRef = useRef(0);
+  const blinkDurationRef = useRef(0);
 
   useEffect(() => {
     if (!sceneObject) return;
@@ -157,9 +159,25 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
   }, []);
 
   return useCallback((delta) => {
+    blinkTimerRef.current -= delta;
+    if (blinkDurationRef.current > 0) blinkDurationRef.current -= delta;
+    if (blinkTimerRef.current <= 0) {
+      blinkDurationRef.current = 0.09 + Math.random() * 0.05;
+      blinkTimerRef.current = 2.1 + Math.random() * 2.8;
+    }
+    const blinkOn = blinkDurationRef.current > 0;
+    const blinkVal = blinkOn ? 1 : 0;
+
     if (!isSpeaking || !analyserRef?.current) {
       smoothAmplitude.current = THREE.MathUtils.lerp(smoothAmplitude.current, 0, 0.15);
       setMorph('mouthOpen', smoothAmplitude.current * 0.3);
+      setMorph('eyeBlinkLeft', blinkVal);
+      setMorph('eyeBlinkRight', blinkVal);
+      setMorph('blink_left', blinkVal);
+      setMorph('blink_right', blinkVal);
+      setMorph('eyesClosed', blinkVal * 0.9);
+      setMorph('cheekSquintLeft', 0);
+      setMorph('cheekSquintRight', 0);
       return;
     }
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
@@ -179,6 +197,15 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
       currentVisemeRef.current = (currentVisemeRef.current + 1 + Math.floor(Math.random() * 3)) % VISEME_SHAPES.length;
       setMorph(VISEME_SHAPES[currentVisemeRef.current], amp * 0.6);
     }
+    setMorph('eyeBlinkLeft', blinkVal);
+    setMorph('eyeBlinkRight', blinkVal);
+    setMorph('blink_left', blinkVal);
+    setMorph('blink_right', blinkVal);
+    setMorph('eyesClosed', blinkVal * 0.9);
+    const cheek = Math.min(0.35, amp * 0.45);
+    setMorph('cheekSquintLeft', cheek);
+    setMorph('cheekSquintRight', cheek);
+    setMorph('cheekPuff', amp * 0.12);
     setMorph('mouthSmile', amp * 0.2);
   }, [analyserRef, isSpeaking, setMorph]);
 }
@@ -210,10 +237,10 @@ function getSpeechAmplitude(analyserRef) {
 function CameraSetup() {
   const { camera } = useThree();
   useEffect(() => {
-    camera.position.set(0, 2.56, 1.04);
-    camera.fov = 28;
+    camera.position.set(0, 2.48, 1.16);
+    camera.fov = 31;
     camera.updateProjectionMatrix();
-    camera.lookAt(0, 2.28, 0);
+    camera.lookAt(0, 2.2, 0);
   }, [camera]);
   return null;
 }
@@ -224,6 +251,7 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
   const headRef   = useRef(null);
   const spineRef  = useRef(null);
   const jawRef    = useRef(null);
+  const neckRef   = useRef(null);
 
   const { scene } = useGLTF(url);
 
@@ -249,6 +277,7 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
       if (!headRef.current  && n.includes('head') && !n.includes('headtop') && !n.includes('end')) headRef.current  = obj;
       if (!spineRef.current && (n.includes('spine1') || n.includes('spine2') || n.includes('chest'))) spineRef.current = obj;
       if (!jawRef.current && (n.includes('jaw') || n.includes('chin'))) jawRef.current = obj;
+      if (!neckRef.current && n.includes('neck')) neckRef.current = obj;
     });
 
     // Relax T-pose style arms so they sit naturally by the torso.
@@ -267,6 +296,10 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
       headRef.current.rotation.x = speechAmp * 0.08;
     }
     if (jawRef.current) jawRef.current.rotation.x = speechAmp * 0.38;
+    if (neckRef.current) {
+      neckRef.current.rotation.x = Math.sin(t * 0.55) * 0.012 + speechAmp * 0.04;
+      neckRef.current.rotation.y = Math.sin(t * 0.42) * 0.01;
+    }
     // Breathing
     if (spineRef.current) {
       spineRef.current.rotation.x = Math.sin(t * 0.75) * 0.013 + speechAmp * 0.05;
@@ -291,6 +324,7 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
   const headRef  = useRef(null);
   const spineRef = useRef(null);
   const jawRef   = useRef(null);
+  const neckRef  = useRef(null);
   const fbx = useFBX(url);
   const cloned = React.useMemo(() => fbx.clone(true), [fbx]);
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
@@ -302,6 +336,7 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
       if (!headRef.current && n.includes('head') && !n.includes('headtop') && !n.includes('end')) headRef.current = obj;
       if (!spineRef.current && (n.includes('spine') || n.includes('chest'))) spineRef.current = obj;
       if (!jawRef.current && (n.includes('jaw') || n.includes('chin'))) jawRef.current = obj;
+      if (!neckRef.current && n.includes('neck')) neckRef.current = obj;
     });
     applyRelaxedArmPose(cloned);
   }, [cloned]);
@@ -331,6 +366,10 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
       headRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.35) * 0.045 + speechAmp * 0.05;
     }
     if (jawRef.current) jawRef.current.rotation.x = speechAmp * 0.34;
+    if (neckRef.current) {
+      neckRef.current.rotation.x = Math.sin(clock.elapsedTime * 0.52) * 0.01 + speechAmp * 0.035;
+      neckRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.4) * 0.009;
+    }
     if (spineRef.current) spineRef.current.rotation.x = Math.sin(clock.elapsedTime * 0.7) * 0.012 + speechAmp * 0.045;
     if (groupRef.current)
       groupRef.current.position.y = normPosition[1] + Math.sin(clock.elapsedTime * 0.7) * 0.03 + speechAmp * 0.035;
@@ -442,7 +481,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 2.56, 1.04], fov: 28 }}
+        camera={{ position: [0, 2.48, 1.16], fov: 31 }}
         gl={{ antialias: true, alpha: true, toneMappingExposure: 1.4 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
@@ -466,8 +505,8 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
             url={resolvedUrl}
             analyserRef={analyserRef}
             isSpeaking={isSpeaking}
-            scale={compact ? 1.28 : 1.52}
-            position={[0, 0.12, 0]}
+            scale={compact ? 1.24 : 1.4}
+            position={[0, 0.03, 0]}
           />
           <ContactShadows position={[0, 0, 0]} opacity={0.3} scale={4} blur={2} />
           <Environment preset="warehouse" />
