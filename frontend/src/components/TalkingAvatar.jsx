@@ -40,16 +40,91 @@ function findUpperArmBone(root, side = 'left') {
   return match;
 }
 
+function findArmEndBone(upperArm, side = 'left') {
+  const endPatterns = side === 'left'
+    ? ['lefthand', 'left_hand', 'leftwrist', 'leftforearm', 'left_lowerarm', 'lowerarm_l', 'hand_l']
+    : ['righthand', 'right_hand', 'rightwrist', 'rightforearm', 'right_lowerarm', 'lowerarm_r', 'hand_r'];
+
+  let namedMatch = null;
+  let deepest = null;
+  let deepestDepth = -1;
+
+  upperArm.traverse((obj) => {
+    if (!obj.isBone || obj === upperArm) return;
+    const name = (obj.name || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!namedMatch && endPatterns.some((p) => name.includes(p))) {
+      namedMatch = obj;
+    }
+
+    let depth = 0;
+    let cur = obj;
+    while (cur && cur !== upperArm) {
+      depth += 1;
+      cur = cur.parent;
+    }
+    if (depth > deepestDepth) {
+      deepestDepth = depth;
+      deepest = obj;
+    }
+  });
+
+  return namedMatch || deepest;
+}
+
+function scoreArmPose(upperArm, endBone) {
+  if (!endBone) return -999;
+  const shoulderPos = new THREE.Vector3();
+  const endPos = new THREE.Vector3();
+  upperArm.getWorldPosition(shoulderPos);
+  endBone.getWorldPosition(endPos);
+
+  const verticalDrop = shoulderPos.y - endPos.y;
+  const horizontalReach = Math.hypot(endPos.x - shoulderPos.x, endPos.z - shoulderPos.z);
+  return verticalDrop - horizontalReach * 0.15;
+}
+
+function applyBestRelaxedArmRotation(root, upperArm, side = 'left') {
+  if (!upperArm) return;
+
+  const endBone = findArmEndBone(upperArm, side);
+  const originalQuat = upperArm.quaternion.clone();
+  const candidates = [
+    { x: 0, z: 0 },
+    { x: 0, z: 1.2 },
+    { x: 0, z: -1.2 },
+    { x: 1.0, z: 0 },
+    { x: -1.0, z: 0 },
+    { x: 0.6, z: 0.8 },
+    { x: 0.6, z: -0.8 },
+    { x: -0.6, z: 0.8 },
+    { x: -0.6, z: -0.8 },
+  ];
+
+  let bestQuat = originalQuat.clone();
+  let bestScore = -999;
+
+  for (const candidate of candidates) {
+    upperArm.quaternion.copy(originalQuat);
+    upperArm.rotateX(candidate.x);
+    upperArm.rotateZ(candidate.z);
+    root.updateMatrixWorld(true);
+    const score = scoreArmPose(upperArm, endBone);
+    if (score > bestScore) {
+      bestScore = score;
+      bestQuat = upperArm.quaternion.clone();
+    }
+  }
+
+  upperArm.quaternion.copy(bestQuat);
+  root.updateMatrixWorld(true);
+}
+
 function applyRelaxedArmPose(root) {
   const leftUpperArm = findUpperArmBone(root, 'left');
   const rightUpperArm = findUpperArmBone(root, 'right');
 
-  if (leftUpperArm) {
-    leftUpperArm.rotation.z += 0.75;
-  }
-  if (rightUpperArm) {
-    rightUpperArm.rotation.z -= 0.75;
-  }
+  applyBestRelaxedArmRotation(root, leftUpperArm, 'left');
+  applyBestRelaxedArmRotation(root, rightUpperArm, 'right');
 }
 
 // ── Shared lip-sync hook (works for both FBX and GLB meshes) ──────────────────
