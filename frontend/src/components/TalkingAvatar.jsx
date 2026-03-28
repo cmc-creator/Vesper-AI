@@ -45,10 +45,10 @@ function applyRelaxedArmPose(root) {
   const rightUpperArm = findUpperArmBone(root, 'right');
 
   if (leftUpperArm) {
-    leftUpperArm.rotation.z -= 0.9;
+    leftUpperArm.rotation.z += 0.75;
   }
   if (rightUpperArm) {
-    rightUpperArm.rotation.z += 0.9;
+    rightUpperArm.rotation.z -= 0.75;
   }
 }
 
