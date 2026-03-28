@@ -152,6 +152,16 @@ const hexToRgb = (hex) => {
   return `${r}, ${g}, ${b}`;
 };
 
+const normalizeVoiceId = (voiceId) => {
+  if (!voiceId) return '';
+  const trimmed = String(voiceId).trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('eleven:') || trimmed.startsWith('edge:')) return trimmed;
+  // Backward compatibility: legacy stored raw ElevenLabs IDs.
+  if (/^[A-Za-z0-9_-]{16,}$/.test(trimmed)) return `eleven:${trimmed}`;
+  return trimmed;
+};
+
 // ─── Theme Categories & Massive Theme Catalog ─────────────────────────────
 const THEME_CATEGORIES = [
   { id: 'packages', label: '✨ Theme Packages', desc: 'Full immersive visual worlds — textures, fonts, animations & all' },
@@ -450,7 +460,7 @@ function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'true') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [selectedVoiceName, setSelectedVoiceName] = useState(() => safeStorageGet('vesper_tts_voice', 'eleven:pFZP5JQG7iQjIQuC4Bku'));
+  const [selectedVoiceName, setSelectedVoiceName] = useState(() => normalizeVoiceId(safeStorageGet('vesper_tts_voice', 'eleven:pFZP5JQG7iQjIQuC4Bku')));
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [analyzingImage, setAnalyzingImage] = useState(false);
@@ -2811,7 +2821,7 @@ export default function App() {
         const data = await r.json();
         if (data.voices) {
           setCloudVoices(data.voices);
-          if (data.default && !selectedVoiceName) setDefaultVoiceId(data.default);
+          if (data.default) setDefaultVoiceId(normalizeVoiceId(data.default));
           break;
         }
       } catch (e) {
@@ -2958,9 +2968,12 @@ export default function App() {
     let voice = '';
     const contextVoice = await resolveVoiceForContext(context);
     if (contextVoice) {
-      voice = contextVoice;
+      voice = normalizeVoiceId(contextVoice);
     } else {
-      voice = selectedVoiceName || defaultVoiceId || (cloudVoices.length > 0 ? cloudVoices[0].id : '') || LILY_VOICE_ID;
+      voice = normalizeVoiceId(selectedVoiceName)
+        || normalizeVoiceId(defaultVoiceId)
+        || normalizeVoiceId(cloudVoices.length > 0 ? cloudVoices[0].id : '')
+        || LILY_VOICE_ID;
     }
     // Always fall back to Lily if nothing resolved
     if (!voice || (!voice.startsWith('eleven:') && !voice.startsWith('edge:'))) {
@@ -3075,19 +3088,20 @@ export default function App() {
   };
 
   const handleVoiceChange = async (voiceName) => {
-    setSelectedVoiceName(voiceName);
+    const normalizedVoice = normalizeVoiceId(voiceName);
+    setSelectedVoiceName(normalizedVoice);
     try {
-      localStorage.setItem('vesper_tts_voice', voiceName);
+      localStorage.setItem('vesper_tts_voice', normalizedVoice);
     } catch (e) {}
     // Preview the voice via ElevenLabs (never use browser SpeechSynthesis)
-    if (voiceName) {
+    if (normalizedVoice) {
       stopSpeaking();
       setIsSpeaking(true);
       try {
         const response = await fetch(`${apiBase}/api/tts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: "Hey CC. This is how I sound now... pretty nice, right?", voice: voiceName }),
+          body: JSON.stringify({ text: "Hey CC. This is how I sound now... pretty nice, right?", voice: normalizedVoice }),
         });
         if (!response.ok) throw new Error('Preview failed');
         const audioBlob = await response.blob();

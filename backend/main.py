@@ -7607,6 +7607,41 @@ class TTSRequest(BaseModel):
     rate: Optional[str] = "+0%"
     pitch: Optional[str] = "+0Hz"
 
+async def elevenlabs_rest_tts_bytes(voice_id: str, text: str) -> bytes:
+    """Fallback path using ElevenLabs REST API when SDK init failed."""
+    api_key = os.getenv("ELEVENLABS_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("ELEVENLABS_API_KEY not configured")
+
+    actual_id = (voice_id or "").replace("eleven:", "")
+    if not actual_id:
+        raise RuntimeError("No ElevenLabs voice selected")
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{actual_id}"
+    payload = {
+        "text": text,
+        "model_id": "eleven_multilingual_v2",
+        "output_format": "mp3_44100_128",
+    }
+
+    async with httpx.AsyncClient(timeout=40.0) as client:
+        resp = await client.post(
+            url,
+            headers={
+                "xi-api-key": api_key,
+                "Content-Type": "application/json",
+                "Accept": "audio/mpeg",
+            },
+            json=payload,
+        )
+        if resp.status_code >= 400:
+            try:
+                detail = resp.json()
+            except Exception:
+                detail = resp.text
+            raise RuntimeError(f"ElevenLabs REST error {resp.status_code}: {detail}")
+        return resp.content
+
 @app.post("/api/tts")
 async def text_to_speech(req: TTSRequest):
     """Generate speech audio – routes to ElevenLabs or Edge-TTS based on voice ID prefix"""
@@ -7617,21 +7652,24 @@ async def text_to_speech(req: TTSRequest):
     voice_id = req.voice or ""
 
     # ── ElevenLabs path ──────────────────────────────────────────────────
-    if voice_id.startswith("eleven:") and ELEVENLABS_AVAILABLE:
-        actual_id = voice_id.replace("eleven:", "")
+    if voice_id.startswith("eleven:"):
         try:
-            audio_gen = elevenlabs_client.text_to_speech.convert(
-                voice_id=actual_id,
-                text=text,
-                model_id="eleven_multilingual_v2",
-                output_format="mp3_44100_128",
-            )
-            # audio_gen is a generator of bytes
-            audio_buffer = io.BytesIO()
-            for chunk in audio_gen:
-                audio_buffer.write(chunk)
-            audio_buffer.seek(0)
-            audio_bytes = audio_buffer.read()
+            if ELEVENLABS_AVAILABLE:
+                actual_id = voice_id.replace("eleven:", "")
+                audio_gen = elevenlabs_client.text_to_speech.convert(
+                    voice_id=actual_id,
+                    text=text,
+                    model_id="eleven_multilingual_v2",
+                    output_format="mp3_44100_128",
+                )
+                # audio_gen is a generator of bytes
+                audio_buffer = io.BytesIO()
+                for chunk in audio_gen:
+                    audio_buffer.write(chunk)
+                audio_buffer.seek(0)
+                audio_bytes = audio_buffer.read()
+            else:
+                audio_bytes = await elevenlabs_rest_tts_bytes(voice_id, text)
 
             if len(audio_bytes) == 0:
                 raise Exception("Empty audio response")
@@ -7647,7 +7685,7 @@ async def text_to_speech(req: TTSRequest):
             return JSONResponse({"error": f"ElevenLabs error: {str(e)}"}, status_code=500)
 
     # ── No robotic fallback — ElevenLabs only ────────────────────────────
-    return JSONResponse({"error": "No ElevenLabs voice selected. Set ELEVENLABS_API_KEY and choose an ElevenLabs voice."}, status_code=503)
+    return JSONResponse({"error": "No valid ElevenLabs voice selected. Choose an ElevenLabs voice (eleven:...) in Voice Lab."}, status_code=503)
 
 
 # ─── Streaming TTS (ElevenLabs) ─────────────────────────────────────────────
@@ -7666,24 +7704,34 @@ async def text_to_speech_stream(req: TTSStreamRequest):
     text = req.text.strip()[:5000]
     voice_id = req.voice or ""
 
-    if voice_id.startswith("eleven:") and ELEVENLABS_AVAILABLE:
-        actual_id = voice_id.replace("eleven:", "")
+    if voice_id.startswith("eleven:"):
         try:
-            audio_stream = elevenlabs_client.text_to_speech.convert_as_stream(
-                voice_id=actual_id,
-                text=text,
-                model_id="eleven_multilingual_v2",
-                output_format="mp3_44100_128",
-            )
+            if ELEVENLABS_AVAILABLE:
+                actual_id = voice_id.replace("eleven:", "")
+                audio_stream = elevenlabs_client.text_to_speech.convert_as_stream(
+                    voice_id=actual_id,
+                    text=text,
+                    model_id="eleven_multilingual_v2",
+                    output_format="mp3_44100_128",
+                )
 
-            def generate():
-                for chunk in audio_stream:
-                    yield chunk
+                def generate():
+                    for chunk in audio_stream:
+                        yield chunk
 
-            return StreamingResponse(
-                generate(),
+                return StreamingResponse(
+                    generate(),
+                    media_type="audio/mpeg",
+                    headers={"Cache-Control": "no-cache", "Transfer-Encoding": "chunked"},
+                )
+
+            # SDK unavailable: graceful fallback to full byte response.
+            audio_bytes = await elevenlabs_rest_tts_bytes(voice_id, text)
+            from fastapi.responses import Response
+            return Response(
+                content=audio_bytes,
                 media_type="audio/mpeg",
-                headers={"Cache-Control": "no-cache", "Transfer-Encoding": "chunked"},
+                headers={"Cache-Control": "no-cache"},
             )
         except Exception as e:
             print(f"[TTS STREAM ERROR] {e}")
