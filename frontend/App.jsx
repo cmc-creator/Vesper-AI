@@ -105,7 +105,7 @@ import Sassy from './src/components/Sassy';
 import MediaGallery from './src/components/MediaGallery';
 import AvatarStudio from './src/components/AvatarStudio';
 import VesperAvatar3D from './src/components/VesperAvatar3D';
-import CyberRobotPortrait from './src/components/CyberRobotPortrait';
+import TalkingAvatar from './src/components/TalkingAvatar';
 import IntegrationsHub from './src/components/IntegrationsHub';
 import BackgroundStudio from './src/components/BackgroundStudio';
 
@@ -6872,10 +6872,25 @@ export default function App() {
               boxShadow: isSpeaking ? `0 0 28px ${activeTheme.accent}66` : `0 4px 24px rgba(0,0,0,0.5)`,
               transition: 'box-shadow 0.4s ease',
             }}>
-              <CyberRobotPortrait
-                accentColor={activeTheme.accent || '#a855f7'}
-                isSpeaking={isSpeaking}
-              />
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  maskImage: 'linear-gradient(to bottom, black 0%, black 68%, transparent 100%)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 68%, transparent 100%)',
+                }}
+              >
+                <TalkingAvatar
+                  avatarUrl={rpmAvatarUrl || undefined}
+                  isSpeaking={isSpeaking}
+                  analyserRef={analyserRef}
+                  height={230}
+                  accentColor={activeTheme.accent || '#a855f7'}
+                  showControls={false}
+                />
+              </Box>
             </Box>
 
             {/* Dashboard widgets row */}
