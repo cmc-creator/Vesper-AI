@@ -6878,8 +6878,8 @@ export default function App() {
                   height: '100%',
                   position: 'relative',
                   overflow: 'hidden',
-                  maskImage: 'linear-gradient(to bottom, black 0%, black 68%, transparent 100%)',
-                  WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 68%, transparent 100%)',
+                  maskImage: 'linear-gradient(to bottom, black 0%, black 56%, transparent 86%)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 56%, transparent 86%)',
                 }}
               >
                 <TalkingAvatar
