@@ -188,10 +188,10 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
 function CameraSetup() {
   const { camera } = useThree();
   useEffect(() => {
-    camera.position.set(0, 2.48, 1.16);
-    camera.fov = 31;
+    camera.position.set(0, 2.56, 1.04);
+    camera.fov = 28;
     camera.updateProjectionMatrix();
-    camera.lookAt(0, 2.2, 0);
+    camera.lookAt(0, 2.28, 0);
   }, [camera]);
   return null;
 }
@@ -399,7 +399,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 2.48, 1.16], fov: 31 }}
+        camera={{ position: [0, 2.56, 1.04], fov: 28 }}
         gl={{ antialias: true, alpha: true, toneMappingExposure: 1.4 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
@@ -423,8 +423,8 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
             url={resolvedUrl}
             analyserRef={analyserRef}
             isSpeaking={isSpeaking}
-            scale={compact ? 1.24 : 1.4}
-            position={[0, 0.03, 0]}
+            scale={compact ? 1.28 : 1.52}
+            position={[0, 0.12, 0]}
           />
           <ContactShadows position={[0, 0, 0]} opacity={0.3} scale={4} blur={2} />
           <Environment preset="warehouse" />
