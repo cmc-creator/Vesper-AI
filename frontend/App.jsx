@@ -105,7 +105,7 @@ import Sassy from './src/components/Sassy';
 import MediaGallery from './src/components/MediaGallery';
 import AvatarStudio from './src/components/AvatarStudio';
 import VesperAvatar3D from './src/components/VesperAvatar3D';
-import TalkingAvatar from './src/components/TalkingAvatar';
+import CyberRobotPortrait from './src/components/CyberRobotPortrait';
 import IntegrationsHub from './src/components/IntegrationsHub';
 import BackgroundStudio from './src/components/BackgroundStudio';
 
@@ -6859,20 +6859,6 @@ export default function App() {
           </section>
 
           <section className="ops-panel">
-            <Chip
-              label="LIVE BUILD: 56f85740"
-              size="small"
-              sx={{
-                alignSelf: 'center',
-                mb: 1,
-                bgcolor: 'rgba(0,255,136,0.16)',
-                color: '#00ff88',
-                border: '1px solid rgba(0,255,136,0.5)',
-                fontWeight: 800,
-                letterSpacing: 0.5,
-                fontSize: '0.68rem',
-              }}
-            />
             {/* ═══ AVATAR PORTRAIT ═══ */}
             <Box sx={{
               width: 170,
@@ -6886,13 +6872,9 @@ export default function App() {
               boxShadow: isSpeaking ? `0 0 28px ${activeTheme.accent}66` : `0 4px 24px rgba(0,0,0,0.5)`,
               transition: 'box-shadow 0.4s ease',
             }}>
-              <TalkingAvatar
-                avatarUrl={rpmAvatarUrl || undefined}
-                isSpeaking={isSpeaking}
-                analyserRef={analyserRef}
-                height={230}
+              <CyberRobotPortrait
                 accentColor={activeTheme.accent || '#a855f7'}
-                showControls={false}
+                isSpeaking={isSpeaking}
               />
             </Box>
 
