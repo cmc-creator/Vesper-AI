@@ -74,15 +74,15 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
   }, [analyserRef, isSpeaking, setMorph]);
 }
 
-// ── Fixed portrait camera — calibrated for scale=1.6 RPM model (~2.7 units tall)
-// Eye level ≈ y 2.45  → camera at y 2.4, z 0.8, fov 28 frames face + shoulders
+// ── Fixed portrait camera — relaxed framing for mixed RPM/custom avatars
+// Slightly wider + farther than before to prevent neck/torso-only crops.
 function CameraSetup() {
   const { camera } = useThree();
   useEffect(() => {
-    camera.position.set(0, 2.4, 0.8);
-    camera.fov = 28;
+    camera.position.set(0, 2.55, 1.18);
+    camera.fov = 33;
     camera.updateProjectionMatrix();
-    camera.lookAt(0, 2.3, 0);
+    camera.lookAt(0, 2.45, 0);
   }, [camera]);
   return null;
 }
@@ -282,7 +282,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 2.4, 0.8], fov: 28 }}
+        camera={{ position: [0, 2.55, 1.18], fov: 33 }}
         gl={{ antialias: true, alpha: true, toneMappingExposure: 1.4 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
@@ -306,8 +306,8 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
             url={resolvedUrl}
             analyserRef={analyserRef}
             isSpeaking={isSpeaking}
-            scale={compact ? 1.3 : 1.6}
-            position={[0, 0, 0]}
+            scale={compact ? 1.2 : 1.38}
+            position={[0, -0.08, 0]}
           />
           <ContactShadows position={[0, 0, 0]} opacity={0.3} scale={4} blur={2} />
           <Environment preset="warehouse" />
