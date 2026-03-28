@@ -18,6 +18,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  Alert,
   Switch,
   FormControlLabel,
   LinearProgress,
@@ -427,6 +428,7 @@ function App() {
   const [taskForm, setTaskForm] = useState({ title: '', description: '', status: 'inbox', priority: 'medium', dueDate: '' });
   const [toast, setToast] = useState('');
   const [toastVariant, setToastVariant] = useState('default'); // 'default' | 'success' | 'celebrate' | 'warn'
+  const [voiceErrorToast, setVoiceErrorToast] = useState('');
   // Stats & Insights
   const [vesperStats, setVesperStats] = useState(() => {
     try {
@@ -685,6 +687,12 @@ export default function App() {
   const showToast = useCallback((msg, variant = 'default') => {
     setToastVariant(variant);
     setToast(msg);
+  }, []);
+
+  const showVoiceError = useCallback((msg) => {
+    setVoiceErrorToast(msg);
+    setToast('⚠️ Voice issue detected. See top alert for details.');
+    setToastVariant('warn');
   }, []);
 
   const vesperReact = useCallback((type, override) => {
@@ -3033,7 +3041,7 @@ export default function App() {
     } catch (e) {
       if (e.name === 'AbortError') { setIsSpeaking(false); return; }
       console.warn('[TTS] Cloud TTS unavailable:', e.message);
-      setToast(`🔇 Voice error: ${e.message}`);
+      showVoiceError(`ElevenLabs voice error: ${e.message}`);
     }
 
     // No browser fallback — ElevenLabs only (robotic voices are banned)
@@ -3091,6 +3099,7 @@ export default function App() {
         await audio.play();
       } catch (e) {
         console.warn('[TTS] Voice preview failed:', e.message);
+        showVoiceError(`Voice preview failed: ${e.message}`);
         setIsSpeaking(false);
       }
     }
@@ -7129,6 +7138,22 @@ export default function App() {
           }
         }}
       />
+
+      <Snackbar
+        open={!!voiceErrorToast}
+        autoHideDuration={12000}
+        onClose={() => setVoiceErrorToast('')}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          onClose={() => setVoiceErrorToast('')}
+          sx={{ width: '100%', maxWidth: 900, fontWeight: 600, alignItems: 'center' }}
+        >
+          {voiceErrorToast}
+        </Alert>
+      </Snackbar>
       <Menu
         anchorEl={exportMenuAnchor}
         open={Boolean(exportMenuAnchor)}

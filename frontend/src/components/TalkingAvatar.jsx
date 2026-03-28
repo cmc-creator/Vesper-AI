@@ -183,6 +183,28 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
   }, [analyserRef, isSpeaking, setMorph]);
 }
 
+function getSpeechAmplitude(analyserRef) {
+  const analyser = analyserRef?.current;
+  if (!analyser || !analyser.frequencyBinCount) return 0;
+  try {
+    const len = analyser.frequencyBinCount;
+    if (!analyser.__vesperData || analyser.__vesperData.length !== len) {
+      analyser.__vesperData = new Uint8Array(len);
+    }
+    const data = analyser.__vesperData;
+    analyser.getByteFrequencyData(data);
+
+    const sliceWidth = data.length / 4;
+    let sum = 0;
+    const start = Math.floor(sliceWidth * 0.1);
+    const end = Math.floor(sliceWidth * 1.5);
+    for (let i = start; i < end; i++) sum += data[i];
+    return Math.max(0, Math.min(1, sum / (sliceWidth * 1.4 * 255)));
+  } catch (_) {
+    return 0;
+  }
+}
+
 // ── Fixed portrait camera — tuned for sidebar portrait card framing
 // Keeps full face visible while placing crown close to top edge of the card.
 function CameraSetup() {
@@ -201,6 +223,7 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
   const groupRef  = useRef();
   const headRef   = useRef(null);
   const spineRef  = useRef(null);
+  const jawRef    = useRef(null);
 
   const { scene } = useGLTF(url);
 
@@ -225,6 +248,7 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
       const n = obj.name.toLowerCase();
       if (!headRef.current  && n.includes('head') && !n.includes('headtop') && !n.includes('end')) headRef.current  = obj;
       if (!spineRef.current && (n.includes('spine1') || n.includes('spine2') || n.includes('chest'))) spineRef.current = obj;
+      if (!jawRef.current && (n.includes('jaw') || n.includes('chin'))) jawRef.current = obj;
     });
 
     // Relax T-pose style arms so they sit naturally by the torso.
@@ -235,18 +259,21 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
 
   useFrame(({ clock }, delta) => {
     const t = clock.elapsedTime;
+    const speechAmp = isSpeaking ? getSpeechAmplitude(analyserRef) : 0;
     // Subtle head sway — alive, not robotic
     if (headRef.current) {
-      headRef.current.rotation.y = Math.sin(t * 0.35) * 0.05;
+      headRef.current.rotation.y = Math.sin(t * 0.35) * 0.05 + speechAmp * 0.06;
       headRef.current.rotation.z = Math.sin(t * 0.28) * 0.018;
+      headRef.current.rotation.x = speechAmp * 0.08;
     }
+    if (jawRef.current) jawRef.current.rotation.x = speechAmp * 0.38;
     // Breathing
     if (spineRef.current) {
-      spineRef.current.rotation.x = Math.sin(t * 0.75) * 0.013;
+      spineRef.current.rotation.x = Math.sin(t * 0.75) * 0.013 + speechAmp * 0.05;
     }
     // Gentle float bob
     if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(t * 0.6) * 0.02;
+      groupRef.current.position.y = position[1] + Math.sin(t * 0.6) * 0.02 + speechAmp * 0.04;
     }
     tick(delta);
   });
@@ -261,12 +288,21 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
 // ── FBX model ──────────────────────────────────────────────────────────────────
 function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
   const groupRef = useRef();
+  const headRef  = useRef(null);
+  const spineRef = useRef(null);
+  const jawRef   = useRef(null);
   const fbx = useFBX(url);
   const cloned = React.useMemo(() => fbx.clone(true), [fbx]);
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
 
   useEffect(() => {
     if (!cloned) return;
+    cloned.traverse((obj) => {
+      const n = (obj.name || '').toLowerCase();
+      if (!headRef.current && n.includes('head') && !n.includes('headtop') && !n.includes('end')) headRef.current = obj;
+      if (!spineRef.current && (n.includes('spine') || n.includes('chest'))) spineRef.current = obj;
+      if (!jawRef.current && (n.includes('jaw') || n.includes('chin'))) jawRef.current = obj;
+    });
     applyRelaxedArmPose(cloned);
   }, [cloned]);
 
@@ -289,8 +325,15 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
   }, [cloned, normScale, position]);
 
   useFrame(({ clock }, delta) => {
+    const speechAmp = isSpeaking ? getSpeechAmplitude(analyserRef) : 0;
+    if (headRef.current) {
+      headRef.current.rotation.x = speechAmp * 0.07;
+      headRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.35) * 0.045 + speechAmp * 0.05;
+    }
+    if (jawRef.current) jawRef.current.rotation.x = speechAmp * 0.34;
+    if (spineRef.current) spineRef.current.rotation.x = Math.sin(clock.elapsedTime * 0.7) * 0.012 + speechAmp * 0.045;
     if (groupRef.current)
-      groupRef.current.position.y = normPosition[1] + Math.sin(clock.elapsedTime * 0.7) * 0.03;
+      groupRef.current.position.y = normPosition[1] + Math.sin(clock.elapsedTime * 0.7) * 0.03 + speechAmp * 0.035;
     tick(delta);
   });
   return <group ref={groupRef} position={normPosition} scale={normScale}><primitive object={cloned} /></group>;
