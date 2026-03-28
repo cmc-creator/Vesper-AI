@@ -6859,6 +6859,20 @@ export default function App() {
           </section>
 
           <section className="ops-panel">
+            <Chip
+              label="LIVE BUILD: 56f85740"
+              size="small"
+              sx={{
+                alignSelf: 'center',
+                mb: 1,
+                bgcolor: 'rgba(0,255,136,0.16)',
+                color: '#00ff88',
+                border: '1px solid rgba(0,255,136,0.5)',
+                fontWeight: 800,
+                letterSpacing: 0.5,
+                fontSize: '0.68rem',
+              }}
+            />
             {/* ═══ AVATAR PORTRAIT ═══ */}
             <Box sx={{
               width: 170,
