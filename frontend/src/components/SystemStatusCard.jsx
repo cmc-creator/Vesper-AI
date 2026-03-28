@@ -56,7 +56,10 @@ const SystemStatusCard = ({ apiBase, onHide }) => {
         background: 'var(--panel-bg)',
         backdropFilter: 'blur(10px)',
         border: '1px solid rgba(255, 255, 255, 0.08)',
-        mb: 2
+        mb: 2,
+        maxHeight: 'none',
+        height: 'auto',
+        overflow: 'visible'
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -83,7 +86,7 @@ const SystemStatusCard = ({ apiBase, onHide }) => {
       </Box>
 
       <Collapse in={expanded}>
-        <Box sx={{ maxHeight: 220, overflowY: 'auto', pr: 0.5, '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(0,255,255,0.2)', borderRadius: 2 }, '&::-webkit-scrollbar-track': { bgcolor: 'transparent' } }}>
+        <Box sx={{ pr: 0.5 }}>
             <Stack spacing={1.5}>
                 {/* Backend Status */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
