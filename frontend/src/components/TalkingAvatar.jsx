@@ -24,6 +24,34 @@ const VISEME_SHAPES = [
   'viseme_kk', 'viseme_CH', 'viseme_SS', 'viseme_nn', 'viseme_RR',
 ];
 
+function findUpperArmBone(root, side = 'left') {
+  const patterns = side === 'left'
+    ? ['mixamorigleftarm', 'leftarm', 'left_arm', 'upperarm_l', 'l_upperarm', 'arm_l']
+    : ['mixamorigrigtharm', 'mixamorigrightarm', 'rightarm', 'right_arm', 'upperarm_r', 'r_upperarm', 'arm_r'];
+
+  let match = null;
+  root.traverse((obj) => {
+    if (match || !obj.isBone || !obj.name) return;
+    const n = obj.name.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (patterns.some((p) => n.includes(p))) {
+      match = obj;
+    }
+  });
+  return match;
+}
+
+function applyRelaxedArmPose(root) {
+  const leftUpperArm = findUpperArmBone(root, 'left');
+  const rightUpperArm = findUpperArmBone(root, 'right');
+
+  if (leftUpperArm) {
+    leftUpperArm.rotation.z -= 0.9;
+  }
+  if (rightUpperArm) {
+    rightUpperArm.rotation.z += 0.9;
+  }
+}
+
 // ── Shared lip-sync hook (works for both FBX and GLB meshes) ──────────────────
 function useLipSync(sceneObject, analyserRef, isSpeaking) {
   const meshesRef = useRef([]);
@@ -117,6 +145,9 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
       if (!headRef.current  && n.includes('head') && !n.includes('headtop') && !n.includes('end')) headRef.current  = obj;
       if (!spineRef.current && (n.includes('spine1') || n.includes('spine2') || n.includes('chest'))) spineRef.current = obj;
     });
+
+    // Relax T-pose style arms so they sit naturally by the torso.
+    applyRelaxedArmPose(cloned);
   }, [cloned]);
 
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
@@ -152,6 +183,11 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
   const fbx = useFBX(url);
   const cloned = React.useMemo(() => fbx.clone(true), [fbx]);
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
+
+  useEffect(() => {
+    if (!cloned) return;
+    applyRelaxedArmPose(cloned);
+  }, [cloned]);
 
   // Auto-normalise: measure bounding box and scale so the model is ~1.8 units tall
   const normScale = React.useMemo(() => {
