@@ -6,7 +6,7 @@ import * as THREE from 'three';
 
 function RobotBust({ accentColor, isSpeaking }) {
   const headRef = useRef();
-  const jawRef = useRef();
+  const chinRef = useRef();
   const eyeMat = useMemo(
     () => new THREE.MeshStandardMaterial({
       color: new THREE.Color(accentColor),
@@ -20,23 +20,23 @@ function RobotBust({ accentColor, isSpeaking }) {
 
   const shellMat = useMemo(
     () => new THREE.MeshPhysicalMaterial({
-      color: '#9aa3b2',
-      metalness: 0.92,
-      roughness: 0.24,
-      clearcoat: 0.9,
-      clearcoatRoughness: 0.18,
-      sheen: 0.6,
-      sheenColor: new THREE.Color('#d8e4ff'),
+      color: '#c8d2e3',
+      metalness: 0.9,
+      roughness: 0.2,
+      clearcoat: 1,
+      clearcoatRoughness: 0.1,
+      sheen: 0.85,
+      sheenColor: new THREE.Color('#edf3ff'),
     }),
     []
   );
 
   const darkMat = useMemo(
     () => new THREE.MeshPhysicalMaterial({
-      color: '#151b29',
-      metalness: 0.78,
-      roughness: 0.38,
-      clearcoat: 0.4,
+      color: '#1a2032',
+      metalness: 0.72,
+      roughness: 0.32,
+      clearcoat: 0.55,
     }),
     []
   );
@@ -44,68 +44,82 @@ function RobotBust({ accentColor, isSpeaking }) {
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     if (headRef.current) {
-      headRef.current.rotation.y = Math.sin(t * 0.42) * 0.18;
-      headRef.current.rotation.x = Math.sin(t * 0.28) * 0.04 - 0.08;
-      headRef.current.position.y = Math.sin(t * 0.7) * 0.03 + 0.05;
+      headRef.current.rotation.y = Math.sin(t * 0.36) * 0.12;
+      headRef.current.rotation.x = Math.sin(t * 0.24) * 0.025 - 0.05;
+      headRef.current.position.y = Math.sin(t * 0.62) * 0.02 + 0.06;
     }
-    if (jawRef.current) {
-      jawRef.current.position.y = isSpeaking ? -0.72 + Math.sin(t * 16) * 0.015 : -0.72;
+    if (chinRef.current) {
+      chinRef.current.position.y = isSpeaking ? -0.68 + Math.sin(t * 15) * 0.008 : -0.68;
     }
-    eyeMat.emissiveIntensity = isSpeaking ? 2.8 + Math.sin(t * 12) * 0.6 : 2.15 + Math.sin(t * 2.8) * 0.18;
+    eyeMat.emissiveIntensity = isSpeaking ? 2.7 + Math.sin(t * 10) * 0.45 : 1.9 + Math.sin(t * 2.4) * 0.14;
   });
 
   return (
-    <group position={[0, -0.32, 0]}>
-      <Float speed={1.4} rotationIntensity={0.18} floatIntensity={0.15}>
+    <group position={[0, -0.22, 0]}>
+      <Float speed={1.2} rotationIntensity={0.12} floatIntensity={0.1}>
         <group ref={headRef}>
-          <mesh material={shellMat} position={[0, 0.12, 0]} castShadow receiveShadow>
-            <capsuleGeometry args={[0.68, 1.18, 10, 20]} />
+          {/* Sleek cranial shell */}
+          <mesh material={shellMat} position={[0, 0.22, 0]} castShadow receiveShadow>
+            <capsuleGeometry args={[0.56, 1.02, 12, 24]} />
           </mesh>
 
-          <mesh material={darkMat} position={[0, 0.16, 0.5]} castShadow>
-            <boxGeometry args={[1.02, 0.38, 0.18]} />
+          {/* Facial visor with subtle taper */}
+          <mesh material={darkMat} position={[0, 0.24, 0.47]} castShadow>
+            <boxGeometry args={[0.84, 0.3, 0.15]} />
           </mesh>
 
-          <mesh material={shellMat} position={[0, 0.88, 0.02]} castShadow>
-            <cylinderGeometry args={[0.22, 0.12, 0.22, 6]} />
+          {/* Crown antenna */}
+          <mesh material={shellMat} position={[0, 0.93, 0.03]} castShadow>
+            <cylinderGeometry args={[0.1, 0.04, 0.2, 10]} />
           </mesh>
 
-          <mesh material={eyeMat} position={[-0.24, 0.2, 0.6]}>
-            <sphereGeometry args={[0.085, 20, 20]} />
+          {/* Eyes */}
+          <mesh material={eyeMat} position={[-0.2, 0.25, 0.56]}>
+            <sphereGeometry args={[0.065, 20, 20]} />
           </mesh>
-          <mesh material={eyeMat} position={[0.24, 0.2, 0.6]}>
-            <sphereGeometry args={[0.085, 20, 20]} />
-          </mesh>
-
-          <mesh material={eyeMat} position={[0, -0.08, 0.61]}>
-            <boxGeometry args={[0.4, 0.05, 0.05]} />
+          <mesh material={eyeMat} position={[0.2, 0.25, 0.56]}>
+            <sphereGeometry args={[0.065, 20, 20]} />
           </mesh>
 
-          <mesh material={darkMat} position={[0, -0.22, 0.56]} castShadow>
-            <boxGeometry args={[0.72, 0.18, 0.12]} />
+          {/* Slim light strip */}
+          <mesh material={eyeMat} position={[0, -0.01, 0.58]}>
+            <boxGeometry args={[0.36, 0.035, 0.04]} />
           </mesh>
 
-          <group ref={jawRef}>
-            <mesh material={shellMat} position={[0, -0.72, 0.08]} castShadow>
-              <boxGeometry args={[0.78, 0.28, 0.54]} />
+          {/* Mid-face panel */}
+          <mesh material={darkMat} position={[0, -0.14, 0.52]} castShadow>
+            <boxGeometry args={[0.58, 0.12, 0.1]} />
+          </mesh>
+
+          {/* Chin / jawline */}
+          <group ref={chinRef}>
+            <mesh material={shellMat} position={[0, -0.68, 0.06]} castShadow>
+              <boxGeometry args={[0.54, 0.2, 0.34]} />
             </mesh>
           </group>
 
-          <mesh material={shellMat} position={[-0.78, 0.06, 0]} rotation={[0, 0, -0.45]} castShadow>
-            <capsuleGeometry args={[0.12, 0.64, 6, 10]} />
+          {/* Small shoulder caps */}
+          <mesh material={shellMat} position={[-0.58, -0.08, 0]} rotation={[0, 0, -0.36]} castShadow>
+            <capsuleGeometry args={[0.09, 0.42, 6, 10]} />
           </mesh>
-          <mesh material={shellMat} position={[0.78, 0.06, 0]} rotation={[0, 0, 0.45]} castShadow>
-            <capsuleGeometry args={[0.12, 0.64, 6, 10]} />
+          <mesh material={shellMat} position={[0.58, -0.08, 0]} rotation={[0, 0, 0.36]} castShadow>
+            <capsuleGeometry args={[0.09, 0.42, 6, 10]} />
           </mesh>
 
-          <mesh material={darkMat} position={[0, -1.24, -0.04]} castShadow>
-            <boxGeometry args={[1.58, 0.58, 0.86]} />
+          {/* Elegant neck */}
+          <mesh material={darkMat} position={[0, -0.92, -0.02]} castShadow>
+            <cylinderGeometry args={[0.22, 0.28, 0.35, 16]} />
           </mesh>
-          <mesh material={shellMat} position={[0, -1.02, 0.28]} castShadow>
-            <boxGeometry args={[0.9, 0.2, 0.18]} />
+
+          {/* Upper torso */}
+          <mesh material={darkMat} position={[0, -1.28, -0.04]} castShadow>
+            <capsuleGeometry args={[0.46, 0.52, 10, 20]} />
           </mesh>
-          <mesh material={eyeMat} position={[0, -1.03, 0.4]}>
-            <boxGeometry args={[0.58, 0.045, 0.04]} />
+          <mesh material={shellMat} position={[0, -1.05, 0.22]} castShadow>
+            <boxGeometry args={[0.5, 0.11, 0.12]} />
+          </mesh>
+          <mesh material={eyeMat} position={[0, -1.05, 0.31]}>
+            <boxGeometry args={[0.34, 0.03, 0.03]} />
           </mesh>
         </group>
       </Float>
@@ -121,12 +135,12 @@ export default function CyberRobotPortrait({ accentColor = '#00ffff', isSpeaking
         height: '100%',
         position: 'relative',
         overflow: 'hidden',
-        background: `radial-gradient(circle at 50% 22%, ${accentColor}22 0%, rgba(5,9,20,0.96) 56%, rgba(3,5,12,1) 100%)`,
+        background: `radial-gradient(circle at 50% 18%, ${accentColor}20 0%, rgba(10,14,26,0.95) 58%, rgba(4,6,14,1) 100%)`,
         '&::before': {
           content: '""',
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.05), transparent 18%, transparent 82%, rgba(255,255,255,0.03))',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.045), transparent 22%, transparent 82%, rgba(255,255,255,0.025))',
           pointerEvents: 'none',
         },
         '&::after': {
@@ -141,16 +155,16 @@ export default function CyberRobotPortrait({ accentColor = '#00ffff', isSpeaking
         },
       }}
     >
-      <Canvas camera={{ position: [0, 0.15, 4.7], fov: 28 }} shadows gl={{ antialias: true, alpha: true }}>
+      <Canvas camera={{ position: [0, 0.18, 4.9], fov: 27 }} shadows gl={{ antialias: true, alpha: true }}>
         <color attach="background" args={['#000000']} />
-        <fog attach="fog" args={['#070b14', 5.5, 8.5]} />
-        <ambientLight intensity={0.45} />
-        <hemisphereLight skyColor={'#8cc9ff'} groundColor={'#04070f'} intensity={0.9} />
-        <spotLight position={[2.4, 3.6, 4.5]} intensity={55} angle={0.38} penumbra={0.9} color={'#ffffff'} castShadow />
-        <pointLight position={[-2.5, 1.2, 2.8]} intensity={18} color={accentColor} />
-        <pointLight position={[0, -1.8, 2.6]} intensity={10} color={'#7ed3ff'} />
+        <fog attach="fog" args={['#080d18', 5.8, 9]} />
+        <ambientLight intensity={0.36} />
+        <hemisphereLight skyColor={'#a7cfff'} groundColor={'#050913'} intensity={0.8} />
+        <spotLight position={[2.1, 3.7, 4.2]} intensity={48} angle={0.34} penumbra={0.95} color={'#ffffff'} castShadow />
+        <pointLight position={[-2.2, 1.4, 2.5]} intensity={14} color={accentColor} />
+        <pointLight position={[0, -1.5, 2.2]} intensity={8} color={'#bcd7ff'} />
         <RobotBust accentColor={accentColor} isSpeaking={isSpeaking} />
-        <Environment preset="city" />
+        <Environment preset="studio" />
       </Canvas>
 
       <Typography
@@ -171,7 +185,7 @@ export default function CyberRobotPortrait({ accentColor = '#00ffff', isSpeaking
           pointerEvents: 'none',
         }}
       >
-        VESPER SYNTH-01
+        VESPER ELEGANCE CORE
       </Typography>
     </Box>
   );
