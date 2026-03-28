@@ -79,8 +79,9 @@ function scoreArmPose(upperArm, endBone) {
   endBone.getWorldPosition(endPos);
 
   const verticalDrop = shoulderPos.y - endPos.y;
-  const horizontalReach = Math.hypot(endPos.x - shoulderPos.x, endPos.z - shoulderPos.z);
-  return verticalDrop - horizontalReach * 0.15;
+  const lateralExtension = Math.abs(endPos.x - shoulderPos.x);
+  const forwardExtension = Math.abs(endPos.z - shoulderPos.z);
+  return verticalDrop * 1.2 - lateralExtension * 1.5 - forwardExtension * 0.75;
 }
 
 function applyBestRelaxedArmRotation(root, upperArm, side = 'left') {
@@ -90,14 +91,18 @@ function applyBestRelaxedArmRotation(root, upperArm, side = 'left') {
   const originalQuat = upperArm.quaternion.clone();
   const candidates = [
     { x: 0, z: 0 },
-    { x: 0, z: 1.2 },
-    { x: 0, z: -1.2 },
+    { x: 0, y: 0.3, z: 1.2 },
+    { x: 0, y: -0.3, z: -1.2 },
+    { x: 0, y: 0.4, z: 1.5 },
+    { x: 0, y: -0.4, z: -1.5 },
+    { x: 0, y: 0.5, z: 1.8 },
+    { x: 0, y: -0.5, z: -1.8 },
     { x: 1.0, z: 0 },
     { x: -1.0, z: 0 },
-    { x: 0.6, z: 0.8 },
-    { x: 0.6, z: -0.8 },
-    { x: -0.6, z: 0.8 },
-    { x: -0.6, z: -0.8 },
+    { x: 0.6, y: 0.25, z: 1.1 },
+    { x: 0.6, y: -0.25, z: -1.1 },
+    { x: -0.6, y: 0.25, z: 1.1 },
+    { x: -0.6, y: -0.25, z: -1.1 },
   ];
 
   let bestQuat = originalQuat.clone();
@@ -105,8 +110,9 @@ function applyBestRelaxedArmRotation(root, upperArm, side = 'left') {
 
   for (const candidate of candidates) {
     upperArm.quaternion.copy(originalQuat);
-    upperArm.rotateX(candidate.x);
-    upperArm.rotateZ(candidate.z);
+    upperArm.rotateX(candidate.x || 0);
+    upperArm.rotateY(candidate.y || 0);
+    upperArm.rotateZ(candidate.z || 0);
     root.updateMatrixWorld(true);
     const score = scoreArmPose(upperArm, endBone);
     if (score > bestScore) {
