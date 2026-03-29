@@ -168,6 +168,8 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     }
     const blinkOn = blinkDurationRef.current > 0;
     const blinkVal = blinkOn ? 1 : 0;
+    const eyeFocus = isSpeaking ? 0.02 : 0.045;
+    const eyeWander = Math.sin(performance.now() * 0.0012) * eyeFocus;
 
     if (!isSpeaking || !analyserRef?.current) {
       smoothAmplitude.current = THREE.MathUtils.lerp(smoothAmplitude.current, 0, 0.15);
@@ -177,6 +179,15 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
       setMorph('blink_left', blinkVal);
       setMorph('blink_right', blinkVal);
       setMorph('eyesClosed', blinkVal * 0.9);
+      // Keep gaze mostly centered with tiny alive motion.
+      setMorph('eyeLookInLeft', Math.max(0, eyeWander));
+      setMorph('eyeLookOutLeft', Math.max(0, -eyeWander));
+      setMorph('eyeLookInRight', Math.max(0, -eyeWander));
+      setMorph('eyeLookOutRight', Math.max(0, eyeWander));
+      setMorph('eyeLookUpLeft', 0.01);
+      setMorph('eyeLookUpRight', 0.01);
+      setMorph('eyeLookDownLeft', 0);
+      setMorph('eyeLookDownRight', 0);
       setMorph('cheekSquintLeft', 0);
       setMorph('cheekSquintRight', 0);
       return;
@@ -203,6 +214,15 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     setMorph('blink_left', blinkVal);
     setMorph('blink_right', blinkVal);
     setMorph('eyesClosed', blinkVal * 0.9);
+    // Speaking gaze bias: steady eye contact with tiny micro-saccades.
+    setMorph('eyeLookInLeft', Math.max(0, eyeWander));
+    setMorph('eyeLookOutLeft', Math.max(0, -eyeWander));
+    setMorph('eyeLookInRight', Math.max(0, -eyeWander));
+    setMorph('eyeLookOutRight', Math.max(0, eyeWander));
+    setMorph('eyeLookUpLeft', 0.012);
+    setMorph('eyeLookUpRight', 0.012);
+    setMorph('eyeLookDownLeft', 0);
+    setMorph('eyeLookDownRight', 0);
     const cheek = Math.min(0.35, amp * 0.45);
     setMorph('cheekSquintLeft', cheek);
     setMorph('cheekSquintRight', cheek);
@@ -236,14 +256,28 @@ function getSpeechAmplitude(analyserRef) {
 
 // ── Fixed portrait camera — tuned for sidebar portrait card framing
 // Keeps full face visible while placing crown close to top edge of the card.
-function CameraSetup() {
+function CameraSetup({ isSpeaking = false }) {
   const { camera } = useThree();
+  const baseRef = useRef({ x: 0, y: 0, z: 0, fov: 31 });
   useEffect(() => {
     camera.position.set(0, 2.48, 1.16);
     camera.fov = 31;
     camera.updateProjectionMatrix();
     camera.lookAt(0, 2.2, 0);
+    baseRef.current = { x: 0, y: 2.48, z: 1.16, fov: 31 };
   }, [camera]);
+
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    const breath = isSpeaking ? 0.45 : 1;
+    const y = baseRef.current.y + Math.sin(t * 0.55) * 0.008 * breath;
+    const z = baseRef.current.z + Math.sin(t * 0.42) * 0.006 * breath;
+    camera.position.set(baseRef.current.x, y, z);
+    camera.fov = baseRef.current.fov + Math.sin(t * 0.35) * 0.12;
+    camera.updateProjectionMatrix();
+    camera.lookAt(0, 2.2, 0);
+  });
+
   return null;
 }
 
@@ -477,7 +511,11 @@ function SpeakingRing({ isSpeaking, accentColor }) {
   );
 }
 
-function FlowingHairOverlay({ isSpeaking }) {
+function FlowingHairOverlay({ isSpeaking, accentColor = '#a855f7' }) {
+  const accent = new THREE.Color(accentColor);
+  const accentR = Math.round(accent.r * 255);
+  const accentG = Math.round(accent.g * 255);
+  const accentB = Math.round(accent.b * 255);
   const curtainFlows = [
     { left: '3%', width: '30%', top: '-8%', h: '92%', delay: '0s', dur: '6.2s', rot: -9 },
     { left: '16%', width: '25%', top: '-12%', h: '97%', delay: '1.1s', dur: '6.8s', rot: -4 },
@@ -548,6 +586,29 @@ function FlowingHairOverlay({ isSpeaking }) {
           '@keyframes hairGloss': {
             '0%, 100%': { opacity: 0.28, transform: 'rotate(-6deg) translateX(0px)' },
             '50%': { opacity: 0.46, transform: 'rotate(-7deg) translateX(1.6px)' },
+          },
+        }}
+      />
+
+      {/* Accent-reactive shimmer sweep */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: '-6%',
+          bottom: '6%',
+          width: '34%',
+          left: '-36%',
+          borderRadius: '40% 60% 58% 42% / 10% 10% 90% 90%',
+          background: `linear-gradient(110deg, rgba(${accentR},${accentG},${accentB},0) 0%, rgba(${accentR},${accentG},${accentB},0.08) 42%, rgba(255,255,255,0.18) 56%, rgba(${accentR},${accentG},${accentB},0.06) 70%, rgba(${accentR},${accentG},${accentB},0) 100%)`,
+          mixBlendMode: 'screen',
+          filter: 'blur(1.2px)',
+          animation: 'hairShimmerSweep 7.8s ease-in-out infinite',
+          '@keyframes hairShimmerSweep': {
+            '0%': { left: '-36%', opacity: 0 },
+            '12%': { opacity: 0.25 },
+            '45%': { left: '42%', opacity: 0.45 },
+            '62%': { opacity: 0.2 },
+            '100%': { left: '112%', opacity: 0 },
           },
         }}
       />
@@ -697,7 +758,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
       >
-        <CameraSetup />
+        <CameraSetup isSpeaking={isSpeaking} />
         {/* Low ambient — keeps shadows so the model reads as 3D */}
         <ambientLight intensity={0.35} />
         {/* Hemisphere for subtle sky/ground colour separation */}
@@ -736,7 +797,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
       </Canvas>
 
       {/* Speaking glow ring */}
-      <FlowingHairOverlay isSpeaking={isSpeaking} />
+      <FlowingHairOverlay isSpeaking={isSpeaking} accentColor={accentColor} />
       <SpeakingRing isSpeaking={isSpeaking} accentColor={accentColor} />
 
       {/* Speaking badge */}
