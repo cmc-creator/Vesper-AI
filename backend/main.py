@@ -7606,8 +7606,10 @@ class TTSRequest(BaseModel):
     voice: Optional[str] = ""
     rate: Optional[str] = "+0%"
     pitch: Optional[str] = "+0Hz"
+    stability: Optional[float] = 0.5
+    similarity_boost: Optional[float] = 0.75
 
-async def elevenlabs_rest_tts_bytes(voice_id: str, text: str) -> bytes:
+async def elevenlabs_rest_tts_bytes(voice_id: str, text: str, stability: float = 0.5, similarity_boost: float = 0.75) -> bytes:
     """Fallback path using ElevenLabs REST API when SDK init failed."""
     api_key = os.getenv("ELEVENLABS_API_KEY", "")
     if not api_key:
@@ -7622,6 +7624,10 @@ async def elevenlabs_rest_tts_bytes(voice_id: str, text: str) -> bytes:
         "text": text,
         "model_id": "eleven_multilingual_v2",
         "output_format": "mp3_44100_128",
+        "voice_settings": {
+            "stability": max(0.0, min(1.0, stability)),
+            "similarity_boost": max(0.0, min(1.0, similarity_boost)),
+        },
     }
 
     async with httpx.AsyncClient(timeout=40.0) as client:
@@ -7661,6 +7667,7 @@ async def text_to_speech(req: TTSRequest):
                     text=text,
                     model_id="eleven_multilingual_v2",
                     output_format="mp3_44100_128",
+                    voice_settings={"stability": req.stability, "similarity_boost": req.similarity_boost},
                 )
                 # audio_gen is a generator of bytes
                 audio_buffer = io.BytesIO()
@@ -7669,7 +7676,7 @@ async def text_to_speech(req: TTSRequest):
                 audio_buffer.seek(0)
                 audio_bytes = audio_buffer.read()
             else:
-                audio_bytes = await elevenlabs_rest_tts_bytes(voice_id, text)
+                audio_bytes = await elevenlabs_rest_tts_bytes(voice_id, text, req.stability, req.similarity_boost)
 
             if len(audio_bytes) == 0:
                 raise Exception("Empty audio response")
@@ -7694,6 +7701,8 @@ from fastapi.responses import StreamingResponse
 class TTSStreamRequest(BaseModel):
     text: str
     voice: Optional[str] = ""
+    stability: Optional[float] = 0.5
+    similarity_boost: Optional[float] = 0.75
 
 @app.post("/api/tts/stream")
 async def text_to_speech_stream(req: TTSStreamRequest):
@@ -7713,6 +7722,7 @@ async def text_to_speech_stream(req: TTSStreamRequest):
                     text=text,
                     model_id="eleven_multilingual_v2",
                     output_format="mp3_44100_128",
+                    voice_settings={"stability": req.stability, "similarity_boost": req.similarity_boost},
                 )
 
                 def generate():
@@ -7726,7 +7736,7 @@ async def text_to_speech_stream(req: TTSStreamRequest):
                 )
 
             # SDK unavailable: graceful fallback to full byte response.
-            audio_bytes = await elevenlabs_rest_tts_bytes(voice_id, text)
+            audio_bytes = await elevenlabs_rest_tts_bytes(voice_id, text, req.stability, req.similarity_boost)
             from fastapi.responses import Response
             return Response(
                 content=audio_bytes,

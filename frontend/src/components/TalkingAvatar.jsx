@@ -485,6 +485,113 @@ function LoadingFallback({ accentColor }) {
   );
 }
 
+// ─── Makeup overlay — warm skin LUT, eye shadow, lip accent ──────────────────
+function MakeupOverlay({ isSpeaking, accentColor = '#a855f7' }) {
+  const accent = new THREE.Color(accentColor);
+  const aR = Math.round(accent.r * 255);
+  const aG = Math.round(accent.g * 255);
+  const aB = Math.round(accent.b * 255);
+
+  return (
+    <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3 }}>
+
+      {/* ── Warm skin LUT — golden amber glow over face/neck ── */}
+      <Box sx={{
+        position: 'absolute',
+        left: '10%', right: '10%',
+        top: '11%', height: '60%',
+        borderRadius: '42% 42% 50% 50% / 30% 30% 70% 70%',
+        background: 'radial-gradient(ellipse at 50% 42%, rgba(255,185,90,0.13) 0%, rgba(240,140,60,0.07) 42%, rgba(0,0,0,0) 100%)',
+        mixBlendMode: 'screen',
+        filter: 'blur(3px)',
+        opacity: isSpeaking ? 0.95 : 0.78,
+        transition: 'opacity 0.6s ease',
+      }} />
+
+      {/* ── Cheek flush — warm rose on both sides ── */}
+      <Box sx={{
+        position: 'absolute',
+        left: '5%', top: '38%', width: '26%', height: '16%',
+        borderRadius: '50%',
+        background: 'radial-gradient(ellipse, rgba(255,120,100,0.11) 0%, rgba(0,0,0,0) 100%)',
+        mixBlendMode: 'screen',
+        filter: 'blur(4px)',
+      }} />
+      <Box sx={{
+        position: 'absolute',
+        right: '5%', top: '38%', width: '26%', height: '16%',
+        borderRadius: '50%',
+        background: 'radial-gradient(ellipse, rgba(255,120,100,0.11) 0%, rgba(0,0,0,0) 100%)',
+        mixBlendMode: 'screen',
+        filter: 'blur(4px)',
+      }} />
+
+      {/* ── Eye shadow — left eye, deep violet/plum ── */}
+      <Box sx={{
+        position: 'absolute',
+        left: '15%', top: '24%', width: '26%', height: '9%',
+        borderRadius: '50%',
+        background: `radial-gradient(ellipse at 50% 60%, rgba(${aR},${aG},${aB},0.32) 0%, rgba(80,20,120,0.2) 44%, rgba(0,0,0,0) 100%)`,
+        mixBlendMode: 'screen',
+        filter: 'blur(1.8px)',
+        opacity: 0.72,
+      }} />
+      {/* ── Eye shadow — right eye ── */}
+      <Box sx={{
+        position: 'absolute',
+        right: '15%', top: '24%', width: '26%', height: '9%',
+        borderRadius: '50%',
+        background: `radial-gradient(ellipse at 50% 60%, rgba(${aR},${aG},${aB},0.32) 0%, rgba(80,20,120,0.2) 44%, rgba(0,0,0,0) 100%)`,
+        mixBlendMode: 'screen',
+        filter: 'blur(1.8px)',
+        opacity: 0.72,
+      }} />
+      {/* ── Upper lash crease — darker accent line ── */}
+      <Box sx={{
+        position: 'absolute',
+        left: '17%', top: '28%', width: '22%', height: '4%',
+        borderRadius: '50%',
+        background: `radial-gradient(ellipse at 50% 50%, rgba(${aR},${aG},${aB},0.22) 0%, rgba(0,0,0,0) 100%)`,
+        mixBlendMode: 'overlay',
+        filter: 'blur(1px)',
+      }} />
+      <Box sx={{
+        position: 'absolute',
+        right: '17%', top: '28%', width: '22%', height: '4%',
+        borderRadius: '50%',
+        background: `radial-gradient(ellipse at 50% 50%, rgba(${aR},${aG},${aB},0.22) 0%, rgba(0,0,0,0) 100%)`,
+        mixBlendMode: 'overlay',
+        filter: 'blur(1px)',
+      }} />
+
+      {/* ── Lip accent — warm crimson/rose ── */}
+      <Box sx={{
+        position: 'absolute',
+        left: '30%', right: '30%', top: '52%', height: '7%',
+        borderRadius: '50% 50% 46% 46%',
+        background: 'radial-gradient(ellipse at 50% 40%, rgba(210,60,90,0.28) 0%, rgba(180,40,70,0.14) 50%, rgba(0,0,0,0) 100%)',
+        mixBlendMode: 'screen',
+        filter: 'blur(1.4px)',
+        animation: 'lipShimmer 4.8s ease-in-out infinite',
+        '@keyframes lipShimmer': {
+          '0%, 100%': { opacity: 0.7 },
+          '50%': { opacity: 1 },
+        },
+      }} />
+
+      {/* ── Lip gloss highlight ── */}
+      <Box sx={{
+        position: 'absolute',
+        left: '36%', right: '36%', top: '51%', height: '3.5%',
+        borderRadius: '50%',
+        background: 'radial-gradient(ellipse, rgba(255,160,160,0.22) 0%, rgba(0,0,0,0) 100%)',
+        mixBlendMode: 'screen',
+        filter: 'blur(0.8px)',
+      }} />
+    </Box>
+  );
+}
+
 // ─── Speaking indicator ring (CSS, not Three.js) ─────────────────────────────
 function SpeakingRing({ isSpeaking, accentColor }) {
   if (!isSpeaking) return null;
@@ -760,17 +867,21 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
       >
         <CameraSetup isSpeaking={isSpeaking} />
         {/* Low ambient — keeps shadows so the model reads as 3D */}
-        <ambientLight intensity={0.35} />
-        {/* Hemisphere for subtle sky/ground colour separation */}
-        <hemisphereLight skyColor="#8ab4f8" groundColor="#1a0a2e" intensity={0.6} />
+        <ambientLight intensity={0.38} />
+        {/* Hemisphere — warm golden sky for skin LUT feel */}
+        <hemisphereLight skyColor="#ffd8a0" groundColor="#1a0a2e" intensity={0.55} />
         {/* Primary key light from upper-front-right */}
-        <directionalLight position={[1.5, 3, 3]} intensity={2.8} castShadow />
+        <directionalLight position={[1.5, 3, 3]} intensity={2.6} castShadow />
+        {/* Warm golden skin fill — front-left for flattering skin tone */}
+        <pointLight position={[0.8, 2.8, 1.4]} intensity={1.2} color="#ffcc88" />
         {/* Soft fill from the left — accent tinted */}
-        <directionalLight position={[-2, 1.5, 1]} intensity={0.9} color={accentColor} />
-        {/* Rim / back light for edge separation */}
+        <directionalLight position={[-2, 1.5, 1]} intensity={0.85} color={accentColor} />
+        {/* Rim / back light for edge separation — kept cool-blue for contrast */}
         <directionalLight position={[0, 2, -4]} intensity={0.7} color="#aaccff" />
         {/* Speaking pulse — front warm point ✓ */}
         <pointLight position={[0, 1.6, 1.2]} intensity={isSpeaking ? 1.8 : 0.0} color={accentColor} />
+        {/* Subtle under-chin warm bounce */}
+        <pointLight position={[0, 1.8, 0.8]} intensity={0.35} color="#ff9966" />
 
         <Suspense fallback={<LoadingFallback accentColor={accentColor} />}>
           <LipSyncModel
@@ -796,8 +907,9 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         )}
       </Canvas>
 
-      {/* Speaking glow ring */}
+      {/* Hair, makeup, and glow overlays */}
       <FlowingHairOverlay isSpeaking={isSpeaking} accentColor={accentColor} />
+      <MakeupOverlay isSpeaking={isSpeaking} accentColor={accentColor} />
       <SpeakingRing isSpeaking={isSpeaking} accentColor={accentColor} />
 
       {/* Speaking badge */}

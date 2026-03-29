@@ -24,6 +24,7 @@ import {
   LinearProgress,
   Checkbox,
   Select,
+  Slider,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -461,6 +462,8 @@ function App() {
   const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'true') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [selectedVoiceName, setSelectedVoiceName] = useState(() => normalizeVoiceId(safeStorageGet('vesper_tts_voice', 'eleven:pFZP5JQG7iQjIQuC4Bku')));
+  const [voiceStability, setVoiceStability] = useState(() => parseFloat(safeStorageGet('vesper_voice_stability', '0.5')));
+  const [voiceSimilarityBoost, setVoiceSimilarityBoost] = useState(() => parseFloat(safeStorageGet('vesper_voice_similarity', '0.75')));
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [analyzingImage, setAnalyzingImage] = useState(false);
@@ -2991,7 +2994,7 @@ export default function App() {
         const response = await fetch(`${apiBase}/api/tts/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: clean, voice }),
+          body: JSON.stringify({ text: clean, voice, stability: voiceStability, similarity_boost: voiceSimilarityBoost }),
           signal: controller.signal,
         });
 
@@ -3030,7 +3033,7 @@ export default function App() {
       const response = await fetch(`${apiBase}/api/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: clean, voice }),
+        body: JSON.stringify({ text: clean, voice, stability: voiceStability, similarity_boost: voiceSimilarityBoost }),
         signal: controller.signal,
       });
 
@@ -5066,6 +5069,66 @@ export default function App() {
                             No voices loaded — check that the backend is reachable
                           </Typography>
                         )}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* ── Voice Quality Sliders (ElevenLabs stability + similarity) ── */}
+                  {ttsEnabled && (
+                    <Box sx={{ p: 1.5, border: '1px solid rgba(168,85,247,0.2)', borderRadius: 2, bgcolor: 'rgba(168,85,247,0.03)' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: '#c084fc' }}>
+                        🎛️ Voice Quality
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1.5 }}>
+                        Fine-tune ElevenLabs voice performance
+                      </Typography>
+
+                      <Box sx={{ mb: 1.5 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', fontWeight: 600 }}>Stability</Typography>
+                          <Typography variant="caption" sx={{ color: '#c084fc', fontSize: '0.72rem', fontFamily: 'monospace' }}>{(voiceStability * 100).toFixed(0)}%</Typography>
+                        </Box>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.62rem', display: 'block', mb: 0.5 }}>
+                          Low = more expressive · High = more consistent
+                        </Typography>
+                        <Slider
+                          value={voiceStability}
+                          min={0} max={1} step={0.01}
+                          onChange={(_, v) => {
+                            setVoiceStability(v);
+                            try { localStorage.setItem('vesper_voice_stability', String(v)); } catch(e) {}
+                          }}
+                          sx={{
+                            color: '#c084fc',
+                            height: 3,
+                            '& .MuiSlider-thumb': { width: 12, height: 12, '&:hover': { boxShadow: '0 0 0 6px rgba(192,132,252,0.16)' } },
+                            '& .MuiSlider-rail': { opacity: 0.18 },
+                          }}
+                        />
+                      </Box>
+
+                      <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', fontWeight: 600 }}>Similarity Boost</Typography>
+                          <Typography variant="caption" sx={{ color: '#c084fc', fontSize: '0.72rem', fontFamily: 'monospace' }}>{(voiceSimilarityBoost * 100).toFixed(0)}%</Typography>
+                        </Box>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.62rem', display: 'block', mb: 0.5 }}>
+                          Higher = closer to reference voice timbre
+                        </Typography>
+                        <Slider
+                          value={voiceSimilarityBoost}
+                          min={0} max={1} step={0.01}
+                          onChange={(_, v) => {
+                            setVoiceSimilarityBoost(v);
+                            try { localStorage.setItem('vesper_voice_similarity', String(v)); } catch(e) {}
+                          }}
+                          sx={{
+                            color: '#c084fc',
+                            height: 3,
+                            '& .MuiSlider-thumb': { width: 12, height: 12, '&:hover': { boxShadow: '0 0 0 6px rgba(192,132,252,0.16)' } },
+                            '& .MuiSlider-rail': { opacity: 0.18 },
+                          }}
+                        />
                       </Box>
                     </Box>
                   )}
