@@ -485,7 +485,7 @@ function LoadingFallback({ accentColor }) {
   );
 }
 
-// ─── Makeup overlay — warm skin LUT, eye shadow, lip accent ──────────────────
+// ─── Makeup overlay — cosmic ice-queen goddess ──────────────────────────────
 function MakeupOverlay({ isSpeaking, accentColor = '#a855f7' }) {
   const accent = new THREE.Color(accentColor);
   const aR = Math.round(accent.r * 255);
@@ -495,25 +495,25 @@ function MakeupOverlay({ isSpeaking, accentColor = '#a855f7' }) {
   return (
     <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3 }}>
 
-      {/* ── Warm skin LUT — golden amber glow over face/neck ── */}
+      {/* ── Ethereal pale skin — cool ice glow over face/neck ── */}
       <Box sx={{
         position: 'absolute',
         left: '10%', right: '10%',
         top: '11%', height: '60%',
         borderRadius: '42% 42% 50% 50% / 30% 30% 70% 70%',
-        background: 'radial-gradient(ellipse at 50% 42%, rgba(255,185,90,0.13) 0%, rgba(240,140,60,0.07) 42%, rgba(0,0,0,0) 100%)',
+        background: 'radial-gradient(ellipse at 50% 42%, rgba(200,230,255,0.28) 0%, rgba(150,190,240,0.14) 42%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(3px)',
-        opacity: isSpeaking ? 0.95 : 0.78,
+        filter: 'blur(3.5px)',
+        opacity: isSpeaking ? 1 : 0.85,
         transition: 'opacity 0.6s ease',
       }} />
 
-      {/* ── Cheek flush — warm rose on both sides ── */}
+      {/* ── Cheek flush — cool lavender-rose on both sides ── */}
       <Box sx={{
         position: 'absolute',
         left: '5%', top: '38%', width: '26%', height: '16%',
         borderRadius: '50%',
-        background: 'radial-gradient(ellipse, rgba(255,120,100,0.11) 0%, rgba(0,0,0,0) 100%)',
+        background: 'radial-gradient(ellipse, rgba(200,150,200,0.2) 0%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
         filter: 'blur(4px)',
       }} />
@@ -521,72 +521,122 @@ function MakeupOverlay({ isSpeaking, accentColor = '#a855f7' }) {
         position: 'absolute',
         right: '5%', top: '38%', width: '26%', height: '16%',
         borderRadius: '50%',
-        background: 'radial-gradient(ellipse, rgba(255,120,100,0.11) 0%, rgba(0,0,0,0) 100%)',
+        background: 'radial-gradient(ellipse, rgba(200,150,200,0.2) 0%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
         filter: 'blur(4px)',
       }} />
 
-      {/* ── Eye shadow — left eye, deep violet/plum ── */}
+      {/* ── Cosmic eyes — left — deep blue iris with inner glow ── */}
       <Box sx={{
         position: 'absolute',
-        left: '15%', top: '24%', width: '26%', height: '9%',
+        left: '18%', top: '26%', width: '8%', height: '8%',
         borderRadius: '50%',
-        background: `radial-gradient(ellipse at 50% 60%, rgba(${aR},${aG},${aB},0.32) 0%, rgba(80,20,120,0.2) 44%, rgba(0,0,0,0) 100%)`,
+        background: 'radial-gradient(circle at 50% 45%, rgba(100,200,255,0.8) 0%, rgba(50,120,200,0.6) 35%, rgba(10,40,100,0.9) 70%, rgba(0,0,0,0.4) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(1.8px)',
-        opacity: 0.72,
+        filter: 'blur(0.4px)',
+        boxShadow: 'inset -1px -1px 3px rgba(0,0,0,0.6), 0 0 12px rgba(80,180,255,0.7)',
+        opacity: isSpeaking ? 0.98 : 0.9,
       }} />
-      {/* ── Eye shadow — right eye ── */}
+      {/* ── Cosmic eyes — right ── */}
       <Box sx={{
         position: 'absolute',
-        right: '15%', top: '24%', width: '26%', height: '9%',
+        right: '18%', top: '26%', width: '8%', height: '8%',
         borderRadius: '50%',
-        background: `radial-gradient(ellipse at 50% 60%, rgba(${aR},${aG},${aB},0.32) 0%, rgba(80,20,120,0.2) 44%, rgba(0,0,0,0) 100%)`,
+        background: 'radial-gradient(circle at 50% 45%, rgba(100,200,255,0.8) 0%, rgba(50,120,200,0.6) 35%, rgba(10,40,100,0.9) 70%, rgba(0,0,0,0.4) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(1.8px)',
-        opacity: 0.72,
-      }} />
-      {/* ── Upper lash crease — darker accent line ── */}
-      <Box sx={{
-        position: 'absolute',
-        left: '17%', top: '28%', width: '22%', height: '4%',
-        borderRadius: '50%',
-        background: `radial-gradient(ellipse at 50% 50%, rgba(${aR},${aG},${aB},0.22) 0%, rgba(0,0,0,0) 100%)`,
-        mixBlendMode: 'overlay',
-        filter: 'blur(1px)',
-      }} />
-      <Box sx={{
-        position: 'absolute',
-        right: '17%', top: '28%', width: '22%', height: '4%',
-        borderRadius: '50%',
-        background: `radial-gradient(ellipse at 50% 50%, rgba(${aR},${aG},${aB},0.22) 0%, rgba(0,0,0,0) 100%)`,
-        mixBlendMode: 'overlay',
-        filter: 'blur(1px)',
+        filter: 'blur(0.4px)',
+        boxShadow: 'inset -1px -1px 3px rgba(0,0,0,0.6), 0 0 12px rgba(80,180,255,0.7)',
+        opacity: isSpeaking ? 0.98 : 0.9,
       }} />
 
-      {/* ── Lip accent — warm crimson/rose ── */}
+      {/* ── Eye glow halo — left (cosmic shimmer) ── */}
       <Box sx={{
         position: 'absolute',
-        left: '30%', right: '30%', top: '52%', height: '7%',
-        borderRadius: '50% 50% 46% 46%',
-        background: 'radial-gradient(ellipse at 50% 40%, rgba(210,60,90,0.28) 0%, rgba(180,40,70,0.14) 50%, rgba(0,0,0,0) 100%)',
+        left: '16.5%', top: '24.5%', width: '11%', height: '11%',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(120,200,255,0.22) 0%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(1.4px)',
-        animation: 'lipShimmer 4.8s ease-in-out infinite',
-        '@keyframes lipShimmer': {
-          '0%, 100%': { opacity: 0.7 },
+        filter: 'blur(2px)',
+        animation: 'eyeGlow 3.2s ease-in-out infinite',
+        '@keyframes eyeGlow': {
+          '0%, 100%': { opacity: 0.4 },
+          '50%': { opacity: 0.8 },
+        },
+      }} />
+      {/* ── Eye glow halo — right ── */}
+      <Box sx={{
+        position: 'absolute',
+        right: '16.5%', top: '24.5%', width: '11%', height: '11%',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(120,200,255,0.22) 0%, rgba(0,0,0,0) 100%)',
+        mixBlendMode: 'screen',
+        filter: 'blur(2px)',
+        animation: 'eyeGlow 3.2s ease-in-out infinite',
+        '@keyframes eyeGlow': {
+          '0%, 100%': { opacity: 0.4 },
+          '50%': { opacity: 0.8 },
+        },
+      }} />
+
+      {/* ── Upper lash shadow — dark cosmic accent ── */}
+      <Box sx={{
+        position: 'absolute',
+        left: '17%', top: '30%', width: '10%', height: '3.5%',
+        borderRadius: '50%',
+        background: 'linear-gradient(180deg, rgba(30,80,140,0.4) 0%, rgba(0,0,0,0) 100%)',
+        mixBlendMode: 'multiply',
+        filter: 'blur(0.8px)',
+      }} />
+      <Box sx={{
+        position: 'absolute',
+        right: '17%', top: '30%', width: '10%', height: '3.5%',
+        borderRadius: '50%',
+        background: 'linear-gradient(180deg, rgba(30,80,140,0.4) 0%, rgba(0,0,0,0) 100%)',
+        mixBlendMode: 'multiply',
+        filter: 'blur(0.8px)',
+      }} />
+
+      {/* ── Lip color — cool pink/lavender ── */}
+      <Box sx={{
+        position: 'absolute',
+        left: '32%', right: '32%', top: '52%', height: '6%',
+        borderRadius: '50% 50% 46% 46%',
+        background: 'radial-gradient(ellipse at 50% 40%, rgba(180,120,160,0.38) 0%, rgba(140,80,130,0.2) 50%, rgba(0,0,0,0) 100%)',
+        mixBlendMode: 'screen',
+        filter: 'blur(1.2px)',
+        animation: 'lipGlow 4s ease-in-out infinite',
+        '@keyframes lipGlow': {
+          '0%, 100%': { opacity: 0.75 },
           '50%': { opacity: 1 },
         },
       }} />
 
-      {/* ── Lip gloss highlight ── */}
+      {/* ── Lip gloss — icy shine ── */}
       <Box sx={{
         position: 'absolute',
-        left: '36%', right: '36%', top: '51%', height: '3.5%',
+        left: '38%', right: '38%', top: '51%', height: '3%',
         borderRadius: '50%',
-        background: 'radial-gradient(ellipse, rgba(255,160,160,0.22) 0%, rgba(0,0,0,0) 100%)',
+        background: 'radial-gradient(ellipse, rgba(200,220,255,0.4) 0%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(0.8px)',
+        filter: 'blur(0.6px)',
+      }} />
+
+      {/* ── Ornate crown silhouette outline ── */}
+      <Box sx={{
+        position: 'absolute',
+        left: '20%', right: '20%', top: '-8%', height: '16%',
+        background: `
+          repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 8%,
+            rgba(${aR},${aG},${aB},0.18) 8%,
+            rgba(${aR},${aG},${aB},0.18) 10%
+          )
+        `,
+        borderRadius: '50% 50% 30% 30%',
+        filter: 'blur(0.6px)',
+        pointerEvents: 'none',
       }} />
     </Box>
   );
@@ -719,6 +769,34 @@ function FlowingHairOverlay({ isSpeaking, accentColor = '#a855f7' }) {
           },
         }}
       />
+
+      {/* ── Starfield sparkles in cosmic hair ── */}
+      {[...Array(14)].map((_, i) => {
+        const startX = Math.random() * 80 + 10;
+        const startY = Math.random() * 90 - 30;
+        const duration = 4 + Math.random() * 3;
+        const delay = Math.random() * 2;
+        return (
+          <Box
+            key={`star-${i}`}
+            sx={{
+              position: 'absolute',
+              left: `${startX}%`,
+              top: `${startY}%`,
+              width: '2.5px',
+              height: '2.5px',
+              borderRadius: '50%',
+              background: 'rgba(150,220,255,0.9)',
+              boxShadow: '0 0 6px rgba(100,200,255,0.8), inset 0 0 2px rgba(220,255,255,0.5)',
+              animation: `starTwinkle ${duration}s cubic-bezier(0.4, 0, 0.2, 1) ${delay}s infinite`,
+              '@keyframes starTwinkle': {
+                '0%, 100%': { opacity: 0.15 },
+                '50%': { opacity: 1 },
+              },
+            }}
+          />
+        );
+      })}
 
       {/* Dramatic side curtains */}
       {curtainFlows.map((s, i) => (
@@ -866,22 +944,22 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
         onError={() => setLoadError(true)}
       >
         <CameraSetup isSpeaking={isSpeaking} />
-        {/* Low ambient — keeps shadows so the model reads as 3D */}
-        <ambientLight intensity={0.38} />
-        {/* Hemisphere — warm golden sky for skin LUT feel */}
-        <hemisphereLight skyColor="#ffd8a0" groundColor="#1a0a2e" intensity={0.55} />
+        {/* Low ambient — cool cosmic atmosphere */}
+        <ambientLight intensity={0.32} />
+        {/* Hemisphere — cool ice-blue sky for divine feel */}
+        <hemisphereLight skyColor="#4da6ff" groundColor="#0a0a1a" intensity={0.48} />
         {/* Primary key light from upper-front-right */}
-        <directionalLight position={[1.5, 3, 3]} intensity={2.6} castShadow />
-        {/* Warm golden skin fill — front-left for flattering skin tone */}
-        <pointLight position={[0.8, 2.8, 1.4]} intensity={1.2} color="#ffcc88" />
+        <directionalLight position={[1.5, 3, 3]} intensity={2.2} castShadow />
+        {/* Cool blue-cyan fill from front-left — cosmic divine light */}
+        <pointLight position={[0.6, 2.6, 1.8]} intensity={1.4} color="#00d4ff" />
         {/* Soft fill from the left — accent tinted */}
-        <directionalLight position={[-2, 1.5, 1]} intensity={0.85} color={accentColor} />
-        {/* Rim / back light for edge separation — kept cool-blue for contrast */}
-        <directionalLight position={[0, 2, -4]} intensity={0.7} color="#aaccff" />
-        {/* Speaking pulse — front warm point ✓ */}
-        <pointLight position={[0, 1.6, 1.2]} intensity={isSpeaking ? 1.8 : 0.0} color={accentColor} />
-        {/* Subtle under-chin warm bounce */}
-        <pointLight position={[0, 1.8, 0.8]} intensity={0.35} color="#ff9966" />
+        <directionalLight position={[-2, 1.5, 1]} intensity={0.7} color={accentColor} />
+        {/* Rim / back light — cool blue-white */}
+        <directionalLight position={[0, 2, -4]} intensity={0.8} color="#b3d9ff" />
+        {/* Speaking pulse — front cool point ✓ */}
+        <pointLight position={[0, 1.6, 1.2]} intensity={isSpeaking ? 1.6 : 0.0} color="#00d4ff" />
+        {/* Subtle cheek cool bounce */}
+        <pointLight position={[0, 1.8, 0.8]} intensity={0.32} color="#6699ff" />
 
         <Suspense fallback={<LoadingFallback accentColor={accentColor} />}>
           <LipSyncModel
