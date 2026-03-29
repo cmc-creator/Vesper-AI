@@ -475,6 +475,84 @@ function SpeakingRing({ isSpeaking, accentColor }) {
   );
 }
 
+function FlowingHairOverlay({ isSpeaking }) {
+  const strands = [
+    { left: '4%', width: '28%', top: '-6%', h: '86%', delay: '0s', dur: '5.8s', rot: -8 },
+    { left: '17%', width: '24%', top: '-10%', h: '92%', delay: '0.9s', dur: '6.4s', rot: -4 },
+    { left: '61%', width: '25%', top: '-8%', h: '90%', delay: '0.4s', dur: '6.1s', rot: 5 },
+    { left: '74%', width: '22%', top: '-5%', h: '84%', delay: '1.2s', dur: '5.5s', rot: 9 },
+  ];
+
+  return (
+    <Box
+      sx={{
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none',
+        zIndex: 2,
+        opacity: isSpeaking ? 0.94 : 0.88,
+      }}
+    >
+      {/* Crown volume and soft top shadow */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: '10%',
+          right: '10%',
+          top: '-16%',
+          height: '44%',
+          borderRadius: '50% 50% 46% 46%',
+          background: 'radial-gradient(ellipse at 50% 35%, rgba(28,28,34,0.92) 0%, rgba(10,10,14,0.86) 55%, rgba(0,0,0,0) 100%)',
+          filter: 'blur(1px)',
+          transform: 'scaleY(1.07)',
+        }}
+      />
+
+      {/* Face-framing side flows */}
+      {strands.map((s, i) => (
+        <Box
+          key={`hair-strand-${i}`}
+          sx={{
+            position: 'absolute',
+            left: s.left,
+            top: s.top,
+            width: s.width,
+            height: s.h,
+            borderRadius: '45% 55% 60% 40% / 16% 16% 84% 84%',
+            background: 'linear-gradient(180deg, rgba(34,34,40,0.86) 0%, rgba(14,14,18,0.86) 32%, rgba(5,5,7,0.85) 72%, rgba(0,0,0,0) 100%)',
+            filter: 'blur(0.7px)',
+            transformOrigin: '50% 6%',
+            transform: `rotate(${s.rot}deg)`,
+            animation: `hairFlow ${s.dur} ease-in-out ${s.delay} infinite`,
+            '@keyframes hairFlow': {
+              '0%, 100%': { transform: `rotate(${s.rot}deg) translateX(0px)` },
+              '50%': { transform: `rotate(${s.rot + (s.rot < 0 ? -2 : 2)}deg) translateX(${s.rot < 0 ? '-2px' : '2px'})` },
+            },
+          }}
+        />
+      ))}
+
+      {/* Wispy flyaways for softer life */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: '18%',
+          right: '18%',
+          top: '4%',
+          height: '20%',
+          background: 'radial-gradient(ellipse at 50% 60%, rgba(34,34,42,0.34) 0%, rgba(12,12,18,0.16) 40%, rgba(0,0,0,0) 100%)',
+          filter: 'blur(2px)',
+          animation: 'hairBreath 4.4s ease-in-out infinite',
+          '@keyframes hairBreath': {
+            '0%, 100%': { opacity: 0.38, transform: 'translateY(0px)' },
+            '50%': { opacity: 0.54, transform: 'translateY(1px)' },
+          },
+        }}
+      />
+    </Box>
+  );
+}
+
 // ─── Main exported component ──────────────────────────────────────────────────
 /**
  * Props:
@@ -576,6 +654,7 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
       </Canvas>
 
       {/* Speaking glow ring */}
+      <FlowingHairOverlay isSpeaking={isSpeaking} />
       <SpeakingRing isSpeaking={isSpeaking} accentColor={accentColor} />
 
       {/* Speaking badge */}
