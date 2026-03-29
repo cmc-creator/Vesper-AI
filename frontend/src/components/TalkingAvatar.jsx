@@ -476,11 +476,17 @@ function SpeakingRing({ isSpeaking, accentColor }) {
 }
 
 function FlowingHairOverlay({ isSpeaking }) {
-  const strands = [
-    { left: '4%', width: '28%', top: '-6%', h: '86%', delay: '0s', dur: '5.8s', rot: -8 },
-    { left: '17%', width: '24%', top: '-10%', h: '92%', delay: '0.9s', dur: '6.4s', rot: -4 },
-    { left: '61%', width: '25%', top: '-8%', h: '90%', delay: '0.4s', dur: '6.1s', rot: 5 },
-    { left: '74%', width: '22%', top: '-5%', h: '84%', delay: '1.2s', dur: '5.5s', rot: 9 },
+  const curtainFlows = [
+    { left: '3%', width: '30%', top: '-8%', h: '92%', delay: '0s', dur: '6.2s', rot: -9 },
+    { left: '16%', width: '25%', top: '-12%', h: '97%', delay: '1.1s', dur: '6.8s', rot: -4 },
+    { left: '59%', width: '26%', top: '-10%', h: '95%', delay: '0.6s', dur: '6.4s', rot: 5 },
+    { left: '73%', width: '23%', top: '-6%', h: '89%', delay: '1.5s', dur: '5.9s', rot: 10 },
+  ];
+  const looseStrands = [
+    { left: '10%', top: '6%', w: '10%', h: '58%', delay: '0.5s', dur: '4.6s', rot: -12 },
+    { left: '28%', top: '0%', w: '8%', h: '50%', delay: '1.4s', dur: '4.1s', rot: -5 },
+    { left: '64%', top: '1%', w: '8%', h: '52%', delay: '0.2s', dur: '4.3s', rot: 6 },
+    { left: '82%', top: '7%', w: '9%', h: '56%', delay: '1.1s', dur: '4.8s', rot: 12 },
   ];
 
   return (
@@ -490,63 +496,116 @@ function FlowingHairOverlay({ isSpeaking }) {
         inset: 0,
         pointerEvents: 'none',
         zIndex: 2,
-        opacity: isSpeaking ? 0.94 : 0.88,
+        opacity: isSpeaking ? 0.96 : 0.91,
       }}
     >
-      {/* Crown volume and soft top shadow */}
+      {/* Royal crown volume */}
       <Box
         sx={{
           position: 'absolute',
-          left: '10%',
-          right: '10%',
-          top: '-16%',
-          height: '44%',
-          borderRadius: '50% 50% 46% 46%',
-          background: 'radial-gradient(ellipse at 50% 35%, rgba(28,28,34,0.92) 0%, rgba(10,10,14,0.86) 55%, rgba(0,0,0,0) 100%)',
-          filter: 'blur(1px)',
-          transform: 'scaleY(1.07)',
+          left: '6%',
+          right: '6%',
+          top: '-19%',
+          height: '50%',
+          borderRadius: '52% 52% 44% 44%',
+          background: 'radial-gradient(ellipse at 50% 33%, rgba(30,30,38,0.96) 0%, rgba(12,12,18,0.9) 50%, rgba(0,0,0,0) 100%)',
+          filter: 'blur(0.9px)',
+          transform: 'scaleY(1.12)',
         }}
       />
 
-      {/* Face-framing side flows */}
-      {strands.map((s, i) => (
+      {/* Silky highlight sheen */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: '22%',
+          right: '22%',
+          top: '-4%',
+          height: '28%',
+          borderRadius: '50%',
+          background: 'linear-gradient(180deg, rgba(116,116,132,0.18) 0%, rgba(70,70,86,0.08) 45%, rgba(0,0,0,0) 100%)',
+          filter: 'blur(1.4px)',
+          mixBlendMode: 'screen',
+        }}
+      />
+
+      {/* Dramatic side curtains */}
+      {curtainFlows.map((s, i) => (
         <Box
-          key={`hair-strand-${i}`}
+          key={`hair-curtain-${i}`}
           sx={{
             position: 'absolute',
             left: s.left,
             top: s.top,
             width: s.width,
             height: s.h,
-            borderRadius: '45% 55% 60% 40% / 16% 16% 84% 84%',
-            background: 'linear-gradient(180deg, rgba(34,34,40,0.86) 0%, rgba(14,14,18,0.86) 32%, rgba(5,5,7,0.85) 72%, rgba(0,0,0,0) 100%)',
-            filter: 'blur(0.7px)',
+            borderRadius: '46% 54% 60% 40% / 16% 16% 84% 84%',
+            background: 'linear-gradient(180deg, rgba(36,36,44,0.9) 0%, rgba(16,16,22,0.88) 34%, rgba(6,6,9,0.87) 76%, rgba(0,0,0,0) 100%)',
+            filter: 'blur(0.65px)',
             transformOrigin: '50% 6%',
             transform: `rotate(${s.rot}deg)`,
             animation: `hairFlow ${s.dur} ease-in-out ${s.delay} infinite`,
             '@keyframes hairFlow': {
               '0%, 100%': { transform: `rotate(${s.rot}deg) translateX(0px)` },
-              '50%': { transform: `rotate(${s.rot + (s.rot < 0 ? -2 : 2)}deg) translateX(${s.rot < 0 ? '-2px' : '2px'})` },
+              '50%': { transform: `rotate(${s.rot + (s.rot < 0 ? -2.4 : 2.4)}deg) translateX(${s.rot < 0 ? '-2.4px' : '2.4px'})` },
             },
           }}
         />
       ))}
 
-      {/* Wispy flyaways for softer life */}
+      {/* Natural micro-strands */}
+      {looseStrands.map((s, i) => (
+        <Box
+          key={`hair-loose-${i}`}
+          sx={{
+            position: 'absolute',
+            left: s.left,
+            top: s.top,
+            width: s.w,
+            height: s.h,
+            borderRadius: '50% 50% 62% 38% / 8% 8% 92% 92%',
+            background: 'linear-gradient(180deg, rgba(58,58,68,0.42) 0%, rgba(12,12,18,0.5) 56%, rgba(0,0,0,0) 100%)',
+            filter: 'blur(0.45px)',
+            transformOrigin: '50% 2%',
+            transform: `rotate(${s.rot}deg)`,
+            animation: `hairLoose ${s.dur} ease-in-out ${s.delay} infinite`,
+            '@keyframes hairLoose': {
+              '0%, 100%': { transform: `rotate(${s.rot}deg) translateY(0px)` },
+              '50%': { transform: `rotate(${s.rot + (s.rot < 0 ? -3 : 3)}deg) translateY(1.8px)` },
+            },
+          }}
+        />
+      ))}
+
+      {/* Soft frontal wisps */}
       <Box
         sx={{
           position: 'absolute',
-          left: '18%',
-          right: '18%',
-          top: '4%',
-          height: '20%',
-          background: 'radial-gradient(ellipse at 50% 60%, rgba(34,34,42,0.34) 0%, rgba(12,12,18,0.16) 40%, rgba(0,0,0,0) 100%)',
-          filter: 'blur(2px)',
+          left: '14%',
+          right: '14%',
+          top: '3%',
+          height: '24%',
+          background: 'radial-gradient(ellipse at 50% 60%, rgba(42,42,54,0.3) 0%, rgba(12,12,18,0.14) 44%, rgba(0,0,0,0) 100%)',
+          filter: 'blur(2.2px)',
           animation: 'hairBreath 4.4s ease-in-out infinite',
           '@keyframes hairBreath': {
-            '0%, 100%': { opacity: 0.38, transform: 'translateY(0px)' },
-            '50%': { opacity: 0.54, transform: 'translateY(1px)' },
+            '0%, 100%': { opacity: 0.34, transform: 'translateY(0px)' },
+            '50%': { opacity: 0.56, transform: 'translateY(1.4px)' },
           },
+        }}
+      />
+
+      {/* Shadow depth to seat hair around face */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: '8%',
+          right: '8%',
+          top: '-2%',
+          height: '70%',
+          borderRadius: '50% 50% 44% 44%',
+          background: 'radial-gradient(ellipse at 50% 25%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 62%, rgba(0,0,0,0.34) 100%)',
+          mixBlendMode: 'multiply',
         }}
       />
     </Box>
