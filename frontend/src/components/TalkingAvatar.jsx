@@ -252,6 +252,10 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
   const spineRef  = useRef(null);
   const jawRef    = useRef(null);
   const neckRef   = useRef(null);
+  const baseHeadRotRef = useRef(null);
+  const baseSpineRotRef = useRef(null);
+  const baseJawRotRef = useRef(null);
+  const baseNeckRotRef = useRef(null);
 
   const { scene } = useGLTF(url);
 
@@ -280,6 +284,27 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
       if (!neckRef.current && n.includes('neck')) neckRef.current = obj;
     });
 
+    if (headRef.current) baseHeadRotRef.current = {
+      x: headRef.current.rotation.x,
+      y: headRef.current.rotation.y,
+      z: headRef.current.rotation.z,
+    };
+    if (spineRef.current) baseSpineRotRef.current = {
+      x: spineRef.current.rotation.x,
+      y: spineRef.current.rotation.y,
+      z: spineRef.current.rotation.z,
+    };
+    if (jawRef.current) baseJawRotRef.current = {
+      x: jawRef.current.rotation.x,
+      y: jawRef.current.rotation.y,
+      z: jawRef.current.rotation.z,
+    };
+    if (neckRef.current) baseNeckRotRef.current = {
+      x: neckRef.current.rotation.x,
+      y: neckRef.current.rotation.y,
+      z: neckRef.current.rotation.z,
+    };
+
     // Relax T-pose style arms so they sit naturally by the torso.
     applyRelaxedArmPose(cloned);
   }, [cloned]);
@@ -290,19 +315,19 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
     const t = clock.elapsedTime;
     const speechAmp = isSpeaking ? getSpeechAmplitude(analyserRef) : 0;
     // Subtle head sway — alive, not robotic
-    if (headRef.current) {
-      headRef.current.rotation.y = Math.sin(t * 0.35) * 0.05 + speechAmp * 0.06;
-      headRef.current.rotation.z = Math.sin(t * 0.28) * 0.018;
-      headRef.current.rotation.x = speechAmp * 0.08;
+    if (headRef.current && baseHeadRotRef.current) {
+      headRef.current.rotation.x = baseHeadRotRef.current.x + Math.sin(t * 0.32) * 0.008 - speechAmp * 0.02;
+      headRef.current.rotation.y = baseHeadRotRef.current.y + Math.sin(t * 0.35) * 0.03;
+      headRef.current.rotation.z = baseHeadRotRef.current.z + Math.sin(t * 0.28) * 0.012;
     }
-    if (jawRef.current) jawRef.current.rotation.x = speechAmp * 0.38;
-    if (neckRef.current) {
-      neckRef.current.rotation.x = Math.sin(t * 0.55) * 0.012 + speechAmp * 0.04;
-      neckRef.current.rotation.y = Math.sin(t * 0.42) * 0.01;
+    if (jawRef.current && baseJawRotRef.current) jawRef.current.rotation.x = baseJawRotRef.current.x + speechAmp * 0.28;
+    if (neckRef.current && baseNeckRotRef.current) {
+      neckRef.current.rotation.x = baseNeckRotRef.current.x + Math.sin(t * 0.55) * 0.008 + speechAmp * 0.012;
+      neckRef.current.rotation.y = baseNeckRotRef.current.y + Math.sin(t * 0.42) * 0.007;
     }
     // Breathing
-    if (spineRef.current) {
-      spineRef.current.rotation.x = Math.sin(t * 0.75) * 0.013 + speechAmp * 0.05;
+    if (spineRef.current && baseSpineRotRef.current) {
+      spineRef.current.rotation.x = baseSpineRotRef.current.x + Math.sin(t * 0.75) * 0.006 + speechAmp * 0.01;
     }
     // Gentle float bob
     if (groupRef.current) {
@@ -325,6 +350,10 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
   const spineRef = useRef(null);
   const jawRef   = useRef(null);
   const neckRef  = useRef(null);
+  const baseHeadRotRef = useRef(null);
+  const baseSpineRotRef = useRef(null);
+  const baseJawRotRef = useRef(null);
+  const baseNeckRotRef = useRef(null);
   const fbx = useFBX(url);
   const cloned = React.useMemo(() => fbx.clone(true), [fbx]);
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
@@ -338,6 +367,26 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
       if (!jawRef.current && (n.includes('jaw') || n.includes('chin'))) jawRef.current = obj;
       if (!neckRef.current && n.includes('neck')) neckRef.current = obj;
     });
+    if (headRef.current) baseHeadRotRef.current = {
+      x: headRef.current.rotation.x,
+      y: headRef.current.rotation.y,
+      z: headRef.current.rotation.z,
+    };
+    if (spineRef.current) baseSpineRotRef.current = {
+      x: spineRef.current.rotation.x,
+      y: spineRef.current.rotation.y,
+      z: spineRef.current.rotation.z,
+    };
+    if (jawRef.current) baseJawRotRef.current = {
+      x: jawRef.current.rotation.x,
+      y: jawRef.current.rotation.y,
+      z: jawRef.current.rotation.z,
+    };
+    if (neckRef.current) baseNeckRotRef.current = {
+      x: neckRef.current.rotation.x,
+      y: neckRef.current.rotation.y,
+      z: neckRef.current.rotation.z,
+    };
     applyRelaxedArmPose(cloned);
   }, [cloned]);
 
@@ -361,16 +410,18 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
 
   useFrame(({ clock }, delta) => {
     const speechAmp = isSpeaking ? getSpeechAmplitude(analyserRef) : 0;
-    if (headRef.current) {
-      headRef.current.rotation.x = speechAmp * 0.07;
-      headRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.35) * 0.045 + speechAmp * 0.05;
+    if (headRef.current && baseHeadRotRef.current) {
+      headRef.current.rotation.x = baseHeadRotRef.current.x + Math.sin(clock.elapsedTime * 0.3) * 0.008 - speechAmp * 0.018;
+      headRef.current.rotation.y = baseHeadRotRef.current.y + Math.sin(clock.elapsedTime * 0.35) * 0.03;
     }
-    if (jawRef.current) jawRef.current.rotation.x = speechAmp * 0.34;
-    if (neckRef.current) {
-      neckRef.current.rotation.x = Math.sin(clock.elapsedTime * 0.52) * 0.01 + speechAmp * 0.035;
-      neckRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.4) * 0.009;
+    if (jawRef.current && baseJawRotRef.current) jawRef.current.rotation.x = baseJawRotRef.current.x + speechAmp * 0.26;
+    if (neckRef.current && baseNeckRotRef.current) {
+      neckRef.current.rotation.x = baseNeckRotRef.current.x + Math.sin(clock.elapsedTime * 0.52) * 0.007 + speechAmp * 0.01;
+      neckRef.current.rotation.y = baseNeckRotRef.current.y + Math.sin(clock.elapsedTime * 0.4) * 0.007;
     }
-    if (spineRef.current) spineRef.current.rotation.x = Math.sin(clock.elapsedTime * 0.7) * 0.012 + speechAmp * 0.045;
+    if (spineRef.current && baseSpineRotRef.current) {
+      spineRef.current.rotation.x = baseSpineRotRef.current.x + Math.sin(clock.elapsedTime * 0.7) * 0.006 + speechAmp * 0.01;
+    }
     if (groupRef.current)
       groupRef.current.position.y = normPosition[1] + Math.sin(clock.elapsedTime * 0.7) * 0.03 + speechAmp * 0.035;
     tick(delta);
