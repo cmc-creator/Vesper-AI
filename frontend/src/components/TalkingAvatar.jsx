@@ -162,8 +162,9 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     blinkTimerRef.current -= delta;
     if (blinkDurationRef.current > 0) blinkDurationRef.current -= delta;
     if (blinkTimerRef.current <= 0) {
-      blinkDurationRef.current = 0.09 + Math.random() * 0.05;
-      blinkTimerRef.current = 2.1 + Math.random() * 2.8;
+      // Softer, more natural blink cadence.
+      blinkDurationRef.current = 0.075 + Math.random() * 0.04;
+      blinkTimerRef.current = 2.7 + Math.random() * 3.2;
     }
     const blinkOn = blinkDurationRef.current > 0;
     const blinkVal = blinkOn ? 1 : 0;
@@ -206,7 +207,8 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     setMorph('cheekSquintLeft', cheek);
     setMorph('cheekSquintRight', cheek);
     setMorph('cheekPuff', amp * 0.12);
-    setMorph('mouthSmile', amp * 0.2);
+    // A tiny confident smile lives under speech dynamics.
+    setMorph('mouthSmile', 0.06 + amp * 0.18);
   }, [analyserRef, isSpeaking, setMorph]);
 }
 
@@ -523,9 +525,30 @@ function FlowingHairOverlay({ isSpeaking }) {
           top: '-4%',
           height: '28%',
           borderRadius: '50%',
-          background: 'linear-gradient(180deg, rgba(116,116,132,0.18) 0%, rgba(70,70,86,0.08) 45%, rgba(0,0,0,0) 100%)',
+          background: 'linear-gradient(180deg, rgba(136,136,156,0.24) 0%, rgba(82,82,102,0.12) 45%, rgba(0,0,0,0) 100%)',
           filter: 'blur(1.4px)',
           mixBlendMode: 'screen',
+        }}
+      />
+
+      {/* Midnight gloss ribbon for a luxe black sheen */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: '26%',
+          right: '34%',
+          top: '2%',
+          height: '40%',
+          borderRadius: '45% 55% 60% 40% / 14% 14% 86% 86%',
+          background: 'linear-gradient(180deg, rgba(170,170,196,0.16) 0%, rgba(88,88,116,0.08) 36%, rgba(0,0,0,0) 100%)',
+          filter: 'blur(1.1px)',
+          mixBlendMode: 'screen',
+          transform: 'rotate(-6deg)',
+          animation: 'hairGloss 5.2s ease-in-out infinite',
+          '@keyframes hairGloss': {
+            '0%, 100%': { opacity: 0.28, transform: 'rotate(-6deg) translateX(0px)' },
+            '50%': { opacity: 0.46, transform: 'rotate(-7deg) translateX(1.6px)' },
+          },
         }}
       />
 
