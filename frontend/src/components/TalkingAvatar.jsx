@@ -501,10 +501,10 @@ function MakeupOverlay({ isSpeaking, accentColor = '#a855f7' }) {
         left: '10%', right: '10%',
         top: '11%', height: '60%',
         borderRadius: '42% 42% 50% 50% / 30% 30% 70% 70%',
-        background: 'radial-gradient(ellipse at 50% 42%, rgba(200,230,255,0.28) 0%, rgba(150,190,240,0.14) 42%, rgba(0,0,0,0) 100%)',
+        background: 'radial-gradient(ellipse at 50% 42%, rgba(220,245,255,0.52) 0%, rgba(180,220,255,0.32) 42%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(3.5px)',
-        opacity: isSpeaking ? 1 : 0.85,
+        filter: 'blur(2.8px)',
+        opacity: isSpeaking ? 1 : 1,
         transition: 'opacity 0.6s ease',
       }} />
 
@@ -526,41 +526,41 @@ function MakeupOverlay({ isSpeaking, accentColor = '#a855f7' }) {
         filter: 'blur(4px)',
       }} />
 
-      {/* ── Cosmic eyes — left — deep blue iris with inner glow ── */}
+      {/* ── Cosmic eyes — left — soft blue iris with gentle glow ── */}
       <Box sx={{
         position: 'absolute',
         left: '18%', top: '26%', width: '8%', height: '8%',
         borderRadius: '50%',
-        background: 'radial-gradient(circle at 50% 45%, rgba(100,200,255,0.8) 0%, rgba(50,120,200,0.6) 35%, rgba(10,40,100,0.9) 70%, rgba(0,0,0,0.4) 100%)',
+        background: 'radial-gradient(circle at 50% 45%, rgba(100,180,220,0.4) 0%, rgba(60,120,180,0.3) 35%, rgba(20,60,120,0.5) 70%, rgba(0,20,60,0.2) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(0.4px)',
-        boxShadow: 'inset -1px -1px 3px rgba(0,0,0,0.6), 0 0 12px rgba(80,180,255,0.7)',
-        opacity: isSpeaking ? 0.98 : 0.9,
+        filter: 'blur(0.6px)',
+        boxShadow: 'inset -1px -1px 2px rgba(0,0,0,0.3), 0 0 8px rgba(80,160,220,0.4)',
+        opacity: 0.85,
       }} />
       {/* ── Cosmic eyes — right ── */}
       <Box sx={{
         position: 'absolute',
         right: '18%', top: '26%', width: '8%', height: '8%',
         borderRadius: '50%',
-        background: 'radial-gradient(circle at 50% 45%, rgba(100,200,255,0.8) 0%, rgba(50,120,200,0.6) 35%, rgba(10,40,100,0.9) 70%, rgba(0,0,0,0.4) 100%)',
+        background: 'radial-gradient(circle at 50% 45%, rgba(100,180,220,0.4) 0%, rgba(60,120,180,0.3) 35%, rgba(20,60,120,0.5) 70%, rgba(0,20,60,0.2) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(0.4px)',
-        boxShadow: 'inset -1px -1px 3px rgba(0,0,0,0.6), 0 0 12px rgba(80,180,255,0.7)',
-        opacity: isSpeaking ? 0.98 : 0.9,
+        filter: 'blur(0.6px)',
+        boxShadow: 'inset -1px -1px 2px rgba(0,0,0,0.3), 0 0 8px rgba(80,160,220,0.4)',
+        opacity: 0.85,
       }} />
 
-      {/* ── Eye glow halo — left (cosmic shimmer) ── */}
+      {/* ── Eye glow halo — left (subtle cosmic shimmer) ── */}
       <Box sx={{
         position: 'absolute',
         left: '16.5%', top: '24.5%', width: '11%', height: '11%',
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(120,200,255,0.22) 0%, rgba(0,0,0,0) 100%)',
+        background: 'radial-gradient(circle, rgba(120,180,220,0.08) 0%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(2px)',
+        filter: 'blur(2.5px)',
         animation: 'eyeGlow 3.2s ease-in-out infinite',
         '@keyframes eyeGlow': {
-          '0%, 100%': { opacity: 0.4 },
-          '50%': { opacity: 0.8 },
+          '0%, 100%': { opacity: 0.25 },
+          '50%': { opacity: 0.45 },
         },
       }} />
       {/* ── Eye glow halo — right ── */}
@@ -568,32 +568,32 @@ function MakeupOverlay({ isSpeaking, accentColor = '#a855f7' }) {
         position: 'absolute',
         right: '16.5%', top: '24.5%', width: '11%', height: '11%',
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(120,200,255,0.22) 0%, rgba(0,0,0,0) 100%)',
+        background: 'radial-gradient(circle, rgba(120,180,220,0.08) 0%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(2px)',
+        filter: 'blur(2.5px)',
         animation: 'eyeGlow 3.2s ease-in-out infinite',
         '@keyframes eyeGlow': {
-          '0%, 100%': { opacity: 0.4 },
-          '50%': { opacity: 0.8 },
+          '0%, 100%': { opacity: 0.25 },
+          '50%': { opacity: 0.45 },
         },
       }} />
 
-      {/* ── Upper lash shadow — dark cosmic accent ── */}
+      {/* ── Upper lash shadow — subtle accent ── */}
       <Box sx={{
         position: 'absolute',
         left: '17%', top: '30%', width: '10%', height: '3.5%',
         borderRadius: '50%',
-        background: 'linear-gradient(180deg, rgba(30,80,140,0.4) 0%, rgba(0,0,0,0) 100%)',
-        mixBlendMode: 'multiply',
-        filter: 'blur(0.8px)',
+        background: 'linear-gradient(180deg, rgba(60,110,160,0.18) 0%, rgba(0,0,0,0) 100%)',
+        mixBlendMode: 'overlay',
+        filter: 'blur(1.2px)',
       }} />
       <Box sx={{
         position: 'absolute',
         right: '17%', top: '30%', width: '10%', height: '3.5%',
         borderRadius: '50%',
-        background: 'linear-gradient(180deg, rgba(30,80,140,0.4) 0%, rgba(0,0,0,0) 100%)',
-        mixBlendMode: 'multiply',
-        filter: 'blur(0.8px)',
+        background: 'linear-gradient(180deg, rgba(60,110,160,0.18) 0%, rgba(0,0,0,0) 100%)',
+        mixBlendMode: 'overlay',
+        filter: 'blur(1.2px)',
       }} />
 
       {/* ── Lip color — cool pink/lavender ── */}
@@ -783,15 +783,15 @@ function FlowingHairOverlay({ isSpeaking, accentColor = '#a855f7' }) {
               position: 'absolute',
               left: `${startX}%`,
               top: `${startY}%`,
-              width: '2.5px',
-              height: '2.5px',
+              width: '1.8px',
+              height: '1.8px',
               borderRadius: '50%',
-              background: 'rgba(150,220,255,0.9)',
-              boxShadow: '0 0 6px rgba(100,200,255,0.8), inset 0 0 2px rgba(220,255,255,0.5)',
+              background: 'rgba(140,200,240,0.35)',
+              boxShadow: '0 0 3px rgba(100,180,220,0.25)',
               animation: `starTwinkle ${duration}s cubic-bezier(0.4, 0, 0.2, 1) ${delay}s infinite`,
               '@keyframes starTwinkle': {
-                '0%, 100%': { opacity: 0.15 },
-                '50%': { opacity: 1 },
+                '0%, 100%': { opacity: 0.08 },
+                '50%': { opacity: 0.28 },
               },
             }}
           />
