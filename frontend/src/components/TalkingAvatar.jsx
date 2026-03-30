@@ -166,18 +166,17 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     blinkTimerRef.current -= delta;
     if (blinkDurationRef.current > 0) blinkDurationRef.current -= delta;
     if (blinkTimerRef.current <= 0) {
-      // Slightly longer / more frequent blinks so the model reads as alive.
-      blinkDurationRef.current = 0.11 + Math.random() * 0.06;
-      blinkTimerRef.current = 1.9 + Math.random() * 2.1;
+      blinkDurationRef.current = 0.075 + Math.random() * 0.04;
+      blinkTimerRef.current = 2.8 + Math.random() * 2.6;
     }
     const blinkOn = blinkDurationRef.current > 0;
     const blinkVal = blinkOn ? 1 : 0;
-    const eyeFocus = isSpeaking ? 0.035 : 0.065;
+    const eyeFocus = isSpeaking ? 0.012 : 0.02;
     const eyeWander = Math.sin(performance.now() * 0.0012) * eyeFocus;
 
     if (!isSpeaking || !analyserRef?.current) {
       smoothAmplitude.current = THREE.MathUtils.lerp(smoothAmplitude.current, 0, 0.15);
-      setMorphGroup(['mouthOpen', 'jawOpen'], smoothAmplitude.current * 0.22);
+      setMorphGroup(['mouthOpen', 'jawOpen'], smoothAmplitude.current * 0.12);
       setMorph('eyeBlinkLeft', blinkVal);
       setMorph('eyeBlinkRight', blinkVal);
       setMorph('blink_left', blinkVal);
@@ -188,12 +187,14 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
       setMorph('eyeLookOutLeft', Math.max(0, -eyeWander));
       setMorph('eyeLookInRight', Math.max(0, -eyeWander));
       setMorph('eyeLookOutRight', Math.max(0, eyeWander));
-      setMorph('eyeLookUpLeft', 0.01);
-      setMorph('eyeLookUpRight', 0.01);
+      setMorph('eyeLookUpLeft', 0.002);
+      setMorph('eyeLookUpRight', 0.002);
       setMorph('eyeLookDownLeft', 0);
       setMorph('eyeLookDownRight', 0);
       setMorph('cheekSquintLeft', 0);
       setMorph('cheekSquintRight', 0);
+      setMorph('cheekPuff', 0);
+      setMorphGroup(['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight'], 0.015);
       return;
     }
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
@@ -204,7 +205,7 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     const rawAmp = sum / (sliceWidth * 1.4 * 255);
     smoothAmplitude.current = THREE.MathUtils.lerp(smoothAmplitude.current, rawAmp, 0.4);
     const amp = smoothAmplitude.current;
-    setMorphGroup(['mouthOpen', 'jawOpen'], amp * 0.9);
+    setMorphGroup(['mouthOpen', 'jawOpen'], amp * 0.52);
     visemeTimerRef.current += delta;
     const interval = 0.06 + (1 - amp) * 0.12;
     if (visemeTimerRef.current >= interval) {
@@ -223,16 +224,15 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     setMorph('eyeLookOutLeft', Math.max(0, -eyeWander));
     setMorph('eyeLookInRight', Math.max(0, -eyeWander));
     setMorph('eyeLookOutRight', Math.max(0, eyeWander));
-    setMorph('eyeLookUpLeft', 0.012);
-    setMorph('eyeLookUpRight', 0.012);
+    setMorph('eyeLookUpLeft', 0.003);
+    setMorph('eyeLookUpRight', 0.003);
     setMorph('eyeLookDownLeft', 0);
     setMorph('eyeLookDownRight', 0);
-    const cheek = Math.min(0.35, amp * 0.45);
+    const cheek = Math.min(0.12, amp * 0.18);
     setMorph('cheekSquintLeft', cheek);
     setMorph('cheekSquintRight', cheek);
-    setMorph('cheekPuff', amp * 0.12);
-    // A tiny confident smile lives under speech dynamics.
-    setMorphGroup(['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight'], 0.06 + amp * 0.18);
+    setMorph('cheekPuff', amp * 0.04);
+    setMorphGroup(['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight'], 0.015 + amp * 0.05);
   }, [analyserRef, isSpeaking, setMorph, setMorphGroup]);
 }
 
@@ -264,22 +264,22 @@ function CameraSetup({ isSpeaking = false }) {
   const { camera } = useThree();
   const baseRef = useRef({ x: 0, y: 0, z: 0, fov: 31 });
   useEffect(() => {
-    camera.position.set(0, 2.48, 1.16);
-    camera.fov = 31;
+    camera.position.set(0, 2.44, 1.24);
+    camera.fov = 29;
     camera.updateProjectionMatrix();
-    camera.lookAt(0, 2.2, 0);
-    baseRef.current = { x: 0, y: 2.48, z: 1.16, fov: 31 };
+    camera.lookAt(0, 2.18, 0);
+    baseRef.current = { x: 0, y: 2.44, z: 1.24, fov: 29 };
   }, [camera]);
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
-    const breath = isSpeaking ? 0.45 : 1;
-    const y = baseRef.current.y + Math.sin(t * 0.55) * 0.008 * breath;
-    const z = baseRef.current.z + Math.sin(t * 0.42) * 0.006 * breath;
+    const breath = isSpeaking ? 0.38 : 0.55;
+    const y = baseRef.current.y + Math.sin(t * 0.55) * 0.004 * breath;
+    const z = baseRef.current.z + Math.sin(t * 0.42) * 0.003 * breath;
     camera.position.set(baseRef.current.x, y, z);
-    camera.fov = baseRef.current.fov + Math.sin(t * 0.35) * 0.12;
+    camera.fov = baseRef.current.fov + Math.sin(t * 0.35) * 0.05;
     camera.updateProjectionMatrix();
-    camera.lookAt(0, 2.2, 0);
+    camera.lookAt(0, 2.18, 0);
   });
 
   return null;
@@ -489,131 +489,17 @@ function LoadingFallback({ accentColor }) {
   );
 }
 
-// ─── Makeup overlay — cosmic ice-queen goddess ──────────────────────────────
-function MakeupOverlay({ isSpeaking, accentColor = '#a855f7' }) {
-  const accent = new THREE.Color(accentColor);
-  const aR = Math.round(accent.r * 255);
-  const aG = Math.round(accent.g * 255);
-  const aB = Math.round(accent.b * 255);
-
-  return (
-    <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3 }}>
-
-      {/* ── Ambient face rim — very faint cool halo around face edge only ── */}
-      <Box sx={{
-        position: 'absolute',
-        left: '8%', right: '8%',
-        top: '9%', height: '64%',
-        borderRadius: '44% 44% 52% 52% / 28% 28% 72% 72%',
-        background: 'radial-gradient(ellipse at 50% 44%, rgba(0,0,0,0) 52%, rgba(80,160,220,0.12) 76%, rgba(0,0,0,0) 100%)',
-        mixBlendMode: 'screen',
-        filter: 'blur(6px)',
-      }} />
-
-      {/* ── Cheek flush — cool lavender-rose, very subtle ── */}
-      <Box sx={{
-        position: 'absolute',
-        left: '4%', top: '36%', width: '22%', height: '14%',
-        borderRadius: '50%',
-        background: 'radial-gradient(ellipse, rgba(180,120,200,0.13) 0%, rgba(0,0,0,0) 100%)',
-        mixBlendMode: 'screen',
-        filter: 'blur(6px)',
-      }} />
-      <Box sx={{
-        position: 'absolute',
-        right: '4%', top: '36%', width: '22%', height: '14%',
-        borderRadius: '50%',
-        background: 'radial-gradient(ellipse, rgba(180,120,200,0.13) 0%, rgba(0,0,0,0) 100%)',
-        mixBlendMode: 'screen',
-        filter: 'blur(6px)',
-      }} />
-
-      {/* ── Lip color — barely-there cool pink ── */}
-      <Box sx={{
-        position: 'absolute',
-        left: '33%', right: '33%', top: '51%', height: '7%',
-        borderRadius: '50% 50% 46% 46%',
-        background: 'radial-gradient(ellipse at 50% 44%, rgba(180,110,160,0.22) 0%, rgba(140,70,130,0.1) 55%, rgba(0,0,0,0) 100%)',
-        mixBlendMode: 'screen',
-        filter: 'blur(2.4px)',
-      }} />
-
-      {/* ── Accent crown glow — top edge shimmer ── */}
-      <Box sx={{
-        position: 'absolute',
-        left: '18%', right: '18%', top: '-5%', height: '14%',
-        background: `radial-gradient(ellipse at 50% 80%, rgba(${aR},${aG},${aB},0.14) 0%, rgba(0,0,0,0) 100%)`,
-        filter: 'blur(3px)',
-        mixBlendMode: 'screen',
-      }} />
-    </Box>
-  );
+function MakeupOverlay() {
+  return null;
 }
 
 // ─── Speaking indicator ring (CSS, not Three.js) ─────────────────────────────
-function SpeakingRing({ isSpeaking, accentColor }) {
-  if (!isSpeaking) return null;
-  return (
-    <Box sx={{
-      position: 'absolute',
-      inset: 0,
-      borderRadius: 'inherit',
-      pointerEvents: 'none',
-      '&::before': {
-        content: '""',
-        position: 'absolute',
-        inset: -3,
-        borderRadius: 'inherit',
-        border: `2px solid ${accentColor}`,
-        boxShadow: `0 0 18px ${accentColor}88, inset 0 0 18px ${accentColor}22`,
-        animation: 'talkingPulse 0.8s ease-in-out infinite',
-      },
-      '@keyframes talkingPulse': {
-        '0%, 100%': { opacity: 0.6, transform: 'scale(1)' },
-        '50%':       { opacity: 1,   transform: 'scale(1.01)' },
-      },
-    }} />
-  );
+function SpeakingRing() {
+  return null;
 }
 
-function FlowingHairOverlay({ isSpeaking, accentColor = '#a855f7' }) {
-  // Stable sparkle positions — computed once, not on every render
-  const sparkles = [
-    { x: 8,  y: -18 }, { x: 14, y: -8  }, { x: 88, y: -22 }, { x: 82, y: -4  },
-    { x: 5,  y: 12  }, { x: 92, y: 8   }, { x: 11, y: 28  }, { x: 86, y: 18  },
-    { x: 18, y: -30 }, { x: 78, y: -28 }, { x: 6,  y: 42  }, { x: 91, y: 38  },
-  ];
-  const durations = [4.2, 5.1, 3.8, 6.0, 4.7, 5.4, 3.6, 4.9, 5.8, 4.1, 6.2, 3.9];
-  const delays    = [0,   0.8, 1.5, 0.3, 1.9, 0.6, 2.1, 1.2, 0.1, 1.7, 0.9, 2.4];
-
-  return (
-    <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
-      {/* Soft vignette around the very edges — does NOT cover the center */}
-      <Box sx={{
-        position: 'absolute', inset: 0,
-        background: 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 42%, rgba(0,0,0,0.55) 100%)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Sparkles scattered near top edges (outside face area) */}
-      {sparkles.map((s, i) => (
-        <Box key={`spark-${i}`} sx={{
-          position: 'absolute',
-          left: `${s.x}%`,
-          top: `${s.y}%`,
-          width: '2px', height: '2px',
-          borderRadius: '50%',
-          background: 'rgba(160,210,255,0.9)',
-          boxShadow: '0 0 4px rgba(120,190,240,0.6)',
-          animation: `sparkle${i} ${durations[i]}s ease-in-out ${delays[i]}s infinite`,
-          [`@keyframes sparkle${i}`]: {
-            '0%, 100%': { opacity: 0.05, transform: 'scale(0.8)' },
-            '50%':       { opacity: 0.55, transform: 'scale(1.3)' },
-          },
-        }} />
-      ))}
-    </Box>
-  );
+function FlowingHairOverlay() {
+  return null;
 }
 
 // ─── Main exported component ──────────────────────────────────────────────────
@@ -665,36 +551,26 @@ const TalkingAvatar = forwardRef(function TalkingAvatar({
       flex: fill ? 1 : undefined,
       borderRadius: 2,
       overflow: 'hidden',
-      background: `radial-gradient(ellipse at 50% 30%, ${accentColor}18 0%, #0d0d1a 70%)`,
-      border: `1px solid ${accentColor}33`,
+      background: 'radial-gradient(ellipse at 50% 28%, rgba(90,100,120,0.12) 0%, #101117 72%)',
+      border: '1px solid rgba(255,255,255,0.08)',
       transition: 'box-shadow 0.4s ease',
       boxShadow: isSpeaking
-        ? `0 0 30px ${accentColor}55, inset 0 0 40px ${accentColor}0a`
+        ? '0 8px 28px rgba(0,0,0,0.35), inset 0 0 24px rgba(255,255,255,0.03)'
         : `inset 0 0 30px rgba(0,0,0,0.4)`,
     }}>
       <Canvas
-        camera={{ position: [0, 2.48, 1.16], fov: 31 }}
-        gl={{ antialias: true, alpha: true, toneMappingExposure: 1.4 }}
+        camera={{ position: [0, 2.44, 1.24], fov: 29 }}
+        gl={{ antialias: true, alpha: true, toneMappingExposure: 1.1 }}
         style={{ background: 'transparent' }}
         onError={() => setLoadError(true)}
       >
         <CameraSetup isSpeaking={isSpeaking} />
-        {/* Low ambient — cool cosmic atmosphere */}
-        <ambientLight intensity={0.32} />
-        {/* Hemisphere — cool ice-blue sky for divine feel */}
-        <hemisphereLight skyColor="#4da6ff" groundColor="#0a0a1a" intensity={0.48} />
-        {/* Primary key light from upper-front-right */}
-        <directionalLight position={[1.5, 3, 3]} intensity={2.2} castShadow />
-        {/* Cool blue-cyan fill from front-left — cosmic divine light */}
-        <pointLight position={[0.6, 2.6, 1.8]} intensity={1.4} color="#00d4ff" />
-        {/* Soft fill from the left — accent tinted */}
-        <directionalLight position={[-2, 1.5, 1]} intensity={0.7} color={accentColor} />
-        {/* Rim / back light — cool blue-white */}
-        <directionalLight position={[0, 2, -4]} intensity={0.8} color="#b3d9ff" />
-        {/* Speaking pulse — front cool point ✓ */}
-        <pointLight position={[0, 1.6, 1.2]} intensity={isSpeaking ? 1.6 : 0.0} color="#00d4ff" />
-        {/* Subtle cheek cool bounce */}
-        <pointLight position={[0, 1.8, 0.8]} intensity={0.32} color="#6699ff" />
+        <ambientLight intensity={0.52} />
+        <hemisphereLight skyColor="#d7dde8" groundColor="#262932" intensity={0.55} />
+        <directionalLight position={[1.4, 3, 2.8]} intensity={1.45} color="#fff8ee" castShadow />
+        <directionalLight position={[-1.8, 2.1, 2.2]} intensity={0.6} color="#dbe4f2" />
+        <directionalLight position={[0, 2.2, -3.2]} intensity={0.34} color="#c8d0dc" />
+        <pointLight position={[0, 1.7, 1.15]} intensity={isSpeaking ? 0.22 : 0.12} color="#fff6ef" />
 
         <Suspense fallback={<LoadingFallback accentColor={accentColor} />}>
           <LipSyncModel
