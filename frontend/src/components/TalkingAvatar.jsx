@@ -135,19 +135,21 @@ function applyRelaxedArmPose(root) {
 
 function applyNaturalHairLook(root) {
   if (!root) return;
-  const hairTint = new THREE.Color('#1f2128');
+  const hairTint = new THREE.Color('#1a1d24');
   root.traverse((obj) => {
     if (!obj.isMesh || !obj.material) return;
     const n = (obj.name || '').toLowerCase();
-    const isHairLike = n.includes('hair') || n.includes('bang') || n.includes('fringe') || n.includes('scalp');
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const hasHairMaterialName = mats.some((m) => ((m?.name || '').toLowerCase().includes('hair')));
+    const isHairLike = n.includes('hair') || n.includes('bang') || n.includes('fringe') || n.includes('scalp') || hasHairMaterialName;
     if (!isHairLike) return;
 
     const applyOne = (mat) => {
       if (!mat || !mat.isMaterial) return;
-      if (mat.color) mat.color.lerp(hairTint, 0.35);
-      if ('roughness' in mat) mat.roughness = Math.min(0.62, (mat.roughness ?? 0.7));
-      if ('metalness' in mat) mat.metalness = Math.max(0.04, (mat.metalness ?? 0.0));
-      if ('envMapIntensity' in mat) mat.envMapIntensity = Math.max(0.55, (mat.envMapIntensity ?? 0.4));
+      if (mat.color) mat.color.lerp(hairTint, 0.52);
+      if ('roughness' in mat) mat.roughness = Math.min(0.48, (mat.roughness ?? 0.68));
+      if ('metalness' in mat) mat.metalness = Math.max(0.06, (mat.metalness ?? 0.0));
+      if ('envMapIntensity' in mat) mat.envMapIntensity = Math.max(0.9, (mat.envMapIntensity ?? 0.5));
       mat.needsUpdate = true;
     };
 
@@ -163,6 +165,8 @@ function applyNaturalHairLook(root) {
 function useLipSync(sceneObject, analyserRef, isSpeaking) {
   const meshesRef = useRef([]);
   const smoothAmplitude = useRef(0);
+  const smoothMouthOpen = useRef(0);
+  const smoothVisemeStrength = useRef(0);
   const currentVisemeRef = useRef(0);
   const visemeTimerRef = useRef(0);
   const blinkTimerRef = useRef(0);
@@ -201,8 +205,11 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     const eyeWander = Math.sin(performance.now() * 0.0012) * eyeFocus;
 
     if (!isSpeaking || !analyserRef?.current) {
-      smoothAmplitude.current = THREE.MathUtils.lerp(smoothAmplitude.current, 0, 0.15);
-      setMorphGroup(['mouthOpen', 'jawOpen'], smoothAmplitude.current * 0.12);
+      smoothAmplitude.current = THREE.MathUtils.damp(smoothAmplitude.current, 0, 7.5, delta);
+      smoothMouthOpen.current = THREE.MathUtils.damp(smoothMouthOpen.current, smoothAmplitude.current * 0.12, 10.0, delta);
+      smoothVisemeStrength.current = THREE.MathUtils.damp(smoothVisemeStrength.current, 0, 9.0, delta);
+      setMorphGroup(['mouthOpen', 'jawOpen'], smoothMouthOpen.current);
+      for (const viseme of VISEME_SHAPES) setMorph(viseme, 0);
       setMorph('eyeBlinkLeft', blinkVal);
       setMorph('eyeBlinkRight', blinkVal);
       setMorph('blink_left', blinkVal);
@@ -229,11 +236,12 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     let sum = 0;
     for (let i = Math.floor(sliceWidth * 0.1); i < Math.floor(sliceWidth * 1.5); i++) sum += dataArray[i];
     const rawAmp = sum / (sliceWidth * 1.4 * 255);
-    smoothAmplitude.current = THREE.MathUtils.lerp(smoothAmplitude.current, rawAmp, 0.4);
+    smoothAmplitude.current = THREE.MathUtils.damp(smoothAmplitude.current, rawAmp, 12.0, delta);
     const amp = smoothAmplitude.current;
-    setMorphGroup(['mouthOpen', 'jawOpen'], amp * 0.52);
+    smoothMouthOpen.current = THREE.MathUtils.damp(smoothMouthOpen.current, amp * 0.52, 14.0, delta);
+    setMorphGroup(['mouthOpen', 'jawOpen'], smoothMouthOpen.current);
     visemeTimerRef.current += delta;
-    const interval = 0.18 + (1 - amp) * 0.14;
+    const interval = 0.21 + (1 - amp) * 0.16;
     while (visemeTimerRef.current >= interval) {
       visemeTimerRef.current -= interval;
       currentVisemeRef.current = (currentVisemeRef.current + 1) % VISEME_SHAPES.length;
@@ -241,7 +249,8 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     const blend = interval > 0 ? (visemeTimerRef.current / interval) : 0;
     const currentIdx = currentVisemeRef.current;
     const nextIdx = (currentIdx + 1) % VISEME_SHAPES.length;
-    const visemeStrength = amp * 0.22;
+    smoothVisemeStrength.current = THREE.MathUtils.damp(smoothVisemeStrength.current, amp * 0.18, 10.5, delta);
+    const visemeStrength = smoothVisemeStrength.current;
     for (const viseme of VISEME_SHAPES) setMorph(viseme, 0);
     setMorph(VISEME_SHAPES[currentIdx], visemeStrength * (1 - blend));
     setMorph(VISEME_SHAPES[nextIdx], visemeStrength * blend);
@@ -304,11 +313,11 @@ function CameraSetup({ isSpeaking = false }) {
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
-    const breath = isSpeaking ? 0.38 : 0.55;
-    const y = baseRef.current.y + Math.sin(t * 0.55) * 0.004 * breath;
-    const z = baseRef.current.z + Math.sin(t * 0.42) * 0.003 * breath;
+    const breath = isSpeaking ? 0.18 : 0.25;
+    const y = baseRef.current.y + Math.sin(t * 0.55) * 0.0012 * breath;
+    const z = baseRef.current.z + Math.sin(t * 0.42) * 0.0010 * breath;
     camera.position.set(baseRef.current.x, y, z);
-    camera.fov = baseRef.current.fov + Math.sin(t * 0.35) * 0.05;
+    camera.fov = baseRef.current.fov + Math.sin(t * 0.35) * 0.015;
     camera.updateProjectionMatrix();
     camera.lookAt(0, 2.18, 0);
   });
@@ -402,9 +411,7 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
       spineRef.current.rotation.x = baseSpineRotRef.current.x + Math.sin(t * 0.75) * 0.003 + speechAmp * 0.004;
     }
     // Keep body mostly grounded to avoid uncanny vertical bounce.
-    if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(t * 0.4) * 0.003;
-    }
+    if (groupRef.current) groupRef.current.position.y = position[1];
     tick(delta);
   });
 
@@ -495,8 +502,7 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
     if (spineRef.current && baseSpineRotRef.current) {
       spineRef.current.rotation.x = baseSpineRotRef.current.x + Math.sin(clock.elapsedTime * 0.7) * 0.003 + speechAmp * 0.004;
     }
-    if (groupRef.current)
-      groupRef.current.position.y = normPosition[1] + Math.sin(clock.elapsedTime * 0.45) * 0.003;
+    if (groupRef.current) groupRef.current.position.y = normPosition[1];
     tick(delta);
   });
   return <group ref={groupRef} position={normPosition} scale={normScale}><primitive object={cloned} /></group>;
