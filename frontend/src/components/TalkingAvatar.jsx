@@ -133,27 +133,28 @@ function applyRelaxedArmPose(root) {
   applyBestRelaxedArmRotation(root, rightUpperArm, 'right');
 }
 
+function isHairLikeMesh(obj) {
+  if (!obj?.isMesh || !obj.material) return false;
+  const n = (obj.name || '').toLowerCase();
+  const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+  const hasHairMaterialName = mats.some((m) => {
+    const mn = (m?.name || '').toLowerCase();
+    return mn.includes('hair') || mn.includes('fringe') || mn.includes('bang');
+  });
+  return n.includes('hair') || n.includes('bang') || n.includes('fringe') || n.includes('scalp') || hasHairMaterialName;
+}
+
 function applyNaturalHairLook(root) {
   if (!root) return;
   const hairTint = new THREE.Color('#1a1d24');
   root.traverse((obj) => {
-    if (!obj.isMesh || !obj.material) return;
-    const n = (obj.name || '').toLowerCase();
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const hasHairMaterialName = mats.some((m) => {
-      const mn = (m?.name || '').toLowerCase();
-      return mn.includes('hair') || mn.includes('fringe') || mn.includes('bang');
-    });
-    const isHeadAccessoryLike = n.includes('head') && !n.includes('eye') && !n.includes('teeth') && !n.includes('mouth');
-    const isHairLike = n.includes('hair') || n.includes('bang') || n.includes('fringe') || n.includes('scalp') || hasHairMaterialName || isHeadAccessoryLike;
-    if (!isHairLike) return;
+    if (!isHairLikeMesh(obj)) return;
 
-    // Stronger enlargement so the fullness is clearly visible.
+    // Use real mesh expansion so fullness is undeniable.
     if (!obj.userData.vesperHairVolumeApplied) {
-      obj.scale.x *= 1.18;
-      obj.scale.y *= 1.10;
-      obj.scale.z *= 1.18;
-      if (Math.abs(obj.position.x) > 0.001) obj.position.x *= 1.08;
+      obj.scale.x *= 1.26;
+      obj.scale.y *= 1.12;
+      obj.scale.z *= 1.26;
       obj.userData.vesperHairVolumeApplied = true;
     }
 
@@ -341,6 +342,7 @@ function CameraSetup({ isSpeaking = false }) {
 // ── GLB/GLTF model ─────────────────────────────────────────────────────────────
 function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
   const groupRef  = useRef();
+  const hairRefs = useRef([]);
   const headRef   = useRef(null);
   const spineRef  = useRef(null);
   const jawRef    = useRef(null);
@@ -368,6 +370,7 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
 
   useEffect(() => {
     if (!cloned) return;
+    hairRefs.current = [];
     // Cache head + spine for procedural motion
     cloned.traverse((obj) => {
       const n = obj.name.toLowerCase();
@@ -375,6 +378,11 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
       if (!spineRef.current && (n.includes('spine1') || n.includes('spine2') || n.includes('chest'))) spineRef.current = obj;
       if (!jawRef.current && (n.includes('jaw') || n.includes('chin'))) jawRef.current = obj;
       if (!neckRef.current && n.includes('neck')) neckRef.current = obj;
+      if (isHairLikeMesh(obj)) {
+        obj.userData.vesperHairBaseRotY = obj.rotation.y;
+        obj.userData.vesperHairBaseRotZ = obj.rotation.z;
+        hairRefs.current.push(obj);
+      }
     });
 
     if (headRef.current) baseHeadRotRef.current = {
@@ -425,6 +433,16 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
     }
     // Keep body mostly grounded to avoid uncanny vertical bounce.
     if (groupRef.current) groupRef.current.position.y = position[1];
+
+    // Subtle sway on actual 3D hair meshes for a flowy silhouette.
+    hairRefs.current.forEach((hair, idx) => {
+      const phase = idx * 0.55;
+      const sway = Math.sin(t * 0.9 + phase) * 0.008;
+      const twist = Math.cos(t * 0.7 + phase) * 0.006;
+      hair.rotation.y = (hair.userData.vesperHairBaseRotY ?? 0) + sway;
+      hair.rotation.z = (hair.userData.vesperHairBaseRotZ ?? 0) + twist;
+    });
+
     tick(delta);
   });
 
@@ -438,6 +456,7 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
 // ── FBX model ──────────────────────────────────────────────────────────────────
 function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
   const groupRef = useRef();
+  const hairRefs = useRef([]);
   const headRef  = useRef(null);
   const spineRef = useRef(null);
   const jawRef   = useRef(null);
@@ -452,12 +471,18 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
 
   useEffect(() => {
     if (!cloned) return;
+    hairRefs.current = [];
     cloned.traverse((obj) => {
       const n = (obj.name || '').toLowerCase();
       if (!headRef.current && n.includes('head') && !n.includes('headtop') && !n.includes('end')) headRef.current = obj;
       if (!spineRef.current && (n.includes('spine') || n.includes('chest'))) spineRef.current = obj;
       if (!jawRef.current && (n.includes('jaw') || n.includes('chin'))) jawRef.current = obj;
       if (!neckRef.current && n.includes('neck')) neckRef.current = obj;
+      if (isHairLikeMesh(obj)) {
+        obj.userData.vesperHairBaseRotY = obj.rotation.y;
+        obj.userData.vesperHairBaseRotZ = obj.rotation.z;
+        hairRefs.current.push(obj);
+      }
     });
     if (headRef.current) baseHeadRotRef.current = {
       x: headRef.current.rotation.x,
@@ -516,6 +541,15 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
       spineRef.current.rotation.x = baseSpineRotRef.current.x + Math.sin(clock.elapsedTime * 0.7) * 0.003 + speechAmp * 0.004;
     }
     if (groupRef.current) groupRef.current.position.y = normPosition[1];
+
+    hairRefs.current.forEach((hair, idx) => {
+      const phase = idx * 0.55;
+      const sway = Math.sin(clock.elapsedTime * 0.9 + phase) * 0.008;
+      const twist = Math.cos(clock.elapsedTime * 0.7 + phase) * 0.006;
+      hair.rotation.y = (hair.userData.vesperHairBaseRotY ?? 0) + sway;
+      hair.rotation.z = (hair.userData.vesperHairBaseRotZ ?? 0) + twist;
+    });
+
     tick(delta);
   });
   return <group ref={groupRef} position={normPosition} scale={normScale}><primitive object={cloned} /></group>;
@@ -551,78 +585,7 @@ function SpeakingRing() {
 }
 
 function FlowingHairOverlay() {
-  return (
-    <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
-      {/* Big crown halo for fuller goddess volume */}
-      <Box sx={{
-        position: 'absolute',
-        left: '4%',
-        right: '4%',
-        top: '-22%',
-        height: '56%',
-        borderRadius: '50% 50% 45% 45%',
-        background: 'radial-gradient(ellipse at 50% 34%, rgba(32,36,48,0.82) 0%, rgba(22,24,34,0.66) 44%, rgba(0,0,0,0) 100%)',
-        filter: 'blur(1.8px)',
-      }} />
-
-      {/* Left full curtain */}
-      <Box sx={{
-        position: 'absolute',
-        left: '-20%',
-        top: '-8%',
-        width: '44%',
-        height: '114%',
-        borderRadius: '48% 52% 60% 40% / 12% 12% 88% 88%',
-        background: 'linear-gradient(180deg, rgba(34,38,50,0.82) 0%, rgba(18,21,30,0.76) 52%, rgba(0,0,0,0) 100%)',
-        filter: 'blur(1.2px)',
-        transformOrigin: '50% 8%',
-        animation: 'hairCurtainLeft 6.6s ease-in-out infinite',
-        '@keyframes hairCurtainLeft': {
-          '0%, 100%': { transform: 'rotate(-9deg) translateX(0px)' },
-          '50%': { transform: 'rotate(-13deg) translateX(-4px)' },
-        },
-      }} />
-
-      {/* Right full curtain */}
-      <Box sx={{
-        position: 'absolute',
-        right: '-20%',
-        top: '-8%',
-        width: '44%',
-        height: '114%',
-        borderRadius: '52% 48% 40% 60% / 12% 12% 88% 88%',
-        background: 'linear-gradient(180deg, rgba(34,38,50,0.82) 0%, rgba(18,21,30,0.76) 52%, rgba(0,0,0,0) 100%)',
-        filter: 'blur(1.2px)',
-        transformOrigin: '50% 8%',
-        animation: 'hairCurtainRight 6.9s ease-in-out infinite',
-        '@keyframes hairCurtainRight': {
-          '0%, 100%': { transform: 'rotate(9deg) translateX(0px)' },
-          '50%': { transform: 'rotate(13deg) translateX(4px)' },
-        },
-      }} />
-
-      {/* Strong glossy sweep for divine sheen */}
-      <Box sx={{
-        position: 'absolute',
-        top: '-6%',
-        bottom: '8%',
-        width: '34%',
-        left: '-36%',
-        borderRadius: '40% 60% 58% 42% / 10% 10% 90% 90%',
-        background: 'linear-gradient(108deg, rgba(255,255,255,0) 0%, rgba(190,205,230,0.22) 48%, rgba(255,255,255,0.30) 56%, rgba(170,190,220,0.18) 66%, rgba(255,255,255,0) 100%)',
-        mixBlendMode: 'screen',
-        filter: 'blur(1.8px)',
-        animation: 'hairGoddessSheen 8.2s ease-in-out infinite',
-        '@keyframes hairGoddessSheen': {
-          '0%': { left: '-36%', opacity: 0 },
-          '14%': { opacity: 0.35 },
-          '48%': { left: '46%', opacity: 0.48 },
-          '64%': { opacity: 0.24 },
-          '100%': { left: '112%', opacity: 0 },
-        },
-      }} />
-    </Box>
-  );
+  return null;
 }
 
 // ─── Main exported component ──────────────────────────────────────────────────
