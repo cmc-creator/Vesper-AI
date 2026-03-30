@@ -144,6 +144,14 @@ function applyNaturalHairLook(root) {
     const isHairLike = n.includes('hair') || n.includes('bang') || n.includes('fringe') || n.includes('scalp') || hasHairMaterialName;
     if (!isHairLike) return;
 
+    // Slightly enlarge hair geometry to create a fuller silhouette.
+    if (!obj.userData.vesperHairVolumeApplied) {
+      obj.scale.x *= 1.08;
+      obj.scale.y *= 1.04;
+      obj.scale.z *= 1.08;
+      obj.userData.vesperHairVolumeApplied = true;
+    }
+
     const applyOne = (mat) => {
       if (!mat || !mat.isMaterial) return;
       if (mat.color) mat.color.lerp(hairTint, 0.52);
@@ -538,7 +546,78 @@ function SpeakingRing() {
 }
 
 function FlowingHairOverlay() {
-  return null;
+  return (
+    <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
+      {/* Crown volume to make hair feel bigger at the top */}
+      <Box sx={{
+        position: 'absolute',
+        left: '10%',
+        right: '10%',
+        top: '-16%',
+        height: '42%',
+        borderRadius: '50% 50% 45% 45%',
+        background: 'radial-gradient(ellipse at 50% 38%, rgba(26,29,36,0.72) 0%, rgba(16,18,24,0.52) 46%, rgba(0,0,0,0) 100%)',
+        filter: 'blur(1.2px)',
+      }} />
+
+      {/* Left flow curtain (outside face area) */}
+      <Box sx={{
+        position: 'absolute',
+        left: '-12%',
+        top: '-4%',
+        width: '34%',
+        height: '104%',
+        borderRadius: '48% 52% 60% 40% / 12% 12% 88% 88%',
+        background: 'linear-gradient(180deg, rgba(28,31,40,0.72) 0%, rgba(14,16,22,0.64) 52%, rgba(0,0,0,0) 100%)',
+        filter: 'blur(0.9px)',
+        transformOrigin: '50% 8%',
+        animation: 'hairCurtainLeft 5.8s ease-in-out infinite',
+        '@keyframes hairCurtainLeft': {
+          '0%, 100%': { transform: 'rotate(-7deg) translateX(0px)' },
+          '50%': { transform: 'rotate(-10deg) translateX(-2px)' },
+        },
+      }} />
+
+      {/* Right flow curtain (outside face area) */}
+      <Box sx={{
+        position: 'absolute',
+        right: '-12%',
+        top: '-4%',
+        width: '34%',
+        height: '104%',
+        borderRadius: '52% 48% 40% 60% / 12% 12% 88% 88%',
+        background: 'linear-gradient(180deg, rgba(28,31,40,0.72) 0%, rgba(14,16,22,0.64) 52%, rgba(0,0,0,0) 100%)',
+        filter: 'blur(0.9px)',
+        transformOrigin: '50% 8%',
+        animation: 'hairCurtainRight 6.2s ease-in-out infinite',
+        '@keyframes hairCurtainRight': {
+          '0%, 100%': { transform: 'rotate(7deg) translateX(0px)' },
+          '50%': { transform: 'rotate(10deg) translateX(2px)' },
+        },
+      }} />
+
+      {/* Soft glossy sweep for goddess sheen */}
+      <Box sx={{
+        position: 'absolute',
+        top: '-6%',
+        bottom: '8%',
+        width: '30%',
+        left: '-36%',
+        borderRadius: '40% 60% 58% 42% / 10% 10% 90% 90%',
+        background: 'linear-gradient(108deg, rgba(255,255,255,0) 0%, rgba(190,205,230,0.12) 48%, rgba(255,255,255,0.18) 56%, rgba(170,190,220,0.10) 66%, rgba(255,255,255,0) 100%)',
+        mixBlendMode: 'screen',
+        filter: 'blur(1.4px)',
+        animation: 'hairGoddessSheen 8.2s ease-in-out infinite',
+        '@keyframes hairGoddessSheen': {
+          '0%': { left: '-36%', opacity: 0 },
+          '14%': { opacity: 0.24 },
+          '48%': { left: '46%', opacity: 0.34 },
+          '64%': { opacity: 0.18 },
+          '100%': { left: '112%', opacity: 0 },
+        },
+      }} />
+    </Box>
+  );
 }
 
 // ─── Main exported component ──────────────────────────────────────────────────
