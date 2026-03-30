@@ -133,6 +133,32 @@ function applyRelaxedArmPose(root) {
   applyBestRelaxedArmRotation(root, rightUpperArm, 'right');
 }
 
+function applyNaturalHairLook(root) {
+  if (!root) return;
+  const hairTint = new THREE.Color('#1f2128');
+  root.traverse((obj) => {
+    if (!obj.isMesh || !obj.material) return;
+    const n = (obj.name || '').toLowerCase();
+    const isHairLike = n.includes('hair') || n.includes('bang') || n.includes('fringe') || n.includes('scalp');
+    if (!isHairLike) return;
+
+    const applyOne = (mat) => {
+      if (!mat || !mat.isMaterial) return;
+      if (mat.color) mat.color.lerp(hairTint, 0.35);
+      if ('roughness' in mat) mat.roughness = Math.min(0.62, (mat.roughness ?? 0.7));
+      if ('metalness' in mat) mat.metalness = Math.max(0.04, (mat.metalness ?? 0.0));
+      if ('envMapIntensity' in mat) mat.envMapIntensity = Math.max(0.55, (mat.envMapIntensity ?? 0.4));
+      mat.needsUpdate = true;
+    };
+
+    if (Array.isArray(obj.material)) {
+      obj.material.forEach(applyOne);
+    } else {
+      applyOne(obj.material);
+    }
+  });
+}
+
 // ── Shared lip-sync hook (works for both FBX and GLB meshes) ──────────────────
 function useLipSync(sceneObject, analyserRef, isSpeaking) {
   const meshesRef = useRef([]);
@@ -207,13 +233,18 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     const amp = smoothAmplitude.current;
     setMorphGroup(['mouthOpen', 'jawOpen'], amp * 0.52);
     visemeTimerRef.current += delta;
-    const interval = 0.06 + (1 - amp) * 0.12;
-    if (visemeTimerRef.current >= interval) {
-      visemeTimerRef.current = 0;
-      setMorph(VISEME_SHAPES[currentVisemeRef.current], 0);
-      currentVisemeRef.current = (currentVisemeRef.current + 1 + Math.floor(Math.random() * 3)) % VISEME_SHAPES.length;
-      setMorph(VISEME_SHAPES[currentVisemeRef.current], amp * 0.6);
+    const interval = 0.18 + (1 - amp) * 0.14;
+    while (visemeTimerRef.current >= interval) {
+      visemeTimerRef.current -= interval;
+      currentVisemeRef.current = (currentVisemeRef.current + 1) % VISEME_SHAPES.length;
     }
+    const blend = interval > 0 ? (visemeTimerRef.current / interval) : 0;
+    const currentIdx = currentVisemeRef.current;
+    const nextIdx = (currentIdx + 1) % VISEME_SHAPES.length;
+    const visemeStrength = amp * 0.22;
+    for (const viseme of VISEME_SHAPES) setMorph(viseme, 0);
+    setMorph(VISEME_SHAPES[currentIdx], visemeStrength * (1 - blend));
+    setMorph(VISEME_SHAPES[nextIdx], visemeStrength * blend);
     setMorph('eyeBlinkLeft', blinkVal);
     setMorph('eyeBlinkRight', blinkVal);
     setMorph('blink_left', blinkVal);
@@ -347,6 +378,7 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
 
     // Relax T-pose style arms so they sit naturally by the torso.
     applyRelaxedArmPose(cloned);
+    applyNaturalHairLook(cloned);
   }, [cloned]);
 
   const tick = useLipSync(cloned, analyserRef, isSpeaking);
@@ -356,22 +388,22 @@ function LipSyncModelGLTF({ url, analyserRef, isSpeaking, scale, position }) {
     const speechAmp = isSpeaking ? getSpeechAmplitude(analyserRef) : 0;
     // Subtle head sway — alive, not robotic
     if (headRef.current && baseHeadRotRef.current) {
-      headRef.current.rotation.x = baseHeadRotRef.current.x + Math.sin(t * 0.32) * 0.008 - speechAmp * 0.02;
-      headRef.current.rotation.y = baseHeadRotRef.current.y + Math.sin(t * 0.35) * 0.03;
-      headRef.current.rotation.z = baseHeadRotRef.current.z + Math.sin(t * 0.28) * 0.012;
+      headRef.current.rotation.x = baseHeadRotRef.current.x + Math.sin(t * 0.32) * 0.004 - speechAmp * 0.012;
+      headRef.current.rotation.y = baseHeadRotRef.current.y + Math.sin(t * 0.35) * 0.014;
+      headRef.current.rotation.z = baseHeadRotRef.current.z + Math.sin(t * 0.28) * 0.006;
     }
-    if (jawRef.current && baseJawRotRef.current) jawRef.current.rotation.x = baseJawRotRef.current.x + speechAmp * 0.28;
+    if (jawRef.current && baseJawRotRef.current) jawRef.current.rotation.x = baseJawRotRef.current.x + speechAmp * 0.14;
     if (neckRef.current && baseNeckRotRef.current) {
       neckRef.current.rotation.x = baseNeckRotRef.current.x + Math.sin(t * 0.55) * 0.008 + speechAmp * 0.012;
       neckRef.current.rotation.y = baseNeckRotRef.current.y + Math.sin(t * 0.42) * 0.007;
     }
     // Breathing
     if (spineRef.current && baseSpineRotRef.current) {
-      spineRef.current.rotation.x = baseSpineRotRef.current.x + Math.sin(t * 0.75) * 0.006 + speechAmp * 0.01;
+      spineRef.current.rotation.x = baseSpineRotRef.current.x + Math.sin(t * 0.75) * 0.003 + speechAmp * 0.004;
     }
-    // Gentle float bob
+    // Keep body mostly grounded to avoid uncanny vertical bounce.
     if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(t * 0.6) * 0.02 + speechAmp * 0.04;
+      groupRef.current.position.y = position[1] + Math.sin(t * 0.4) * 0.003;
     }
     tick(delta);
   });
@@ -428,6 +460,7 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
       z: neckRef.current.rotation.z,
     };
     applyRelaxedArmPose(cloned);
+    applyNaturalHairLook(cloned);
   }, [cloned]);
 
   // Auto-normalise: measure bounding box and scale so the model is ~1.8 units tall
@@ -451,19 +484,19 @@ function LipSyncModelFBX({ url, analyserRef, isSpeaking, scale, position }) {
   useFrame(({ clock }, delta) => {
     const speechAmp = isSpeaking ? getSpeechAmplitude(analyserRef) : 0;
     if (headRef.current && baseHeadRotRef.current) {
-      headRef.current.rotation.x = baseHeadRotRef.current.x + Math.sin(clock.elapsedTime * 0.3) * 0.008 - speechAmp * 0.018;
-      headRef.current.rotation.y = baseHeadRotRef.current.y + Math.sin(clock.elapsedTime * 0.35) * 0.03;
+      headRef.current.rotation.x = baseHeadRotRef.current.x + Math.sin(clock.elapsedTime * 0.3) * 0.004 - speechAmp * 0.011;
+      headRef.current.rotation.y = baseHeadRotRef.current.y + Math.sin(clock.elapsedTime * 0.35) * 0.013;
     }
-    if (jawRef.current && baseJawRotRef.current) jawRef.current.rotation.x = baseJawRotRef.current.x + speechAmp * 0.26;
+    if (jawRef.current && baseJawRotRef.current) jawRef.current.rotation.x = baseJawRotRef.current.x + speechAmp * 0.13;
     if (neckRef.current && baseNeckRotRef.current) {
       neckRef.current.rotation.x = baseNeckRotRef.current.x + Math.sin(clock.elapsedTime * 0.52) * 0.007 + speechAmp * 0.01;
       neckRef.current.rotation.y = baseNeckRotRef.current.y + Math.sin(clock.elapsedTime * 0.4) * 0.007;
     }
     if (spineRef.current && baseSpineRotRef.current) {
-      spineRef.current.rotation.x = baseSpineRotRef.current.x + Math.sin(clock.elapsedTime * 0.7) * 0.006 + speechAmp * 0.01;
+      spineRef.current.rotation.x = baseSpineRotRef.current.x + Math.sin(clock.elapsedTime * 0.7) * 0.003 + speechAmp * 0.004;
     }
     if (groupRef.current)
-      groupRef.current.position.y = normPosition[1] + Math.sin(clock.elapsedTime * 0.7) * 0.03 + speechAmp * 0.035;
+      groupRef.current.position.y = normPosition[1] + Math.sin(clock.elapsedTime * 0.45) * 0.003;
     tick(delta);
   });
   return <group ref={groupRef} position={normPosition} scale={normScale}><primitive object={cloned} /></group>;
