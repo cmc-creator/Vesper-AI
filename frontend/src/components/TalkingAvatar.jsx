@@ -495,148 +495,52 @@ function MakeupOverlay({ isSpeaking, accentColor = '#a855f7' }) {
   return (
     <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3 }}>
 
-      {/* ── Ethereal pale skin — cool ice glow over face/neck ── */}
+      {/* ── Ambient face rim — very faint cool halo around face edge only ── */}
       <Box sx={{
         position: 'absolute',
-        left: '10%', right: '10%',
-        top: '11%', height: '60%',
-        borderRadius: '42% 42% 50% 50% / 30% 30% 70% 70%',
-        background: 'radial-gradient(ellipse at 50% 42%, rgba(220,245,255,0.52) 0%, rgba(180,220,255,0.32) 42%, rgba(0,0,0,0) 100%)',
+        left: '8%', right: '8%',
+        top: '9%', height: '64%',
+        borderRadius: '44% 44% 52% 52% / 28% 28% 72% 72%',
+        background: 'radial-gradient(ellipse at 50% 44%, rgba(0,0,0,0) 52%, rgba(80,160,220,0.12) 76%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(2.8px)',
-        opacity: isSpeaking ? 1 : 1,
-        transition: 'opacity 0.6s ease',
+        filter: 'blur(6px)',
       }} />
 
-      {/* ── Cheek flush — cool lavender-rose on both sides ── */}
+      {/* ── Cheek flush — cool lavender-rose, very subtle ── */}
       <Box sx={{
         position: 'absolute',
-        left: '5%', top: '38%', width: '26%', height: '16%',
+        left: '4%', top: '36%', width: '22%', height: '14%',
         borderRadius: '50%',
-        background: 'radial-gradient(ellipse, rgba(200,150,200,0.2) 0%, rgba(0,0,0,0) 100%)',
+        background: 'radial-gradient(ellipse, rgba(180,120,200,0.13) 0%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(4px)',
+        filter: 'blur(6px)',
       }} />
       <Box sx={{
         position: 'absolute',
-        right: '5%', top: '38%', width: '26%', height: '16%',
+        right: '4%', top: '36%', width: '22%', height: '14%',
         borderRadius: '50%',
-        background: 'radial-gradient(ellipse, rgba(200,150,200,0.2) 0%, rgba(0,0,0,0) 100%)',
+        background: 'radial-gradient(ellipse, rgba(180,120,200,0.13) 0%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(4px)',
+        filter: 'blur(6px)',
       }} />
 
-      {/* ── Cosmic eyes — left — soft blue iris with gentle glow ── */}
+      {/* ── Lip color — barely-there cool pink ── */}
       <Box sx={{
         position: 'absolute',
-        left: '18%', top: '26%', width: '8%', height: '8%',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle at 50% 45%, rgba(100,180,220,0.4) 0%, rgba(60,120,180,0.3) 35%, rgba(20,60,120,0.5) 70%, rgba(0,20,60,0.2) 100%)',
-        mixBlendMode: 'screen',
-        filter: 'blur(0.6px)',
-        boxShadow: 'inset -1px -1px 2px rgba(0,0,0,0.3), 0 0 8px rgba(80,160,220,0.4)',
-        opacity: 0.85,
-      }} />
-      {/* ── Cosmic eyes — right ── */}
-      <Box sx={{
-        position: 'absolute',
-        right: '18%', top: '26%', width: '8%', height: '8%',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle at 50% 45%, rgba(100,180,220,0.4) 0%, rgba(60,120,180,0.3) 35%, rgba(20,60,120,0.5) 70%, rgba(0,20,60,0.2) 100%)',
-        mixBlendMode: 'screen',
-        filter: 'blur(0.6px)',
-        boxShadow: 'inset -1px -1px 2px rgba(0,0,0,0.3), 0 0 8px rgba(80,160,220,0.4)',
-        opacity: 0.85,
-      }} />
-
-      {/* ── Eye glow halo — left (subtle cosmic shimmer) ── */}
-      <Box sx={{
-        position: 'absolute',
-        left: '16.5%', top: '24.5%', width: '11%', height: '11%',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(120,180,220,0.08) 0%, rgba(0,0,0,0) 100%)',
-        mixBlendMode: 'screen',
-        filter: 'blur(2.5px)',
-        animation: 'eyeGlow 3.2s ease-in-out infinite',
-        '@keyframes eyeGlow': {
-          '0%, 100%': { opacity: 0.25 },
-          '50%': { opacity: 0.45 },
-        },
-      }} />
-      {/* ── Eye glow halo — right ── */}
-      <Box sx={{
-        position: 'absolute',
-        right: '16.5%', top: '24.5%', width: '11%', height: '11%',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(120,180,220,0.08) 0%, rgba(0,0,0,0) 100%)',
-        mixBlendMode: 'screen',
-        filter: 'blur(2.5px)',
-        animation: 'eyeGlow 3.2s ease-in-out infinite',
-        '@keyframes eyeGlow': {
-          '0%, 100%': { opacity: 0.25 },
-          '50%': { opacity: 0.45 },
-        },
-      }} />
-
-      {/* ── Upper lash shadow — subtle accent ── */}
-      <Box sx={{
-        position: 'absolute',
-        left: '17%', top: '30%', width: '10%', height: '3.5%',
-        borderRadius: '50%',
-        background: 'linear-gradient(180deg, rgba(60,110,160,0.18) 0%, rgba(0,0,0,0) 100%)',
-        mixBlendMode: 'overlay',
-        filter: 'blur(1.2px)',
-      }} />
-      <Box sx={{
-        position: 'absolute',
-        right: '17%', top: '30%', width: '10%', height: '3.5%',
-        borderRadius: '50%',
-        background: 'linear-gradient(180deg, rgba(60,110,160,0.18) 0%, rgba(0,0,0,0) 100%)',
-        mixBlendMode: 'overlay',
-        filter: 'blur(1.2px)',
-      }} />
-
-      {/* ── Lip color — cool pink/lavender ── */}
-      <Box sx={{
-        position: 'absolute',
-        left: '32%', right: '32%', top: '52%', height: '6%',
+        left: '33%', right: '33%', top: '51%', height: '7%',
         borderRadius: '50% 50% 46% 46%',
-        background: 'radial-gradient(ellipse at 50% 40%, rgba(180,120,160,0.38) 0%, rgba(140,80,130,0.2) 50%, rgba(0,0,0,0) 100%)',
+        background: 'radial-gradient(ellipse at 50% 44%, rgba(180,110,160,0.22) 0%, rgba(140,70,130,0.1) 55%, rgba(0,0,0,0) 100%)',
         mixBlendMode: 'screen',
-        filter: 'blur(1.2px)',
-        animation: 'lipGlow 4s ease-in-out infinite',
-        '@keyframes lipGlow': {
-          '0%, 100%': { opacity: 0.75 },
-          '50%': { opacity: 1 },
-        },
+        filter: 'blur(2.4px)',
       }} />
 
-      {/* ── Lip gloss — icy shine ── */}
+      {/* ── Accent crown glow — top edge shimmer ── */}
       <Box sx={{
         position: 'absolute',
-        left: '38%', right: '38%', top: '51%', height: '3%',
-        borderRadius: '50%',
-        background: 'radial-gradient(ellipse, rgba(200,220,255,0.4) 0%, rgba(0,0,0,0) 100%)',
+        left: '18%', right: '18%', top: '-5%', height: '14%',
+        background: `radial-gradient(ellipse at 50% 80%, rgba(${aR},${aG},${aB},0.14) 0%, rgba(0,0,0,0) 100%)`,
+        filter: 'blur(3px)',
         mixBlendMode: 'screen',
-        filter: 'blur(0.6px)',
-      }} />
-
-      {/* ── Ornate crown silhouette outline ── */}
-      <Box sx={{
-        position: 'absolute',
-        left: '20%', right: '20%', top: '-8%', height: '16%',
-        background: `
-          repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 8%,
-            rgba(${aR},${aG},${aB},0.18) 8%,
-            rgba(${aR},${aG},${aB},0.18) 10%
-          )
-        `,
-        borderRadius: '50% 50% 30% 30%',
-        filter: 'blur(0.6px)',
-        pointerEvents: 'none',
       }} />
     </Box>
   );
