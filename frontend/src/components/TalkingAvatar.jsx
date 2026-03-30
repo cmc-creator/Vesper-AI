@@ -573,216 +573,41 @@ function SpeakingRing({ isSpeaking, accentColor }) {
 }
 
 function FlowingHairOverlay({ isSpeaking, accentColor = '#a855f7' }) {
-  const accent = new THREE.Color(accentColor);
-  const accentR = Math.round(accent.r * 255);
-  const accentG = Math.round(accent.g * 255);
-  const accentB = Math.round(accent.b * 255);
-  const curtainFlows = [
-    { left: '-3%', width: '20%', top: '-8%', h: '92%', delay: '0s', dur: '6.2s', rot: -9 },
-    { left: '2%', width: '14%', top: '-12%', h: '97%', delay: '1.1s', dur: '6.8s', rot: -4 },
-    { left: '65%', width: '22%', top: '-10%', h: '95%', delay: '0.6s', dur: '6.4s', rot: 5 },
-    { left: '75%', width: '20%', top: '-6%', h: '89%', delay: '1.5s', dur: '5.9s', rot: 10 },
+  // Stable sparkle positions — computed once, not on every render
+  const sparkles = [
+    { x: 8,  y: -18 }, { x: 14, y: -8  }, { x: 88, y: -22 }, { x: 82, y: -4  },
+    { x: 5,  y: 12  }, { x: 92, y: 8   }, { x: 11, y: 28  }, { x: 86, y: 18  },
+    { x: 18, y: -30 }, { x: 78, y: -28 }, { x: 6,  y: 42  }, { x: 91, y: 38  },
   ];
-  const looseStrands = [
-    { left: '4%', top: '6%', w: '9%', h: '58%', delay: '0.5s', dur: '4.6s', rot: -12 },
-    { left: '12%', top: '0%', w: '7%', h: '50%', delay: '1.4s', dur: '4.1s', rot: -5 },
-    { left: '70%', top: '1%', w: '7%', h: '52%', delay: '0.2s', dur: '4.3s', rot: 6 },
-    { left: '80%', top: '7%', w: '8%', h: '56%', delay: '1.1s', dur: '4.8s', rot: 12 },
-  ];
+  const durations = [4.2, 5.1, 3.8, 6.0, 4.7, 5.4, 3.6, 4.9, 5.8, 4.1, 6.2, 3.9];
+  const delays    = [0,   0.8, 1.5, 0.3, 1.9, 0.6, 2.1, 1.2, 0.1, 1.7, 0.9, 2.4];
 
   return (
-    <Box
-      sx={{
-        position: 'absolute',
-        inset: 0,
+    <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
+      {/* Soft vignette around the very edges — does NOT cover the center */}
+      <Box sx={{
+        position: 'absolute', inset: 0,
+        background: 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 42%, rgba(0,0,0,0.55) 100%)',
         pointerEvents: 'none',
-        zIndex: 2,
-        opacity: isSpeaking ? 0.96 : 0.91,
-      }}
-    >
-      {/* Royal crown volume */}
-      <Box
-        sx={{
-          position: 'absolute',
-          left: '6%',
-          right: '6%',
-          top: '-19%',
-          height: '50%',
-          borderRadius: '52% 52% 44% 44%',
-          background: 'radial-gradient(ellipse at 50% 33%, rgba(20,20,28,0.78) 0%, rgba(8,8,14,0.64) 48%, rgba(0,0,0,0) 100%)',
-          filter: 'blur(2px)',
-          transform: 'scaleY(1.0)',
-          top: '-22%',
-          height: '38%',
-        }}
-      />
+      }} />
 
-      {/* Silky highlight sheen */}
-      <Box
-        sx={{
+      {/* Sparkles scattered near top edges (outside face area) */}
+      {sparkles.map((s, i) => (
+        <Box key={`spark-${i}`} sx={{
           position: 'absolute',
-          left: '22%',
-          right: '22%',
-          top: '-4%',
-          height: '28%',
+          left: `${s.x}%`,
+          top: `${s.y}%`,
+          width: '2px', height: '2px',
           borderRadius: '50%',
-          background: 'linear-gradient(180deg, rgba(136,136,156,0.24) 0%, rgba(82,82,102,0.12) 45%, rgba(0,0,0,0) 100%)',
-          filter: 'blur(1.4px)',
-          mixBlendMode: 'screen',
-        }}
-      />
-
-      {/* Midnight gloss ribbon for a luxe black sheen */}
-      <Box
-        sx={{
-          position: 'absolute',
-          left: '26%',
-          right: '34%',
-          top: '2%',
-          height: '40%',
-          borderRadius: '45% 55% 60% 40% / 14% 14% 86% 86%',
-          background: 'linear-gradient(180deg, rgba(170,170,196,0.16) 0%, rgba(88,88,116,0.08) 36%, rgba(0,0,0,0) 100%)',
-          filter: 'blur(1.1px)',
-          mixBlendMode: 'screen',
-          transform: 'rotate(-6deg)',
-          animation: 'hairGloss 5.2s ease-in-out infinite',
-          '@keyframes hairGloss': {
-            '0%, 100%': { opacity: 0.28, transform: 'rotate(-6deg) translateX(0px)' },
-            '50%': { opacity: 0.46, transform: 'rotate(-7deg) translateX(1.6px)' },
+          background: 'rgba(160,210,255,0.9)',
+          boxShadow: '0 0 4px rgba(120,190,240,0.6)',
+          animation: `sparkle${i} ${durations[i]}s ease-in-out ${delays[i]}s infinite`,
+          [`@keyframes sparkle${i}`]: {
+            '0%, 100%': { opacity: 0.05, transform: 'scale(0.8)' },
+            '50%':       { opacity: 0.55, transform: 'scale(1.3)' },
           },
-        }}
-      />
-
-      {/* Accent-reactive shimmer sweep */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '-6%',
-          bottom: '6%',
-          width: '34%',
-          left: '-36%',
-          borderRadius: '40% 60% 58% 42% / 10% 10% 90% 90%',
-          background: `linear-gradient(110deg, rgba(${accentR},${accentG},${accentB},0) 0%, rgba(${accentR},${accentG},${accentB},0.08) 42%, rgba(255,255,255,0.18) 56%, rgba(${accentR},${accentG},${accentB},0.06) 70%, rgba(${accentR},${accentG},${accentB},0) 100%)`,
-          mixBlendMode: 'screen',
-          filter: 'blur(1.2px)',
-          animation: 'hairShimmerSweep 7.8s ease-in-out infinite',
-          '@keyframes hairShimmerSweep': {
-            '0%': { left: '-36%', opacity: 0 },
-            '12%': { opacity: 0.25 },
-            '45%': { left: '42%', opacity: 0.45 },
-            '62%': { opacity: 0.2 },
-            '100%': { left: '112%', opacity: 0 },
-          },
-        }}
-      />
-
-      {/* ── Starfield sparkles in cosmic hair ── */}
-      {[...Array(14)].map((_, i) => {
-        const startX = Math.random() * 80 + 10;
-        const startY = Math.random() * 90 - 30;
-        const duration = 4 + Math.random() * 3;
-        const delay = Math.random() * 2;
-        return (
-          <Box
-            key={`star-${i}`}
-            sx={{
-              position: 'absolute',
-              left: `${startX}%`,
-              top: `${startY}%`,
-              width: '1.8px',
-              height: '1.8px',
-              borderRadius: '50%',
-              background: 'rgba(140,200,240,0.35)',
-              boxShadow: '0 0 3px rgba(100,180,220,0.25)',
-              animation: `starTwinkle ${duration}s cubic-bezier(0.4, 0, 0.2, 1) ${delay}s infinite`,
-              '@keyframes starTwinkle': {
-                '0%, 100%': { opacity: 0.08 },
-                '50%': { opacity: 0.28 },
-              },
-            }}
-          />
-        );
-      })}
-
-      {/* Dramatic side curtains */}
-      {curtainFlows.map((s, i) => (
-        <Box
-          key={`hair-curtain-${i}`}
-          sx={{
-            position: 'absolute',
-            left: s.left,
-            top: s.top,
-            width: s.width,
-            height: s.h,
-            borderRadius: '46% 54% 60% 40% / 16% 16% 84% 84%',
-            background: 'linear-gradient(180deg, rgba(28,28,36,0.68) 0%, rgba(14,14,20,0.60) 34%, rgba(4,4,8,0.52) 76%, rgba(0,0,0,0) 100%)',
-            filter: 'blur(0.65px)',
-            transformOrigin: '50% 6%',
-            transform: `rotate(${s.rot}deg)`,
-            animation: `hairFlow ${s.dur} ease-in-out ${s.delay} infinite`,
-            '@keyframes hairFlow': {
-              '0%, 100%': { transform: `rotate(${s.rot}deg) translateX(0px)` },
-              '50%': { transform: `rotate(${s.rot + (s.rot < 0 ? -2.4 : 2.4)}deg) translateX(${s.rot < 0 ? '-2.4px' : '2.4px'})` },
-            },
-          }}
-        />
+        }} />
       ))}
-
-      {/* Natural micro-strands */}
-      {looseStrands.map((s, i) => (
-        <Box
-          key={`hair-loose-${i}`}
-          sx={{
-            position: 'absolute',
-            left: s.left,
-            top: s.top,
-            width: s.w,
-            height: s.h,
-            borderRadius: '50% 50% 62% 38% / 8% 8% 92% 92%',
-            background: 'linear-gradient(180deg, rgba(48,48,58,0.32) 0%, rgba(10,10,16,0.36) 56%, rgba(0,0,0,0) 100%)',
-            filter: 'blur(0.45px)',
-            transformOrigin: '50% 2%',
-            transform: `rotate(${s.rot}deg)`,
-            animation: `hairLoose ${s.dur} ease-in-out ${s.delay} infinite`,
-            '@keyframes hairLoose': {
-              '0%, 100%': { transform: `rotate(${s.rot}deg) translateY(0px)` },
-              '50%': { transform: `rotate(${s.rot + (s.rot < 0 ? -3 : 3)}deg) translateY(1.8px)` },
-            },
-          }}
-        />
-      ))}
-
-      {/* Soft frontal wisps */}
-      <Box
-        sx={{
-          position: 'absolute',
-          left: '14%',
-          right: '14%',
-          top: '3%',
-          height: '24%',
-          background: 'radial-gradient(ellipse at 50% 60%, rgba(38,38,48,0.18) 0%, rgba(10,10,16,0.08) 44%, rgba(0,0,0,0) 100%)',
-          filter: 'blur(3px)',
-          animation: 'hairBreath 4.4s ease-in-out infinite',
-          '@keyframes hairBreath': {
-            '0%, 100%': { opacity: 0.5, transform: 'translateY(0px)' },
-            '50%': { opacity: 0.75, transform: 'translateY(1.4px)' },
-          },
-        }}
-      />
-
-      {/* Shadow depth to seat hair around face */}
-      <Box
-        sx={{
-          position: 'absolute',
-          left: '8%',
-          right: '8%',
-          top: '-2%',
-          height: '70%',
-          borderRadius: '50% 50% 44% 44%',
-          background: 'radial-gradient(ellipse at 50% 25%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.10) 62%, rgba(0,0,0,0.20) 100%)',
-          mixBlendMode: 'multiply',
-        }}
-      />
     </Box>
   );
 }
