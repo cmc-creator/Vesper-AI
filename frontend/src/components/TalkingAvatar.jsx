@@ -578,16 +578,16 @@ function FlowingHairOverlay({ isSpeaking, accentColor = '#a855f7' }) {
   const accentG = Math.round(accent.g * 255);
   const accentB = Math.round(accent.b * 255);
   const curtainFlows = [
-    { left: '3%', width: '30%', top: '-8%', h: '92%', delay: '0s', dur: '6.2s', rot: -9 },
-    { left: '16%', width: '25%', top: '-12%', h: '97%', delay: '1.1s', dur: '6.8s', rot: -4 },
-    { left: '59%', width: '26%', top: '-10%', h: '95%', delay: '0.6s', dur: '6.4s', rot: 5 },
-    { left: '73%', width: '23%', top: '-6%', h: '89%', delay: '1.5s', dur: '5.9s', rot: 10 },
+    { left: '-3%', width: '20%', top: '-8%', h: '92%', delay: '0s', dur: '6.2s', rot: -9 },
+    { left: '2%', width: '14%', top: '-12%', h: '97%', delay: '1.1s', dur: '6.8s', rot: -4 },
+    { left: '65%', width: '22%', top: '-10%', h: '95%', delay: '0.6s', dur: '6.4s', rot: 5 },
+    { left: '75%', width: '20%', top: '-6%', h: '89%', delay: '1.5s', dur: '5.9s', rot: 10 },
   ];
   const looseStrands = [
-    { left: '10%', top: '6%', w: '10%', h: '58%', delay: '0.5s', dur: '4.6s', rot: -12 },
-    { left: '28%', top: '0%', w: '8%', h: '50%', delay: '1.4s', dur: '4.1s', rot: -5 },
-    { left: '64%', top: '1%', w: '8%', h: '52%', delay: '0.2s', dur: '4.3s', rot: 6 },
-    { left: '82%', top: '7%', w: '9%', h: '56%', delay: '1.1s', dur: '4.8s', rot: 12 },
+    { left: '4%', top: '6%', w: '9%', h: '58%', delay: '0.5s', dur: '4.6s', rot: -12 },
+    { left: '12%', top: '0%', w: '7%', h: '50%', delay: '1.4s', dur: '4.1s', rot: -5 },
+    { left: '70%', top: '1%', w: '7%', h: '52%', delay: '0.2s', dur: '4.3s', rot: 6 },
+    { left: '80%', top: '7%', w: '8%', h: '56%', delay: '1.1s', dur: '4.8s', rot: 12 },
   ];
 
   return (
@@ -609,9 +609,11 @@ function FlowingHairOverlay({ isSpeaking, accentColor = '#a855f7' }) {
           top: '-19%',
           height: '50%',
           borderRadius: '52% 52% 44% 44%',
-          background: 'radial-gradient(ellipse at 50% 33%, rgba(30,30,38,0.96) 0%, rgba(12,12,18,0.9) 50%, rgba(0,0,0,0) 100%)',
-          filter: 'blur(0.9px)',
-          transform: 'scaleY(1.12)',
+          background: 'radial-gradient(ellipse at 50% 33%, rgba(20,20,28,0.78) 0%, rgba(8,8,14,0.64) 48%, rgba(0,0,0,0) 100%)',
+          filter: 'blur(2px)',
+          transform: 'scaleY(1.0)',
+          top: '-22%',
+          height: '38%',
         }}
       />
 
@@ -713,7 +715,7 @@ function FlowingHairOverlay({ isSpeaking, accentColor = '#a855f7' }) {
             width: s.width,
             height: s.h,
             borderRadius: '46% 54% 60% 40% / 16% 16% 84% 84%',
-            background: 'linear-gradient(180deg, rgba(36,36,44,0.9) 0%, rgba(16,16,22,0.88) 34%, rgba(6,6,9,0.87) 76%, rgba(0,0,0,0) 100%)',
+            background: 'linear-gradient(180deg, rgba(28,28,36,0.68) 0%, rgba(14,14,20,0.60) 34%, rgba(4,4,8,0.52) 76%, rgba(0,0,0,0) 100%)',
             filter: 'blur(0.65px)',
             transformOrigin: '50% 6%',
             transform: `rotate(${s.rot}deg)`,
@@ -737,7 +739,7 @@ function FlowingHairOverlay({ isSpeaking, accentColor = '#a855f7' }) {
             width: s.w,
             height: s.h,
             borderRadius: '50% 50% 62% 38% / 8% 8% 92% 92%',
-            background: 'linear-gradient(180deg, rgba(58,58,68,0.42) 0%, rgba(12,12,18,0.5) 56%, rgba(0,0,0,0) 100%)',
+            background: 'linear-gradient(180deg, rgba(48,48,58,0.32) 0%, rgba(10,10,16,0.36) 56%, rgba(0,0,0,0) 100%)',
             filter: 'blur(0.45px)',
             transformOrigin: '50% 2%',
             transform: `rotate(${s.rot}deg)`,
@@ -758,12 +760,12 @@ function FlowingHairOverlay({ isSpeaking, accentColor = '#a855f7' }) {
           right: '14%',
           top: '3%',
           height: '24%',
-          background: 'radial-gradient(ellipse at 50% 60%, rgba(42,42,54,0.3) 0%, rgba(12,12,18,0.14) 44%, rgba(0,0,0,0) 100%)',
-          filter: 'blur(2.2px)',
+          background: 'radial-gradient(ellipse at 50% 60%, rgba(38,38,48,0.18) 0%, rgba(10,10,16,0.08) 44%, rgba(0,0,0,0) 100%)',
+          filter: 'blur(3px)',
           animation: 'hairBreath 4.4s ease-in-out infinite',
           '@keyframes hairBreath': {
-            '0%, 100%': { opacity: 0.34, transform: 'translateY(0px)' },
-            '50%': { opacity: 0.56, transform: 'translateY(1.4px)' },
+            '0%, 100%': { opacity: 0.5, transform: 'translateY(0px)' },
+            '50%': { opacity: 0.75, transform: 'translateY(1.4px)' },
           },
         }}
       />
@@ -777,7 +779,7 @@ function FlowingHairOverlay({ isSpeaking, accentColor = '#a855f7' }) {
           top: '-2%',
           height: '70%',
           borderRadius: '50% 50% 44% 44%',
-          background: 'radial-gradient(ellipse at 50% 25%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 62%, rgba(0,0,0,0.34) 100%)',
+          background: 'radial-gradient(ellipse at 50% 25%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.10) 62%, rgba(0,0,0,0.20) 100%)',
           mixBlendMode: 'multiply',
         }}
       />
