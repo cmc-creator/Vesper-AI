@@ -150,20 +150,25 @@ function applyNaturalHairLook(root) {
   root.traverse((obj) => {
     if (!isHairLikeMesh(obj)) return;
 
-    // Use real mesh expansion so fullness is undeniable.
+    // Keep a visible but controlled volume boost.
     if (!obj.userData.vesperHairVolumeApplied) {
-      obj.scale.x *= 1.26;
-      obj.scale.y *= 1.12;
-      obj.scale.z *= 1.26;
+      obj.scale.x *= 1.14;
+      obj.scale.y *= 1.07;
+      obj.scale.z *= 1.14;
       obj.userData.vesperHairVolumeApplied = true;
     }
 
     const applyOne = (mat) => {
       if (!mat || !mat.isMaterial) return;
       if (mat.color) mat.color.lerp(hairTint, 0.52);
-      if ('roughness' in mat) mat.roughness = Math.min(0.48, (mat.roughness ?? 0.68));
-      if ('metalness' in mat) mat.metalness = Math.max(0.06, (mat.metalness ?? 0.0));
-      if ('envMapIntensity' in mat) mat.envMapIntensity = Math.max(0.9, (mat.envMapIntensity ?? 0.5));
+      if ('roughness' in mat) mat.roughness = Math.min(0.56, (mat.roughness ?? 0.68));
+      if ('metalness' in mat) mat.metalness = Math.min(0.04, Math.max(0.0, (mat.metalness ?? 0.0)));
+      if ('envMapIntensity' in mat) mat.envMapIntensity = Math.min(0.35, (mat.envMapIntensity ?? 0.3));
+      // Cut fuzzy alpha haze on card-based hair textures.
+      if (mat.transparent || mat.alphaMap) {
+        mat.alphaTest = Math.max(mat.alphaTest || 0, 0.45);
+        mat.depthWrite = true;
+      }
       mat.needsUpdate = true;
     };
 
