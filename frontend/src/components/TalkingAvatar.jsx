@@ -158,22 +158,26 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     }
   }, []);
 
+  const setMorphGroup = useCallback((names, value) => {
+    for (const name of names) setMorph(name, value);
+  }, [setMorph]);
+
   return useCallback((delta) => {
     blinkTimerRef.current -= delta;
     if (blinkDurationRef.current > 0) blinkDurationRef.current -= delta;
     if (blinkTimerRef.current <= 0) {
-      // Softer, more natural blink cadence.
-      blinkDurationRef.current = 0.075 + Math.random() * 0.04;
-      blinkTimerRef.current = 2.7 + Math.random() * 3.2;
+      // Slightly longer / more frequent blinks so the model reads as alive.
+      blinkDurationRef.current = 0.11 + Math.random() * 0.06;
+      blinkTimerRef.current = 1.9 + Math.random() * 2.1;
     }
     const blinkOn = blinkDurationRef.current > 0;
     const blinkVal = blinkOn ? 1 : 0;
-    const eyeFocus = isSpeaking ? 0.02 : 0.045;
+    const eyeFocus = isSpeaking ? 0.035 : 0.065;
     const eyeWander = Math.sin(performance.now() * 0.0012) * eyeFocus;
 
     if (!isSpeaking || !analyserRef?.current) {
       smoothAmplitude.current = THREE.MathUtils.lerp(smoothAmplitude.current, 0, 0.15);
-      setMorph('mouthOpen', smoothAmplitude.current * 0.3);
+      setMorphGroup(['mouthOpen', 'jawOpen'], smoothAmplitude.current * 0.22);
       setMorph('eyeBlinkLeft', blinkVal);
       setMorph('eyeBlinkRight', blinkVal);
       setMorph('blink_left', blinkVal);
@@ -200,7 +204,7 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     const rawAmp = sum / (sliceWidth * 1.4 * 255);
     smoothAmplitude.current = THREE.MathUtils.lerp(smoothAmplitude.current, rawAmp, 0.4);
     const amp = smoothAmplitude.current;
-    setMorph('mouthOpen', amp * 0.85);
+    setMorphGroup(['mouthOpen', 'jawOpen'], amp * 0.9);
     visemeTimerRef.current += delta;
     const interval = 0.06 + (1 - amp) * 0.12;
     if (visemeTimerRef.current >= interval) {
@@ -228,8 +232,8 @@ function useLipSync(sceneObject, analyserRef, isSpeaking) {
     setMorph('cheekSquintRight', cheek);
     setMorph('cheekPuff', amp * 0.12);
     // A tiny confident smile lives under speech dynamics.
-    setMorph('mouthSmile', 0.06 + amp * 0.18);
-  }, [analyserRef, isSpeaking, setMorph]);
+    setMorphGroup(['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight'], 0.06 + amp * 0.18);
+  }, [analyserRef, isSpeaking, setMorph, setMorphGroup]);
 }
 
 function getSpeechAmplitude(analyserRef) {

@@ -3110,7 +3110,9 @@ export default function App() {
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
+        audio.crossOrigin = 'anonymous';
         ttsAudioRef.current = audio;
+        connectAudioToAnalyser(audio);
         audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
         audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
         await audio.play();
