@@ -106,6 +106,8 @@ Write-Host "[+] Starting Backend Server (Port 8000)..." -ForegroundColor Blue
 $backend = Start-Process powershell -ArgumentList "-NoExit", "-Command", "& {
     `$host.UI.RawUI.WindowTitle = 'Vesper AI - Backend'
     Set-Location '$PWD'
+    # Add ffmpeg to PATH
+    `$env:Path = 'C:\tools\ffmpeg\ffmpeg-master-latest-win64-gpl\bin;' + `$env:Path
     & .\.venv\Scripts\Activate.ps1
     Write-Host '[+] Backend Server Starting... (Managed Mode)' -ForegroundColor Blue
     Set-Location backend
