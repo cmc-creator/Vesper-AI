@@ -11,12 +11,15 @@ $backendUrl = "http://localhost:8000/health"
 $maxRetries = 30
 $retryCount = 0
 
-Write-Host "[→] Checking if backend is running..." -ForegroundColor Yellow
+Write-Host "[>] Checking if backend is running..." -ForegroundColor Yellow
 while ($retryCount -lt $maxRetries) {
     try {
-        $response = Invoke-WebRequest -Uri $backendUrl -TimeoutSec 2 -ErrorAction Stop
-        Write-Host "[✓] Backend is running!" -ForegroundColor Green
-        break
+        $statusCode = curl.exe -s -o NUL -w "%{http_code}" $backendUrl
+        if ($statusCode -eq "200") {
+            Write-Host "[OK] Backend is running!" -ForegroundColor Green
+            break
+        }
+        throw "Backend returned status $statusCode"
     } catch {
         $retryCount++
         if ($retryCount -eq 1) {
@@ -30,12 +33,12 @@ while ($retryCount -lt $maxRetries) {
 }
 
 if ($retryCount -eq $maxRetries) {
-    Write-Host "[✗] Backend did not start. Please run: .\start-dev-server.ps1" -ForegroundColor Red
+    Write-Host "[X] Backend did not start. Please run: .\start-dev-server.ps1" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
-Write-Host "[→] Making test request to /api/video-avatar/generate..." -ForegroundColor Yellow
+Write-Host "[>] Making test request to /api/video-avatar/generate..." -ForegroundColor Yellow
 Write-Host ""
 
 $testRequest = @{
@@ -61,7 +64,7 @@ try {
 
     $result = $response.Content | ConvertFrom-Json
     
-    Write-Host "[✓] Success!" -ForegroundColor Green
+    Write-Host "[OK] Success!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Response:" -ForegroundColor Cyan
     Write-Host "  Status: $($result.status)" -ForegroundColor White
@@ -78,7 +81,7 @@ try {
     Write-Host "You can access it at: http://localhost:8000$($result.video_url)" -ForegroundColor Cyan
     
 } catch {
-    Write-Host "[✗] Request failed" -ForegroundColor Red
+    Write-Host "[X] Request failed" -ForegroundColor Red
     Write-Host ""
     Write-Host "Error:" -ForegroundColor Yellow
     Write-Host $_.Exception.Message
