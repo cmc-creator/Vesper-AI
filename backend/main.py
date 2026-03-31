@@ -7756,6 +7756,8 @@ class VideoAvatarRequest(BaseModel):
     source_video: Optional[str] = "vesper_base.mp4"
     stability: Optional[float] = 0.5
     similarity_boost: Optional[float] = 0.75
+    lipsync: Optional[bool] = True
+    require_lipsync: Optional[bool] = False
 
 
 def _resolve_default_elevenlabs_voice() -> str:
@@ -7765,6 +7767,57 @@ def _resolve_default_elevenlabs_voice() -> str:
     if ELEVENLABS_VOICES:
         return ELEVENLABS_VOICES[0].get("id", "")
     return ""
+
+
+def _find_wav2lip_paths():
+    """Locate Wav2Lip inference script and checkpoint if available."""
+    repo_root = os.path.dirname(os.path.dirname(__file__))
+    script_candidates = [
+        os.path.join(repo_root, "Wav2Lip", "inference.py"),
+        os.path.join(repo_root, "third_party", "Wav2Lip", "inference.py"),
+        os.path.join(repo_root, "tools", "Wav2Lip", "inference.py"),
+    ]
+    checkpoint_candidates = [
+        os.getenv("WAV2LIP_CHECKPOINT", "").strip(),
+        os.path.join(repo_root, "Wav2Lip", "checkpoints", "wav2lip.pth"),
+        os.path.join(repo_root, "third_party", "Wav2Lip", "checkpoints", "wav2lip.pth"),
+        os.path.join(repo_root, "tools", "Wav2Lip", "checkpoints", "wav2lip.pth"),
+    ]
+
+    script_path = next((p for p in script_candidates if p and os.path.exists(p)), "")
+    checkpoint_path = next((p for p in checkpoint_candidates if p and os.path.exists(p)), "")
+    return script_path, checkpoint_path
+
+
+def _run_wav2lip(face_video_path: str, audio_path: str, output_path: str):
+    """Run Wav2Lip inference if local model files are present."""
+    script_path, checkpoint_path = _find_wav2lip_paths()
+    if not script_path or not checkpoint_path:
+        return False, "Wav2Lip assets not found", ""
+
+    cmd = [
+        sys.executable,
+        script_path,
+        "--checkpoint_path",
+        checkpoint_path,
+        "--face",
+        face_video_path,
+        "--audio",
+        audio_path,
+        "--outfile",
+        output_path,
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    except subprocess.TimeoutExpired:
+        return False, "Wav2Lip timed out", "inference exceeded 600 seconds"
+    if result.returncode != 0:
+        details = (result.stderr or result.stdout or "Wav2Lip failed")[-2000:]
+        return False, "Wav2Lip command failed", details
+    if not os.path.exists(output_path):
+        return False, "Wav2Lip did not create output", ""
+    return True, "", ""
 
 
 @app.post("/api/video-avatar/generate")
@@ -7849,59 +7902,78 @@ async def generate_video_avatar(req: VideoAvatarRequest):
     with open(temp_audio_path, "wb") as f:
         f.write(audio_bytes)
 
-    cmd = [
-        ffmpeg_path,
-        "-y",
-        "-i",
-        source_path,
-        "-i",
-        temp_audio_path,
-        "-map",
-        "0:v:0",
-        "-map",
-        "1:a:0",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "20",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "192k",
-        "-shortest",
-        "-movflags",
-        "+faststart",
-        output_path,
-    ]
+    mode_used = "audio_mux"
+    note = "Video generated with TTS audio track."
 
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-        if result.returncode != 0:
+    lipsync_requested = bool(req.lipsync)
+    if lipsync_requested:
+        lipsync_ok, lipsync_err, lipsync_details = _run_wav2lip(source_path, temp_audio_path, output_path)
+        if lipsync_ok:
+            mode_used = "wav2lip"
+            note = "Frame-level lip-sync generated with Wav2Lip."
+        elif req.require_lipsync:
             return JSONResponse(
                 {
-                    "error": "ffmpeg failed",
-                    "details": (result.stderr or result.stdout or "Unknown ffmpeg error")[-1500:],
+                    "error": "True lip-sync required but unavailable",
+                    "details": lipsync_details or lipsync_err,
+                    "hint": "Install Wav2Lip model files or set require_lipsync=false",
                 },
-                status_code=500,
+                status_code=503,
             )
-    except subprocess.TimeoutExpired:
-        return JSONResponse({"error": "ffmpeg timed out while generating video"}, status_code=504)
-    finally:
+
+    if mode_used != "wav2lip":
+        cmd = [
+            ffmpeg_path,
+            "-y",
+            "-i",
+            source_path,
+            "-i",
+            temp_audio_path,
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "20",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-shortest",
+            "-movflags",
+            "+faststart",
+            output_path,
+        ]
+
         try:
-            if os.path.exists(temp_audio_path):
-                os.remove(temp_audio_path)
-        except Exception:
-            pass
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+            if result.returncode != 0:
+                return JSONResponse(
+                    {
+                        "error": "ffmpeg failed",
+                        "details": (result.stderr or result.stdout or "Unknown ffmpeg error")[-1500:],
+                    },
+                    status_code=500,
+                )
+        except subprocess.TimeoutExpired:
+            return JSONResponse({"error": "ffmpeg timed out while generating video"}, status_code=504)
+    try:
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+    except Exception:
+        pass
 
     return {
         "status": "ok",
         "source_video": source_name,
         "video_url": f"/media/output/{output_name}",
         "video_path": output_path,
-        "mode": "audio_mux",
-        "note": "Video generated with TTS audio track. True lip-shape synthesis requires a dedicated lip-sync model pipeline.",
+        "mode": mode_used,
+        "note": note,
     }
 
 
