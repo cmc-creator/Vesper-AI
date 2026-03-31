@@ -7750,6 +7750,161 @@ async def text_to_speech_stream(req: TTSStreamRequest):
     return JSONResponse({"error": "Streaming only available with ElevenLabs voices"}, status_code=400)
 
 
+class VideoAvatarRequest(BaseModel):
+    text: str
+    voice: Optional[str] = ""
+    source_video: Optional[str] = "vesper_base.mp4"
+    stability: Optional[float] = 0.5
+    similarity_boost: Optional[float] = 0.75
+
+
+def _resolve_default_elevenlabs_voice() -> str:
+    lily = next((v for v in ELEVENLABS_VOICES if v.get("name") == "Lily"), None)
+    if lily and lily.get("id"):
+        return lily["id"]
+    if ELEVENLABS_VOICES:
+        return ELEVENLABS_VOICES[0].get("id", "")
+    return ""
+
+
+@app.post("/api/video-avatar/generate")
+async def generate_video_avatar(req: VideoAvatarRequest):
+    """Generate a speaking avatar video by muxing TTS audio onto a base clip."""
+    if not req.text or not req.text.strip():
+        return JSONResponse({"error": "No text provided"}, status_code=400)
+
+    media_dir = os.path.join(os.path.dirname(__file__), "media")
+    source_dir = os.path.join(media_dir, "source")
+    output_dir = os.path.join(media_dir, "output")
+    os.makedirs(source_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
+
+    source_name = os.path.basename((req.source_video or "vesper_base.mp4").strip())
+    source_path = os.path.join(source_dir, source_name)
+    if not os.path.exists(source_path):
+        expected = os.path.join(source_dir, "vesper_base.mp4")
+        return JSONResponse(
+            {
+                "error": "Source video not found",
+                "source_checked": source_path,
+                "expected_default": expected,
+            },
+            status_code=404,
+        )
+
+    ffmpeg_path = shutil.which("ffmpeg")
+    if not ffmpeg_path:
+        return JSONResponse(
+            {
+                "error": "ffmpeg not found on PATH",
+                "hint": "Install ffmpeg and ensure ffmpeg.exe is available in PATH.",
+            },
+            status_code=503,
+        )
+
+    text = req.text.strip()[:5000]
+    voice_id = (req.voice or "").strip()
+    if not voice_id:
+        voice_id = _resolve_default_elevenlabs_voice()
+    if voice_id and not voice_id.startswith("eleven:"):
+        voice_id = f"eleven:{voice_id}"
+    if not voice_id.startswith("eleven:"):
+        return JSONResponse({"error": "Video avatar requires an ElevenLabs voice"}, status_code=400)
+
+    try:
+        if ELEVENLABS_AVAILABLE:
+            actual_id = voice_id.replace("eleven:", "")
+            audio_gen = elevenlabs_client.text_to_speech.convert(
+                voice_id=actual_id,
+                text=text,
+                model_id="eleven_multilingual_v2",
+                output_format="mp3_44100_128",
+                voice_settings={
+                    "stability": req.stability,
+                    "similarity_boost": req.similarity_boost,
+                },
+            )
+            audio_buffer = io.BytesIO()
+            for chunk in audio_gen:
+                audio_buffer.write(chunk)
+            audio_bytes = audio_buffer.getvalue()
+        else:
+            audio_bytes = await elevenlabs_rest_tts_bytes(
+                voice_id,
+                text,
+                req.stability,
+                req.similarity_boost,
+            )
+    except Exception as e:
+        return JSONResponse({"error": f"TTS generation failed: {str(e)}"}, status_code=500)
+
+    if not audio_bytes:
+        return JSONResponse({"error": "Empty TTS audio response"}, status_code=500)
+
+    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    temp_audio_path = os.path.join(output_dir, f"tmp_{stamp}.mp3")
+    output_name = f"vesper_video_{stamp}.mp4"
+    output_path = os.path.join(output_dir, output_name)
+
+    with open(temp_audio_path, "wb") as f:
+        f.write(audio_bytes)
+
+    cmd = [
+        ffmpeg_path,
+        "-y",
+        "-i",
+        source_path,
+        "-i",
+        temp_audio_path,
+        "-map",
+        "0:v:0",
+        "-map",
+        "1:a:0",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-shortest",
+        "-movflags",
+        "+faststart",
+        output_path,
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        if result.returncode != 0:
+            return JSONResponse(
+                {
+                    "error": "ffmpeg failed",
+                    "details": (result.stderr or result.stdout or "Unknown ffmpeg error")[-1500:],
+                },
+                status_code=500,
+            )
+    except subprocess.TimeoutExpired:
+        return JSONResponse({"error": "ffmpeg timed out while generating video"}, status_code=504)
+    finally:
+        try:
+            if os.path.exists(temp_audio_path):
+                os.remove(temp_audio_path)
+        except Exception:
+            pass
+
+    return {
+        "status": "ok",
+        "source_video": source_name,
+        "video_url": f"/media/output/{output_name}",
+        "video_path": output_path,
+        "mode": "audio_mux",
+        "note": "Video generated with TTS audio track. True lip-shape synthesis requires a dedicated lip-sync model pipeline.",
+    }
+
+
 # ─── Sound Effects AI (ElevenLabs) ──────────────────────────────────────────
 
 class SFXRequest(BaseModel):
@@ -8810,8 +8965,15 @@ async def update_background_settings(req: Request):
 DOWNLOADS_DIR = os.path.join(DATA_DIR, "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
+MEDIA_DIR = os.path.join(os.path.dirname(__file__), "media")
+MEDIA_SOURCE_DIR = os.path.join(MEDIA_DIR, "source")
+MEDIA_OUTPUT_DIR = os.path.join(MEDIA_DIR, "output")
+os.makedirs(MEDIA_SOURCE_DIR, exist_ok=True)
+os.makedirs(MEDIA_OUTPUT_DIR, exist_ok=True)
+
 # Mount static file serving so saved files are accessible via URL
 app.mount("/files", StaticFiles(directory=DOWNLOADS_DIR), name="saved_files")
+app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media_files")
 
 def _get_backend_url():
     """Get the public backend URL for file links."""
