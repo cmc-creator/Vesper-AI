@@ -498,6 +498,8 @@ function App() {
   // Video Avatar System
   const [videoAvatarUrl, setVideoAvatarUrl] = useState('');
   const [videogenLoading, setVideoGenLoading] = useState(false);
+  const [videoShouldAutoplay, setVideoShouldAutoplay] = useState(false);
+  const avatarVideoRef = useRef(null);
 
   // Background Studio
   const [backgroundStudioOpen, setBackgroundStudioOpen] = useState(false);
@@ -1520,6 +1522,7 @@ export default function App() {
 
       // Keep the panel pinned to the real base video clip while speech is generated.
       setVideoAvatarUrl(`${mediaBase}/media/source/vesper_base.mp4`);
+      setVideoShouldAutoplay(false);
 
       const text = textToSpeak || (messages.length > 0 && messages[messages.length - 1].role === 'assistant' 
         ? messages[messages.length - 1].content 
@@ -1551,6 +1554,7 @@ export default function App() {
           ? `${mediaBase}${result.video_url}`
           : `${apiBase}${result.video_url}`;
         setVideoAvatarUrl(resolvedUrl);
+        setVideoShouldAutoplay(true);
         showToast(`Video created${result.mode === 'wav2lip' ? ' with true lip-sync!' : ''}`, 'success');
       }
     } catch (err) {
@@ -7034,13 +7038,21 @@ export default function App() {
                 }}
               >
                 <video
+                  ref={avatarVideoRef}
                   src={videoAvatarUrl || `${(!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost')) ? 'http://localhost:8000' : (apiBase || '')}/media/source/vesper_base.mp4`}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  autoPlay
-                  loop
+                  autoPlay={videoShouldAutoplay}
+                  loop={false}
                   muted
                   playsInline
                   controls={false}
+                  onEnded={() => {
+                    if (avatarVideoRef.current) {
+                      const holdAt = Math.max(0, avatarVideoRef.current.duration - 0.04);
+                      avatarVideoRef.current.currentTime = holdAt;
+                    }
+                    setVideoShouldAutoplay(false);
+                  }}
                 />
               </Box>
             </Box>
