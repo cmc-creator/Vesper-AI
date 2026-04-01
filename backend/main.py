@@ -7862,7 +7862,14 @@ async def generate_video_avatar(req: VideoAvatarRequest):
     if voice_id and not voice_id.startswith("eleven:"):
         voice_id = f"eleven:{voice_id}"
     if not voice_id.startswith("eleven:"):
-        return JSONResponse({"error": "Video avatar requires an ElevenLabs voice"}, status_code=400)
+        return {
+            "status": "ok",
+            "source_video": source_name,
+            "video_url": f"/media/source/{source_name}",
+            "video_path": source_path,
+            "mode": "base_video",
+            "note": "ElevenLabs voice unavailable. Returned base video clip without generated speech.",
+        }
 
     try:
         if ELEVENLABS_AVAILABLE:
