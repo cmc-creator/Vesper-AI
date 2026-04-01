@@ -107,7 +107,6 @@ import Sassy from './src/components/Sassy';
 import MediaGallery from './src/components/MediaGallery';
 import AvatarStudio from './src/components/AvatarStudio';
 import VesperAvatar3D from './src/components/VesperAvatar3D';
-import TalkingAvatar from './src/components/TalkingAvatar';
 import IntegrationsHub from './src/components/IntegrationsHub';
 import BackgroundStudio from './src/components/BackgroundStudio';
 
@@ -497,7 +496,6 @@ function App() {
   const [activeAvatarData, setActiveAvatarData] = useState(null);
 
   // Video Avatar System
-  const [useVideoAvatar, setUseVideoAvatar] = useState(false);
   const [videoAvatarUrl, setVideoAvatarUrl] = useState('');
   const [videogenLoading, setVideoGenLoading] = useState(false);
 
@@ -885,6 +883,15 @@ export default function App() {
     // If no specific chat URL, use the same logic as apiBase.
     return apiBase;
   }, [apiBase]);
+
+  useEffect(() => {
+    const mediaBase = (!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost'))
+      ? 'http://localhost:8000'
+      : (apiBase || '');
+    if (!videoAvatarUrl) {
+      setVideoAvatarUrl(`${mediaBase}/media/source/vesper_base.mp4`);
+    }
+  }, [apiBase, videoAvatarUrl]);
 
   const addLocalMessage = async (role, content, extras = {}) => {
     const message = {
@@ -1511,8 +1518,7 @@ export default function App() {
         ? 'http://localhost:8000'
         : (apiBase || '');
 
-      // Immediately switch away from 3D avatar to the real base video clip.
-      setUseVideoAvatar(true);
+      // Keep the panel pinned to the real base video clip while speech is generated.
       setVideoAvatarUrl(`${mediaBase}/media/source/vesper_base.mp4`);
 
       const text = textToSpeak || (messages.length > 0 && messages[messages.length - 1].role === 'assistant' 
@@ -1545,7 +1551,6 @@ export default function App() {
           ? `${mediaBase}${result.video_url}`
           : `${apiBase}${result.video_url}`;
         setVideoAvatarUrl(resolvedUrl);
-        setUseVideoAvatar(true);
         showToast(`Video created${result.mode === 'wav2lip' ? ' with true lip-sync!' : ''}`, 'success');
       }
     } catch (err) {
@@ -7028,70 +7033,40 @@ export default function App() {
                   WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 56%, transparent 86%)',
                 }}
               >
-                {useVideoAvatar && videoAvatarUrl ? (
-                  <video
-                    src={videoAvatarUrl}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    autoPlay
-                    loop
-                    controls={false}
-                  />
-                ) : (
-                  <TalkingAvatar
-                    avatarUrl={rpmAvatarUrl || undefined}
-                    isSpeaking={isSpeaking}
-                    analyserRef={analyserRef}
-                    height={230}
-                    accentColor={activeTheme.accent || '#a855f7'}
-                    showControls={false}
-                  />
-                )}
+                <video
+                  src={videoAvatarUrl || `${(!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost')) ? 'http://localhost:8000' : (apiBase || '')}/media/source/vesper_base.mp4`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  controls={false}
+                />
               </Box>
             </Box>
 
-            {/* Avatar Mode Toggle & Video Generation */}
+            {/* Video Avatar Refresh */}
             <Stack direction="row" spacing={1} sx={{ mb: 2, px: 1 }}>
               <Button
                 size="small"
-                variant={useVideoAvatar ? 'contained' : 'outlined'}
-                onClick={() => {
-                  if (useVideoAvatar) {
-                    setUseVideoAvatar(false);
-                  } else {
-                    generateVideoAvatar();
-                  }
-                }}
+                variant="outlined"
+                onClick={() => generateVideoAvatar()}
                 disabled={videogenLoading}
                 sx={{
                   flex: 1,
                   borderColor: activeTheme.accent,
-                  color: useVideoAvatar ? '#000' : activeTheme.accent,
-                  backgroundColor: useVideoAvatar ? activeTheme.accent : 'transparent',
+                  color: activeTheme.accent,
+                  backgroundColor: 'transparent',
                   fontSize: '0.75rem',
                   '&:hover': {
                     borderColor: activeTheme.accent,
-                    backgroundColor: useVideoAvatar ? activeTheme.accent : `${activeTheme.accent}11`,
+                    backgroundColor: `${activeTheme.accent}11`,
                   },
                 }}
               >
                 {videogenLoading ? <CircularProgress size={16} sx={{ mr: 0.5 }} /> : null}
-                {useVideoAvatar ? '📹 Video Active' : '📹 Use Video'}
+                📹 Refresh Video Speech
               </Button>
-              {useVideoAvatar && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => generateVideoAvatar()}
-                  disabled={videogenLoading}
-                  sx={{
-                    borderColor: activeTheme.accent,
-                    color: activeTheme.accent,
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  🔄 Refresh
-                </Button>
-              )}
             </Stack>
 
             {/* Dashboard widgets row */}
