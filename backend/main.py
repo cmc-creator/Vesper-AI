@@ -173,7 +173,7 @@ def health_check():
 @app.get("/api/elevenlabs/voices")
 async def get_elevenlabs_voices():
     """Fetch available voices from ElevenLabs API"""
-    api_key = os.getenv("ELEVENLABS_API_KEY")
+    api_key = os.getenv("ELEVENLABS_API_KEY") or os.getenv("XI_API_KEY")
     if not api_key:
         return JSONResponse(status_code=400, content={"error": "ELEVENLABS_API_KEY not configured"})
     try:
@@ -7542,7 +7542,7 @@ async def save_canvas_to_storage(req: SaveCanvasRequest):
 
 # ─── TTS: ElevenLabs (premium) + Edge-TTS (free fallback) ────────────────────
 
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "") or os.getenv("XI_API_KEY", "")
 ELEVENLABS_AVAILABLE = False
 elevenlabs_client = None
 
@@ -7611,7 +7611,7 @@ class TTSRequest(BaseModel):
 
 async def elevenlabs_rest_tts_bytes(voice_id: str, text: str, stability: float = 0.5, similarity_boost: float = 0.75) -> bytes:
     """Fallback path using ElevenLabs REST API when SDK init failed."""
-    api_key = os.getenv("ELEVENLABS_API_KEY", "")
+    api_key = os.getenv("ELEVENLABS_API_KEY", "") or os.getenv("XI_API_KEY", "")
     if not api_key:
         raise RuntimeError("ELEVENLABS_API_KEY not configured")
 
