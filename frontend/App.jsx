@@ -1507,6 +1507,14 @@ export default function App() {
   const generateVideoAvatar = async (textToSpeak = null) => {
     try {
       setVideoGenLoading(true);
+      const mediaBase = (!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost'))
+        ? 'http://localhost:8000'
+        : (apiBase || '');
+
+      // Immediately switch away from 3D avatar to the real base video clip.
+      setUseVideoAvatar(true);
+      setVideoAvatarUrl(`${mediaBase}/media/source/vesper_base.mp4`);
+
       const text = textToSpeak || (messages.length > 0 && messages[messages.length - 1].role === 'assistant' 
         ? messages[messages.length - 1].content 
         : 'Hello! I am Vesper, your AI assistant.');
@@ -1527,20 +1535,22 @@ export default function App() {
 
       if (!response.ok) {
         const err = await response.json();
-        setToast(`❌ Video generation failed: ${err.error || 'Unknown error'}`, 'error');
-        setVideoGenLoading(false);
+        showToast(`Video speech unavailable: ${err.error || 'Unknown error'}. Showing base video.`, 'warn');
         return;
       }
 
       const result = await response.json();
       if (result.video_url) {
-        setVideoAvatarUrl(`${apiBase}${result.video_url}`);
+        const resolvedUrl = result.video_url.startsWith('/media/')
+          ? `${mediaBase}${result.video_url}`
+          : `${apiBase}${result.video_url}`;
+        setVideoAvatarUrl(resolvedUrl);
         setUseVideoAvatar(true);
-        setToast(`✨ Video created${result.mode === 'wav2lip' ? ' with true lip-sync!' : ''}`, 'success');
+        showToast(`Video created${result.mode === 'wav2lip' ? ' with true lip-sync!' : ''}`, 'success');
       }
     } catch (err) {
       console.error('Video generation error:', err);
-      setToast(`❌ Error: ${err.message}`, 'error');
+      showToast(`Video error: ${err.message}. Showing base video.`, 'warn');
     } finally {
       setVideoGenLoading(false);
     }
