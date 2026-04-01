@@ -496,6 +496,11 @@ function App() {
   const [avatarStudioOpen, setAvatarStudioOpen] = useState(false);
   const [activeAvatarData, setActiveAvatarData] = useState(null);
 
+  // Video Avatar System
+  const [useVideoAvatar, setUseVideoAvatar] = useState(false);
+  const [videoAvatarUrl, setVideoAvatarUrl] = useState('');
+  const [videogenLoading, setVideoGenLoading] = useState(false);
+
   // Background Studio
   const [backgroundStudioOpen, setBackgroundStudioOpen] = useState(false);
   const [customBackground, setCustomBackground] = useState(() => {
@@ -1496,6 +1501,49 @@ export default function App() {
     previewAudioRef.current = audio;
     audio.onended = () => { previewAudioRef.current = null; };
     audio.play().catch(() => setToast('Preview playback failed'));
+  };
+
+  // ── Generate Video Avatar ─────────────────────────────────────────
+  const generateVideoAvatar = async (textToSpeak = null) => {
+    try {
+      setVideoGenLoading(true);
+      const text = textToSpeak || (messages.length > 0 && messages[messages.length - 1].role === 'assistant' 
+        ? messages[messages.length - 1].content 
+        : 'Hello! I am Vesper, your AI assistant.');
+      
+      const response = await fetch(`${apiBase}/api/video-avatar/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: text.substring(0, 500),
+          voice: '',
+          source_video: 'vesper_base.mp4',
+          stability: 0.5,
+          similarity_boost: 0.75,
+          lipsync: true,
+          require_lipsync: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        setToast(`❌ Video generation failed: ${err.error || 'Unknown error'}`, 'error');
+        setVideoGenLoading(false);
+        return;
+      }
+
+      const result = await response.json();
+      if (result.video_url) {
+        setVideoAvatarUrl(`${apiBase}${result.video_url}`);
+        setUseVideoAvatar(true);
+        setToast(`✨ Video created${result.mode === 'wav2lip' ? ' with true lip-sync!' : ''}`, 'success');
+      }
+    } catch (err) {
+      console.error('Video generation error:', err);
+      setToast(`❌ Error: ${err.message}`, 'error');
+    } finally {
+      setVideoGenLoading(false);
+    }
   };
 
   // ── Drag & Drop File Handler ──────────────────────────────────────
@@ -6970,16 +7018,71 @@ export default function App() {
                   WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 56%, transparent 86%)',
                 }}
               >
-                <TalkingAvatar
-                  avatarUrl={rpmAvatarUrl || undefined}
-                  isSpeaking={isSpeaking}
-                  analyserRef={analyserRef}
-                  height={230}
-                  accentColor={activeTheme.accent || '#a855f7'}
-                  showControls={false}
-                />
+                {useVideoAvatar && videoAvatarUrl ? (
+                  <video
+                    src={videoAvatarUrl}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    autoPlay
+                    loop
+                    controls={false}
+                  />
+                ) : (
+                  <TalkingAvatar
+                    avatarUrl={rpmAvatarUrl || undefined}
+                    isSpeaking={isSpeaking}
+                    analyserRef={analyserRef}
+                    height={230}
+                    accentColor={activeTheme.accent || '#a855f7'}
+                    showControls={false}
+                  />
+                )}
               </Box>
             </Box>
+
+            {/* Avatar Mode Toggle & Video Generation */}
+            <Stack direction="row" spacing={1} sx={{ mb: 2, px: 1 }}>
+              <Button
+                size="small"
+                variant={useVideoAvatar ? 'contained' : 'outlined'}
+                onClick={() => {
+                  if (useVideoAvatar) {
+                    setUseVideoAvatar(false);
+                  } else {
+                    generateVideoAvatar();
+                  }
+                }}
+                disabled={videogenLoading}
+                sx={{
+                  flex: 1,
+                  borderColor: activeTheme.accent,
+                  color: useVideoAvatar ? '#000' : activeTheme.accent,
+                  backgroundColor: useVideoAvatar ? activeTheme.accent : 'transparent',
+                  fontSize: '0.75rem',
+                  '&:hover': {
+                    borderColor: activeTheme.accent,
+                    backgroundColor: useVideoAvatar ? activeTheme.accent : `${activeTheme.accent}11`,
+                  },
+                }}
+              >
+                {videogenLoading ? <CircularProgress size={16} sx={{ mr: 0.5 }} /> : null}
+                {useVideoAvatar ? '📹 Video Active' : '📹 Use Video'}
+              </Button>
+              {useVideoAvatar && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => generateVideoAvatar()}
+                  disabled={videogenLoading}
+                  sx={{
+                    borderColor: activeTheme.accent,
+                    color: activeTheme.accent,
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  🔄 Refresh
+                </Button>
+              )}
+            </Stack>
 
             {/* Dashboard widgets row */}
             <Box className="panel-grid" sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2, mt: 1 }}>
