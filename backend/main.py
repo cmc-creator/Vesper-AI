@@ -1,4 +1,5 @@
 # --- IMPORTS ---
+# Redeploy trigger: 2026-04-02 22:15 UTC
 import os
 import sys
 from dotenv import load_dotenv
