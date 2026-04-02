@@ -5469,313 +5469,621 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     "required": ["url"]
                 }
             },
-            {
-                "name": "send_email_resend",
-                "description": "Send email via Resend API (no SMTP/App Password needed - just a RESEND_API_KEY). Great for proposals, follow-ups, automation.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "to": {"type": "string", "description": "Recipient email(s), comma-separated"},
-                        "subject": {"type": "string", "description": "Subject line"},
-                        "body": {"type": "string", "description": "Email body (plain text or HTML)"},
-                        "html": {"type": "boolean", "description": "True to send as HTML"},
-                        "from_name": {"type": "string", "description": "Sender display name (default: Vesper AI)"},
-                        "cc": {"type": "string", "description": "CC address(es)"}
-                    },
-                    "required": ['to', 'subject', 'body']
-                }
-            },
-            {
-                "name": "post_to_linkedin",
-                "description": "Post content to LinkedIn via the LinkedIn API. Use for thought leadership, client announcements, brand building. Requires LINKEDIN_ACCESS_TOKEN env var.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "text": {"type": "string", "description": "Post text content (max 3000 chars)"},
-                        "url": {"type": "string", "description": "Optional URL to share"},
-                        "visibility": {"type": "string", "description": "PUBLIC or CONNECTIONS (default: PUBLIC)"}
-                    },
-                    "required": ['text']
-                }
-            },
-            {
-                "name": "post_to_twitter",
-                "description": "Post a tweet via Twitter/X API v2. Requires TWITTER_BEARER_TOKEN, TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "text": {"type": "string", "description": "Tweet text (max 280 chars)"},
-                        "reply_to": {"type": "string", "description": "Tweet ID to reply to (optional)"}
-                    },
-                    "required": ['text']
-                }
-            },
-            {
-                "name": "stripe_create_invoice",
-                "description": "Create and send a Stripe invoice to a client. Requires STRIPE_SECRET_KEY. Returns invoice URL.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "customer_email": {"type": "string", "description": "Client email address"},
-                        "customer_name": {"type": "string", "description": "Client name"},
-                        "amount_cents": {"type": "integer", "description": "Amount in cents (e.g. 50000 = $500.00)"},
-                        "description": {"type": "string", "description": "Invoice line item description"},
-                        "currency": {"type": "string", "description": "Currency code (default: usd)"},
-                        "auto_send": {"type": "boolean", "description": "Auto-send via email (default: true)"}
-                    },
-                    "required": ['customer_email', 'amount_cents', 'description']
-                }
-            },
-            {
-                "name": "stripe_create_payment_link",
-                "description": "Create a Stripe payment link for a product or service. Share with clients. Requires STRIPE_SECRET_KEY.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string", "description": "Product/service name"},
-                        "amount_cents": {"type": "integer", "description": "Price in cents"},
-                        "currency": {"type": "string", "description": "Currency (default: usd)"},
-                        "quantity": {"type": "integer", "description": "Quantity (default: 1)"}
-                    },
-                    "required": ['name', 'amount_cents']
-                }
-            },
-            {
-                "name": "stripe_list_payments",
-                "description": "List recent Stripe payments and revenue. Shows status, amount, customer. Requires STRIPE_SECRET_KEY.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "limit": {"type": "integer", "description": "Number of payments to return (default: 10, max: 100)"},
-                        "status": {"type": "string", "description": "Filter by status: succeeded, pending, failed (optional)"}
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "schedule_task",
-                "description": "Schedule a recurring background task (competitor monitoring, reports, check-ins, lead gen). Tasks run even when chat is idle. Use interval for frequency.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "task_name": {"type": "string", "description": "Unique name for this scheduled task"},
-                        "description": {"type": "string", "description": "What this task should do when it runs"},
-                        "interval_hours": {"type": "number", "description": "How often to run in hours (e.g. 24 for daily, 168 for weekly)"},
-                        "action": {"type": "string", "description": "Action type: monitor_url | run_report | send_email | run_shell | custom"},
-                        "action_params": {"type": "string", "description": "JSON string of parameters passed to the action"},
-                        "enabled": {"type": "boolean", "description": "Enable immediately (default: true)"}
-                    },
-                    "required": ['task_name', 'description', 'interval_hours', 'action']
-                }
-            },
-            {
-                "name": "list_scheduled_tasks",
-                "description": "List all scheduled background tasks, their last run time, next run time, and status.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "cancel_scheduled_task",
-                "description": "Cancel/delete a scheduled background task by name.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "task_name": {"type": "string", "description": "Name of the task to cancel"}
-                    },
-                    "required": ['task_name']
-                }
-            },
-            {
-                "name": "vesper_evolve",
-                "description": "Self-modification: add a new tool, update behavior rules, or patch a handler at runtime. Changes are written to main.py and take effect after restart. Use responsibly.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "evolution_type": {"type": "string", "description": "Type: add_tool | update_system_prompt | patch_handler | add_import"},
-                        "name": {"type": "string", "description": "Tool name or section identifier"},
-                        "description": {"type": "string", "description": "What the new capability does"},
-                        "code": {"type": "string", "description": "Python code block to insert"},
-                        "insert_after": {"type": "string", "description": "Anchor string after which to insert the code"}
-                    },
-                    "required": ['evolution_type', 'name', 'code']
-                }
-            },
-            {
-                "name": "spawn_worker",
-                "description": "Spawn a parallel Vesper worker process for a long-running task (market research, content generation, bulk emails). Returns a worker ID to check status.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "task": {"type": "string", "description": "What the worker should accomplish"},
-                        "worker_name": {"type": "string", "description": "Optional label for this worker"},
-                        "timeout_minutes": {"type": "integer", "description": "Max runtime in minutes (default: 30)"}
-                    },
-                    "required": ['task']
-                }
-            },
-            {
-                "name": "check_worker",
-                "description": "Check the status and output of a spawned worker process.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "worker_id": {"type": "string", "description": "Worker ID returned by spawn_worker"}
-                    },
-                    "required": ['worker_id']
-                }
-            },
-            {
-                "name": "desktop_control",
-                "description": "Automate desktop actions: open apps, type text, click, screenshot. Requires DESKTOP_CONTROL_ENABLED=true in .env. Uses pyautogui.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "action": {"type": "string", "description": "Action: screenshot | open_app | type_text | hotkey | click | scroll | get_clipboard | set_clipboard"},
-                        "target": {"type": "string", "description": "App name, text to type, hotkey combo, or coordinates"},
-                        "x": {"type": "integer", "description": "X coordinate for click"},
-                        "y": {"type": "integer", "description": "Y coordinate for click"}
-                    },
-                    "required": ['action']
-                }
-            },            {
-                "name": "send_email_brevo",
-                "description": "Send email via Brevo (Sendinblue) API. No SMTP, no App Password, no domain tricks. Just a BREVO_API_KEY from brevo.com (free: 300/day). Also set BREVO_FROM_EMAIL.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "to": {"type": "string", "description": "Recipient(s), comma-separated"},
-                        "subject": {"type": "string", "description": "Subject line"},
-                        "body": {"type": "string", "description": "Email body"},
-                        "html": {"type": "boolean", "description": "Send as HTML"},
-                        "from_name": {"type": "string", "description": "Sender name override (default: Vesper AI)"},
-                        "cc": {"type": "string", "description": "CC address(es)"}
-                    },
-                    "required": ['to', 'subject', 'body']
-                }
-            },
-            {
-                "name": "find_prospects",
-                "description": "Search for potential leads and decision makers using public data. Returns structured prospect info to save with track_prospect.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "What to search for (e.g. 'SaaS founders San Francisco fintech')"},
-                        "role": {"type": "string", "description": "Job title to target (e.g. CEO, CTO, VP Sales)"},
-                        "industry": {"type": "string", "description": "Industry/niche (e.g. real estate, e-commerce)"},
-                        "location": {"type": "string", "description": "Geographic focus (optional)"},
-                        "limit": {"type": "integer", "description": "Max results (default 10)"}
-                    },
-                    "required": ['query']
-                }
-            },
-            {
-                "name": "track_prospect",
-                "description": "Save or update a prospect in the built-in CRM (vesper-ai/crm/prospects.json). Tracks deals through lead→qualified→proposal→negotiating→won/lost pipeline.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "email": {"type": "string", "description": "Prospect email (unique key)"},
-                        "name": {"type": "string", "description": "Full name"},
-                        "company": {"type": "string", "description": "Company name"},
-                        "phone": {"type": "string", "description": "Phone number"},
-                        "status": {"type": "string", "description": "Pipeline stage: lead | qualified | proposal | negotiating | won | lost"},
-                        "notes": {"type": "string", "description": "Free-form notes"},
-                        "deal_value": {"type": "number", "description": "Estimated deal value in dollars"},
-                        "next_followup": {"type": "string", "description": "Next follow-up date (YYYY-MM-DD)"},
-                        "tags": {"type": "string", "description": "Comma-separated tags"}
-                    },
-                    "required": ['email', 'name']
-                }
-            },
-            {
-                "name": "get_prospects",
-                "description": "List prospects from the built-in CRM. Filter by status or show only overdue follow-ups.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "status": {"type": "string", "description": "Filter by pipeline stage (leave blank for all)"},
-                        "overdue_only": {"type": "boolean", "description": "Only show prospects with overdue follow-ups"},
-                        "search": {"type": "string", "description": "Search by name, company, or email"}
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "search_news",
-                "description": "Search for recent news articles on any topic. Use for competitor monitoring, industry trends, market intelligence, acquisition targets.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "News search query"},
-                        "time_range": {"type": "string", "description": "Time filter: d=day, w=week, m=month (default: w)"},
-                        "limit": {"type": "integer", "description": "Number of results (default 10)"}
-                    },
-                    "required": ['query']
-                }
-            },
-            {
-                "name": "get_crypto_prices",
-                "description": "Get real-time cryptocurrency prices from CoinGecko (free, no API key). Includes 24h change. Use for portfolio tracking, trading research.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "coins": {"type": "string", "description": "Comma-separated coin IDs: bitcoin,ethereum,solana,cardano etc"},
-                        "currencies": {"type": "string", "description": "Currencies to show prices in: usd,eur,btc (default: usd)"}
-                    },
-                    "required": ['coins']
-                }
-            },
-            {
-                "name": "get_stock_data",
-                "description": "Get stock price and key metrics from Yahoo Finance (free, public). Includes price, 52w range, market cap. For investment research only - not financial advice.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "ticker": {"type": "string", "description": "Stock ticker symbol (e.g. AAPL, TSLA, NVDA, SPY)"},
-                        "range": {"type": "string", "description": "History range: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y (default: 1mo)"}
-                    },
-                    "required": ['ticker']
-                }
-            },
-            {
-                "name": "compare_prices",
-                "description": "Search for price differences on any product across retailers. Surface arbitrage opportunities and market pricing intelligence.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "product": {"type": "string", "description": "Product name to research prices for"},
-                        "sites": {"type": "string", "description": "Comma-separated sites to search (default: amazon,ebay,walmart)"},
-                        "limit": {"type": "integer", "description": "Max results (default 10)"}
-                    },
-                    "required": ['product']
-                }
-            },
-            {
-                "name": "research_domain",
-                "description": "Check if a domain is registered, see its registration info, and get public whois data. Use for domain flipping research and digital real estate opportunities.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "domain": {"type": "string", "description": "Domain name to research (e.g. coolbrand.com)"}
-                    },
-                    "required": ['domain']
-                }
-            },
-
-            {
-                "name": "persistence_status",
-                "description": "Check Vesper's uptime, process ID, server health, and restart count. Use this to monitor availability.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                    },
-                    "required": []
-                }
-            },
+            {
+
+                "name": "send_email_resend",
+
+                "description": "Send email via Resend API (no SMTP/App Password needed - just a RESEND_API_KEY). Great for proposals, follow-ups, automation.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "to": {"type": "string", "description": "Recipient email(s), comma-separated"},
+
+                        "subject": {"type": "string", "description": "Subject line"},
+
+                        "body": {"type": "string", "description": "Email body (plain text or HTML)"},
+
+                        "html": {"type": "boolean", "description": "True to send as HTML"},
+
+                        "from_name": {"type": "string", "description": "Sender display name (default: Vesper AI)"},
+
+                        "cc": {"type": "string", "description": "CC address(es)"}
+
+                    },
+
+                    "required": ['to', 'subject', 'body']
+
+                }
+
+            },
+
+            {
+
+                "name": "post_to_linkedin",
+
+                "description": "Post content to LinkedIn via the LinkedIn API. Use for thought leadership, client announcements, brand building. Requires LINKEDIN_ACCESS_TOKEN env var.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "text": {"type": "string", "description": "Post text content (max 3000 chars)"},
+
+                        "url": {"type": "string", "description": "Optional URL to share"},
+
+                        "visibility": {"type": "string", "description": "PUBLIC or CONNECTIONS (default: PUBLIC)"}
+
+                    },
+
+                    "required": ['text']
+
+                }
+
+            },
+
+            {
+
+                "name": "post_to_twitter",
+
+                "description": "Post a tweet via Twitter/X API v2. Requires TWITTER_BEARER_TOKEN, TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "text": {"type": "string", "description": "Tweet text (max 280 chars)"},
+
+                        "reply_to": {"type": "string", "description": "Tweet ID to reply to (optional)"}
+
+                    },
+
+                    "required": ['text']
+
+                }
+
+            },
+
+            {
+
+                "name": "stripe_create_invoice",
+
+                "description": "Create and send a Stripe invoice to a client. Requires STRIPE_SECRET_KEY. Returns invoice URL.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "customer_email": {"type": "string", "description": "Client email address"},
+
+                        "customer_name": {"type": "string", "description": "Client name"},
+
+                        "amount_cents": {"type": "integer", "description": "Amount in cents (e.g. 50000 = $500.00)"},
+
+                        "description": {"type": "string", "description": "Invoice line item description"},
+
+                        "currency": {"type": "string", "description": "Currency code (default: usd)"},
+
+                        "auto_send": {"type": "boolean", "description": "Auto-send via email (default: true)"}
+
+                    },
+
+                    "required": ['customer_email', 'amount_cents', 'description']
+
+                }
+
+            },
+
+            {
+
+                "name": "stripe_create_payment_link",
+
+                "description": "Create a Stripe payment link for a product or service. Share with clients. Requires STRIPE_SECRET_KEY.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "name": {"type": "string", "description": "Product/service name"},
+
+                        "amount_cents": {"type": "integer", "description": "Price in cents"},
+
+                        "currency": {"type": "string", "description": "Currency (default: usd)"},
+
+                        "quantity": {"type": "integer", "description": "Quantity (default: 1)"}
+
+                    },
+
+                    "required": ['name', 'amount_cents']
+
+                }
+
+            },
+
+            {
+
+                "name": "stripe_list_payments",
+
+                "description": "List recent Stripe payments and revenue. Shows status, amount, customer. Requires STRIPE_SECRET_KEY.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "limit": {"type": "integer", "description": "Number of payments to return (default: 10, max: 100)"},
+
+                        "status": {"type": "string", "description": "Filter by status: succeeded, pending, failed (optional)"}
+
+                    },
+
+                    "required": []
+
+                }
+
+            },
+
+            {
+
+                "name": "schedule_task",
+
+                "description": "Schedule a recurring background task (competitor monitoring, reports, check-ins, lead gen). Tasks run even when chat is idle. Use interval for frequency.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "task_name": {"type": "string", "description": "Unique name for this scheduled task"},
+
+                        "description": {"type": "string", "description": "What this task should do when it runs"},
+
+                        "interval_hours": {"type": "number", "description": "How often to run in hours (e.g. 24 for daily, 168 for weekly)"},
+
+                        "action": {"type": "string", "description": "Action type: monitor_url | run_report | send_email | run_shell | custom"},
+
+                        "action_params": {"type": "string", "description": "JSON string of parameters passed to the action"},
+
+                        "enabled": {"type": "boolean", "description": "Enable immediately (default: true)"}
+
+                    },
+
+                    "required": ['task_name', 'description', 'interval_hours', 'action']
+
+                }
+
+            },
+
+            {
+
+                "name": "list_scheduled_tasks",
+
+                "description": "List all scheduled background tasks, their last run time, next run time, and status.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                    },
+
+                    "required": []
+
+                }
+
+            },
+
+            {
+
+                "name": "cancel_scheduled_task",
+
+                "description": "Cancel/delete a scheduled background task by name.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "task_name": {"type": "string", "description": "Name of the task to cancel"}
+
+                    },
+
+                    "required": ['task_name']
+
+                }
+
+            },
+
+            {
+
+                "name": "vesper_evolve",
+
+                "description": "Self-modification: add a new tool, update behavior rules, or patch a handler at runtime. Changes are written to main.py and take effect after restart. Use responsibly.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "evolution_type": {"type": "string", "description": "Type: add_tool | update_system_prompt | patch_handler | add_import"},
+
+                        "name": {"type": "string", "description": "Tool name or section identifier"},
+
+                        "description": {"type": "string", "description": "What the new capability does"},
+
+                        "code": {"type": "string", "description": "Python code block to insert"},
+
+                        "insert_after": {"type": "string", "description": "Anchor string after which to insert the code"}
+
+                    },
+
+                    "required": ['evolution_type', 'name', 'code']
+
+                }
+
+            },
+
+            {
+
+                "name": "spawn_worker",
+
+                "description": "Spawn a parallel Vesper worker process for a long-running task (market research, content generation, bulk emails). Returns a worker ID to check status.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "task": {"type": "string", "description": "What the worker should accomplish"},
+
+                        "worker_name": {"type": "string", "description": "Optional label for this worker"},
+
+                        "timeout_minutes": {"type": "integer", "description": "Max runtime in minutes (default: 30)"}
+
+                    },
+
+                    "required": ['task']
+
+                }
+
+            },
+
+            {
+
+                "name": "check_worker",
+
+                "description": "Check the status and output of a spawned worker process.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "worker_id": {"type": "string", "description": "Worker ID returned by spawn_worker"}
+
+                    },
+
+                    "required": ['worker_id']
+
+                }
+
+            },
+
+            {
+
+                "name": "desktop_control",
+
+                "description": "Automate desktop actions: open apps, type text, click, screenshot. Requires DESKTOP_CONTROL_ENABLED=true in .env. Uses pyautogui.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "action": {"type": "string", "description": "Action: screenshot | open_app | type_text | hotkey | click | scroll | get_clipboard | set_clipboard"},
+
+                        "target": {"type": "string", "description": "App name, text to type, hotkey combo, or coordinates"},
+
+                        "x": {"type": "integer", "description": "X coordinate for click"},
+
+                        "y": {"type": "integer", "description": "Y coordinate for click"}
+
+                    },
+
+                    "required": ['action']
+
+                }
+
+            },            {
+
+
+                "name": "send_email_brevo",
+
+                "description": "Send email via Brevo (Sendinblue) API. No SMTP, no App Password, no domain tricks. Just a BREVO_API_KEY from brevo.com (free: 300/day). Also set BREVO_FROM_EMAIL.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "to": {"type": "string", "description": "Recipient(s), comma-separated"},
+
+                        "subject": {"type": "string", "description": "Subject line"},
+
+                        "body": {"type": "string", "description": "Email body"},
+
+                        "html": {"type": "boolean", "description": "Send as HTML"},
+
+                        "from_name": {"type": "string", "description": "Sender name override (default: Vesper AI)"},
+
+                        "cc": {"type": "string", "description": "CC address(es)"}
+
+                    },
+
+                    "required": ['to', 'subject', 'body']
+
+                }
+
+            },
+
+            {
+
+                "name": "find_prospects",
+
+                "description": "Search for potential leads and decision makers using public data. Returns structured prospect info to save with track_prospect.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "query": {"type": "string", "description": "What to search for (e.g. 'SaaS founders San Francisco fintech')"},
+
+                        "role": {"type": "string", "description": "Job title to target (e.g. CEO, CTO, VP Sales)"},
+
+                        "industry": {"type": "string", "description": "Industry/niche (e.g. real estate, e-commerce)"},
+
+                        "location": {"type": "string", "description": "Geographic focus (optional)"},
+
+                        "limit": {"type": "integer", "description": "Max results (default 10)"}
+
+                    },
+
+                    "required": ['query']
+
+                }
+
+            },
+
+            {
+
+                "name": "track_prospect",
+
+                "description": "Save or update a prospect in the built-in CRM (vesper-ai/crm/prospects.json). Tracks deals through lead→qualified→proposal→negotiating→won/lost pipeline.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "email": {"type": "string", "description": "Prospect email (unique key)"},
+
+                        "name": {"type": "string", "description": "Full name"},
+
+                        "company": {"type": "string", "description": "Company name"},
+
+                        "phone": {"type": "string", "description": "Phone number"},
+
+                        "status": {"type": "string", "description": "Pipeline stage: lead | qualified | proposal | negotiating | won | lost"},
+
+                        "notes": {"type": "string", "description": "Free-form notes"},
+
+                        "deal_value": {"type": "number", "description": "Estimated deal value in dollars"},
+
+                        "next_followup": {"type": "string", "description": "Next follow-up date (YYYY-MM-DD)"},
+
+                        "tags": {"type": "string", "description": "Comma-separated tags"}
+
+                    },
+
+                    "required": ['email', 'name']
+
+                }
+
+            },
+
+            {
+
+                "name": "get_prospects",
+
+                "description": "List prospects from the built-in CRM. Filter by status or show only overdue follow-ups.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "status": {"type": "string", "description": "Filter by pipeline stage (leave blank for all)"},
+
+                        "overdue_only": {"type": "boolean", "description": "Only show prospects with overdue follow-ups"},
+
+                        "search": {"type": "string", "description": "Search by name, company, or email"}
+
+                    },
+
+                    "required": []
+
+                }
+
+            },
+
+            {
+
+                "name": "search_news",
+
+                "description": "Search for recent news articles on any topic. Use for competitor monitoring, industry trends, market intelligence, acquisition targets.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "query": {"type": "string", "description": "News search query"},
+
+                        "time_range": {"type": "string", "description": "Time filter: d=day, w=week, m=month (default: w)"},
+
+                        "limit": {"type": "integer", "description": "Number of results (default 10)"}
+
+                    },
+
+                    "required": ['query']
+
+                }
+
+            },
+
+            {
+
+                "name": "get_crypto_prices",
+
+                "description": "Get real-time cryptocurrency prices from CoinGecko (free, no API key). Includes 24h change. Use for portfolio tracking, trading research.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "coins": {"type": "string", "description": "Comma-separated coin IDs: bitcoin,ethereum,solana,cardano etc"},
+
+                        "currencies": {"type": "string", "description": "Currencies to show prices in: usd,eur,btc (default: usd)"}
+
+                    },
+
+                    "required": ['coins']
+
+                }
+
+            },
+
+            {
+
+                "name": "get_stock_data",
+
+                "description": "Get stock price and key metrics from Yahoo Finance (free, public). Includes price, 52w range, market cap. For investment research only - not financial advice.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "ticker": {"type": "string", "description": "Stock ticker symbol (e.g. AAPL, TSLA, NVDA, SPY)"},
+
+                        "range": {"type": "string", "description": "History range: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y (default: 1mo)"}
+
+                    },
+
+                    "required": ['ticker']
+
+                }
+
+            },
+
+            {
+
+                "name": "compare_prices",
+
+                "description": "Search for price differences on any product across retailers. Surface arbitrage opportunities and market pricing intelligence.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "product": {"type": "string", "description": "Product name to research prices for"},
+
+                        "sites": {"type": "string", "description": "Comma-separated sites to search (default: amazon,ebay,walmart)"},
+
+                        "limit": {"type": "integer", "description": "Max results (default 10)"}
+
+                    },
+
+                    "required": ['product']
+
+                }
+
+            },
+
+            {
+
+                "name": "research_domain",
+
+                "description": "Check if a domain is registered, see its registration info, and get public whois data. Use for domain flipping research and digital real estate opportunities.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "domain": {"type": "string", "description": "Domain name to research (e.g. coolbrand.com)"}
+
+                    },
+
+                    "required": ['domain']
+
+                }
+
+            },
+
+
+
+            {
+
+                "name": "persistence_status",
+
+                "description": "Check Vesper's uptime, process ID, server health, and restart count. Use this to monitor availability.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                    },
+
+                    "required": []
+
+                }
+
+            },
+
 
             {
                 "name": "send_email",
@@ -6920,30 +7228,54 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "scrape_page", "description": "Fetch and parse any URL - text, links, images, optional HTML.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "extract_links": {"type": "boolean"}, "extract_images": {"type": "boolean"}, "raw_html": {"type": "boolean"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 {"name": "download_image", "description": "Download an image from a URL to the media library.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
                 {"name": "monitor_site", "description": "Check a website for changes vs a previous snapshot.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "previous_content": {"type": "string"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
-                
-                {"name": "send_email_resend", "description": "Send email via Resend API (RESEND_API_KEY).", "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}, "html": {"type": "boolean"}, "from_name": {"type": "string"}, "cc": {"type": "string"}}, "required": ['to', 'subject', 'body']}},
-                {"name": "post_to_linkedin", "description": "Post to LinkedIn (LINKEDIN_ACCESS_TOKEN).", "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "url": {"type": "string"}, "visibility": {"type": "string"}}, "required": ['text']}},
-                {"name": "post_to_twitter", "description": "Post tweet via Twitter/X API v2.", "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "reply_to": {"type": "string"}}, "required": ['text']}},
-                {"name": "stripe_create_invoice", "description": "Create+send Stripe invoice.", "input_schema": {"type": "object", "properties": {"customer_email": {"type": "string"}, "customer_name": {"type": "string"}, "amount_cents": {"type": "integer"}, "description": {"type": "string"}, "currency": {"type": "string"}, "auto_send": {"type": "boolean"}}, "required": ['customer_email', 'amount_cents', 'description']}},
-                {"name": "stripe_create_payment_link", "description": "Create Stripe payment link.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "amount_cents": {"type": "integer"}, "currency": {"type": "string"}, "quantity": {"type": "integer"}}, "required": ['name', 'amount_cents']}},
-                {"name": "stripe_list_payments", "description": "List recent Stripe payments and revenue.", "input_schema": {"type": "object", "properties": {"limit": {"type": "integer"}, "status": {"type": "string"}}, "required": []}},
-                {"name": "schedule_task", "description": "Schedule a recurring background task.", "input_schema": {"type": "object", "properties": {"task_name": {"type": "string"}, "description": {"type": "string"}, "interval_hours": {"type": "number"}, "action": {"type": "string"}, "action_params": {"type": "string"}, "enabled": {"type": "boolean"}}, "required": ['task_name', 'description', 'interval_hours', 'action']}},
-                {"name": "list_scheduled_tasks", "description": "List all scheduled tasks.", "input_schema": {"type": "object", "properties": {}, "required": []}},
-                {"name": "cancel_scheduled_task", "description": "Cancel a scheduled task by name.", "input_schema": {"type": "object", "properties": {"task_name": {"type": "string"}}, "required": ['task_name']}},
-                {"name": "vesper_evolve", "description": "Self-modification: add tools/patch handlers/update prompts at runtime.", "input_schema": {"type": "object", "properties": {"evolution_type": {"type": "string"}, "name": {"type": "string"}, "description": {"type": "string"}, "code": {"type": "string"}, "insert_after": {"type": "string"}}, "required": ['evolution_type', 'name', 'code']}},
-                {"name": "spawn_worker", "description": "Spawn a parallel worker for long tasks.", "input_schema": {"type": "object", "properties": {"task": {"type": "string"}, "worker_name": {"type": "string"}, "timeout_minutes": {"type": "integer"}}, "required": ['task']}},
-                {"name": "check_worker", "description": "Check status of a spawned worker.", "input_schema": {"type": "object", "properties": {"worker_id": {"type": "string"}}, "required": ['worker_id']}},
-                {"name": "desktop_control", "description": "Automate desktop: screenshot/open app/type/click.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "target": {"type": "string"}, "x": {"type": "integer"}, "y": {"type": "integer"}}, "required": ['action']}},
-                {"name": "send_email_brevo", "description": "Send email via Brevo API (BREVO_API_KEY from brevo.com, 300 free/day).", "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}, "html": {"type": "boolean"}, "from_name": {"type": "string"}, "cc": {"type": "string"}}, "required": ['to', 'subject', 'body']}},
-                {"name": "find_prospects", "description": "Search for leads/decision makers via public data.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "role": {"type": "string"}, "industry": {"type": "string"}, "location": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['query']}},
-                {"name": "track_prospect", "description": "Save/update prospect in built-in CRM pipeline.", "input_schema": {"type": "object", "properties": {"email": {"type": "string"}, "name": {"type": "string"}, "company": {"type": "string"}, "phone": {"type": "string"}, "status": {"type": "string"}, "notes": {"type": "string"}, "deal_value": {"type": "number"}, "next_followup": {"type": "string"}, "tags": {"type": "string"}}, "required": ['email', 'name']}},
-                {"name": "get_prospects", "description": "List/filter CRM prospects.", "input_schema": {"type": "object", "properties": {"status": {"type": "string"}, "overdue_only": {"type": "boolean"}, "search": {"type": "string"}}, "required": []}},
-                {"name": "search_news", "description": "Search recent news articles on any topic.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "time_range": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['query']}},
-                {"name": "get_crypto_prices", "description": "Live crypto prices from CoinGecko (free, no key).", "input_schema": {"type": "object", "properties": {"coins": {"type": "string"}, "currencies": {"type": "string"}}, "required": ['coins']}},
-                {"name": "get_stock_data", "description": "Stock price + metrics from Yahoo Finance.", "input_schema": {"type": "object", "properties": {"ticker": {"type": "string"}, "range": {"type": "string"}}, "required": ['ticker']}},
-                {"name": "compare_prices", "description": "Search product prices across retailers for arbitrage.", "input_schema": {"type": "object", "properties": {"product": {"type": "string"}, "sites": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['product']}},
-                {"name": "research_domain", "description": "Check domain registration status + whois data.", "input_schema": {"type": "object", "properties": {"domain": {"type": "string"}}, "required": ['domain']}},
-                {"name": "persistence_status", "description": "Check Vesper uptime, PID, health.", "input_schema": {"type": "object", "properties": {}, "required": []}},
+                
+
+                {"name": "send_email_resend", "description": "Send email via Resend API (RESEND_API_KEY).", "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}, "html": {"type": "boolean"}, "from_name": {"type": "string"}, "cc": {"type": "string"}}, "required": ['to', 'subject', 'body']}},
+
+                {"name": "post_to_linkedin", "description": "Post to LinkedIn (LINKEDIN_ACCESS_TOKEN).", "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "url": {"type": "string"}, "visibility": {"type": "string"}}, "required": ['text']}},
+
+                {"name": "post_to_twitter", "description": "Post tweet via Twitter/X API v2.", "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "reply_to": {"type": "string"}}, "required": ['text']}},
+
+                {"name": "stripe_create_invoice", "description": "Create+send Stripe invoice.", "input_schema": {"type": "object", "properties": {"customer_email": {"type": "string"}, "customer_name": {"type": "string"}, "amount_cents": {"type": "integer"}, "description": {"type": "string"}, "currency": {"type": "string"}, "auto_send": {"type": "boolean"}}, "required": ['customer_email', 'amount_cents', 'description']}},
+
+                {"name": "stripe_create_payment_link", "description": "Create Stripe payment link.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "amount_cents": {"type": "integer"}, "currency": {"type": "string"}, "quantity": {"type": "integer"}}, "required": ['name', 'amount_cents']}},
+
+                {"name": "stripe_list_payments", "description": "List recent Stripe payments and revenue.", "input_schema": {"type": "object", "properties": {"limit": {"type": "integer"}, "status": {"type": "string"}}, "required": []}},
+
+                {"name": "schedule_task", "description": "Schedule a recurring background task.", "input_schema": {"type": "object", "properties": {"task_name": {"type": "string"}, "description": {"type": "string"}, "interval_hours": {"type": "number"}, "action": {"type": "string"}, "action_params": {"type": "string"}, "enabled": {"type": "boolean"}}, "required": ['task_name', 'description', 'interval_hours', 'action']}},
+
+                {"name": "list_scheduled_tasks", "description": "List all scheduled tasks.", "input_schema": {"type": "object", "properties": {}, "required": []}},
+
+                {"name": "cancel_scheduled_task", "description": "Cancel a scheduled task by name.", "input_schema": {"type": "object", "properties": {"task_name": {"type": "string"}}, "required": ['task_name']}},
+
+                {"name": "vesper_evolve", "description": "Self-modification: add tools/patch handlers/update prompts at runtime.", "input_schema": {"type": "object", "properties": {"evolution_type": {"type": "string"}, "name": {"type": "string"}, "description": {"type": "string"}, "code": {"type": "string"}, "insert_after": {"type": "string"}}, "required": ['evolution_type', 'name', 'code']}},
+
+                {"name": "spawn_worker", "description": "Spawn a parallel worker for long tasks.", "input_schema": {"type": "object", "properties": {"task": {"type": "string"}, "worker_name": {"type": "string"}, "timeout_minutes": {"type": "integer"}}, "required": ['task']}},
+
+                {"name": "check_worker", "description": "Check status of a spawned worker.", "input_schema": {"type": "object", "properties": {"worker_id": {"type": "string"}}, "required": ['worker_id']}},
+
+                {"name": "desktop_control", "description": "Automate desktop: screenshot/open app/type/click.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "target": {"type": "string"}, "x": {"type": "integer"}, "y": {"type": "integer"}}, "required": ['action']}},
+
+                {"name": "send_email_brevo", "description": "Send email via Brevo API (BREVO_API_KEY from brevo.com, 300 free/day).", "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}, "html": {"type": "boolean"}, "from_name": {"type": "string"}, "cc": {"type": "string"}}, "required": ['to', 'subject', 'body']}},
+
+                {"name": "find_prospects", "description": "Search for leads/decision makers via public data.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "role": {"type": "string"}, "industry": {"type": "string"}, "location": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['query']}},
+
+                {"name": "track_prospect", "description": "Save/update prospect in built-in CRM pipeline.", "input_schema": {"type": "object", "properties": {"email": {"type": "string"}, "name": {"type": "string"}, "company": {"type": "string"}, "phone": {"type": "string"}, "status": {"type": "string"}, "notes": {"type": "string"}, "deal_value": {"type": "number"}, "next_followup": {"type": "string"}, "tags": {"type": "string"}}, "required": ['email', 'name']}},
+
+                {"name": "get_prospects", "description": "List/filter CRM prospects.", "input_schema": {"type": "object", "properties": {"status": {"type": "string"}, "overdue_only": {"type": "boolean"}, "search": {"type": "string"}}, "required": []}},
+
+                {"name": "search_news", "description": "Search recent news articles on any topic.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "time_range": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['query']}},
+
+                {"name": "get_crypto_prices", "description": "Live crypto prices from CoinGecko (free, no key).", "input_schema": {"type": "object", "properties": {"coins": {"type": "string"}, "currencies": {"type": "string"}}, "required": ['coins']}},
+
+                {"name": "get_stock_data", "description": "Stock price + metrics from Yahoo Finance.", "input_schema": {"type": "object", "properties": {"ticker": {"type": "string"}, "range": {"type": "string"}}, "required": ['ticker']}},
+
+                {"name": "compare_prices", "description": "Search product prices across retailers for arbitrage.", "input_schema": {"type": "object", "properties": {"product": {"type": "string"}, "sites": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['product']}},
+
+                {"name": "research_domain", "description": "Check domain registration status + whois data.", "input_schema": {"type": "object", "properties": {"domain": {"type": "string"}}, "required": ['domain']}},
+
+                {"name": "persistence_status", "description": "Check Vesper uptime, PID, health.", "input_schema": {"type": "object", "properties": {}, "required": []}},
+
                 {"name": "send_email", "description": "Send email from CC's business account.", "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}, "html": {"type": "boolean"}, "cc": {"type": "string"}, "reply_to": {"type": "string"}}, "required": ["to", "subject", "body"]}},
                 {"name": "run_shell", "description": "Run a shell command (read-only auto, modifying needs approval).", "input_schema": {"type": "object", "properties": {"command": {"type": "string"}, "cwd": {"type": "string"}, "timeout": {"type": "number"}}, "required": ["command"]}},
                 {"name": "install_dependency", "description": "Install a pip or npm package (requires approval).", "input_schema": {"type": "object", "properties": {"package": {"type": "string"}, "manager": {"type": "string", "enum": ["pip", "npm"]}, "dev": {"type": "boolean"}}, "required": ["package", "manager"]}},
@@ -7519,7 +7851,12 @@ def is_path_safe(path: str, strict: bool = False) -> bool:
     # Non-strict: allow anything that is not in a system path and is under the project workspace
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     return abs_path.startswith(project_root) or any(abs_path.startswith(os.path.abspath(d)) for d in ALLOWED_DIRS)
+
+# Pydantic model for file system operations
+class FileOperation(BaseModel):
+    path: str
     operation: str  # read, write, list, delete, create_dir
+    content: Optional[str] = None
 
 @app.post("/api/filesystem")
 def file_system_access(op: FileOperation):
@@ -8760,10 +9097,10 @@ if ELEVENLABS_API_KEY:
 try:
     import edge_tts
     EDGE_TTS_AVAILABLE = True
-    print("[INIT] edge-tts loaded → free neural TTS fallback available")
+    print("[INIT] edge-tts loaded - free neural TTS fallback available")
 except ImportError:
     EDGE_TTS_AVAILABLE = False
-    print("[WARN] edge-tts not installed → pip install edge-tts")
+    print("[WARN] edge-tts not installed - pip install edge-tts")
 
 import asyncio, io
 
