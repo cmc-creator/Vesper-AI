@@ -874,6 +874,36 @@ body[data-style="lux"] {
 .board-list::-webkit-scrollbar-track { background: transparent; }
 .board-list::-webkit-scrollbar-thumb { background: rgba(var(--accent-rgb),0.3); border-radius: 4px; }
 
+.thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--accent-rgb),0.3) transparent;
+}
+.thread-list::-webkit-scrollbar { width: 5px; }
+.thread-list::-webkit-scrollbar-track { background: transparent; }
+.thread-list::-webkit-scrollbar-thumb { background: rgba(var(--accent-rgb),0.3); border-radius: 4px; }
+
+.thread-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: visible;
+}
+.thread-item:hover {
+  background: rgba(var(--accent-rgb), 0.06);
+}
+
 .board-row {
   padding: 16px 18px;
   border-radius: 12px;

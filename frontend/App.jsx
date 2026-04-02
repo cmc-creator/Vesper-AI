@@ -25,6 +25,8 @@ import {
   Checkbox,
   Select,
   Slider,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -3925,22 +3927,30 @@ export default function App() {
                 </Tooltip>
               </Box>
             </DragHandleArea>
-            <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-              <Chip
-                label="History"
-                onClick={() => { setMemoryView('history'); fetchThreads(); }}
-                color={memoryView === 'history' ? 'primary' : 'default'}
-                variant={memoryView === 'history' ? 'filled' : 'outlined'}
-                size="small"
-              />
-              <Chip
-                label="Notes"
-                onClick={() => setMemoryView('notes')}
-                color={memoryView === 'notes' ? 'primary' : 'default'}
-                variant={memoryView === 'notes' ? 'filled' : 'outlined'}
-                size="small"
-              />
-            </Stack>
+            <Tabs
+              value={memoryView}
+              onChange={(_, v) => { setMemoryView(v); if (v === 'history') fetchThreads(); }}
+              sx={{
+                mb: 2,
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                minHeight: 40,
+                '& .MuiTabs-indicator': { backgroundColor: 'var(--accent)', height: 2 },
+                '& .MuiTab-root': {
+                  color: 'rgba(255,255,255,0.45)',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  minHeight: 40,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  px: 2,
+                  py: 0,
+                },
+                '& .Mui-selected': { color: 'var(--accent) !important' },
+              }}
+            >
+              <Tab label="Threads" value="history" />
+              <Tab label="Notes" value="notes" />
+            </Tabs>
             {memoryView === 'notes' && (
               <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
                 {['notes', 'conversations', 'sensory_experiences', 'creative_moments', 'emotional_bonds'].map((cat) => (
@@ -3975,7 +3985,7 @@ export default function App() {
               />
             )}
             {memoryView === 'history' ? (
-              <Box className="board-list">
+              <Box className="thread-list">
                 {selectedThreadIds.length > 0 && (
                   <Box sx={{ p: 1, mb: 1, bgcolor: 'rgba(255, 68, 68, 0.1)', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Typography variant="caption" sx={{ color: 'white' }}>{selectedThreadIds.length} selected</Typography>
@@ -4041,16 +4051,9 @@ export default function App() {
                         {pinnedThreads.map((thread) => (
                     <Box 
                       key={thread.id} 
-                      className="board-row" 
+                      className="thread-item" 
                       sx={{ 
-                        display: 'flex', 
-                        flexDirection: 'row',
-                        alignItems: 'center', 
-                        gap: 1, 
-                        py: 1.2,
-                        px: 1.5,
-                        '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' },
-                        borderLeft: selectedThreadIds.includes(thread.id) ? '2px solid var(--accent)' : 'none',
+                        borderLeft: selectedThreadIds.includes(thread.id) ? '2px solid var(--accent)' : '2px solid transparent',
                       }}
                     >
                       <Checkbox 
@@ -4123,16 +4126,9 @@ export default function App() {
                         {unpinnedThreads.map((thread) => (
                     <Box 
                       key={thread.id} 
-                      className="board-row" 
+                      className="thread-item" 
                       sx={{ 
-                        display: 'flex', 
-                        flexDirection: 'row',
-                        alignItems: 'center', 
-                        gap: 1, 
-                        py: 1.2,
-                        px: 1.5,
-                        '&:hover': { bgcolor: 'rgba(0,255,255,0.05)' },
-                        borderLeft: selectedThreadIds.includes(thread.id) ? '2px solid var(--accent)' : 'none',
+                        borderLeft: selectedThreadIds.includes(thread.id) ? '2px solid var(--accent)' : '2px solid transparent',
                       }}
                     >
                       <Checkbox 
