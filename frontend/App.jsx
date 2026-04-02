@@ -183,6 +183,9 @@ const THEMES = [
   { id: 'ocean-abyss',     label: '🌊 Ocean Abyss',     accent: '#38bdf8', glow: '#0ea5e9', sub: '#0369a1', category: 'packages', bg: 'linear-gradient(180deg, #010610 0%, #000b1e 50%, #000814 100%)', panelBg: 'rgba(6,16,40,0.97)',   sound: 'ambient',  scanlines: false, style: 'ocean'    },
   { id: 'volcanic-forge',  label: '🌋 Volcanic Forge',  accent: '#f97316', glow: '#ea580c', sub: '#b91c1c', category: 'packages', bg: 'linear-gradient(160deg, #0d0200 0%, #1a0300 50%, #0d0100 100%)', panelBg: 'rgba(44,14,4,0.98)',   sound: 'dark',     scanlines: false, style: 'volcanic' },
   { id: 'arctic-glass',    label: '🧊 Arctic Glass',    accent: '#bae6fd', glow: '#e0f2fe', sub: '#7dd3fc', category: 'packages', bg: 'linear-gradient(180deg, #030c18 0%, #051020 50%, #030c18 100%)', panelBg: 'rgba(12,24,46,0.88)',  sound: 'ambient',  scanlines: false, style: 'arctic'   },
+  { id: 'marble-palace',   label: '🏛️ Marble Palace',   accent: '#d9d2c3', glow: '#f5efe6', sub: '#b8aa92', category: 'packages', bg: 'linear-gradient(155deg, #171616 0%, #22201c 40%, #151311 100%)', panelBg: 'rgba(36,32,28,0.94)', sound: 'ambient',  scanlines: false, style: 'arctic'   },
+  { id: 'diamond-vault',   label: '💎 Diamond Vault',   accent: '#bce8ff', glow: '#ecfbff', sub: '#8bc4d9', category: 'packages', bg: 'linear-gradient(165deg, #0a0e12 0%, #0d141d 45%, #080c10 100%)', panelBg: 'rgba(12,20,28,0.92)', sound: 'digital',  scanlines: false, style: 'metal'    },
+  { id: 'stained-glass',   label: '🪟 Stained Glass',   accent: '#ffd37a', glow: '#ffe7b0', sub: '#c996ff', category: 'packages', bg: 'linear-gradient(150deg, #140b14 0%, #0f1526 50%, #191008 100%)', panelBg: 'rgba(24,18,34,0.92)', sound: 'synth',    scanlines: false, style: 'ocean'    },
 
   // ── TECH & CYBER ──────────────────────────────────
   { id: 'cyan', label: 'Cyan Matrix', accent: '#00ffff', glow: '#00fff2', sub: '#00ff88', category: 'tech', bg: 'linear-gradient(135deg, #000a0f, #001a1a)', panelBg: 'rgba(0,0,0,0.75)', sound: 'digital', scanlines: true },
@@ -1556,8 +1559,13 @@ export default function App() {
           ? `${mediaBase}${result.video_url}`
           : `${apiBase}${result.video_url}`;
         setVideoAvatarUrl(resolvedUrl);
-        setVideoShouldAutoplay(true);
-        showToast(`Video created${result.mode === 'wav2lip' ? ' with true lip-sync!' : ''}`, 'success');
+        const hasGeneratedSpeech = result.mode === 'wav2lip' || result.mode === 'audio_mux';
+        setVideoShouldAutoplay(hasGeneratedSpeech);
+        if (hasGeneratedSpeech) {
+          showToast(`Video created${result.mode === 'wav2lip' ? ' with true lip-sync!' : ' with speech'}`, 'success');
+        } else {
+          showToast('Video loaded. Add ELEVENLABS_API_KEY in .env, then restart backend for speech.', 'warn');
+        }
       }
     } catch (err) {
       console.error('Video generation error:', err);
@@ -4141,9 +4149,9 @@ export default function App() {
                     {(memoryItems || []).slice().reverse().map((item, idx) => (
                       <Box key={`${item.id || item.timestamp}-${idx}`} className="board-row" sx={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }} title={formatFullDateTime(item.timestamp || item.created_at || Date.now())}>
                         <Box sx={{ width: '100%', pr: 1 }}>
-                          {item.title && (
+                          {(item.title || (item.content?.trim()?.slice(0, 60) + ((item.content?.trim()?.length || 0) > 60 ? '...' : ''))) && (
                             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.95)', mb: 0.5 }}>
-                              {item.title}
+                              {item.title || (item.content?.trim()?.slice(0, 60) + ((item.content?.trim()?.length || 0) > 60 ? '...' : ''))}
                             </Typography>
                           )}
                           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -4174,20 +4182,20 @@ export default function App() {
                         >
                           <MoreVertIcon fontSize="small" />
                         </IconButton>
-                        <Menu
-                          anchorEl={memoryMenuAnchor}
-                          open={memoryMenuItem?.id === item.id || memoryMenuItem?.timestamp === item.timestamp}
-                          onClose={() => { setMemoryMenuAnchor(null); setMemoryMenuItem(null); }}
-                          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                        >
-                          <MenuItem onClick={() => deleteMemory(item.id)}>
-                            <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-                            Delete
-                          </MenuItem>
-                        </Menu>
                       </Box>
                     ))}
+                    <Menu
+                      anchorEl={memoryMenuAnchor}
+                      open={Boolean(memoryMenuAnchor)}
+                      onClose={() => { setMemoryMenuAnchor(null); setMemoryMenuItem(null); }}
+                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    >
+                      <MenuItem onClick={() => memoryMenuItem?.id && deleteMemory(memoryMenuItem.id)}>
+                        <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+                        Delete
+                      </MenuItem>
+                    </Menu>
                     {!memoryItems?.length && !memoryLoading && (
                       <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
                         {selectedTags.length > 0 ? `No memories with tags: ${selectedTags.join(', ')}` : 'Nothing stored for this category yet.'}
@@ -7242,6 +7250,32 @@ export default function App() {
                 {renderActiveBoard()}
               </div>
             </DndContext>
+
+            <Tooltip title="Open Threads">
+              <Button
+                variant="contained"
+                startIcon={<HistoryRounded />}
+                onClick={() => setActiveSection('chat')}
+                sx={{
+                  position: 'fixed',
+                  right: 18,
+                  bottom: 18,
+                  zIndex: 1300,
+                  bgcolor: 'rgba(20,20,28,0.94)',
+                  border: '1px solid rgba(218,165,32,0.45)',
+                  color: '#f7e7bf',
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  boxShadow: '0 12px 28px rgba(0,0,0,0.5), 0 0 24px rgba(218,165,32,0.12)',
+                  '&:hover': {
+                    bgcolor: 'rgba(32,32,44,0.96)',
+                    boxShadow: '0 16px 32px rgba(0,0,0,0.6), 0 0 32px rgba(218,165,32,0.18)',
+                  },
+                }}
+              >
+                Threads ({threads.length})
+              </Button>
+            </Tooltip>
           </section>
         </main>
       </Box>

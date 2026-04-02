@@ -9,7 +9,7 @@ import json
 import time
 import datetime
 from typing import List, Dict, Optional, Any
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, JSON, Boolean, Float
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, JSON, Boolean, Float, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
@@ -225,6 +225,7 @@ class PersistentMemoryDB:
     def get_session(self) -> Session:
         """Get database session (initializes DB on first call)"""
         self._ensure_initialized()
+        self.ensure_memory_schema()
         return self.SessionLocal()
     
     # === THREADS ===
@@ -331,12 +332,13 @@ class PersistentMemoryDB:
     
     # === MEMORY ===
     
-    def add_memory(self, category: str, content: str, importance: int = 5, tags: Optional[List[str]] = None, metadata: Optional[Dict] = None) -> Dict:
+    def add_memory(self, category: str, content: str, importance: int = 5, tags: Optional[List[str]] = None, metadata: Optional[Dict] = None, title: Optional[str] = None) -> Dict:
         """Add memory entry"""
         session = self.get_session()
         try:
             memory = Memory(
                 category=category,
+                title=title,
                 content=content,
                 importance=importance,
                 tags=tags or [],
@@ -970,9 +972,16 @@ class PersistentMemoryDB:
     
     def _memory_to_dict(self, memory: Memory) -> Dict:
         """Convert Memory to dict"""
+        title = memory.title
+        if not title and isinstance(memory.meta_data, dict):
+            title = memory.meta_data.get("title")
+        if not title:
+            snippet = (memory.content or "").strip()
+            title = (snippet[:50] + "...") if len(snippet) > 50 else snippet
         return {
             "id": memory.id,
             "category": memory.category,
+            "title": title,
             "content": memory.content,
             "importance": memory.importance,
             "created_at": memory.created_at.isoformat() if memory.created_at else None,
@@ -980,6 +989,26 @@ class PersistentMemoryDB:
             "tags": memory.tags or [],
             "metadata": memory.meta_data or {}
         }
+
+    def ensure_memory_schema(self) -> None:
+        """Apply lightweight schema migrations for SQLite deployments."""
+        if not self.SessionLocal:
+            return
+        session = self.SessionLocal()
+        try:
+            dialect = session.bind.dialect.name if session.bind else ""
+            if dialect != "sqlite":
+                return
+
+            columns = session.execute(text("PRAGMA table_info(memories)")).fetchall()
+            column_names = {row[1] for row in columns}
+            if "title" not in column_names:
+                session.execute(text("ALTER TABLE memories ADD COLUMN title VARCHAR"))
+                session.commit()
+        except Exception:
+            session.rollback()
+        finally:
+            session.close()
     
     def _task_to_dict(self, task: Task) -> Dict:
         """Convert Task to dict"""

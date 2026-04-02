@@ -1891,12 +1891,19 @@ async def create_memory(data: dict):
         content = data.get("content", "")
         importance = data.get("importance", 5)
         tags = data.get("tags", [])
-        
-        # Store title in meta_data if provided
-        memory = memory_db.add_memory(category, content, importance, tags)
-        if title and hasattr(memory, 'title'):
-            memory.title = title
-            memory_db.session.commit()
+
+        metadata = data.get("metadata", {}) or {}
+        if title:
+            metadata["title"] = title
+
+        memory = memory_db.add_memory(
+            category=category,
+            content=content,
+            importance=importance,
+            tags=tags,
+            metadata=metadata,
+            title=title or None,
+        )
         return {"status": "success", "memory": memory}
     except Exception as e:
         print(f"❌ Error creating memory: {e}")
@@ -9136,10 +9143,22 @@ EDGE_TTS_VOICES = []
 @app.get("/api/tts/voices")
 async def get_tts_voices():
     """Return all available TTS voices – ElevenLabs first, then Edge-TTS"""
-    # Only serve ElevenLabs voices (Edge voices sound robotic)
-    lily = next((v for v in ELEVENLABS_VOICES if v["name"] == "Lily"), ELEVENLABS_VOICES[0] if ELEVENLABS_VOICES else None)
+    voices = list(ELEVENLABS_VOICES)
+    configured_voice = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
+    if configured_voice and not any(v.get("id") == f"eleven:{configured_voice}" for v in voices):
+        voices.insert(0, {
+            "id": f"eleven:{configured_voice}",
+            "name": "Configured Default Voice",
+            "gender": "unknown",
+            "locale": "custom",
+            "style": "default",
+            "provider": "elevenlabs",
+            "preview_url": "",
+        })
+
+    lily = next((v for v in voices if v["name"] == "Lily"), voices[0] if voices else None)
     return {
-        "voices": ELEVENLABS_VOICES,
+        "voices": voices,
         "elevenlabs_available": ELEVENLABS_AVAILABLE,
         "edge_available": False,
         "default": lily["id"] if lily else "",
@@ -9305,6 +9324,9 @@ class VideoAvatarRequest(BaseModel):
 
 
 def _resolve_default_elevenlabs_voice() -> str:
+    configured_voice = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
+    if configured_voice:
+        return f"eleven:{configured_voice}"
     lily = next((v for v in ELEVENLABS_VOICES if v.get("name") == "Lily"), None)
     if lily and lily.get("id"):
         return lily["id"]
