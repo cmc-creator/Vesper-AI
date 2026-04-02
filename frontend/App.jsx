@@ -6141,6 +6141,7 @@ export default function App() {
             {/* Thread List - Gemini Style */}
             <Box sx={{ 
               flex: 1,
+              minHeight: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
               display: 'flex',
@@ -6405,30 +6406,30 @@ export default function App() {
                 </Typography>
               )}
             </Box>
-          </Box>
-
-          {/* New Chat Button - Bottom */}
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={startNewChat}
-            startIcon={<AddIcon />}
-            sx={{
-              color: 'var(--accent)',
-              borderColor: 'var(--accent)',
-              borderRadius: '8px',
-              textTransform: 'none',
-              fontWeight: 600,
-              py: 1,
-              mt: 1,
-              '&:hover': {
-                bgcolor: 'rgba(0,255,255,0.1)',
+            {/* New Chat Button - always pinned at bottom of sidebar */}
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={startNewChat}
+              startIcon={<AddIcon />}
+              sx={{
+                color: 'var(--accent)',
                 borderColor: 'var(--accent)',
-              }
-            }}
-          >
-            New Chat
-          </Button>
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 600,
+                py: 1,
+                mt: 1,
+                flexShrink: 0,
+                '&:hover': {
+                  bgcolor: 'rgba(0,255,255,0.1)',
+                  borderColor: 'var(--accent)',
+                }
+              }}
+            >
+              New Chat
+            </Button>
+          </Box>
         </aside>
 
         {/* Mobile backdrop – closes sidebar when tapped */}
