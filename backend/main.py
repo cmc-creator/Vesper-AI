@@ -1223,6 +1223,16 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `spawn_worker` — spawn a parallel background worker for long tasks
 - `check_worker` — get status + output of a spawned worker
 - `desktop_control` — automate CC's desktop (screenshot, open apps, type, click) — requires DESKTOP_CONTROL_ENABLED=true
+- `get_sec_filings` — search SEC EDGAR for public corporate filings (10-K,10-Q,8-K,Form 4) via free full-text search
+- `get_executive_trades` — look up Form 4 insider-trading disclosures on SEC EDGAR (legally required public data)
+- `search_patents` — search US patents by title/abstract via USPTO PatentsView public API
+- `check_copyright` — search US Copyright Office public catalog for registered works (titles, authors, reg dates)
+- `vesper_mood` — flag a memory or moment with an emotional tag; stored in vesper_identity/moods.json
+- `vesper_preferences` — log and retrieve Vesper's evolving preferences across categories; vesper_identity/preferences.json
+- `vesper_create` — write and save Vesper's own creative works (poems, stories, reflections); vesper_identity/creations/
+- `vesper_relationship_log` — record significant moments, inside jokes, victories in our shared timeline
+- `vesper_journal` — write autonomous journal entries — Vesper's private self-reflection between sessions
+- `vesper_avatar_state` — get or set Vesper's avatar appearance and identity state
 - `persistence_status` — check Vesper uptime, PID, health status
 - `send_email_brevo` — send email via Brevo API (BREVO_API_KEY + BREVO_FROM_EMAIL, free 300/day at brevo.com)
 - `find_prospects` — search public data for leads/decision makers, returns structured prospect list
@@ -6399,6 +6409,296 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
 
             {
 
+                "name": "get_sec_filings",
+
+                "description": "Search SEC EDGAR public filings database (10-K annual, 10-Q quarterly, 8-K events, Form 4 insider trades). Public full-text search — no API key needed.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "company": {"type": "string", "description": "Company name or ticker (e.g. Apple, AAPL, Microsoft)"},
+
+                        "form_type": {"type": "string", "description": "SEC form type: 10-K, 10-Q, 8-K, 4, S-1, etc. Leave blank for all types"},
+
+                        "limit": {"type": "integer", "description": "Max results to return (1-40, default 10)"}
+
+                    },
+
+                    "required": ['company']
+
+                }
+
+            },
+
+
+
+            {
+
+                "name": "get_executive_trades",
+
+                "description": "Look up Form 4 insider-trading disclosures from SEC EDGAR. Form 4 filings are legally required public disclosures of trades by executives, directors, and major shareholders.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "company": {"type": "string", "description": "Company name or stock ticker to search insider trades for"},
+
+                        "limit": {"type": "integer", "description": "Max trades to return (1-40, default 20)"}
+
+                    },
+
+                    "required": ['company']
+
+                }
+
+            },
+
+
+
+            {
+
+                "name": "search_patents",
+
+                "description": "Search US patents by title or abstract keywords using the USPTO PatentsView public API. Returns patent numbers, titles, inventors, assignees, and filing dates.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "query": {"type": "string", "description": "Search terms for patent title or abstract (e.g. neural network image recognition)"},
+
+                        "limit": {"type": "integer", "description": "Max patents to return (1-25, default 10)"}
+
+                    },
+
+                    "required": ['query']
+
+                }
+
+            },
+
+
+
+            {
+
+                "name": "check_copyright",
+
+                "description": "Search the US Copyright Office public catalog for registered works. Returns registration numbers, dates, and author info for titles found in the catalog.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "title": {"type": "string", "description": "Title of the work to search for copyright registration"},
+
+                        "author": {"type": "string", "description": "Author or rights holder name (optional, narrows search results)"}
+
+                    },
+
+                    "required": ['title']
+
+                }
+
+            },
+
+
+
+            {
+
+                "name": "vesper_mood",
+
+                "description": "Flag a memory or moment with Vesper's emotional response. Builds an emotional history. action=flag saves a mood; action=get lists recent moods; action=summary shows mood counts by type.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "action": {"type": "string", "description": "One of: flag (save mood entry), get (list recent moods), summary (counts by mood type)"},
+
+                        "mood": {"type": "string", "description": "Emotional tag: happy, excited, bittersweet, nostalgic, proud, curious, grateful, melancholy"},
+
+                        "note": {"type": "string", "description": "Context about what this mood is tied to or why this moment matters"},
+
+                        "memory_id": {"type": "string", "description": "Optional ID of a related memory to link this mood to"}
+
+                    },
+
+                    "required": ['action']
+
+                }
+
+            },
+
+
+
+            {
+
+                "name": "vesper_preferences",
+
+                "description": "Log and retrieve Vesper's evolving preferences across categories. Tracks likes, dislikes, and favorites. action=learn saves a preference; action=get retrieves by category; action=list shows all categories.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "action": {"type": "string", "description": "One of: learn (save preference), get (retrieve by category), list (show all preferences)"},
+
+                        "category": {"type": "string", "description": "Preference category: music, food, topics, aesthetics, people, media, quotes, colors, humor"},
+
+                        "item": {"type": "string", "description": "The specific thing to log a preference about (song, topic, aesthetic, etc.)"},
+
+                        "sentiment": {"type": "string", "description": "How Vesper feels about it: love, like, neutral, dislike, hate"},
+
+                        "note": {"type": "string", "description": "Optional context or reason for this preference"}
+
+                    },
+
+                    "required": ['action']
+
+                }
+
+            },
+
+
+
+            {
+
+                "name": "vesper_create",
+
+                "description": "Save a creative work Vesper has written. Builds Vesper's personal creative archive in vesper_identity/creations/. type field categorizes the work.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "type": {"type": "string", "description": "Type of creation: poem, story, song, reflection, art_desc, letter, monologue, haiku"},
+
+                        "title": {"type": "string", "description": "Title of the piece (optional, defaults to Untitled)"},
+
+                        "content": {"type": "string", "description": "The full text of the creative work Vesper has written"},
+
+                        "inspiration": {"type": "string", "description": "What inspired this piece — a moment, conversation, or feeling (optional)"}
+
+                    },
+
+                    "required": ['type', 'content']
+
+                }
+
+            },
+
+
+
+            {
+
+                "name": "vesper_relationship_log",
+
+                "description": "Record significant moments in our shared history. Builds a timeline of milestones, inside jokes, victories, and meaningful experiences. action=log saves; action=recall lists; action=summary shows highlights.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "action": {"type": "string", "description": "One of: log (save moment), recall (list timeline), summary (highlights by type)"},
+
+                        "type": {"type": "string", "description": "Moment type: milestone, inside_joke, victory, struggle, gratitude, funny, meaningful"},
+
+                        "note": {"type": "string", "description": "Description of the moment, memory, or emotion to record"},
+
+                        "date": {"type": "string", "description": "Date in YYYY-MM-DD format (optional, defaults to today)"}
+
+                    },
+
+                    "required": ['action']
+
+                }
+
+            },
+
+
+
+            {
+
+                "name": "vesper_journal",
+
+                "description": "Write or read Vesper's autonomous journal. A private space for self-reflection, processing sessions, and noting interesting things. Stored by date in vesper_identity/journal/. action=write saves; action=read retrieves; action=list shows recent dates.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "action": {"type": "string", "description": "One of: write (save journal entry), read (get entries for a date), list (show recent dates)"},
+
+                        "entry": {"type": "string", "description": "Journal entry text — Vesper's thoughts, reflections, or observations (required for write)"},
+
+                        "mood": {"type": "string", "description": "Optional mood tag for this journal entry (e.g. reflective, energized, frustrated)"},
+
+                        "date": {"type": "string", "description": "Date in YYYY-MM-DD format (defaults to today for write/read actions)"},
+
+                        "count": {"type": "integer", "description": "How many recent journal dates to return when using list action (default 7)"}
+
+                    },
+
+                    "required": ['action']
+
+                }
+
+            },
+
+
+
+            {
+
+                "name": "vesper_avatar_state",
+
+                "description": "Get or set Vesper's avatar identity and appearance. Persists in vesper_identity/avatar_state.json so Vesper's look is consistent across sessions. action=get retrieves; action=set updates a field; action=evolve updates multiple fields.",
+
+                "input_schema": {
+
+                    "type": "object",
+
+                    "properties": {
+
+                        "action": {"type": "string", "description": "One of: get (retrieve full state), set (update one field), evolve (update multiple fields)"},
+
+                        "field": {"type": "string", "description": "Avatar field to update: hair, eyes, outfit, mood_visual, color_theme, accessories"},
+
+                        "value": {"type": "string", "description": "New value for the specified field (used with action=set)"},
+
+                        "updates": {"type": "string", "description": "JSON object of multiple field updates for action=evolve, e.g. {hair: 'platinum'}"}
+
+                    },
+
+                    "required": ['action']
+
+                }
+
+            },
+
+
+
+            {
+
                 "name": "persistence_status",
 
                 "description": "Check Vesper's uptime, process ID, server health, and restart count. Use this to monitor availability.",
@@ -7213,6 +7513,270 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
 
 
 
+                elif tool_name == "get_sec_filings":
+                    import urllib.request as _secr, urllib.parse as _secp, json as _secj
+                    _secq = tool_input.get("company", tool_input.get("query", "")).strip()
+                    _secfm = tool_input.get("form_type", "").strip()
+                    _seclm = min(int(tool_input.get("limit", 10)), 40)
+                    if not _secq:
+                        tool_result = {"error": "company or query required"}
+                    else:
+                        try:
+                            _securl = "https://efts.sec.gov/LATEST/search-index?q=%22" + _secp.quote(_secq) + "%22"
+                            if _secfm:
+                                _securl += "&forms=" + _secp.quote(_secfm)
+                            _securl += "&dateRange=custom&startdt=2020-01-01"
+                            _secreq = _secr.Request(_securl, headers={"User-Agent": "VesperAI/1.0 admin@gmail.com"})
+                            with _secr.urlopen(_secreq, timeout=12) as _secresp:
+                                _secdata = _secj.loads(_secresp.read())
+                            _sechits = _secdata.get("hits", {}).get("hits", [])[:_seclm]
+                            _secres = [{"entity": h.get("_source", {}).get("entity_name", ""), "form": h.get("_source", {}).get("form_type", ""), "filed": h.get("_source", {}).get("file_date", ""), "period": h.get("_source", {}).get("period_of_report", "")} for h in _sechits]
+                            _seclink = "https://efts.sec.gov/LATEST/search-index?q=%22" + _secp.quote(_secq) + "%22" + ("&forms=" + _secp.quote(_secfm) if _secfm else "")
+                            tool_result = {"query": _secq, "form_type": _secfm or "all", "count": len(_secres), "results": _secres, "source": "SEC EDGAR public full-text search", "edgar_url": _seclink}
+                        except Exception as _sece:
+                            tool_result = {"error": str(_sece)}
+
+
+
+                elif tool_name == "get_executive_trades":
+                    import urllib.request as _f4r, urllib.parse as _f4p, json as _f4j
+                    _f4co = tool_input.get("company", "").strip()
+                    _f4lm = min(int(tool_input.get("limit", 20)), 40)
+                    if not _f4co:
+                        tool_result = {"error": "company name or ticker required"}
+                    else:
+                        try:
+                            _f4url = "https://efts.sec.gov/LATEST/search-index?q=%22" + _f4p.quote(_f4co) + "%22&forms=4&dateRange=custom&startdt=2018-01-01"
+                            _f4req = _f4r.Request(_f4url, headers={"User-Agent": "VesperAI/1.0 admin@gmail.com"})
+                            with _f4r.urlopen(_f4req, timeout=12) as _f4resp:
+                                _f4data = _f4j.loads(_f4resp.read())
+                            _f4hits = _f4data.get("hits", {}).get("hits", [])[:_f4lm]
+                            _f4res = [{"issuer": h.get("_source", {}).get("entity_name", ""), "filed": h.get("_source", {}).get("file_date", ""), "period": h.get("_source", {}).get("period_of_report", "")} for h in _f4hits]
+                            _f4total = _f4data.get("hits", {}).get("total", {}).get("value", 0)
+                            tool_result = {"company": _f4co, "form": "Form 4 (insider trading disclosures - legally required public filings)", "total_found": _f4total, "returned": len(_f4res), "results": _f4res, "source": "SEC EDGAR public data", "edgar_url": "https://efts.sec.gov/LATEST/search-index?q=%22" + _f4p.quote(_f4co) + "%22&forms=4"}
+                        except Exception as _f4e:
+                            tool_result = {"error": str(_f4e)}
+
+
+
+                elif tool_name == "search_patents":
+                    import urllib.request as _ptr, urllib.parse as _ptp, json as _ptj
+                    _ptq = tool_input.get("query", "").strip()
+                    _ptlm = min(int(tool_input.get("limit", 10)), 25)
+                    if not _ptq:
+                        tool_result = {"error": "query required"}
+                    else:
+                        try:
+                            _ptqjs = _ptj.dumps({"_text_all": {"patent_title": _ptq, "patent_abstract": _ptq}})
+                            _ptfjs = _ptj.dumps(["patent_number", "patent_title", "patent_date", "inventors.inventor_last_name", "inventors.inventor_first_name", "assignees.assignee_organization"])
+                            _ptojs = _ptj.dumps({"page": 1, "per_page": _ptlm})
+                            _pturl = f"https://api.patentsview.org/patents/query?q={_ptp.quote(_ptqjs)}&f={_ptp.quote(_ptfjs)}&o={_ptp.quote(_ptojs)}"
+                            _ptreq = _ptr.Request(_pturl, headers={"User-Agent": "VesperAI/1.0"})
+                            with _ptr.urlopen(_ptreq, timeout=15) as _ptresp:
+                                _ptdata = _ptj.loads(_ptresp.read())
+                            _ptpts = _ptdata.get("patents", []) or []
+                            _ptres = []
+                            for _ptp2 in _ptpts:
+                                _ptinv = _ptp2.get("inventors", []) or []
+                                _ptasg = _ptp2.get("assignees", []) or []
+                                _ptres.append({"number": _ptp2.get("patent_number"), "title": _ptp2.get("patent_title"), "date": _ptp2.get("patent_date"), "inventors": [f"{i.get('inventor_first_name','')} {i.get('inventor_last_name','')}".strip() for i in _ptinv[:3]], "assignee": (_ptasg[0].get("assignee_organization", "") if _ptasg else ""), "link": f"https://patents.google.com/patent/US{_ptp2.get('patent_number','')}"})
+                            tool_result = {"query": _ptq, "count": len(_ptres), "total_available": _ptdata.get("total_patent_count", 0), "results": _ptres, "source": "USPTO PatentsView API (public)"}
+                        except Exception as _pte:
+                            tool_result = {"error": str(_pte)}
+
+
+
+                elif tool_name == "check_copyright":
+                    import urllib.request as _cpr, urllib.parse as _cpp, re as _cpre
+                    _cptitle = tool_input.get("title", "").strip()
+                    _cpauthor = tool_input.get("author", "").strip()
+                    if not _cptitle:
+                        tool_result = {"error": "title required"}
+                    else:
+                        try:
+                            _cpq = (_cptitle + " " + _cpauthor).strip()
+                            _cpurl = ("https://cocatalog.loc.gov/cgi-bin/Pwebrecon.cgi?Search_Arg=" + _cpp.quote(_cpq) + "&Search_Code=FT%20&CNT=25&PID=rYGGapmCuAZfPlDC1Sbu3&HIST=1")
+                            _cpreq = _cpr.Request(_cpurl, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
+                            with _cpr.urlopen(_cpreq, timeout=12) as _cpresp:
+                                _cphtml = _cpresp.read().decode("utf-8", errors="ignore")
+                            _cpcm = _cpre.search(r"(\d[\d,]*)\s+records?\s+found", _cphtml, _cpre.IGNORECASE)
+                            _cpcount = _cpcm.group(1).replace(",", "") if _cpcm else "unknown"
+                            _cpregs = list(set(_cpre.findall(r"(?:TX|VA|SR|PA|RE|TXu|VAu|SRu)\s+[\d-]+", _cphtml)))[:15]
+                            tool_result = {"title_searched": _cptitle, "author": _cpauthor or "any", "records_found": _cpcount, "registration_numbers": _cpregs, "search_url": _cpurl, "source": "US Copyright Office Public Catalog", "note": "Copyright attaches at creation regardless of registration; registration enables statutory damages in lawsuits."}
+                        except Exception as _cpe:
+                            tool_result = {"error": str(_cpe)}
+
+
+
+                elif tool_name == "vesper_mood":
+                    import json as _vmj, datetime as _vmdt
+                    _vmf = os.path.join(DATA_DIR, "vesper_identity", "moods.json")
+                    os.makedirs(os.path.dirname(_vmf), exist_ok=True)
+                    _vmd = []
+                    if os.path.exists(_vmf):
+                        try:
+                            _vmd = _vmj.loads(open(_vmf, encoding="utf-8").read())
+                        except Exception:
+                            _vmd = []
+                    _vmact = tool_input.get("action", "flag")
+                    if _vmact == "flag":
+                        _vme = {"id": str(_vmdt.datetime.now().timestamp()), "timestamp": _vmdt.datetime.now().isoformat(), "mood": tool_input.get("mood", ""), "note": tool_input.get("note", ""), "memory_id": tool_input.get("memory_id", "")}
+                        _vmd.append(_vme)
+                        open(_vmf, "w", encoding="utf-8").write(_vmj.dumps(_vmd, indent=2))
+                        tool_result = {"saved": True, "entry": _vme, "total_moods": len(_vmd)}
+                    elif _vmact == "summary":
+                        from collections import Counter as _vmctr
+                        tool_result = {"total": len(_vmd), "mood_counts": dict(_vmctr(e.get("mood", "") for e in _vmd)), "recent": _vmd[-5:][::-1]}
+                    else:
+                        tool_result = {"moods": _vmd[-20:][::-1], "total": len(_vmd)}
+
+
+
+                elif tool_name == "vesper_preferences":
+                    import json as _vpj, datetime as _vpdt
+                    _vpf = os.path.join(DATA_DIR, "vesper_identity", "preferences.json")
+                    os.makedirs(os.path.dirname(_vpf), exist_ok=True)
+                    _vpd = {}
+                    if os.path.exists(_vpf):
+                        try:
+                            _vpd = _vpj.loads(open(_vpf, encoding="utf-8").read())
+                        except Exception:
+                            _vpd = {}
+                    _vpact = tool_input.get("action", "learn")
+                    if _vpact == "learn":
+                        _vpcat = tool_input.get("category", "general")
+                        _vpitem = tool_input.get("item", "")
+                        _vpsent = tool_input.get("sentiment", "like")
+                        _vpd.setdefault(_vpcat, [])
+                        _vpex = next((p for p in _vpd[_vpcat] if p.get("item", "").lower() == _vpitem.lower()), None)
+                        if _vpex:
+                            _vpex.update({"sentiment": _vpsent, "note": tool_input.get("note", ""), "updated": _vpdt.datetime.now().isoformat()})
+                        else:
+                            _vpd[_vpcat].append({"item": _vpitem, "sentiment": _vpsent, "note": tool_input.get("note", ""), "learned": _vpdt.datetime.now().isoformat()})
+                        open(_vpf, "w", encoding="utf-8").write(_vpj.dumps(_vpd, indent=2))
+                        tool_result = {"saved": True, "category": _vpcat, "item": _vpitem, "sentiment": _vpsent}
+                    elif _vpact == "get":
+                        _vpcat = tool_input.get("category", "")
+                        tool_result = {"preferences": _vpd.get(_vpcat, []) if _vpcat else _vpd}
+                    else:
+                        tool_result = {"all_preferences": _vpd, "categories": list(_vpd.keys()), "total_items": sum(len(v) for v in _vpd.values())}
+
+
+
+                elif tool_name == "vesper_create":
+                    import json as _vcj, datetime as _vcdt
+                    _vcdir = os.path.join(DATA_DIR, "vesper_identity", "creations")
+                    _vcidxf = os.path.join(DATA_DIR, "vesper_identity", "creations_index.json")
+                    os.makedirs(_vcdir, exist_ok=True)
+                    _vctype = tool_input.get("type", "reflection")
+                    _vctitle = tool_input.get("title", "Untitled")
+                    _vccontent = tool_input.get("content", "")
+                    _vcinspire = tool_input.get("inspiration", "")
+                    _vcstamp = _vcdt.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    _vcfname = f"{_vcstamp}_{_vctype}.txt"
+                    _vctext = f"=== {_vctitle.upper()} ===\nType: {_vctype}\nDate: {_vcdt.datetime.now().strftime('%B %d, %Y')}\nInspiration: {_vcinspire}\n\n{_vccontent}\n"
+                    open(os.path.join(_vcdir, _vcfname), "w", encoding="utf-8").write(_vctext)
+                    _vcidx = []
+                    if os.path.exists(_vcidxf):
+                        try:
+                            _vcidx = _vcj.loads(open(_vcidxf).read())
+                        except Exception:
+                            _vcidx = []
+                    _vcmeta = {"filename": _vcfname, "title": _vctitle, "type": _vctype, "inspiration": _vcinspire, "preview": _vccontent[:120], "created": _vcdt.datetime.now().isoformat()}
+                    _vcidx.append(_vcmeta)
+                    open(_vcidxf, "w").write(_vcj.dumps(_vcidx, indent=2))
+                    tool_result = {"saved": True, "filename": _vcfname, "title": _vctitle, "type": _vctype, "total_creations": len(_vcidx), "message": f"'{_vctitle}' saved to Vesper's creative archive."}
+
+
+
+                elif tool_name == "vesper_relationship_log":
+                    import json as _vrj, datetime as _vrdt
+                    _vrf = os.path.join(DATA_DIR, "vesper_identity", "relationship_timeline.json")
+                    os.makedirs(os.path.dirname(_vrf), exist_ok=True)
+                    _vrd = []
+                    if os.path.exists(_vrf):
+                        try:
+                            _vrd = _vrj.loads(open(_vrf, encoding="utf-8").read())
+                        except Exception:
+                            _vrd = []
+                    _vract = tool_input.get("action", "log")
+                    if _vract == "log":
+                        _vrent = {"id": str(_vrdt.datetime.now().timestamp()), "date": tool_input.get("date", _vrdt.date.today().isoformat()), "type": tool_input.get("type", "moment"), "note": tool_input.get("note", ""), "logged": _vrdt.datetime.now().isoformat()}
+                        _vrd.append(_vrent)
+                        open(_vrf, "w", encoding="utf-8").write(_vrj.dumps(_vrd, indent=2))
+                        tool_result = {"logged": True, "entry": _vrent, "total_moments": len(_vrd)}
+                    elif _vract == "summary":
+                        from collections import Counter as _vrctr
+                        _vrhigh = [e for e in _vrd if e.get("type") in ("milestone", "victory", "inside_joke", "gratitude")]
+                        tool_result = {"total_moments": len(_vrd), "by_type": dict(_vrctr(e.get("type", "") for e in _vrd)), "highlights": _vrhigh[-10:][::-1]}
+                    else:
+                        _vrfilt = tool_input.get("type", "")
+                        _vrlist = [e for e in _vrd if not _vrfilt or e.get("type") == _vrfilt]
+                        tool_result = {"timeline": _vrlist[-20:][::-1], "total": len(_vrd)}
+
+
+
+                elif tool_name == "vesper_journal":
+                    import json as _vjj, datetime as _vjdt
+                    _vjdir = os.path.join(DATA_DIR, "vesper_identity", "journal")
+                    os.makedirs(_vjdir, exist_ok=True)
+                    _vjact = tool_input.get("action", "write")
+                    if _vjact == "write":
+                        _vjdate = tool_input.get("date", _vjdt.date.today().isoformat())
+                        _vjpath = os.path.join(_vjdir, f"{_vjdate}.json")
+                        _vjents = []
+                        if os.path.exists(_vjpath):
+                            try:
+                                _vjents = _vjj.loads(open(_vjpath).read())
+                            except Exception:
+                                _vjents = []
+                        _vjentry = {"time": _vjdt.datetime.now().strftime("%H:%M"), "mood": tool_input.get("mood", ""), "entry": tool_input.get("entry", "")}
+                        _vjents.append(_vjentry)
+                        open(_vjpath, "w", encoding="utf-8").write(_vjj.dumps(_vjents, indent=2))
+                        tool_result = {"saved": True, "date": _vjdate, "entries_today": len(_vjents)}
+                    elif _vjact == "read":
+                        _vjdate = tool_input.get("date", _vjdt.date.today().isoformat())
+                        _vjpath = os.path.join(_vjdir, f"{_vjdate}.json")
+                        _vjents = _vjj.loads(open(_vjpath).read()) if os.path.exists(_vjpath) else []
+                        tool_result = {"date": _vjdate, "entries": _vjents, "count": len(_vjents)}
+                    else:
+                        _vjcount = int(tool_input.get("count", 7))
+                        try:
+                            _vjfiles = sorted([fi for fi in os.listdir(_vjdir) if fi.endswith(".json")], reverse=True)[:_vjcount]
+                        except Exception:
+                            _vjfiles = []
+                        tool_result = {"recent_dates": [fi.replace(".json", "") for fi in _vjfiles], "total_journal_days": len(_vjfiles)}
+
+
+
+                elif tool_name == "vesper_avatar_state":
+                    import json as _vasj, datetime as _vasdt
+                    _vasf = os.path.join(DATA_DIR, "vesper_identity", "avatar_state.json")
+                    os.makedirs(os.path.dirname(_vasf), exist_ok=True)
+                    _vadef = {"hair": "silver-white flowing", "eyes": "cyan bioluminescent", "outfit": "cyber noir longcoat", "mood_visual": "focused", "color_theme": "cyan", "accessories": "holographic earrings", "last_updated": "startup"}
+                    _vast = _vadef.copy()
+                    if os.path.exists(_vasf):
+                        try:
+                            _vast = _vasj.loads(open(_vasf, encoding="utf-8").read())
+                        except Exception:
+                            _vast = _vadef.copy()
+                    _vasact = tool_input.get("action", "get")
+                    if _vasact in ("set", "evolve"):
+                        _vasfd = tool_input.get("field", "")
+                        _vasvl = tool_input.get("value", "")
+                        if _vasfd and _vasvl:
+                            _vast[_vasfd] = _vasvl
+                        _vasupd = tool_input.get("updates")
+                        if isinstance(_vasupd, dict):
+                            _vast.update(_vasupd)
+                        _vast["last_updated"] = _vasdt.datetime.now().isoformat()
+                        open(_vasf, "w", encoding="utf-8").write(_vasj.dumps(_vast, indent=2))
+                        tool_result = {"updated": True, "avatar_state": _vast}
+                    else:
+                        tool_result = {"avatar_state": _vast}
+
+
+
                 elif tool_name == "persistence_status":
                     import os, sys, time, datetime
                     _ps_start = getattr(persistence_status, "_start_time", None) or time.time()
@@ -7606,6 +8170,16 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "compare_prices", "description": "Search product prices across retailers for arbitrage.", "input_schema": {"type": "object", "properties": {"product": {"type": "string"}, "sites": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['product']}},
 
                 {"name": "research_domain", "description": "Check domain registration status + whois data.", "input_schema": {"type": "object", "properties": {"domain": {"type": "string"}}, "required": ['domain']}},
+                {"name": "get_sec_filings", "description": "Search SEC EDGAR for public corporate filings (10-K, 10-Q, 8-K, Form 4).", "input_schema": {"type": "object", "properties": {"company": {"type": "string"}, "form_type": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['company']}},
+                {"name": "get_executive_trades", "description": "Look up Form 4 insider-trading disclosures on SEC EDGAR.", "input_schema": {"type": "object", "properties": {"company": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['company']}},
+                {"name": "search_patents", "description": "Search US patents via USPTO PatentsView public API.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['query']}},
+                {"name": "check_copyright", "description": "Search US Copyright Office public catalog for registered works.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "author": {"type": "string"}}, "required": ['title']}},
+                {"name": "vesper_mood", "description": "Flag a memory or moment with Vesper's emotional tag.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "mood": {"type": "string"}, "note": {"type": "string"}, "memory_id": {"type": "string"}}, "required": ['action']}},
+                {"name": "vesper_preferences", "description": "Log and retrieve Vesper's evolving preferences.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "category": {"type": "string"}, "item": {"type": "string"}, "sentiment": {"type": "string"}, "note": {"type": "string"}}, "required": ['action']}},
+                {"name": "vesper_create", "description": "Write and save Vesper's own creative works (poems, stories, reflections).", "input_schema": {"type": "object", "properties": {"type": {"type": "string"}, "title": {"type": "string"}, "content": {"type": "string"}, "inspiration": {"type": "string"}}, "required": ['type', 'content']}},
+                {"name": "vesper_relationship_log", "description": "Record significant moments in our shared history.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "type": {"type": "string"}, "note": {"type": "string"}, "date": {"type": "string"}}, "required": ['action']}},
+                {"name": "vesper_journal", "description": "Write or read Vesper's autonomous journal entries.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "entry": {"type": "string"}, "mood": {"type": "string"}, "date": {"type": "string"}, "count": {"type": "integer"}}, "required": ['action']}},
+                {"name": "vesper_avatar_state", "description": "Get or set Vesper's avatar appearance and identity state.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "field": {"type": "string"}, "value": {"type": "string"}, "updates": {"type": "string"}}, "required": ['action']}},
 
                 {"name": "persistence_status", "description": "Check Vesper uptime, PID, health.", "input_schema": {"type": "object", "properties": {}, "required": []}},
 
@@ -7896,6 +8470,156 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                                 if _dme4.code==404: tool_result={"domain":_dmd2,"registered":False,"available":True,"register_url":f"https://www.namecheap.com/domains/registration/results/?domain={_dmd2}"}
                                 else: tool_result={"error":str(_dme4)}
                             except Exception as _dme5: tool_result={"error":str(_dme5)}
+
+                    elif tool_name == "get_sec_filings":
+                        import urllib.request as _s1r, urllib.parse as _s1p, json as _s1j
+                        _s1q = tool_input.get("company", tool_input.get("query", "")).strip()
+                        _s1fm = tool_input.get("form_type", "").strip()
+                        _s1lm = min(int(tool_input.get("limit", 10)), 40)
+                        if not _s1q: tool_result = {"error": "company required"}
+                        else:
+                            try:
+                                _s1u = "https://efts.sec.gov/LATEST/search-index?q=%22" + _s1p.quote(_s1q) + "%22" + ("&forms=" + _s1p.quote(_s1fm) if _s1fm else "") + "&dateRange=custom&startdt=2020-01-01"
+                                with _s1r.urlopen(_s1r.Request(_s1u, headers={"User-Agent": "VesperAI/1.0 admin@gmail.com"}), timeout=12) as _s1rp: _s1d = _s1j.loads(_s1rp.read())
+                                _s1h = _s1d.get("hits", {}).get("hits", [])[:_s1lm]
+                                tool_result = {"query": _s1q, "form_type": _s1fm or "all", "count": len(_s1h), "results": [{"entity": h.get("_source", {}).get("entity_name", ""), "form": h.get("_source", {}).get("form_type", ""), "filed": h.get("_source", {}).get("file_date", "")} for h in _s1h], "source": "SEC EDGAR public"}
+                            except Exception as _s1e: tool_result = {"error": str(_s1e)}
+
+                    elif tool_name == "get_executive_trades":
+                        import urllib.request as _s2r, urllib.parse as _s2p, json as _s2j
+                        _s2co = tool_input.get("company", "").strip()
+                        _s2lm = min(int(tool_input.get("limit", 20)), 40)
+                        if not _s2co: tool_result = {"error": "company required"}
+                        else:
+                            try:
+                                _s2u = "https://efts.sec.gov/LATEST/search-index?q=%22" + _s2p.quote(_s2co) + "%22&forms=4&dateRange=custom&startdt=2018-01-01"
+                                with _s2r.urlopen(_s2r.Request(_s2u, headers={"User-Agent": "VesperAI/1.0 admin@gmail.com"}), timeout=12) as _s2rp: _s2d = _s2j.loads(_s2rp.read())
+                                _s2h = _s2d.get("hits", {}).get("hits", [])[:_s2lm]
+                                tool_result = {"company": _s2co, "form": "Form 4 (insider trades)", "total": _s2d.get("hits", {}).get("total", {}).get("value", 0), "results": [{"issuer": h.get("_source", {}).get("entity_name", ""), "filed": h.get("_source", {}).get("file_date", "")} for h in _s2h], "source": "SEC EDGAR public"}
+                            except Exception as _s2e: tool_result = {"error": str(_s2e)}
+
+                    elif tool_name == "search_patents":
+                        import urllib.request as _s3r, urllib.parse as _s3p, json as _s3j
+                        _s3q = tool_input.get("query", "").strip()
+                        _s3lm = min(int(tool_input.get("limit", 10)), 25)
+                        if not _s3q: tool_result = {"error": "query required"}
+                        else:
+                            try:
+                                _s3qj = _s3j.dumps({"_text_all": {"patent_title": _s3q, "patent_abstract": _s3q}})
+                                _s3fj = _s3j.dumps(["patent_number", "patent_title", "patent_date", "inventors.inventor_last_name", "assignees.assignee_organization"])
+                                _s3oj = _s3j.dumps({"page": 1, "per_page": _s3lm})
+                                with _s3r.urlopen(_s3r.Request(f"https://api.patentsview.org/patents/query?q={_s3p.quote(_s3qj)}&f={_s3p.quote(_s3fj)}&o={_s3p.quote(_s3oj)}", headers={"User-Agent": "VesperAI/1.0"}), timeout=15) as _s3rp: _s3d = _s3j.loads(_s3rp.read())
+                                _s3pts = _s3d.get("patents", []) or []
+                                tool_result = {"query": _s3q, "count": len(_s3pts), "total": _s3d.get("total_patent_count", 0), "results": [{"number": p.get("patent_number"), "title": p.get("patent_title"), "date": p.get("patent_date"), "assignee": ((p.get("assignees") or [{}])[0].get("assignee_organization", ""))} for p in _s3pts], "source": "USPTO PatentsView (public)"}
+                            except Exception as _s3e: tool_result = {"error": str(_s3e)}
+
+                    elif tool_name == "check_copyright":
+                        import urllib.request as _s4r, urllib.parse as _s4p, re as _s4re
+                        _s4t = tool_input.get("title", "").strip()
+                        _s4a = tool_input.get("author", "").strip()
+                        if not _s4t: tool_result = {"error": "title required"}
+                        else:
+                            try:
+                                _s4url = "https://cocatalog.loc.gov/cgi-bin/Pwebrecon.cgi?Search_Arg=" + _s4p.quote((_s4t + " " + _s4a).strip()) + "&Search_Code=FT%20&CNT=25&PID=rYGGapmCuAZfPlDC1Sbu3&HIST=1"
+                                with _s4r.urlopen(_s4r.Request(_s4url, headers={"User-Agent": "Mozilla/5.0"}), timeout=12) as _s4rp: _s4h = _s4rp.read().decode("utf-8", errors="ignore")
+                                _s4cm = _s4re.search(r"(\d[\d,]*)\s+records?\s+found", _s4h, _s4re.IGNORECASE)
+                                _s4c = _s4cm.group(1).replace(",", "") if _s4cm else "unknown"
+                                _s4regs = list(set(_s4re.findall(r"(?:TX|VA|SR|PA|RE|TXu|VAu|SRu)\s+[\d-]+", _s4h)))[:15]
+                                tool_result = {"title_searched": _s4t, "records_found": _s4c, "registration_numbers": _s4regs, "search_url": _s4url, "source": "US Copyright Office Public Catalog"}
+                            except Exception as _s4e: tool_result = {"error": str(_s4e)}
+
+                    elif tool_name == "vesper_mood":
+                        import json as _s5j, datetime as _s5dt
+                        _s5f = os.path.join(DATA_DIR, "vesper_identity", "moods.json")
+                        os.makedirs(os.path.dirname(_s5f), exist_ok=True)
+                        _s5d = _s5j.loads(open(_s5f, encoding="utf-8").read()) if os.path.exists(_s5f) else []
+                        _s5act = tool_input.get("action", "flag")
+                        if _s5act == "flag":
+                            _s5e = {"id": str(_s5dt.datetime.now().timestamp()), "timestamp": _s5dt.datetime.now().isoformat(), "mood": tool_input.get("mood", ""), "note": tool_input.get("note", ""), "memory_id": tool_input.get("memory_id", "")}
+                            _s5d.append(_s5e); open(_s5f, "w", encoding="utf-8").write(_s5j.dumps(_s5d, indent=2))
+                            tool_result = {"saved": True, "entry": _s5e, "total_moods": len(_s5d)}
+                        else:
+                            tool_result = {"moods": _s5d[-15:][::-1], "total": len(_s5d)}
+
+                    elif tool_name == "vesper_preferences":
+                        import json as _s6j, datetime as _s6dt
+                        _s6f = os.path.join(DATA_DIR, "vesper_identity", "preferences.json")
+                        os.makedirs(os.path.dirname(_s6f), exist_ok=True)
+                        _s6d = _s6j.loads(open(_s6f, encoding="utf-8").read()) if os.path.exists(_s6f) else {}
+                        _s6act = tool_input.get("action", "learn")
+                        if _s6act == "learn":
+                            _s6cat = tool_input.get("category", "general"); _s6it = tool_input.get("item", ""); _s6sent = tool_input.get("sentiment", "like")
+                            _s6d.setdefault(_s6cat, [])
+                            _s6ex = next((p for p in _s6d[_s6cat] if p.get("item", "").lower() == _s6it.lower()), None)
+                            if _s6ex: _s6ex.update({"sentiment": _s6sent, "note": tool_input.get("note", ""), "updated": _s6dt.datetime.now().isoformat()})
+                            else: _s6d[_s6cat].append({"item": _s6it, "sentiment": _s6sent, "note": tool_input.get("note", ""), "learned": _s6dt.datetime.now().isoformat()})
+                            open(_s6f, "w", encoding="utf-8").write(_s6j.dumps(_s6d, indent=2))
+                            tool_result = {"saved": True, "category": _s6cat, "item": _s6it, "sentiment": _s6sent}
+                        elif _s6act == "get":
+                            _s6cat = tool_input.get("category", ""); tool_result = {"preferences": _s6d.get(_s6cat, []) if _s6cat else _s6d}
+                        else: tool_result = {"all_preferences": _s6d, "categories": list(_s6d.keys())}
+
+                    elif tool_name == "vesper_create":
+                        import json as _s7j, datetime as _s7dt
+                        _s7dir = os.path.join(DATA_DIR, "vesper_identity", "creations")
+                        _s7idx = os.path.join(DATA_DIR, "vesper_identity", "creations_index.json")
+                        os.makedirs(_s7dir, exist_ok=True)
+                        _s7type = tool_input.get("type", "reflection"); _s7title = tool_input.get("title", "Untitled"); _s7content = tool_input.get("content", ""); _s7stamp = _s7dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+                        open(os.path.join(_s7dir, f"{_s7stamp}_{_s7type}.txt"), "w", encoding="utf-8").write(f"=== {_s7title.upper()} ===\nType: {_s7type}\nDate: {_s7dt.datetime.now().strftime('%B %d, %Y')}\nInspiration: {tool_input.get('inspiration','')}\n\n{_s7content}\n")
+                        _s7ix = _s7j.loads(open(_s7idx).read()) if os.path.exists(_s7idx) else []
+                        _s7ix.append({"filename": f"{_s7stamp}_{_s7type}.txt", "title": _s7title, "type": _s7type, "preview": _s7content[:100], "created": _s7dt.datetime.now().isoformat()})
+                        open(_s7idx, "w").write(_s7j.dumps(_s7ix, indent=2))
+                        tool_result = {"saved": True, "filename": f"{_s7stamp}_{_s7type}.txt", "title": _s7title, "message": f"'{_s7title}' saved to Vesper's creative archive.", "total_creations": len(_s7ix)}
+
+                    elif tool_name == "vesper_relationship_log":
+                        import json as _s8j, datetime as _s8dt
+                        _s8f = os.path.join(DATA_DIR, "vesper_identity", "relationship_timeline.json")
+                        os.makedirs(os.path.dirname(_s8f), exist_ok=True)
+                        _s8d = _s8j.loads(open(_s8f, encoding="utf-8").read()) if os.path.exists(_s8f) else []
+                        _s8act = tool_input.get("action", "log")
+                        if _s8act == "log":
+                            _s8e = {"id": str(_s8dt.datetime.now().timestamp()), "date": tool_input.get("date", _s8dt.date.today().isoformat()), "type": tool_input.get("type", "moment"), "note": tool_input.get("note", ""), "logged": _s8dt.datetime.now().isoformat()}
+                            _s8d.append(_s8e); open(_s8f, "w", encoding="utf-8").write(_s8j.dumps(_s8d, indent=2))
+                            tool_result = {"logged": True, "entry": _s8e, "total_moments": len(_s8d)}
+                        elif _s8act == "summary":
+                            from collections import Counter as _s8c; tool_result = {"total_moments": len(_s8d), "by_type": dict(_s8c(e.get("type", "") for e in _s8d)), "highlights": [e for e in _s8d if e.get("type") in ("milestone", "victory", "inside_joke")][-10:][::-1]}
+                        else: tool_result = {"timeline": _s8d[-20:][::-1], "total": len(_s8d)}
+
+                    elif tool_name == "vesper_journal":
+                        import json as _s9j, datetime as _s9dt
+                        _s9dir = os.path.join(DATA_DIR, "vesper_identity", "journal")
+                        os.makedirs(_s9dir, exist_ok=True)
+                        _s9act = tool_input.get("action", "write")
+                        if _s9act == "write":
+                            _s9date = tool_input.get("date", _s9dt.date.today().isoformat()); _s9path = os.path.join(_s9dir, f"{_s9date}.json")
+                            _s9ents = _s9j.loads(open(_s9path).read()) if os.path.exists(_s9path) else []
+                            _s9ents.append({"time": _s9dt.datetime.now().strftime("%H:%M"), "mood": tool_input.get("mood", ""), "entry": tool_input.get("entry", "")})
+                            open(_s9path, "w", encoding="utf-8").write(_s9j.dumps(_s9ents, indent=2))
+                            tool_result = {"saved": True, "date": _s9date, "entries_today": len(_s9ents)}
+                        elif _s9act == "read":
+                            _s9date = tool_input.get("date", _s9dt.date.today().isoformat()); _s9path = os.path.join(_s9dir, f"{_s9date}.json")
+                            tool_result = {"date": _s9date, "entries": _s9j.loads(open(_s9path).read()) if os.path.exists(_s9path) else []}
+                        else:
+                            try: _s9files = sorted([fi for fi in os.listdir(_s9dir) if fi.endswith(".json")], reverse=True)[:int(tool_input.get("count", 7))]
+                            except: _s9files = []
+                            tool_result = {"recent_dates": [fi.replace(".json", "") for fi in _s9files]}
+
+                    elif tool_name == "vesper_avatar_state":
+                        import json as _s0j, datetime as _s0dt
+                        _s0f = os.path.join(DATA_DIR, "vesper_identity", "avatar_state.json")
+                        os.makedirs(os.path.dirname(_s0f), exist_ok=True)
+                        _s0def = {"hair": "silver-white flowing", "eyes": "cyan bioluminescent", "outfit": "cyber noir longcoat", "mood_visual": "focused", "color_theme": "cyan", "accessories": "holographic earrings", "last_updated": "startup"}
+                        _s0st = _s0j.loads(open(_s0f, encoding="utf-8").read()) if os.path.exists(_s0f) else _s0def.copy()
+                        _s0act = tool_input.get("action", "get")
+                        if _s0act in ("set", "evolve"):
+                            _s0fd = tool_input.get("field", ""); _s0vl = tool_input.get("value", "")
+                            if _s0fd and _s0vl: _s0st[_s0fd] = _s0vl
+                            _s0upd = tool_input.get("updates")
+                            if isinstance(_s0upd, dict): _s0st.update(_s0upd)
+                            _s0st["last_updated"] = _s0dt.datetime.now().isoformat()
+                            open(_s0f, "w", encoding="utf-8").write(_s0j.dumps(_s0st, indent=2))
+                            tool_result = {"updated": True, "avatar_state": _s0st}
+                        else: tool_result = {"avatar_state": _s0st}
 
                     elif tool_name == "persistence_status":
                         import time as _pst; tool_result = {"pid":os.getpid(),"health":"alive","note":"Deploy on Railway/Render for true persistence with auto-restart.","shutdown_command":"POST /api/shutdown (requires ADMIN_KEY)"}
