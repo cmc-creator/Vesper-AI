@@ -4,6 +4,11 @@ FROM python:3.12-slim
 # Set working directory
 WORKDIR /app
 
+# Video avatar generation depends on ffmpeg.
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends ffmpeg \
+	&& rm -rf /var/lib/apt/lists/*
+
 # Copy backend requirements
 COPY backend/requirements.txt /app/backend/requirements.txt
 
