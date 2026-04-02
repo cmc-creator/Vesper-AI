@@ -2,7 +2,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://vesper-backend-production.up.railway.app/api/$1"
+      "dest": "https://vesper-backend-production-b486.up.railway.app/api/$1"
     },
     {
       "handle": "filesystem"
