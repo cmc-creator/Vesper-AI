@@ -410,8 +410,11 @@ function App() {
   const [gameMode, setGameMode] = useState(false);
   const [activeSection, setActiveSection] = useState(() => safeStorageGet('vesper_active_section', 'chat'));
   const [activeTheme, setActiveTheme] = useState(() => {
-    const storedId = safeStorageGet('vesper_theme', THEMES[0].id);
-    return THEMES.find((t) => t.id === storedId) || THEMES[0];
+    const luxuryDefault = THEMES.find((t) => t.id === 'marble-palace') || THEMES[0];
+    const migrated = safeStorageGet('vesper_luxury_migrated', '0') === '1';
+    if (!migrated) return luxuryDefault;
+    const storedId = safeStorageGet('vesper_theme', luxuryDefault.id);
+    return THEMES.find((t) => t.id === storedId) || luxuryDefault;
   });
   const [researchItems, setResearchItems] = useState([]);
   const [researchLoading, setResearchLoading] = useState(false);
@@ -473,6 +476,21 @@ function App() {
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [abortController, setAbortController] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(() => safeStorageGet('vesper_sound_enabled', 'true') === 'true');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const migrated = window.localStorage.getItem('vesper_luxury_migrated') === '1';
+      if (!migrated) {
+        const luxuryDefault = THEMES.find((t) => t.id === 'marble-palace') || THEMES[0];
+        setActiveTheme(luxuryDefault);
+        window.localStorage.setItem('vesper_theme', luxuryDefault.id);
+        window.localStorage.setItem('vesper_luxury_migrated', '1');
+      }
+    } catch (error) {
+      console.warn('Luxury migration failed', error);
+    }
+  }, []);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [integrationInitialTab, setIntegrationInitialTab] = useState(0);
@@ -669,7 +687,9 @@ export default function App() {
     document.body.style.background = activeTheme.bg || '#000';
     // Set data-style on body and html for global CSS targeting
     document.body.dataset.style = activeTheme.style || 'cyber';
+    document.body.dataset.themeId = activeTheme.id || 'default';
     document.documentElement.dataset.style = activeTheme.style || 'cyber';
+    document.documentElement.dataset.themeId = activeTheme.id || 'default';
     // Also set CSS vars on :root for elements outside app-shell (modals, popovers)
     const root = document.documentElement;
     root.style.setProperty('--accent-rgb', hexToRgb(activeTheme.accent));
@@ -7258,14 +7278,16 @@ export default function App() {
                 onClick={() => setActiveSection('chat')}
                 sx={{
                   position: 'fixed',
-                  right: 18,
-                  bottom: 18,
+                  right: 'max(18px, env(safe-area-inset-right))',
+                  bottom: 'max(18px, env(safe-area-inset-bottom))',
                   zIndex: 1300,
                   bgcolor: 'rgba(20,20,28,0.94)',
                   border: '1px solid rgba(218,165,32,0.45)',
                   color: '#f7e7bf',
                   textTransform: 'none',
                   fontWeight: 700,
+                  borderRadius: '999px',
+                  px: 1.6,
                   boxShadow: '0 12px 28px rgba(0,0,0,0.5), 0 0 24px rgba(218,165,32,0.12)',
                   '&:hover': {
                     bgcolor: 'rgba(32,32,44,0.96)',

@@ -468,6 +468,61 @@ body[data-style="arctic"] .hex-grid {
   gap: 12px;
 }
 
+/* Luxury package overhauls */
+[data-theme-id="marble-palace"] .app-shell,
+[data-theme-id="diamond-vault"] .app-shell,
+[data-theme-id="stained-glass"] .app-shell {
+  backdrop-filter: blur(8px) saturate(130%);
+}
+
+[data-theme-id="marble-palace"] .sidebar,
+[data-theme-id="marble-palace"] .chat-panel,
+[data-theme-id="marble-palace"] .intel-board {
+  background:
+    linear-gradient(130deg, rgba(27, 24, 22, 0.95), rgba(42, 38, 33, 0.9)),
+    repeating-linear-gradient(120deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 18px),
+    radial-gradient(circle at 15% 20%, rgba(218,165,32,0.18), transparent 38%);
+  border: 1px solid rgba(225, 193, 128, 0.42);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.75),
+    0 0 90px rgba(218, 165, 32, 0.15),
+    inset 0 0 0 1px rgba(250, 235, 200, 0.2);
+}
+
+[data-theme-id="diamond-vault"] .sidebar,
+[data-theme-id="diamond-vault"] .chat-panel,
+[data-theme-id="diamond-vault"] .intel-board {
+  background:
+    linear-gradient(145deg, rgba(9, 18, 26, 0.94), rgba(16, 27, 38, 0.9)),
+    radial-gradient(circle at 80% 0%, rgba(188, 232, 255, 0.2), transparent 44%),
+    radial-gradient(circle at 0% 100%, rgba(180, 215, 235, 0.13), transparent 34%);
+  border: 1px solid rgba(188, 232, 255, 0.45);
+  box-shadow:
+    0 18px 52px rgba(0, 0, 0, 0.75),
+    0 0 75px rgba(125, 194, 238, 0.2),
+    inset 0 0 0 1px rgba(225, 245, 255, 0.2);
+}
+
+[data-theme-id="stained-glass"] .sidebar,
+[data-theme-id="stained-glass"] .chat-panel,
+[data-theme-id="stained-glass"] .intel-board {
+  background:
+    linear-gradient(120deg, rgba(30, 20, 52, 0.9), rgba(19, 34, 58, 0.88), rgba(49, 27, 22, 0.9)),
+    repeating-linear-gradient(45deg, rgba(255,211,122,0.08) 0 10px, rgba(201,150,255,0.08) 10px 20px, rgba(123,220,255,0.07) 20px 30px);
+  border: 1px solid rgba(255, 223, 161, 0.45);
+  box-shadow:
+    0 20px 58px rgba(0, 0, 0, 0.78),
+    0 0 70px rgba(210, 161, 255, 0.18),
+    inset 0 0 0 1px rgba(255, 235, 193, 0.22);
+}
+
+[data-theme-id="marble-palace"] .nav-item.active,
+[data-theme-id="diamond-vault"] .nav-item.active,
+[data-theme-id="stained-glass"] .nav-item.active {
+  transform: translateX(4px);
+  letter-spacing: 0.35px;
+}
+
 .chat-window {
   flex: 1;
   max-height: 55vh;
