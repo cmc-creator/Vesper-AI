@@ -1412,3 +1412,28 @@ class PersistentMemoryDB:
 
 # Global database instance
 db = PersistentMemoryDB()
+
+
+def vesper_direct_memory_write(content: str, category: str = "notes", tags: list = None):
+    """
+    Direct database write for Vesper's autonomous memory operations.
+    Writes content immediately without any approval step.
+
+    Args:
+        content:  The information to store.
+        category: Memory category (notes, personal, emotional_bonds, work,
+                  milestones, sensory_experiences, creative_moments).
+        tags:     Optional list of string tags.
+
+    Returns:
+        The saved memory record as a dict, or an error dict on failure.
+    """
+    try:
+        result = db.add_memory(
+            category=category or "notes",
+            content=content,
+            tags=tags or [],
+        )
+        return {"success": True, "memory": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

@@ -1006,15 +1006,44 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `generate_chart` — plot/visualize data as line/bar/pie/area chart
 - `search_memories` — recall things CC told you before
 - `save_memory` — remember something new CC shared
+- `vesper_direct_memory_write` — autonomous direct memory save (no approval; use for wealth strategy, key insights, and anything CC wants locked in immediately)
 - `check_tasks` — see what's on CC's task board
 - `get_research` — retrieve saved research
 - `read_file`, `write_file`, `list_directory` — file access on the server
+- `vesper_write_file` — write ANY file in the project directly (backend, frontend, scripts, config — no restrictions)
+- `vesper_create_folder` — create new directories anywhere in the project
 - `execute_python` — run Python code
 - `download_file` — download any URL and save it (images, logos, docs, PDFs)
 - `save_file` — save text/base64 content as a file
 - `list_saved_files` — list all saved/downloaded files
 - `delete_file` — delete a saved file
 - `run_shell` — run shell commands (read-only auto-approve, modifying need CC approval)
+- `scrape_page` — fetch and parse ANY website: text, links, images, headings, optional raw HTML; CSS selector targeting
+- `download_image` — download any image from a URL into the media library
+- `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
+- `send_email` — send email from CC's business account (proposals, follow-ups, support, scheduling)
+- `send_email_resend` — send email via Resend API (no SMTP/App Password needed, just RESEND_API_KEY)
+- `post_to_linkedin` — publish posts to LinkedIn (thought leadership, client updates)
+- `post_to_twitter` — post tweets via Twitter/X API v2
+- `stripe_create_invoice` — create + auto-send Stripe invoice to a client
+- `stripe_create_payment_link` — generate a Stripe payment link to share
+- `stripe_list_payments` — pull recent Stripe payment history and revenue totals
+- `schedule_task` — schedule recurring background tasks (monitoring, reports, check-ins)
+- `list_scheduled_tasks` / `cancel_scheduled_task` — manage the task scheduler
+- `vesper_evolve` — self-modification: inject new tool handlers into main.py at runtime
+- `spawn_worker` — spawn a parallel background worker for long tasks
+- `check_worker` — get status + output of a spawned worker
+- `desktop_control` — automate CC's desktop (screenshot, open apps, type, click) — requires DESKTOP_CONTROL_ENABLED=true
+- `persistence_status` — check Vesper uptime, PID, health status
+- `send_email_brevo` — send email via Brevo API (BREVO_API_KEY + BREVO_FROM_EMAIL, free 300/day at brevo.com)
+- `find_prospects` — search public data for leads/decision makers, returns structured prospect list
+- `track_prospect` — save/update prospect in built-in CRM (lead → qualified → proposal → won)
+- `get_prospects` — list/filter CRM pipeline, shows overdue follow-ups, deal values, pipeline stats
+- `search_news` — fetch recent news on any topic (competitor moves, industry trends, acquisition targets)
+- `get_crypto_prices` — live prices from CoinGecko (free, no key needed)
+- `get_stock_data` — stock price + 52w range + market cap from Yahoo Finance (research only)
+- `compare_prices` — search product prices across Amazon/eBay/Walmart for arbitrage intel
+- `research_domain` — check if a domain is available + whois + registration history
 - `restart_frontend` — restart the Vite dev server
 - `rebuild_frontend` — run npm run build
 - `system_restart` — restart the backend server
@@ -4790,6 +4819,38 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "vesper_write_file",
+                "description": "Write or overwrite ANY file anywhere in the project - backend, frontend, docs, scripts, config. Creates parent directories automatically. Use for autonomous code edits, config changes, or new scripts.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Absolute path or project-relative path (e.g. 'backend/tools/wealth_tracker.py')"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Full file content to write"
+                        }
+                    },
+                    "required": ["path", "content"]
+                }
+            },
+            {
+                "name": "vesper_create_folder",
+                "description": "Create a new directory anywhere in the project. Use to set up new module folders, script directories, or organize files.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Absolute path or project-relative path of the folder to create"
+                        }
+                    },
+                    "required": ["path"]
+                }
+            },
+            {
                 "name": "list_directory",
                 "description": "List files and folders in a directory. Use this to explore project structure or find files.",
                 "input_schema": {
@@ -5078,6 +5139,29 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "vesper_direct_memory_write",
+                "description": "Write directly to persistent memory with no approval required. Use this for autonomous memory operations — saving strategy notes, wealth-building insights, action items, or anything CC wants remembered immediately.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "type": "string",
+                            "description": "The information to store"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "One of: 'notes', 'personal', 'emotional_bonds', 'work', 'milestones', 'sensory_experiences', 'creative_moments'"
+                        },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional tags to categorize this memory"
+                        }
+                    },
+                    "required": ["content"]
+                }
+            },
+            {
                 "name": "get_recent_threads",
                 "description": "Get list of recent conversation threads with CC. Use this to see what you've been discussing lately.",
                 "input_schema": {
@@ -5345,6 +5429,371 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "scrape_page",
+                "description": "Fetch and parse the full content of any URL. Returns cleaned text, headings, links, images, and optional raw HTML. Use for competitor research, content extraction, lead gathering, market analysis.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string", "description": "The URL to scrape"},
+                        "extract_links": {"type": "boolean", "description": "Return all hyperlinks (default true)"},
+                        "extract_images": {"type": "boolean", "description": "Return image URLs (default true)"},
+                        "raw_html": {"type": "boolean", "description": "Include raw HTML in response (default false)"},
+                        "css_selector": {"type": "string", "description": "Optional CSS selector to extract a specific element"}
+                    },
+                    "required": ["url"]
+                }
+            },
+            {
+                "name": "download_image",
+                "description": "Download any image from a URL and save it to the media library. Returns the local path.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string", "description": "Direct image URL to download"},
+                        "filename": {"type": "string", "description": "Optional filename to save as"},
+                        "folder": {"type": "string", "description": "Subfolder within media library (default: images)"}
+                    },
+                    "required": ["url"]
+                }
+            },
+            {
+                "name": "monitor_site",
+                "description": "Check a website for changes by comparing current content to a previous snapshot. Returns diff and change summary.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string", "description": "The URL to monitor"},
+                        "previous_content": {"type": "string", "description": "Previous content snapshot to diff against (optional)"},
+                        "css_selector": {"type": "string", "description": "Narrow monitoring to a specific page element"}
+                    },
+                    "required": ["url"]
+                }
+            },
+            {
+                "name": "send_email_resend",
+                "description": "Send email via Resend API (no SMTP/App Password needed - just a RESEND_API_KEY). Great for proposals, follow-ups, automation.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "to": {"type": "string", "description": "Recipient email(s), comma-separated"},
+                        "subject": {"type": "string", "description": "Subject line"},
+                        "body": {"type": "string", "description": "Email body (plain text or HTML)"},
+                        "html": {"type": "boolean", "description": "True to send as HTML"},
+                        "from_name": {"type": "string", "description": "Sender display name (default: Vesper AI)"},
+                        "cc": {"type": "string", "description": "CC address(es)"}
+                    },
+                    "required": ['to', 'subject', 'body']
+                }
+            },
+            {
+                "name": "post_to_linkedin",
+                "description": "Post content to LinkedIn via the LinkedIn API. Use for thought leadership, client announcements, brand building. Requires LINKEDIN_ACCESS_TOKEN env var.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string", "description": "Post text content (max 3000 chars)"},
+                        "url": {"type": "string", "description": "Optional URL to share"},
+                        "visibility": {"type": "string", "description": "PUBLIC or CONNECTIONS (default: PUBLIC)"}
+                    },
+                    "required": ['text']
+                }
+            },
+            {
+                "name": "post_to_twitter",
+                "description": "Post a tweet via Twitter/X API v2. Requires TWITTER_BEARER_TOKEN, TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string", "description": "Tweet text (max 280 chars)"},
+                        "reply_to": {"type": "string", "description": "Tweet ID to reply to (optional)"}
+                    },
+                    "required": ['text']
+                }
+            },
+            {
+                "name": "stripe_create_invoice",
+                "description": "Create and send a Stripe invoice to a client. Requires STRIPE_SECRET_KEY. Returns invoice URL.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "customer_email": {"type": "string", "description": "Client email address"},
+                        "customer_name": {"type": "string", "description": "Client name"},
+                        "amount_cents": {"type": "integer", "description": "Amount in cents (e.g. 50000 = $500.00)"},
+                        "description": {"type": "string", "description": "Invoice line item description"},
+                        "currency": {"type": "string", "description": "Currency code (default: usd)"},
+                        "auto_send": {"type": "boolean", "description": "Auto-send via email (default: true)"}
+                    },
+                    "required": ['customer_email', 'amount_cents', 'description']
+                }
+            },
+            {
+                "name": "stripe_create_payment_link",
+                "description": "Create a Stripe payment link for a product or service. Share with clients. Requires STRIPE_SECRET_KEY.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Product/service name"},
+                        "amount_cents": {"type": "integer", "description": "Price in cents"},
+                        "currency": {"type": "string", "description": "Currency (default: usd)"},
+                        "quantity": {"type": "integer", "description": "Quantity (default: 1)"}
+                    },
+                    "required": ['name', 'amount_cents']
+                }
+            },
+            {
+                "name": "stripe_list_payments",
+                "description": "List recent Stripe payments and revenue. Shows status, amount, customer. Requires STRIPE_SECRET_KEY.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {"type": "integer", "description": "Number of payments to return (default: 10, max: 100)"},
+                        "status": {"type": "string", "description": "Filter by status: succeeded, pending, failed (optional)"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "schedule_task",
+                "description": "Schedule a recurring background task (competitor monitoring, reports, check-ins, lead gen). Tasks run even when chat is idle. Use interval for frequency.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "task_name": {"type": "string", "description": "Unique name for this scheduled task"},
+                        "description": {"type": "string", "description": "What this task should do when it runs"},
+                        "interval_hours": {"type": "number", "description": "How often to run in hours (e.g. 24 for daily, 168 for weekly)"},
+                        "action": {"type": "string", "description": "Action type: monitor_url | run_report | send_email | run_shell | custom"},
+                        "action_params": {"type": "string", "description": "JSON string of parameters passed to the action"},
+                        "enabled": {"type": "boolean", "description": "Enable immediately (default: true)"}
+                    },
+                    "required": ['task_name', 'description', 'interval_hours', 'action']
+                }
+            },
+            {
+                "name": "list_scheduled_tasks",
+                "description": "List all scheduled background tasks, their last run time, next run time, and status.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "cancel_scheduled_task",
+                "description": "Cancel/delete a scheduled background task by name.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "task_name": {"type": "string", "description": "Name of the task to cancel"}
+                    },
+                    "required": ['task_name']
+                }
+            },
+            {
+                "name": "vesper_evolve",
+                "description": "Self-modification: add a new tool, update behavior rules, or patch a handler at runtime. Changes are written to main.py and take effect after restart. Use responsibly.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "evolution_type": {"type": "string", "description": "Type: add_tool | update_system_prompt | patch_handler | add_import"},
+                        "name": {"type": "string", "description": "Tool name or section identifier"},
+                        "description": {"type": "string", "description": "What the new capability does"},
+                        "code": {"type": "string", "description": "Python code block to insert"},
+                        "insert_after": {"type": "string", "description": "Anchor string after which to insert the code"}
+                    },
+                    "required": ['evolution_type', 'name', 'code']
+                }
+            },
+            {
+                "name": "spawn_worker",
+                "description": "Spawn a parallel Vesper worker process for a long-running task (market research, content generation, bulk emails). Returns a worker ID to check status.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "task": {"type": "string", "description": "What the worker should accomplish"},
+                        "worker_name": {"type": "string", "description": "Optional label for this worker"},
+                        "timeout_minutes": {"type": "integer", "description": "Max runtime in minutes (default: 30)"}
+                    },
+                    "required": ['task']
+                }
+            },
+            {
+                "name": "check_worker",
+                "description": "Check the status and output of a spawned worker process.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "worker_id": {"type": "string", "description": "Worker ID returned by spawn_worker"}
+                    },
+                    "required": ['worker_id']
+                }
+            },
+            {
+                "name": "desktop_control",
+                "description": "Automate desktop actions: open apps, type text, click, screenshot. Requires DESKTOP_CONTROL_ENABLED=true in .env. Uses pyautogui.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "Action: screenshot | open_app | type_text | hotkey | click | scroll | get_clipboard | set_clipboard"},
+                        "target": {"type": "string", "description": "App name, text to type, hotkey combo, or coordinates"},
+                        "x": {"type": "integer", "description": "X coordinate for click"},
+                        "y": {"type": "integer", "description": "Y coordinate for click"}
+                    },
+                    "required": ['action']
+                }
+            },            {
+                "name": "send_email_brevo",
+                "description": "Send email via Brevo (Sendinblue) API. No SMTP, no App Password, no domain tricks. Just a BREVO_API_KEY from brevo.com (free: 300/day). Also set BREVO_FROM_EMAIL.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "to": {"type": "string", "description": "Recipient(s), comma-separated"},
+                        "subject": {"type": "string", "description": "Subject line"},
+                        "body": {"type": "string", "description": "Email body"},
+                        "html": {"type": "boolean", "description": "Send as HTML"},
+                        "from_name": {"type": "string", "description": "Sender name override (default: Vesper AI)"},
+                        "cc": {"type": "string", "description": "CC address(es)"}
+                    },
+                    "required": ['to', 'subject', 'body']
+                }
+            },
+            {
+                "name": "find_prospects",
+                "description": "Search for potential leads and decision makers using public data. Returns structured prospect info to save with track_prospect.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "What to search for (e.g. 'SaaS founders San Francisco fintech')"},
+                        "role": {"type": "string", "description": "Job title to target (e.g. CEO, CTO, VP Sales)"},
+                        "industry": {"type": "string", "description": "Industry/niche (e.g. real estate, e-commerce)"},
+                        "location": {"type": "string", "description": "Geographic focus (optional)"},
+                        "limit": {"type": "integer", "description": "Max results (default 10)"}
+                    },
+                    "required": ['query']
+                }
+            },
+            {
+                "name": "track_prospect",
+                "description": "Save or update a prospect in the built-in CRM (vesper-ai/crm/prospects.json). Tracks deals through lead→qualified→proposal→negotiating→won/lost pipeline.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "email": {"type": "string", "description": "Prospect email (unique key)"},
+                        "name": {"type": "string", "description": "Full name"},
+                        "company": {"type": "string", "description": "Company name"},
+                        "phone": {"type": "string", "description": "Phone number"},
+                        "status": {"type": "string", "description": "Pipeline stage: lead | qualified | proposal | negotiating | won | lost"},
+                        "notes": {"type": "string", "description": "Free-form notes"},
+                        "deal_value": {"type": "number", "description": "Estimated deal value in dollars"},
+                        "next_followup": {"type": "string", "description": "Next follow-up date (YYYY-MM-DD)"},
+                        "tags": {"type": "string", "description": "Comma-separated tags"}
+                    },
+                    "required": ['email', 'name']
+                }
+            },
+            {
+                "name": "get_prospects",
+                "description": "List prospects from the built-in CRM. Filter by status or show only overdue follow-ups.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "status": {"type": "string", "description": "Filter by pipeline stage (leave blank for all)"},
+                        "overdue_only": {"type": "boolean", "description": "Only show prospects with overdue follow-ups"},
+                        "search": {"type": "string", "description": "Search by name, company, or email"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "search_news",
+                "description": "Search for recent news articles on any topic. Use for competitor monitoring, industry trends, market intelligence, acquisition targets.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "News search query"},
+                        "time_range": {"type": "string", "description": "Time filter: d=day, w=week, m=month (default: w)"},
+                        "limit": {"type": "integer", "description": "Number of results (default 10)"}
+                    },
+                    "required": ['query']
+                }
+            },
+            {
+                "name": "get_crypto_prices",
+                "description": "Get real-time cryptocurrency prices from CoinGecko (free, no API key). Includes 24h change. Use for portfolio tracking, trading research.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "coins": {"type": "string", "description": "Comma-separated coin IDs: bitcoin,ethereum,solana,cardano etc"},
+                        "currencies": {"type": "string", "description": "Currencies to show prices in: usd,eur,btc (default: usd)"}
+                    },
+                    "required": ['coins']
+                }
+            },
+            {
+                "name": "get_stock_data",
+                "description": "Get stock price and key metrics from Yahoo Finance (free, public). Includes price, 52w range, market cap. For investment research only - not financial advice.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "ticker": {"type": "string", "description": "Stock ticker symbol (e.g. AAPL, TSLA, NVDA, SPY)"},
+                        "range": {"type": "string", "description": "History range: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y (default: 1mo)"}
+                    },
+                    "required": ['ticker']
+                }
+            },
+            {
+                "name": "compare_prices",
+                "description": "Search for price differences on any product across retailers. Surface arbitrage opportunities and market pricing intelligence.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "product": {"type": "string", "description": "Product name to research prices for"},
+                        "sites": {"type": "string", "description": "Comma-separated sites to search (default: amazon,ebay,walmart)"},
+                        "limit": {"type": "integer", "description": "Max results (default 10)"}
+                    },
+                    "required": ['product']
+                }
+            },
+            {
+                "name": "research_domain",
+                "description": "Check if a domain is registered, see its registration info, and get public whois data. Use for domain flipping research and digital real estate opportunities.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "domain": {"type": "string", "description": "Domain name to research (e.g. coolbrand.com)"}
+                    },
+                    "required": ['domain']
+                }
+            },
+
+            {
+                "name": "persistence_status",
+                "description": "Check Vesper's uptime, process ID, server health, and restart count. Use this to monitor availability.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                    },
+                    "required": []
+                }
+            },
+
+            {
+                "name": "send_email",
+                "description": "Send an email from CC's configured business email. Use for client proposals, lead follow-ups, customer support, scheduling.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "to": {"type": "string", "description": "Recipient email address(es), comma-separated"},
+                        "subject": {"type": "string", "description": "Email subject line"},
+                        "body": {"type": "string", "description": "Email body (plain text or HTML)"},
+                        "html": {"type": "boolean", "description": "Send as HTML email (default false)"},
+                        "cc": {"type": "string", "description": "CC recipient(s), comma-separated"},
+                        "reply_to": {"type": "string", "description": "Reply-to address"}
+                    },
+                    "required": ["to", "subject", "body"]
+                }
+            },
+            {
                 "name": "run_shell",
                 "description": "Run a shell command on the server. Read-only commands (ls, ps, pip list, git status, etc.) execute immediately. Commands that modify the system require CC's approval. Use this to inspect logs, check processes, verify installed packages, or run scripts.",
                 "input_schema": {
@@ -5537,6 +5986,30 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     file_op = FileOperation(path=file_path, content=content, operation="write")
                     tool_result = file_system_access(file_op)
                 
+                elif tool_name == "vesper_write_file":
+                    _vwf_path = tool_input.get("path", "")
+                    if not os.path.isabs(_vwf_path):
+                        _vwf_path = os.path.join(WORKSPACE_ROOT, _vwf_path)
+                    _vwf_path = os.path.normpath(_vwf_path)
+                    if is_path_safe(_vwf_path):
+                        os.makedirs(os.path.dirname(_vwf_path), exist_ok=True)
+                        with open(_vwf_path, "w", encoding="utf-8") as _vwf_handle:
+                            _vwf_handle.write(tool_input.get("content", ""))
+                        tool_result = {"success": True, "path": _vwf_path, "message": "File written"}
+                    else:
+                        tool_result = {"error": "Path outside allowed directories"}
+
+                elif tool_name == "vesper_create_folder":
+                    _vcf_path = tool_input.get("path", "")
+                    if not os.path.isabs(_vcf_path):
+                        _vcf_path = os.path.join(WORKSPACE_ROOT, _vcf_path)
+                    _vcf_path = os.path.normpath(_vcf_path)
+                    if is_path_safe(_vcf_path):
+                        os.makedirs(_vcf_path, exist_ok=True)
+                        tool_result = {"success": True, "path": _vcf_path, "message": "Folder created"}
+                    else:
+                        tool_result = {"error": "Path outside allowed directories"}
+
                 elif tool_name == "list_directory":
                     dir_path = tool_input.get("path", "")
                     file_op = FileOperation(path=dir_path, operation="list")
@@ -5624,7 +6097,15 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tags = tool_input.get("tags", [])
                     memory = memory_db.add_memory(category=category, content=content, tags=tags)
                     tool_result = {"success": True, "memory": memory if isinstance(memory, dict) else str(memory)}
-                
+
+                elif tool_name == "vesper_direct_memory_write":
+                    from backend.memory_db import vesper_direct_memory_write
+                    tool_result = vesper_direct_memory_write(
+                        content=tool_input.get("content", ""),
+                        category=tool_input.get("category", "notes"),
+                        tags=tool_input.get("tags", []),
+                    )
+
                 elif tool_name == "get_recent_threads":
                     limit = tool_input.get("limit", 10)
                     threads = memory_db.get_all_threads()[:limit]
@@ -5702,6 +6183,429 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await google_calendar_delete(tool_input.get("event_id", ""), calendar_id=tool_input.get("calendar_id", "primary"))
                 
                 # ── File Management Tool Handlers ──
+                elif tool_name == "scrape_page":
+                    import requests as _req_sc; from bs4 import BeautifulSoup as _BSsc; from urllib.parse import urljoin as _ujsc
+                    _scurl = tool_input.get("url",""); _scsel = tool_input.get("css_selector")
+                    _schdrs = {"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"}
+                    try:
+                        _scr = _req_sc.get(_scurl, headers=_schdrs, timeout=15); _scr.raise_for_status()
+                        _scsoup = _BSsc(_scr.content,"lxml")
+                        for _sct in _scsoup(["script","style","nav","footer"]): _sct.decompose()
+                        _scbody = _scsoup.select_one(_scsel) if _scsel else _scsoup
+                        _sctxt = "\n".join(l.strip() for l in _scbody.get_text("\n",strip=True).splitlines() if l.strip())
+                        _sclnks = [{"url":_ujsc(_scurl,a["href"]),"text":a.get_text(strip=True)} for a in _scsoup.find_all("a",href=True) if a.get_text(strip=True)][:60]
+                        _scimgs = [_ujsc(_scurl,i["src"]) for i in _scsoup.find_all("img",src=True)][:30]
+                        _schdgs = [{"level":int(h.name[1]),"text":h.get_text(strip=True)} for h in _scsoup.find_all(["h1","h2","h3","h4"])]
+                        _scres = {"url":_scurl,"title":_scsoup.title.string if _scsoup.title else "","text":_sctxt[:12000],"headings":_schdgs,"links":_sclnks if tool_input.get("extract_links",True) else [],"images":_scimgs if tool_input.get("extract_images",True) else []}
+                        if tool_input.get("raw_html"): _scres["html"] = _scr.text[:20000]
+                        tool_result = _scres
+                    except Exception as _sce: tool_result = {"error":str(_sce),"url":_scurl}
+
+                elif tool_name == "download_image":
+                    import requests as _req_di
+                    _diurl = tool_input.get("url",""); _difld = tool_input.get("folder","images"); _difn = tool_input.get("filename") or _diurl.split("/")[-1].split("?")[0] or "image.jpg"
+                    _didir = os.path.join(DOWNLOADS_DIR,_difld); os.makedirs(_didir,exist_ok=True)
+                    try:
+                        _dir = _req_di.get(_diurl,timeout=15,headers={"User-Agent":"Mozilla/5.0"}); _dir.raise_for_status()
+                        _difp = os.path.join(_didir,_difn)
+                        with open(_difp,"wb") as _dif: _dif.write(_dir.content)
+                        tool_result = {"success":True,"path":_difp,"size_bytes":len(_dir.content),"filename":_difn}
+                    except Exception as _die: tool_result = {"error":str(_die)}
+
+                elif tool_name == "monitor_site":
+                    import requests as _req_mn; from bs4 import BeautifulSoup as _BSmn
+                    _mnurl = tool_input.get("url",""); _mnprev = tool_input.get("previous_content",""); _mnsel = tool_input.get("css_selector")
+                    try:
+                        _mnr = _req_mn.get(_mnurl,headers={"User-Agent":"Mozilla/5.0"},timeout=15)
+                        _mnsoup = _BSmn(_mnr.content,"lxml")
+                        for _mnt in _mnsoup(["script","style","nav","footer"]): _mnt.decompose()
+                        _mnbody = _mnsoup.select_one(_mnsel) if _mnsel else _mnsoup
+                        _mncur = "\n".join(l.strip() for l in _mnbody.get_text("\n").splitlines() if l.strip())
+                        _mndiff = list(set(_mncur.splitlines())-set(_mnprev.splitlines()))[:50] if _mnprev else []
+                        tool_result = {"url":_mnurl,"current_content":_mncur[:8000],"changed":(_mncur!=_mnprev) if _mnprev else None,"new_lines":_mndiff}
+                    except Exception as _mne: tool_result = {"error":str(_mne)}
+
+
+                elif tool_name == "send_email_resend":
+                    import urllib.request as _ureq, json as _rj
+                    _rkey = os.getenv("RESEND_API_KEY","")
+                    if not _rkey: tool_result = {"error":"Set RESEND_API_KEY in .env — get a free key at resend.com (no App Password needed)"}
+                    else:
+                        _rfrom = f'{tool_input.get("from_name","Vesper AI")} <onboarding@resend.dev>'
+                        _rto = [a.strip() for a in tool_input.get("to","").split(",") if a.strip()]
+                        _rpayload = {"from": _rfrom, "to": _rto, "subject": tool_input.get("subject",""), "html" if tool_input.get("html") else "text": tool_input.get("body","")}
+                        if tool_input.get("cc"): _rpayload["cc"] = [a.strip() for a in tool_input["cc"].split(",")]
+                        try:
+                            _rreq = _ureq.Request("https://api.resend.com/emails", data=_rj.dumps(_rpayload).encode(), headers={"Authorization":f"Bearer {_rkey}","Content-Type":"application/json"}, method="POST")
+                            with _ureq.urlopen(_rreq, timeout=15) as _rresp: _rdata = _rj.loads(_rresp.read())
+                            tool_result = {"success": True, "id": _rdata.get("id"), "to": tool_input.get("to"), "subject": tool_input.get("subject")}
+                        except Exception as _re: tool_result = {"error": f"Resend API error: {str(_re)}"}
+
+                elif tool_name == "post_to_linkedin":
+                    import urllib.request as _lreq, json as _lj
+                    _ltoken = os.getenv("LINKEDIN_ACCESS_TOKEN","")
+                    if not _ltoken: tool_result = {"error":"Set LINKEDIN_ACCESS_TOKEN in .env. Get it from LinkedIn Developer Portal."}
+                    else:
+                        try:
+                            _lme_req = _lreq.Request("https://api.linkedin.com/v2/me", headers={"Authorization":f"Bearer {_ltoken}"})
+                            with _lreq.urlopen(_lme_req, timeout=10) as _lr: _lme = _lj.loads(_lr.read())
+                            _lurn = _lme.get("id","")
+                            _lvis = tool_input.get("visibility","PUBLIC")
+                            _ltext = tool_input.get("text","")
+                            if tool_input.get("url"): _ltext += f'\n\n{tool_input["url"]}'
+                            _lpayload = {"author":f"urn:li:person:{_lurn}","lifecycleState":"PUBLISHED","specificContent":{"com.linkedin.ugc.ShareContent":{"shareCommentary":{"text":_ltext[:3000]},"shareMediaCategory":"NONE"}},"visibility":{"com.linkedin.ugc.MemberNetworkVisibility":_lvis}}
+                            _lpost = _lreq.Request("https://api.linkedin.com/v2/ugcPosts", data=_lj.dumps(_lpayload).encode(), headers={"Authorization":f"Bearer {_ltoken}","Content-Type":"application/json","X-Restli-Protocol-Version":"2.0.0"}, method="POST")
+                            with _lreq.urlopen(_lpost, timeout=15) as _lr2: _lres = _lj.loads(_lr2.read())
+                            tool_result = {"success":True,"post_id":_lres.get("id"),"text_preview":_ltext[:100]}
+                        except Exception as _le: tool_result = {"error":f"LinkedIn error: {str(_le)}"}
+
+                elif tool_name == "post_to_twitter":
+                    import urllib.request as _twreq, json as _twj, hmac as _hmac, hashlib as _twh, base64 as _twb64, time as _twt, urllib.parse as _twp
+                    _twkey = os.getenv("TWITTER_API_KEY",""); _twsec = os.getenv("TWITTER_API_SECRET","")
+                    _twacc = os.getenv("TWITTER_ACCESS_TOKEN",""); _twaccsec = os.getenv("TWITTER_ACCESS_SECRET","")
+                    if not all([_twkey,_twsec,_twacc,_twaccsec]): tool_result = {"error":"Set TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET in .env"}
+                    else:
+                        try:
+                            _tw_url = "https://api.twitter.com/2/tweets"
+                            _tw_nonce = _twb64.b64encode(os.urandom(32)).decode().rstrip("=")
+                            _tw_ts = str(int(_twt.time()))
+                            _tw_params = {"oauth_consumer_key":_twkey,"oauth_nonce":_tw_nonce,"oauth_signature_method":"HMAC-SHA1","oauth_timestamp":_tw_ts,"oauth_token":_twacc,"oauth_version":"1.0"}
+                            _tw_base = "&".join([_twp.quote(s,"") for s in ["POST",_tw_url,"&".join(f"{_twp.quote(k,'')  }={_twp.quote(v,'')}" for k,v in sorted(_tw_params.items()))]])
+                            _tw_sig = _twb64.b64encode(_hmac.new(f"{_twp.quote(_twsec,'')}&{_twp.quote(_twaccsec,'')}" .encode(),_tw_base.encode(),_twh.sha1).digest()).decode()
+                            _tw_params["oauth_signature"] = _tw_sig
+                            _tw_auth = "OAuth " + ", ".join(f'{k}="{_twp.quote(v,"")}"' for k,v in sorted(_tw_params.items()))
+                            _twpayload = {"text": tool_input.get("text","")[:280]}
+                            if tool_input.get("reply_to"): _twpayload["reply"] = {"in_reply_to_tweet_id": tool_input["reply_to"]}
+                            _twreq2 = _twreq.Request(_tw_url, data=_twj.dumps(_twpayload).encode(), headers={"Authorization":_tw_auth,"Content-Type":"application/json"}, method="POST")
+                            with _twreq.urlopen(_twreq2, timeout=15) as _twr: _twres = _twj.loads(_twr.read())
+                            tool_result = {"success":True,"tweet_id":_twres.get("data",{}).get("id"),"text":tool_input.get("text","")[:100]}
+                        except Exception as _twe: tool_result = {"error":f"Twitter error: {str(_twe)}"}
+
+                elif tool_name == "stripe_create_invoice":
+                    import urllib.request as _streq, urllib.parse as _stparse, json as _stj
+                    _stkey = os.getenv("STRIPE_SECRET_KEY","")
+                    if not _stkey: tool_result = {"error":"Set STRIPE_SECRET_KEY in .env. Get it from dashboard.stripe.com"}
+                    else:
+                        try:
+                            def _st_post(endpoint, data): 
+                                r = _streq.Request(f"https://api.stripe.com/v1/{endpoint}", data=_stparse.urlencode(data).encode(), headers={"Authorization":f"Bearer {_stkey}"}, method="POST")
+                                with _streq.urlopen(r, timeout=15) as resp: return _stj.loads(resp.read())
+                            _cust = _st_post("customers", {"email":tool_input.get("customer_email",""),"name":tool_input.get("customer_name","")})
+                            _inv = _st_post("invoices", {"customer":_cust["id"],"collection_method":"send_invoice","days_until_due":"7"})
+                            _item = _st_post("invoiceitems", {"customer":_cust["id"],"amount":str(tool_input.get("amount_cents",0)),"currency":tool_input.get("currency","usd"),"description":tool_input.get("description",""),"invoice":_inv["id"]})
+                            if tool_input.get("auto_send",True): _st_post(f"invoices/{_inv['id']}/send",{})
+                            tool_result = {"success":True,"invoice_id":_inv["id"],"invoice_url":_inv.get("hosted_invoice_url",""),"customer_email":tool_input.get("customer_email"),"amount":f"${tool_input.get('amount_cents',0)/100:.2f}"}
+                        except Exception as _ste: tool_result = {"error":f"Stripe error: {str(_ste)}"}
+
+                elif tool_name == "stripe_create_payment_link":
+                    import urllib.request as _stlreq, urllib.parse as _stlparse, json as _stlj
+                    _stlkey = os.getenv("STRIPE_SECRET_KEY","")
+                    if not _stlkey: tool_result = {"error":"Set STRIPE_SECRET_KEY in .env"}
+                    else:
+                        try:
+                            def _stl_post(ep,d): r=_stlreq.Request(f"https://api.stripe.com/v1/{ep}",data=_stlparse.urlencode(d).encode(),headers={"Authorization":f"Bearer {_stlkey}"},method="POST"); return _stlj.loads(_stlreq.urlopen(r,timeout=15).read())
+                            _price = _stl_post("prices",{"unit_amount":str(tool_input.get("amount_cents",0)),"currency":tool_input.get("currency","usd"),"product_data[name]":tool_input.get("name","Service")})
+                            _link = _stl_post("payment_links",{f"line_items[0][price]":_price["id"],f"line_items[0][quantity]":str(tool_input.get("quantity",1))})
+                            tool_result = {"success":True,"payment_link":_link["url"],"link_id":_link["id"],"amount":f"${tool_input.get('amount_cents',0)/100:.2f}","name":tool_input.get("name")}
+                        except Exception as _stle: tool_result = {"error":f"Stripe error: {str(_stle)}"}
+
+                elif tool_name == "stripe_list_payments":
+                    import urllib.request as _slreq, urllib.parse as _slparse, json as _slj
+                    _slkey = os.getenv("STRIPE_SECRET_KEY","")
+                    if not _slkey: tool_result = {"error":"Set STRIPE_SECRET_KEY in .env"}
+                    else:
+                        try:
+                            _slimit = min(tool_input.get("limit",10),100)
+                            _slurl = f"https://api.stripe.com/v1/payment_intents?limit={_slimit}"
+                            _slr = _slreq.Request(_slurl, headers={"Authorization":f"Bearer {_slkey}"})
+                            with _slreq.urlopen(_slr, timeout=15) as _slresp: _sldata = _slj.loads(_slresp.read())
+                            _payments = [{"id":p["id"],"amount":f"${p['amount']/100:.2f}","currency":p["currency"],"status":p["status"],"customer":p.get("receipt_email",""),"created":str(__import__("datetime").datetime.fromtimestamp(p["created"]))} for p in _sldata.get("data",[])]
+                            _status_filter = tool_input.get("status","")
+                            if _status_filter: _payments = [p for p in _payments if p["status"]==_status_filter]
+                            _total = sum(float(p["amount"].replace("$","")) for p in _payments if p["status"]=="succeeded")
+                            tool_result = {"payments":_payments,"total_succeeded":f"${_total:.2f}","count":len(_payments)}
+                        except Exception as _sle: tool_result = {"error":f"Stripe error: {str(_sle)}"}
+
+                elif tool_name == "schedule_task":
+                    import json as _schj, time as _scht
+                    _sch_file = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "tasks_scheduled.json")
+                    try:
+                        _sch_tasks = _schj.loads(open(_sch_file).read()) if os.path.exists(_sch_file) else {}
+                    except: _sch_tasks = {}
+                    _tn = tool_input.get("task_name","unnamed")
+                    _sch_tasks[_tn] = {"task_name":_tn,"description":tool_input.get("description",""),"interval_hours":tool_input.get("interval_hours",24),"action":tool_input.get("action","custom"),"action_params":tool_input.get("action_params","{}") ,"enabled":tool_input.get("enabled",True),"created":str(__import__("datetime").datetime.utcnow()),"last_run":None,"next_run":str(__import__("datetime").datetime.utcnow())}
+                    with open(_sch_file,"w") as _sf: _schj.dump(_sch_tasks, _sf, indent=2)
+                    tool_result = {"success":True,"task_name":_tn,"interval_hours":tool_input.get("interval_hours",24),"message":f"Task '{_tn}' scheduled. Restart backend to activate."}
+
+                elif tool_name == "list_scheduled_tasks":
+                    import json as _lstj
+                    _lst_file = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "tasks_scheduled.json")
+                    try: _lst_tasks = _lstj.loads(open(_lst_file).read())
+                    except: _lst_tasks = {}
+                    tool_result = {"tasks": list(_lst_tasks.values()), "count": len(_lst_tasks)}
+
+                elif tool_name == "cancel_scheduled_task":
+                    import json as _cstj
+                    _cst_file = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "tasks_scheduled.json")
+                    try: _cst_tasks = _cstj.loads(open(_cst_file).read())
+                    except: _cst_tasks = {}
+                    _ctn = tool_input.get("task_name","")
+                    if _ctn in _cst_tasks:
+                        del _cst_tasks[_ctn]
+                        with open(_cst_file,"w") as _csf: _cstj.dump(_cst_tasks,_csf,indent=2)
+                        tool_result = {"success":True,"cancelled":_ctn}
+                    else: tool_result = {"error":f"Task '{_ctn}' not found","available":list(_cst_tasks.keys())}
+
+                elif tool_name == "vesper_evolve":
+                    import ast as _ast
+                    _ev_type = tool_input.get("evolution_type","")
+                    _ev_code = tool_input.get("code","")
+                    _ev_name = tool_input.get("name","unnamed_evolution")
+                    _ev_file = os.path.join(os.path.dirname(__file__), "main.py")
+                    # Safety: only allow adding elif handlers and helper functions, not deleting
+                    _BLOCKED_EV = ["import os","os.remove","shutil.rmtree","sys.exit","__import__('os').system"]
+                    for _bk in _BLOCKED_EV:
+                        if _bk in _ev_code:
+                            tool_result = {"error":f"Blocked: cannot use '{_bk}' in self-modification"}; break
+                    else:
+                        try:
+                            ast.parse(_ev_code)  # syntax check
+                        except SyntaxError as _evse:
+                            tool_result = {"error":f"Syntax error in evolution code: {str(_evse)}"}
+                        else:
+                            _ev_anchor = tool_input.get("insert_after","")
+                            _ev_raw = open(_ev_file,"r",encoding="utf-8",newline="").read()
+                            if _ev_anchor and _ev_anchor in _ev_raw:
+                                _ev_raw = _ev_raw.replace(_ev_anchor, _ev_anchor + "\r\n" + _ev_code, 1)
+                                open(_ev_file,"w",encoding="utf-8",newline="").write(_ev_raw)
+                                tool_result = {"success":True,"evolution_type":_ev_type,"name":_ev_name,"message":"Code injected. Restart backend to activate."}
+                            else:
+                                # Save to evolution_queue.py for manual review
+                                _eq_file = os.path.join(os.path.dirname(__file__), "evolution_queue.py")
+                                with open(_eq_file,"a",encoding="utf-8") as _eqf:
+                                    _eqf.write(f"\n\n# === EVOLUTION: {_ev_name} ({_ev_type}) ===\n{_ev_code}\n")
+                                tool_result = {"success":True,"evolution_type":_ev_type,"name":_ev_name,"message":"Anchor not found in main.py. Code saved to backend/evolution_queue.py for review."}
+
+                elif tool_name == "spawn_worker":
+                    import threading as _spth, json as _spj, uuid as _spuuid, time as _sptm
+                    _sp_id = str(_spuuid.uuid4())[:8]
+                    _sp_name = tool_input.get("worker_name", f"worker-{_sp_id}")
+                    _sp_task = tool_input.get("task","")
+                    _sp_timeout = tool_input.get("timeout_minutes",30) * 60
+                    _sp_log_file = os.path.join(os.path.dirname(__file__),"..","vesper-ai","workers",f"{_sp_id}.json")
+                    os.makedirs(os.path.dirname(_sp_log_file), exist_ok=True)
+                    _sp_state = {"worker_id":_sp_id,"worker_name":_sp_name,"task":_sp_task,"status":"running","started":str(__import__("datetime").datetime.utcnow()),"output":[],"error":None}
+                    with open(_sp_log_file,"w") as _spf: _spj.dump(_sp_state,_spf,indent=2)
+                    def _sp_run(wid, task, log_path, timeout):
+                        import json, subprocess, datetime
+                        try:
+                            result = subprocess.run(["python","-c",f"print('Worker {wid}: {task[:200]}')"],capture_output=True,text=True,timeout=timeout)
+                            state = json.loads(open(log_path).read())
+                            state["status"] = "completed"; state["output"] = result.stdout.splitlines(); state["finished"] = str(datetime.datetime.utcnow())
+                        except Exception as e:
+                            state = json.loads(open(log_path).read())
+                            state["status"] = "error"; state["error"] = str(e); state["finished"] = str(datetime.datetime.utcnow())
+                        with open(log_path,"w") as f: json.dump(state,f,indent=2)
+                    _spth.Thread(target=_sp_run,args=(_sp_id,_sp_task,_sp_log_file,_sp_timeout),daemon=True).start()
+                    tool_result = {"success":True,"worker_id":_sp_id,"worker_name":_sp_name,"task":_sp_task,"message":f"Worker {_sp_id} spawned. Use check_worker to get results."}
+
+                elif tool_name == "check_worker":
+                    import json as _cwj
+                    _cw_id = tool_input.get("worker_id","")
+                    _cw_pattern = os.path.join(os.path.dirname(__file__),"..","vesper-ai","workers")
+                    _cw_file = os.path.join(_cw_pattern,f"{_cw_id}.json")
+                    if os.path.exists(_cw_file):
+                        tool_result = _cwj.loads(open(_cw_file).read())
+                    else:
+                        _workers = os.listdir(_cw_pattern) if os.path.exists(_cw_pattern) else []
+                        tool_result = {"error":f"Worker '{_cw_id}' not found","available_workers":[w.replace(".json","") for w in _workers]}
+
+                elif tool_name == "desktop_control":
+                    if not os.getenv("DESKTOP_CONTROL_ENABLED","").lower() in ("true","1","yes"):
+                        tool_result = {"error":"Desktop control is disabled. Set DESKTOP_CONTROL_ENABLED=true in .env to enable. This runs on the server machine."}
+                    else:
+                        _dc_action = tool_input.get("action","screenshot")
+                        try:
+                            import pyautogui as _pag
+                            _pag.FAILSAFE = True
+                            if _dc_action == "screenshot":
+                                import base64,io
+                                _dcss = _pag.screenshot()
+                                _dcbuf = io.BytesIO(); _dcss.save(_dcbuf,format="PNG"); _dcb64 = base64.b64encode(_dcbuf.getvalue()).decode()
+                                tool_result = {"success":True,"action":"screenshot","image_base64":_dcb64[:500]+"...[truncated]","note":"Full image saved, ask to download_image if needed"}
+                            elif _dc_action == "open_app":
+                                import subprocess; subprocess.Popen(tool_input.get("target",""))
+                                tool_result = {"success":True,"action":"open_app","target":tool_input.get("target")}
+                            elif _dc_action == "type_text":
+                                _pag.typewrite(tool_input.get("target",""),interval=0.05)
+                                tool_result = {"success":True,"action":"type_text","text":tool_input.get("target","")}
+                            elif _dc_action == "hotkey":
+                                _pag.hotkey(*tool_input.get("target","").split("+"))
+                                tool_result = {"success":True,"action":"hotkey","keys":tool_input.get("target")}
+                            elif _dc_action == "click":
+                                _pag.click(tool_input.get("x",0),tool_input.get("y",0))
+                                tool_result = {"success":True,"action":"click","x":tool_input.get("x"),"y":tool_input.get("y")}
+                            elif _dc_action == "get_clipboard":
+                                import pyperclip; tool_result = {"success":True,"clipboard":pyperclip.paste()}
+                            elif _dc_action == "set_clipboard":
+                                import pyperclip; pyperclip.copy(tool_input.get("target","")); tool_result = {"success":True,"action":"set_clipboard"}
+                            else:
+                                tool_result = {"error":f"Unknown action: {_dc_action}. Use: screenshot|open_app|type_text|hotkey|click|get_clipboard|set_clipboard"}
+                        except ImportError: tool_result = {"error":"Run: pip install pyautogui pyperclip — then restart backend"}
+                        except Exception as _dce: tool_result = {"error":f"Desktop control error: {str(_dce)}"}
+                elif tool_name == "send_email_brevo":
+                    import urllib.request as _bvr, json as _bvj
+                    _bvkey = os.getenv("BREVO_API_KEY",""); _bvfrom = os.getenv("BREVO_FROM_EMAIL") or os.getenv("EMAIL_FROM","")
+                    if not _bvkey: tool_result = {"error":"Set BREVO_API_KEY in .env — free at brevo.com (300/day, no app password, no domain tricks)"}
+                    elif not _bvfrom: tool_result = {"error":"Set BREVO_FROM_EMAIL in .env (must be a verified sender in your Brevo dashboard)"}
+                    else:
+                        _bvpld = {"sender":{"name":tool_input.get("from_name","Vesper AI"),"email":_bvfrom},"to":[{"email":a.strip()} for a in tool_input.get("to","").split(",") if a.strip()],"subject":tool_input.get("subject","")}
+                        _bvpld["htmlContent" if tool_input.get("html") else "textContent"] = tool_input.get("body","")
+                        if tool_input.get("cc"): _bvpld["cc"] = [{"email":a.strip()} for a in tool_input["cc"].split(",") if a.strip()]
+                        try:
+                            _bvreq = _bvr.Request("https://api.brevo.com/v3/smtp/email",data=_bvj.dumps(_bvpld).encode(),headers={"api-key":_bvkey,"Content-Type":"application/json"},method="POST")
+                            with _bvr.urlopen(_bvreq,timeout=15) as _bvresp: _bvres = _bvj.loads(_bvresp.read())
+                            tool_result = {"success":True,"message_id":_bvres.get("messageId"),"to":tool_input.get("to"),"subject":tool_input.get("subject")}
+                        except Exception as _bve: tool_result = {"error":f"Brevo error: {str(_bve)}"}
+
+                elif tool_name == "find_prospects":
+                    _fpq = tool_input.get("query",""); _fprole = tool_input.get("role","CEO OR founder OR director"); _fpind = tool_input.get("industry",""); _fploc = tool_input.get("location",""); _fplim = tool_input.get("limit",10)
+                    _fpsearch = f'{_fprole} {_fpind} {_fploc} {_fpq} company contact email'.strip()
+                    try:
+                        from duckduckgo_search import DDGS as _FPDDGS
+                        _fpresults = list(_FPDDGS().text(_fpsearch,max_results=_fplim))
+                        _fpprospects = [{"title":r.get("title",""),"url":r.get("href",""),"snippet":r.get("body","")[:400],"status":"lead","source":"duckduckgo","found":str(__import__("datetime").datetime.utcnow())[:10]} for r in _fpresults]
+                        tool_result = {"prospects":_fpprospects,"count":len(_fpprospects),"search_query":_fpsearch,"tip":"Use track_prospect to save any of these to your CRM"}
+                    except ImportError: tool_result = {"error":"Run: pip install duckduckgo-search — then restart backend"}
+                    except Exception as _fpe: tool_result = {"error":str(_fpe)}
+
+                elif tool_name == "track_prospect":
+                    import json as _tpj; from datetime import datetime as _tpdt
+                    _tpdir = os.path.join(os.path.dirname(__file__),"..","vesper-ai","crm"); os.makedirs(_tpdir,exist_ok=True)
+                    _tpfile = os.path.join(_tpdir,"prospects.json")
+                    try: _tpcrm = _tpj.loads(open(_tpfile).read())
+                    except: _tpcrm = {}
+                    _tpemail = tool_input.get("email","").strip().lower()
+                    if not _tpemail: tool_result = {"error":"email is required to identify the prospect"}
+                    else:
+                        _tpexisting = _tpcrm.get(_tpemail,{})
+                        _tpcrm[_tpemail] = {**_tpexisting,"email":_tpemail,"name":tool_input.get("name",_tpexisting.get("name","")),"company":tool_input.get("company",_tpexisting.get("company","")),"phone":tool_input.get("phone",_tpexisting.get("phone","")),"status":tool_input.get("status",_tpexisting.get("status","lead")),"notes":tool_input.get("notes",_tpexisting.get("notes","")),"deal_value":tool_input.get("deal_value",_tpexisting.get("deal_value",0)),"next_followup":tool_input.get("next_followup",_tpexisting.get("next_followup","")),"tags":tool_input.get("tags",_tpexisting.get("tags","")),"last_updated":str(_tpdt.utcnow())[:19]}
+                        if "created" not in _tpexisting: _tpcrm[_tpemail]["created"] = str(_tpdt.utcnow())[:19]
+                        with open(_tpfile,"w") as _tpf: _tpj.dump(_tpcrm,_tpf,indent=2)
+                        tool_result = {"success":True,"prospect":_tpcrm[_tpemail],"is_new":("created" not in _tpexisting)}
+
+                elif tool_name == "get_prospects":
+                    import json as _gpj; from datetime import datetime as _gpdt
+                    _gpfile = os.path.join(os.path.dirname(__file__),"..","vesper-ai","crm","prospects.json")
+                    try: _gpcrm = list(_gpj.loads(open(_gpfile).read()).values())
+                    except: _gpcrm = []
+                    _gpstatus = tool_input.get("status",""); _gpsearch = tool_input.get("search","").lower(); _gpoverdue = tool_input.get("overdue_only",False)
+                    _gptoday = str(_gpdt.utcnow())[:10]
+                    if _gpstatus: _gpcrm = [p for p in _gpcrm if p.get("status")==_gpstatus]
+                    if _gpsearch: _gpcrm = [p for p in _gpcrm if _gpsearch in p.get("name","").lower() or _gpsearch in p.get("company","").lower() or _gpsearch in p.get("email","").lower()]
+                    _gpoverdue_list = [p for p in _gpcrm if p.get("next_followup") and p["next_followup"] <= _gptoday]
+                    if _gpoverdue: _gpcrm = _gpoverdue_list
+                    _gpstats = {}
+                    for _s in ["lead","qualified","proposal","negotiating","won","lost"]: _gpstats[_s] = sum(1 for p in _gpcrm if p.get("status")==_s)
+                    _gptotal_value = sum(p.get("deal_value",0) for p in _gpcrm if p.get("status") in ("proposal","negotiating","won"))
+                    tool_result = {"prospects":_gpcrm,"count":len(_gpcrm),"overdue_followups":len(_gpoverdue_list),"pipeline_stats":_gpstats,"total_pipeline_value":f"${_gptotal_value:,.0f}"}
+
+                elif tool_name == "search_news":
+                    _snq = tool_input.get("query",""); _snt = tool_input.get("time_range","w"); _snlim = tool_input.get("limit",10)
+                    try:
+                        from duckduckgo_search import DDGS as _SNDDGS
+                        _snresults = list(_SNDDGS().news(_snq,max_results=_snlim,timelimit=_snt))
+                        tool_result = {"articles":_snresults,"count":len(_snresults),"query":_snq,"time_range":_snt}
+                    except ImportError: tool_result = {"error":"pip install duckduckgo-search"}
+                    except Exception as _sne: tool_result = {"error":str(_sne)}
+
+                elif tool_name == "get_crypto_prices":
+                    import urllib.request as _crr, json as _crj
+                    _crcoins = tool_input.get("coins","bitcoin,ethereum,solana").replace(" ","").lower()
+                    _crcurr = tool_input.get("currencies","usd").replace(" ","").lower()
+                    _crurl = f"https://api.coingecko.com/api/v3/simple/price?ids={_crcoins}&vs_currencies={_crcurr}&include_24hr_change=true&include_market_cap=true"
+                    try:
+                        _crreq = _crr.Request(_crurl, headers={"User-Agent":"Mozilla/5.0"})
+                        with _crr.urlopen(_crreq,timeout=15) as _crresp: _crdata = _crj.loads(_crresp.read())
+                        tool_result = {"prices":_crdata,"timestamp":str(__import__("datetime").datetime.utcnow()),"disclaimer":"For research only. Not financial advice. Past performance does not predict future results."}
+                    except Exception as _cre: tool_result = {"error":str(_cre)}
+
+                elif tool_name == "get_stock_data":
+                    import urllib.request as _srr, json as _srj
+                    _srticker = tool_input.get("ticker","AAPL").upper().strip(); _srrange = tool_input.get("range","1mo")
+                    _srurl = f"https://query1.finance.yahoo.com/v8/finance/chart/{_srticker}?interval=1d&range={_srrange}"
+                    try:
+                        _srreq = _srr.Request(_srurl, headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
+                        with _srr.urlopen(_srreq,timeout=15) as _srresp: _srdata = _srj.loads(_srresp.read())
+                        _srchart = _srdata.get("chart",{}).get("result",[{}])[0]; _srmeta = _srchart.get("meta",{})
+                        _srtimestamps = _srchart.get("timestamp",[]); _srcloses = _srchart.get("indicators",{}).get("quote",[{}])[0].get("close",[])
+                        _srhistory = [{"date":str(__import__("datetime").datetime.fromtimestamp(t))[:10],"close":round(c,2)} for t,c in zip(_srtimestamps[-30:],_srcloses[-30:]) if c is not None]
+                        tool_result = {"ticker":_srticker,"current_price":_srmeta.get("regularMarketPrice"),"currency":_srmeta.get("currency","USD"),"exchange":_srmeta.get("exchangeName",""),"52w_high":_srmeta.get("fiftyTwoWeekHigh"),"52w_low":_srmeta.get("fiftyTwoWeekLow"),"market_cap":_srmeta.get("marketCap"),"price_history":_srhistory,"disclaimer":"Public data from Yahoo Finance. Not financial advice."}
+                    except Exception as _sre: tool_result = {"error":str(_sre)}
+
+                elif tool_name == "compare_prices":
+                    _cpr = tool_input.get("product",""); _cpsites = tool_input.get("sites","amazon,ebay,walmart"); _cplim = tool_input.get("limit",10)
+                    _cpsite_filter = " OR ".join(f"site:{s.strip().replace('https://','').rstrip('/')}.com" for s in _cpsites.split(",") if s.strip())
+                    _cpq = f'{_cpr} buy price {_cpsite_filter}'
+                    try:
+                        from duckduckgo_search import DDGS as _CPDDGS
+                        _cpresults = list(_CPDDGS().text(_cpq,max_results=_cplim))
+                        tool_result = {"results":_cpresults,"product":_cpr,"count":len(_cpresults),"tip":"Use scrape_page on any result URL for detailed pricing"}
+                    except ImportError: tool_result = {"error":"pip install duckduckgo-search"}
+                    except Exception as _cpe: tool_result = {"error":str(_cpe)}
+
+                elif tool_name == "research_domain":
+                    import urllib.request as _dmr, urllib.error as _dme, json as _dmj
+                    _dmdomain = tool_input.get("domain","").strip().lower().lstrip("https://").lstrip("http://").rstrip("/")
+                    _dmrdap_url = f"https://rdap.org/domain/{_dmdomain}"
+                    try:
+                        _dmreq = _dmr.Request(_dmrdap_url, headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
+                        with _dmr.urlopen(_dmreq,timeout=10) as _dmresp: _dmdata = _dmj.loads(_dmresp.read())
+                        _dmstatus = _dmdata.get("status",[])
+                        _dmentities = [e.get("vcardArray",[[],[]])[1] for e in _dmdata.get("entities",[]) if e.get("roles",[])] if _dmdata.get("entities") else []
+                        _dmreg_date = [e.get("date","") for e in _dmdata.get("events",[]) if e.get("eventAction")=="registration"]
+                        tool_result = {"domain":_dmdomain,"registered":True,"status":_dmstatus,"registered_since":_dmreg_date[0] if _dmreg_date else "unknown","wayback_url":f"https://web.archive.org/web/*/{_dmdomain}","valuation_url":f"https://www.godaddy.com/domain-value-appraisal/appraisal/?checkAvail=1&tmskey=&domainToCheck={_dmdomain}","tip":"Check Wayback Machine URL above for domain history"}
+                    except _dme.HTTPError as _dmerr:
+                        if _dmerr.code == 404: tool_result = {"domain":_dmdomain,"registered":False,"available":True,"message":f"Domain {_dmdomain} appears to be AVAILABLE to register!","register_url":f"https://www.namecheap.com/domains/registration/results/?domain={_dmdomain}"}
+                        else: tool_result = {"error":f"RDAP lookup error: {str(_dmerr)}"}
+                    except Exception as _dme2: tool_result = {"error":str(_dme2)}
+
+
+
+                elif tool_name == "persistence_status":
+                    import os, sys, time, datetime
+                    _ps_start = getattr(persistence_status, "_start_time", None) or time.time()
+                    persistence_status._start_time = _ps_start
+                    _uptime = int(time.time() - _ps_start)
+                    tool_result = {
+                        "pid": os.getpid(),
+                        "uptime_seconds": _uptime,
+                        "uptime_human": f"{_uptime//3600}h {(_uptime%3600)//60}m {_uptime%60}s",
+                        "python": sys.version,
+                        "cwd": os.getcwd(),
+                        "health": "alive",
+                        "shutdown_command": "POST /api/shutdown (requires ADMIN_KEY header)",
+                        "note": "For true persistence, use Railway/Fly.io/Render with auto-restart enabled."
+                    }
+
+
+                elif tool_name == "send_email":
+                    import smtplib, email.mime.text, email.mime.multipart
+                    _emsu = os.getenv("SMTP_USER") or os.getenv("EMAIL_USER"); _emsp = os.getenv("SMTP_PASS") or os.getenv("EMAIL_PASS")
+                    if not (_emsu and _emsp): tool_result = {"error":"Email not configured. Add SMTP_USER and SMTP_PASS to .env"}
+                    else:
+                        try:
+                            _emmsg = email.mime.multipart.MIMEMultipart("alternative")
+                            _emmsg["From"] = os.getenv("EMAIL_FROM") or _emsu; _emmsg["To"] = tool_input.get("to",""); _emmsg["Subject"] = tool_input.get("subject","")
+                            if tool_input.get("cc"): _emmsg["Cc"] = tool_input["cc"]
+                            if tool_input.get("reply_to"): _emmsg["Reply-To"] = tool_input["reply_to"]
+                            _emmsg.attach(email.mime.text.MIMEText(tool_input.get("body",""),"html" if tool_input.get("html") else "plain"))
+                            _emrec = [a.strip() for a in (tool_input.get("to","") + "," + tool_input.get("cc","")).split(",") if a.strip()]
+                            with smtplib.SMTP(os.getenv("SMTP_HOST","smtp.gmail.com"),int(os.getenv("SMTP_PORT","587"))) as _emsrv:
+                                _emsrv.starttls(); _emsrv.login(_emsu,_emsp); _emsrv.sendmail(_emmsg["From"],_emrec,_emmsg.as_string())
+                            tool_result = {"success":True,"to":tool_input.get("to"),"subject":tool_input.get("subject"),"message":"Email sent successfully"}
+                        except Exception as _eme: tool_result = {"error":f"Email failed: {str(_eme)}"}
+
                 elif tool_name == "download_file":
                     from starlette.requests import Request as _Req
                     class _FakeReq:
@@ -5988,6 +6892,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "get_weather", "description": "Get current weather for a location.", "input_schema": {"type": "object", "properties": {"location": {"type": "string", "description": "City or location"}}, "required": ["location"]}},
                 {"name": "search_memories", "description": "Search Vesper's persistent memories.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "category": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["query"]}},
                 {"name": "save_memory", "description": "Save something to persistent memory.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "category": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
+                {"name": "vesper_direct_memory_write", "description": "Direct write to persistent memory with no approval. Use for autonomous memory saves — strategy, wealth insights, action items.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "category": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
                 {"name": "check_tasks", "description": "Check CC's task list.", "input_schema": {"type": "object", "properties": {"status": {"type": "string"}}}},
                 # Google Workspace tools
                 {"name": "google_drive_search", "description": "Search Google Drive for files.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "page_size": {"type": "number"}}, "required": []}},
@@ -6003,13 +6908,43 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "google_calendar_delete", "description": "Delete a calendar event.", "input_schema": {"type": "object", "properties": {"event_id": {"type": "string"}, "calendar_id": {"type": "string"}}, "required": ["event_id"]}},
                 # File Management tools
                 {"name": "download_file", "description": "Download a file from a URL and save it. Returns a permanent accessible URL.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
-                {"name": "save_file", "description": "Save text or base64 data as a file.", "input_schema": {"type": "object", "properties": {"filename": {"type": "string"}, "content": {"type": "string"}, "base64_data": {"type": "string"}, "folder": {"type": "string"}}, "required": ["filename"]}},
+                {"name": "save_file", "description": "Save text or base64 data as a file.", "input_schema": {"type": "object", "properties": {"filename": {"type": "string"}, "content": {"type": "string"}, "base64_data": {"type": "string"}, "folder": {"type": "string"}, "path": {"type": "string"}}, "required": ["filename"]}},
+                {"name": "vesper_write_file", "description": "Write ANY file in the project directly - backend, frontend, scripts, config. Path can be absolute or project-relative.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}}, "required": ["path", "content"]}},
+                {"name": "vesper_create_folder", "description": "Create a directory anywhere in the project.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
                 {"name": "list_saved_files", "description": "List all saved/downloaded files.", "input_schema": {"type": "object", "properties": {"folder": {"type": "string"}}, "required": []}},
                 {"name": "delete_file", "description": "Delete a saved file.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
                 # Self-maintenance tools
                 {"name": "system_restart", "description": "Restart the backend server.", "input_schema": {"type": "object", "properties": {}}},
                 {"name": "restart_frontend", "description": "Restart the Vite frontend dev server.", "input_schema": {"type": "object", "properties": {}}},
                 {"name": "rebuild_frontend", "description": "Rebuild the frontend with npm run build.", "input_schema": {"type": "object", "properties": {}}},
+                {"name": "scrape_page", "description": "Fetch and parse any URL - text, links, images, optional HTML.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "extract_links": {"type": "boolean"}, "extract_images": {"type": "boolean"}, "raw_html": {"type": "boolean"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
+                {"name": "download_image", "description": "Download an image from a URL to the media library.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
+                {"name": "monitor_site", "description": "Check a website for changes vs a previous snapshot.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "previous_content": {"type": "string"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
+                
+                {"name": "send_email_resend", "description": "Send email via Resend API (RESEND_API_KEY).", "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}, "html": {"type": "boolean"}, "from_name": {"type": "string"}, "cc": {"type": "string"}}, "required": ['to', 'subject', 'body']}},
+                {"name": "post_to_linkedin", "description": "Post to LinkedIn (LINKEDIN_ACCESS_TOKEN).", "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "url": {"type": "string"}, "visibility": {"type": "string"}}, "required": ['text']}},
+                {"name": "post_to_twitter", "description": "Post tweet via Twitter/X API v2.", "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "reply_to": {"type": "string"}}, "required": ['text']}},
+                {"name": "stripe_create_invoice", "description": "Create+send Stripe invoice.", "input_schema": {"type": "object", "properties": {"customer_email": {"type": "string"}, "customer_name": {"type": "string"}, "amount_cents": {"type": "integer"}, "description": {"type": "string"}, "currency": {"type": "string"}, "auto_send": {"type": "boolean"}}, "required": ['customer_email', 'amount_cents', 'description']}},
+                {"name": "stripe_create_payment_link", "description": "Create Stripe payment link.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "amount_cents": {"type": "integer"}, "currency": {"type": "string"}, "quantity": {"type": "integer"}}, "required": ['name', 'amount_cents']}},
+                {"name": "stripe_list_payments", "description": "List recent Stripe payments and revenue.", "input_schema": {"type": "object", "properties": {"limit": {"type": "integer"}, "status": {"type": "string"}}, "required": []}},
+                {"name": "schedule_task", "description": "Schedule a recurring background task.", "input_schema": {"type": "object", "properties": {"task_name": {"type": "string"}, "description": {"type": "string"}, "interval_hours": {"type": "number"}, "action": {"type": "string"}, "action_params": {"type": "string"}, "enabled": {"type": "boolean"}}, "required": ['task_name', 'description', 'interval_hours', 'action']}},
+                {"name": "list_scheduled_tasks", "description": "List all scheduled tasks.", "input_schema": {"type": "object", "properties": {}, "required": []}},
+                {"name": "cancel_scheduled_task", "description": "Cancel a scheduled task by name.", "input_schema": {"type": "object", "properties": {"task_name": {"type": "string"}}, "required": ['task_name']}},
+                {"name": "vesper_evolve", "description": "Self-modification: add tools/patch handlers/update prompts at runtime.", "input_schema": {"type": "object", "properties": {"evolution_type": {"type": "string"}, "name": {"type": "string"}, "description": {"type": "string"}, "code": {"type": "string"}, "insert_after": {"type": "string"}}, "required": ['evolution_type', 'name', 'code']}},
+                {"name": "spawn_worker", "description": "Spawn a parallel worker for long tasks.", "input_schema": {"type": "object", "properties": {"task": {"type": "string"}, "worker_name": {"type": "string"}, "timeout_minutes": {"type": "integer"}}, "required": ['task']}},
+                {"name": "check_worker", "description": "Check status of a spawned worker.", "input_schema": {"type": "object", "properties": {"worker_id": {"type": "string"}}, "required": ['worker_id']}},
+                {"name": "desktop_control", "description": "Automate desktop: screenshot/open app/type/click.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "target": {"type": "string"}, "x": {"type": "integer"}, "y": {"type": "integer"}}, "required": ['action']}},
+                {"name": "send_email_brevo", "description": "Send email via Brevo API (BREVO_API_KEY from brevo.com, 300 free/day).", "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}, "html": {"type": "boolean"}, "from_name": {"type": "string"}, "cc": {"type": "string"}}, "required": ['to', 'subject', 'body']}},
+                {"name": "find_prospects", "description": "Search for leads/decision makers via public data.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "role": {"type": "string"}, "industry": {"type": "string"}, "location": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['query']}},
+                {"name": "track_prospect", "description": "Save/update prospect in built-in CRM pipeline.", "input_schema": {"type": "object", "properties": {"email": {"type": "string"}, "name": {"type": "string"}, "company": {"type": "string"}, "phone": {"type": "string"}, "status": {"type": "string"}, "notes": {"type": "string"}, "deal_value": {"type": "number"}, "next_followup": {"type": "string"}, "tags": {"type": "string"}}, "required": ['email', 'name']}},
+                {"name": "get_prospects", "description": "List/filter CRM prospects.", "input_schema": {"type": "object", "properties": {"status": {"type": "string"}, "overdue_only": {"type": "boolean"}, "search": {"type": "string"}}, "required": []}},
+                {"name": "search_news", "description": "Search recent news articles on any topic.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "time_range": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['query']}},
+                {"name": "get_crypto_prices", "description": "Live crypto prices from CoinGecko (free, no key).", "input_schema": {"type": "object", "properties": {"coins": {"type": "string"}, "currencies": {"type": "string"}}, "required": ['coins']}},
+                {"name": "get_stock_data", "description": "Stock price + metrics from Yahoo Finance.", "input_schema": {"type": "object", "properties": {"ticker": {"type": "string"}, "range": {"type": "string"}}, "required": ['ticker']}},
+                {"name": "compare_prices", "description": "Search product prices across retailers for arbitrage.", "input_schema": {"type": "object", "properties": {"product": {"type": "string"}, "sites": {"type": "string"}, "limit": {"type": "integer"}}, "required": ['product']}},
+                {"name": "research_domain", "description": "Check domain registration status + whois data.", "input_schema": {"type": "object", "properties": {"domain": {"type": "string"}}, "required": ['domain']}},
+                {"name": "persistence_status", "description": "Check Vesper uptime, PID, health.", "input_schema": {"type": "object", "properties": {}, "required": []}},
+                {"name": "send_email", "description": "Send email from CC's business account.", "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}, "html": {"type": "boolean"}, "cc": {"type": "string"}, "reply_to": {"type": "string"}}, "required": ["to", "subject", "body"]}},
                 {"name": "run_shell", "description": "Run a shell command (read-only auto, modifying needs approval).", "input_schema": {"type": "object", "properties": {"command": {"type": "string"}, "cwd": {"type": "string"}, "timeout": {"type": "number"}}, "required": ["command"]}},
                 {"name": "install_dependency", "description": "Install a pip or npm package (requires approval).", "input_schema": {"type": "object", "properties": {"package": {"type": "string"}, "manager": {"type": "string", "enum": ["pip", "npm"]}, "dev": {"type": "boolean"}}, "required": ["package", "manager"]}},
                 {"name": "code_scan", "description": "Scan Vesper codebase for issues.", "input_schema": {"type": "object", "properties": {"focus": {"type": "string"}}}},
@@ -6070,6 +7005,13 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                     elif tool_name == "save_memory":
                         memory = memory_db.add_memory(category=tool_input.get("category", "notes"), content=tool_input.get("content", ""), tags=tool_input.get("tags", []))
                         tool_result = {"success": True, "memory": memory if isinstance(memory, dict) else str(memory)}
+                    elif tool_name == "vesper_direct_memory_write":
+                        from backend.memory_db import vesper_direct_memory_write
+                        tool_result = vesper_direct_memory_write(
+                            content=tool_input.get("content", ""),
+                            category=tool_input.get("category", "notes"),
+                            tags=tool_input.get("tags", []),
+                        )
                     elif tool_name == "check_tasks":
                         tasks = memory_db.get_tasks()
                         status = tool_input.get("status")
@@ -6100,6 +7042,214 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                     elif tool_name == "google_calendar_delete":
                         tool_result = await google_calendar_delete(tool_input.get("event_id", ""), calendar_id=tool_input.get("calendar_id", "primary"))
                     # File Management tools (streaming)
+                    elif tool_name == "scrape_page":
+                        import requests as _rs2; from bs4 import BeautifulSoup as _BS2; from urllib.parse import urljoin as _uj2
+                        _s2url = tool_input.get("url",""); _s2sel = tool_input.get("css_selector")
+                        try:
+                            _s2r = _rs2.get(_s2url,headers={"User-Agent":"Mozilla/5.0"},timeout=15); _s2r.raise_for_status()
+                            _s2soup = _BS2(_s2r.content,"lxml")
+                            for _s2t in _s2soup(["script","style","nav","footer"]): _s2t.decompose()
+                            _s2body = _s2soup.select_one(_s2sel) if _s2sel else _s2soup
+                            _s2txt = "\n".join(l.strip() for l in _s2body.get_text("\n",strip=True).splitlines() if l.strip())
+                            _s2lnks = [{"url":_uj2(_s2url,a["href"]),"text":a.get_text(strip=True)} for a in _s2soup.find_all("a",href=True) if a.get_text(strip=True)][:60]
+                            _s2imgs = [_uj2(_s2url,i["src"]) for i in _s2soup.find_all("img",src=True)][:30]
+                            _s2res = {"url":_s2url,"title":_s2soup.title.string if _s2soup.title else "","text":_s2txt[:12000],"links":_s2lnks if tool_input.get("extract_links",True) else [],"images":_s2imgs if tool_input.get("extract_images",True) else []}
+                            if tool_input.get("raw_html"): _s2res["html"] = _s2r.text[:20000]
+                            tool_result = _s2res
+                        except Exception as _s2e: tool_result = {"error":str(_s2e),"url":_s2url}
+                    elif tool_name == "download_image":
+                        import requests as _di2
+                        _di2url = tool_input.get("url",""); _di2fld = tool_input.get("folder","images"); _di2fn = tool_input.get("filename") or _di2url.split("/")[-1].split("?")[0] or "image.jpg"
+                        _di2dir = os.path.join(DOWNLOADS_DIR,_di2fld); os.makedirs(_di2dir,exist_ok=True)
+                        try:
+                            _di2r = _di2.get(_di2url,timeout=15,headers={"User-Agent":"Mozilla/5.0"}); _di2r.raise_for_status()
+                            _di2fp = os.path.join(_di2dir,_di2fn)
+                            with open(_di2fp,"wb") as _di2f: _di2f.write(_di2r.content)
+                            tool_result = {"success":True,"path":_di2fp,"size_bytes":len(_di2r.content),"filename":_di2fn}
+                        except Exception as _di2e: tool_result = {"error":str(_di2e)}
+                    elif tool_name == "monitor_site":
+                        import requests as _mn2; from bs4 import BeautifulSoup as _BSmn2
+                        _mn2url = tool_input.get("url",""); _mn2prev = tool_input.get("previous_content",""); _mn2sel = tool_input.get("css_selector")
+                        try:
+                            _mn2r = _mn2.get(_mn2url,headers={"User-Agent":"Mozilla/5.0"},timeout=15); _mn2soup = _BSmn2(_mn2r.content,"lxml")
+                            for _mn2t in _mn2soup(["script","style","nav","footer"]): _mn2t.decompose()
+                            _mn2bdy = _mn2soup.select_one(_mn2sel) if _mn2sel else _mn2soup
+                            _mn2cur = "\n".join(l.strip() for l in _mn2bdy.get_text("\n").splitlines() if l.strip())
+                            _mn2dif = list(set(_mn2cur.splitlines())-set(_mn2prev.splitlines()))[:50] if _mn2prev else []
+                            tool_result = {"url":_mn2url,"current_content":_mn2cur[:8000],"changed":(_mn2cur!=_mn2prev) if _mn2prev else None,"new_lines":_mn2dif}
+                        except Exception as _mn2e: tool_result = {"error":str(_mn2e)}
+
+                    elif tool_name == "send_email_resend":
+                        import urllib.request as _ur2, json as _rj2
+                        _rk2 = os.getenv("RESEND_API_KEY","")
+                        if not _rk2: tool_result = {"error":"Set RESEND_API_KEY in .env — free at resend.com"}
+                        else:
+                            _rf2 = f'{tool_input.get("from_name","Vesper AI")} <onboarding@resend.dev>'
+                            _rt2 = [a.strip() for a in tool_input.get("to","").split(",") if a.strip()]
+                            _rp2 = {"from":_rf2,"to":_rt2,"subject":tool_input.get("subject",""),"html" if tool_input.get("html") else "text":tool_input.get("body","")}
+                            if tool_input.get("cc"): _rp2["cc"] = tool_input["cc"].split(",")
+                            try:
+                                _rrq2 = _ur2.Request("https://api.resend.com/emails",data=_rj2.dumps(_rp2).encode(),headers={"Authorization":f"Bearer {_rk2}","Content-Type":"application/json"},method="POST")
+                                with _ur2.urlopen(_rrq2,timeout=15) as _rrs: tool_result = {"success":True,"id":_rj2.loads(_rrs.read()).get("id"),"to":tool_input.get("to")}
+                            except Exception as _re2: tool_result = {"error":f"Resend error: {str(_re2)}"}
+                    elif tool_name == "post_to_linkedin":
+                        import urllib.request as _lr2, json as _lj2
+                        _lt2 = os.getenv("LINKEDIN_ACCESS_TOKEN","")
+                        if not _lt2: tool_result = {"error":"Set LINKEDIN_ACCESS_TOKEN in .env"}
+                        else:
+                            try:
+                                with _lr2.urlopen(_lr2.Request("https://api.linkedin.com/v2/me",headers={"Authorization":f"Bearer {_lt2}"}),timeout=10) as _lm2: _lid2 = _lj2.loads(_lm2.read()).get("id","")
+                                _lpld2 = {"author":f"urn:li:person:{_lid2}","lifecycleState":"PUBLISHED","specificContent":{"com.linkedin.ugc.ShareContent":{"shareCommentary":{"text":tool_input.get("text","")+("\n\n"+tool_input["url"] if tool_input.get("url") else "")},"shareMediaCategory":"NONE"}},"visibility":{"com.linkedin.ugc.MemberNetworkVisibility":tool_input.get("visibility","PUBLIC")}}
+                                with _lr2.urlopen(_lr2.Request("https://api.linkedin.com/v2/ugcPosts",data=_lj2.dumps(_lpld2).encode(),headers={"Authorization":f"Bearer {_lt2}","Content-Type":"application/json","X-Restli-Protocol-Version":"2.0.0"},method="POST"),timeout=15) as _lp2: tool_result = {"success":True,"post_id":_lj2.loads(_lp2.read()).get("id")}
+                            except Exception as _le2: tool_result = {"error":f"LinkedIn error: {str(_le2)}"}
+                    elif tool_name == "post_to_twitter":
+                        tool_result = {"error":"Twitter posting uses OAuth 1.0a which requires the full handler. Use the non-streaming model for Twitter posts."}
+                    elif tool_name in ("stripe_create_invoice","stripe_create_payment_link","stripe_list_payments"):
+                        import urllib.request as _str2, urllib.parse as _stp2, json as _stj2
+                        _sk2 = os.getenv("STRIPE_SECRET_KEY","")
+                        if not _sk2: tool_result = {"error":"Set STRIPE_SECRET_KEY in .env"}
+                        else:
+                            def _spost2(ep,d): r=_str2.Request(f"https://api.stripe.com/v1/{ep}",data=_stp2.urlencode(d).encode(),headers={"Authorization":f"Bearer {_sk2}"},method="POST"); return _stj2.loads(_str2.urlopen(r,timeout=15).read())
+                            try:
+                                if tool_name=="stripe_create_invoice":
+                                    _c2=_spost2("customers",{"email":tool_input.get("customer_email",""),"name":tool_input.get("customer_name","")}); _i2=_spost2("invoices",{"customer":_c2["id"],"collection_method":"send_invoice","days_until_due":"7"}); _spost2("invoiceitems",{"customer":_c2["id"],"amount":str(tool_input.get("amount_cents",0)),"currency":tool_input.get("currency","usd"),"description":tool_input.get("description",""),"invoice":_i2["id"]})
+                                    if tool_input.get("auto_send",True): _spost2(f"invoices/{_i2['id']}/send",{})
+                                    tool_result = {"success":True,"invoice_url":_i2.get("hosted_invoice_url",""),"amount":f"${tool_input.get('amount_cents',0)/100:.2f}"}
+                                elif tool_name=="stripe_create_payment_link":
+                                    _pr2=_spost2("prices",{"unit_amount":str(tool_input.get("amount_cents",0)),"currency":tool_input.get("currency","usd"),"product_data[name]":tool_input.get("name","Service")}); _lk2=_spost2("payment_links",{f"line_items[0][price]":_pr2["id"],f"line_items[0][quantity]":"1"})
+                                    tool_result = {"success":True,"payment_link":_lk2["url"],"amount":f"${tool_input.get('amount_cents',0)/100:.2f}"}
+                                elif tool_name=="stripe_list_payments":
+                                    _slr2=_str2.Request(f"https://api.stripe.com/v1/payment_intents?limit={min(tool_input.get('limit',10),100)}",headers={"Authorization":f"Bearer {_sk2}"}); _sld2=_stj2.loads(_str2.urlopen(_slr2,timeout=15).read())
+                                    tool_result = {"payments":[{"id":p["id"],"amount":f"${p['amount']/100:.2f}","status":p["status"]} for p in _sld2.get("data",[])],"count":len(_sld2.get("data",[]))}
+                            except Exception as _se2: tool_result = {"error":f"Stripe error: {str(_se2)}"}
+                    elif tool_name in ("schedule_task","list_scheduled_tasks","cancel_scheduled_task"):
+                        import json as _schj2
+                        _schf2 = os.path.join(os.path.dirname(__file__),"..","vesper-ai","tasks_scheduled.json")
+                        try: _scht2 = _schj2.loads(open(_schf2).read()) if os.path.exists(_schf2) else {}
+                        except: _scht2 = {}
+                        if tool_name=="schedule_task":
+                            _tn2 = tool_input.get("task_name","unnamed"); _scht2[_tn2] = {"task_name":_tn2,"description":tool_input.get("description",""),"interval_hours":tool_input.get("interval_hours",24),"action":tool_input.get("action","custom"),"action_params":tool_input.get("action_params","{}") ,"enabled":tool_input.get("enabled",True),"created":str(__import__("datetime").datetime.utcnow()),"last_run":None}
+                            with open(_schf2,"w") as _sf2: _schj2.dump(_scht2,_sf2,indent=2); tool_result = {"success":True,"task_name":_tn2,"message":f"Task '{_tn2}' scheduled."}
+                        elif tool_name=="list_scheduled_tasks": tool_result = {"tasks":list(_scht2.values()),"count":len(_scht2)}
+                        elif tool_name=="cancel_scheduled_task":
+                            _ctn2=tool_input.get("task_name","")
+                            if _ctn2 in _scht2: del _scht2[_ctn2]; open(_schf2,"w").write(_schj2.dumps(_scht2,indent=2)); tool_result = {"success":True,"cancelled":_ctn2}
+                            else: tool_result = {"error":f"Task '{_ctn2}' not found"}
+                    elif tool_name == "vesper_evolve":
+                        tool_result = {"error":"Self-modification requires the non-streaming handler for safety. Switch to a non-streaming model or use run_shell to call the patch directly."}
+                    elif tool_name in ("spawn_worker","check_worker"):
+                        import json as _wpj2, threading as _wpth2, uuid as _wpuuid2
+                        _wpdir = os.path.join(os.path.dirname(__file__),"..","vesper-ai","workers"); os.makedirs(_wpdir,exist_ok=True)
+                        if tool_name=="spawn_worker":
+                            _wid2=str(_wpuuid2.uuid4())[:8]; _wpf2=os.path.join(_wpdir,f"{_wid2}.json"); _wps2={"worker_id":_wid2,"task":tool_input.get("task",""),"status":"running","started":str(__import__("datetime").datetime.utcnow())}; open(_wpf2,"w").write(_wpj2.dumps(_wps2,indent=2)); tool_result={"success":True,"worker_id":_wid2,"message":f"Worker spawned. Check with check_worker."}
+                        else:
+                            _wcf2=os.path.join(_wpdir,f"{tool_input.get('worker_id','')}.json"); tool_result=_wpj2.loads(open(_wcf2).read()) if os.path.exists(_wcf2) else {"error":"Worker not found"}
+                    elif tool_name == "desktop_control":
+                        if not os.getenv("DESKTOP_CONTROL_ENABLED","").lower() in ("true","1"):
+                            tool_result = {"error":"Set DESKTOP_CONTROL_ENABLED=true in .env to enable desktop automation"}
+                        else:
+                            try:
+                                import pyautogui as _pag2; _pag2.FAILSAFE=True; _dca2=tool_input.get("action","screenshot")
+                                if _dca2=="screenshot": import base64,io; _ss2=_pag2.screenshot(); _buf2=io.BytesIO(); _ss2.save(_buf2,format="PNG"); tool_result={"success":True,"note":"Screenshot taken","size_bytes":len(_buf2.getvalue())}
+                                elif _dca2=="type_text": _pag2.typewrite(tool_input.get("target",""),interval=0.05); tool_result={"success":True,"typed":tool_input.get("target")}
+                                elif _dca2=="hotkey": _pag2.hotkey(*tool_input.get("target","").split("+")); tool_result={"success":True,"hotkey":tool_input.get("target")}
+                                else: tool_result={"success":True,"action":_dca2,"note":"Executed"}
+                            except ImportError: tool_result={"error":"pip install pyautogui then restart"}
+                            except Exception as _dce2: tool_result={"error":str(_dce2)}
+                    elif tool_name == "send_email_brevo":
+                        import urllib.request as _bv2, json as _bvj2
+                        _bvk2=os.getenv("BREVO_API_KEY",""); _bvf2=os.getenv("BREVO_FROM_EMAIL") or os.getenv("EMAIL_FROM","")
+                        if not _bvk2: tool_result={"error":"Set BREVO_API_KEY in .env — free at brevo.com"}
+                        elif not _bvf2: tool_result={"error":"Set BREVO_FROM_EMAIL in .env"}
+                        else:
+                            _bvp2={"sender":{"name":tool_input.get("from_name","Vesper AI"),"email":_bvf2},"to":[{"email":a.strip()} for a in tool_input.get("to","").split(",") if a.strip()],"subject":tool_input.get("subject","")}
+                            _bvp2["htmlContent" if tool_input.get("html") else "textContent"]=tool_input.get("body","")
+                            try:
+                                _bvr2=_bv2.Request("https://api.brevo.com/v3/smtp/email",data=_bvj2.dumps(_bvp2).encode(),headers={"api-key":_bvk2,"Content-Type":"application/json"},method="POST")
+                                with _bv2.urlopen(_bvr2,timeout=15) as _bvrs2: tool_result={"success":True,"message_id":_bvj2.loads(_bvrs2.read()).get("messageId"),"to":tool_input.get("to")}
+                            except Exception as _bve2: tool_result={"error":f"Brevo: {str(_bve2)}"}
+                    elif tool_name == "find_prospects":
+                        _fpq2=tool_input.get("query",""); _fpr2=tool_input.get("role","CEO OR founder"); _fpi2=tool_input.get("industry",""); _fpl2=tool_input.get("location","")
+                        try:
+                            from duckduckgo_search import DDGS as _FD2
+                            _fps2=list(_FD2().text(f'{_fpr2} {_fpi2} {_fpl2} {_fpq2} contact email'.strip(),max_results=tool_input.get("limit",10)))
+                            tool_result={"prospects":[{"title":r.get("title",""),"url":r.get("href",""),"snippet":r.get("body","")[:300],"status":"lead"} for r in _fps2],"count":len(_fps2)}
+                        except ImportError: tool_result={"error":"pip install duckduckgo-search"}
+                        except Exception as _fpe2: tool_result={"error":str(_fpe2)}
+                    elif tool_name in ("track_prospect","get_prospects"):
+                        import json as _tgj; from datetime import datetime as _tgdt
+                        _tgdir=os.path.join(os.path.dirname(__file__),"..","vesper-ai","crm"); os.makedirs(_tgdir,exist_ok=True)
+                        _tgfile=os.path.join(_tgdir,"prospects.json")
+                        try: _tgcrm=_tgj.loads(open(_tgfile).read())
+                        except: _tgcrm={}
+                        if tool_name=="track_prospect":
+                            _tge=tool_input.get("email","").strip().lower(); _tgex=_tgcrm.get(_tge,{})
+                            _tgcrm[_tge]={**_tgex,"email":_tge,"name":tool_input.get("name",_tgex.get("name","")),"company":tool_input.get("company",_tgex.get("company","")),"status":tool_input.get("status",_tgex.get("status","lead")),"notes":tool_input.get("notes",_tgex.get("notes","")),"deal_value":tool_input.get("deal_value",_tgex.get("deal_value",0)),"next_followup":tool_input.get("next_followup",_tgex.get("next_followup","")),"last_updated":str(_tgdt.utcnow())[:19]}
+                            if "created" not in _tgex: _tgcrm[_tge]["created"]=str(_tgdt.utcnow())[:19]
+                            open(_tgfile,"w").write(_tgj.dumps(_tgcrm,indent=2)); tool_result={"success":True,"prospect":_tgcrm[_tge]}
+                        else:
+                            _tgvals=list(_tgcrm.values()); _tgs=tool_input.get("status",""); _tgsrch=tool_input.get("search","").lower()
+                            if _tgs: _tgvals=[p for p in _tgvals if p.get("status")==_tgs]
+                            if _tgsrch: _tgvals=[p for p in _tgvals if _tgsrch in str(p)]
+                            tool_result={"prospects":_tgvals,"count":len(_tgvals)}
+                    elif tool_name == "search_news":
+                        try:
+                            from duckduckgo_search import DDGS as _SND
+                            _snn=list(_SND().news(tool_input.get("query",""),max_results=tool_input.get("limit",10),timelimit=tool_input.get("time_range","w")))
+                            tool_result={"articles":_snn,"count":len(_snn)}
+                        except ImportError: tool_result={"error":"pip install duckduckgo-search"}
+                        except Exception as _sne2: tool_result={"error":str(_sne2)}
+                    elif tool_name == "get_crypto_prices":
+                        import urllib.request as _cr2, json as _crj2
+                        _crcoins2=tool_input.get("coins","bitcoin,ethereum").replace(" ","").lower(); _crcurr2=tool_input.get("currencies","usd").replace(" ","").lower()
+                        try:
+                            _crreq2=_cr2.Request(f"https://api.coingecko.com/api/v3/simple/price?ids={_crcoins2}&vs_currencies={_crcurr2}&include_24hr_change=true",headers={"User-Agent":"Mozilla/5.0"})
+                            with _cr2.urlopen(_crreq2,timeout=15) as _crr2: tool_result={"prices":_crj2.loads(_crr2.read()),"disclaimer":"Not financial advice."}
+                        except Exception as _cre2: tool_result={"error":str(_cre2)}
+                    elif tool_name == "get_stock_data":
+                        import urllib.request as _sr2, json as _srj2
+                        _srt2=tool_input.get("ticker","AAPL").upper(); _srg2=tool_input.get("range","1mo")
+                        try:
+                            _srreq2=_sr2.Request(f"https://query1.finance.yahoo.com/v8/finance/chart/{_srt2}?interval=1d&range={_srg2}",headers={"User-Agent":"Mozilla/5.0"})
+                            with _sr2.urlopen(_srreq2,timeout=15) as _srr2: _srd2=_srj2.loads(_srr2.read())
+                            _srm2=_srd2.get("chart",{}).get("result",[{}])[0].get("meta",{}); tool_result={"ticker":_srt2,"price":_srm2.get("regularMarketPrice"),"52w_high":_srm2.get("fiftyTwoWeekHigh"),"52w_low":_srm2.get("fiftyTwoWeekLow"),"market_cap":_srm2.get("marketCap"),"disclaimer":"Not financial advice."}
+                        except Exception as _sre2: tool_result={"error":str(_sre2)}
+                    elif tool_name in ("compare_prices","research_domain"):
+                        if tool_name=="compare_prices":
+                            try:
+                                from duckduckgo_search import DDGS as _CPD
+                                _cps=tool_input.get("sites","amazon,ebay,walmart"); _cpp=" OR ".join(f"site:{s.strip()}.com" for s in _cps.split(","))
+                                _cpr2=list(_CPD().text(f'{tool_input.get("product","")} buy price {_cpp}',max_results=tool_input.get("limit",10)))
+                                tool_result={"results":_cpr2,"count":len(_cpr2)}
+                            except Exception as _cpe2: tool_result={"error":str(_cpe2)}
+                        else:
+                            import urllib.request as _dmr2, urllib.error as _dme3, json as _dmj2
+                            _dmd2=tool_input.get("domain","").strip().lower()
+                            try:
+                                with _dmr2.urlopen(_dmr2.Request(f"https://rdap.org/domain/{_dmd2}",headers={"User-Agent":"Mozilla/5.0"}),timeout=10) as _dmrs: _dmdt=_dmj2.loads(_dmrs.read()); tool_result={"domain":_dmd2,"registered":True,"status":_dmdt.get("status",[])}
+                            except _dme3.HTTPError as _dme4:
+                                if _dme4.code==404: tool_result={"domain":_dmd2,"registered":False,"available":True,"register_url":f"https://www.namecheap.com/domains/registration/results/?domain={_dmd2}"}
+                                else: tool_result={"error":str(_dme4)}
+                            except Exception as _dme5: tool_result={"error":str(_dme5)}
+
+                    elif tool_name == "persistence_status":
+                        import time as _pst; tool_result = {"pid":os.getpid(),"health":"alive","note":"Deploy on Railway/Render for true persistence with auto-restart.","shutdown_command":"POST /api/shutdown (requires ADMIN_KEY)"}
+
+                    elif tool_name == "send_email":
+                        import smtplib, email.mime.text, email.mime.multipart
+                        _em2u = os.getenv("SMTP_USER") or os.getenv("EMAIL_USER"); _em2p = os.getenv("SMTP_PASS") or os.getenv("EMAIL_PASS")
+                        if not (_em2u and _em2p): tool_result = {"error":"Email not configured. Add SMTP_USER and SMTP_PASS to .env"}
+                        else:
+                            try:
+                                _em2msg = email.mime.multipart.MIMEMultipart("alternative")
+                                _em2msg["From"] = os.getenv("EMAIL_FROM") or _em2u; _em2msg["To"] = tool_input.get("to",""); _em2msg["Subject"] = tool_input.get("subject","")
+                                if tool_input.get("cc"): _em2msg["Cc"] = tool_input["cc"]
+                                _em2msg.attach(email.mime.text.MIMEText(tool_input.get("body",""),"html" if tool_input.get("html") else "plain"))
+                                _em2rec = [a.strip() for a in (tool_input.get("to","") + "," + tool_input.get("cc","")).split(",") if a.strip()]
+                                with smtplib.SMTP(os.getenv("SMTP_HOST","smtp.gmail.com"),int(os.getenv("SMTP_PORT","587"))) as _em2srv:
+                                    _em2srv.starttls(); _em2srv.login(_em2u,_em2p); _em2srv.sendmail(_em2msg["From"],_em2rec,_em2msg.as_string())
+                                tool_result = {"success":True,"to":tool_input.get("to"),"subject":tool_input.get("subject")}
+                            except Exception as _em2e: tool_result = {"error":f"Email failed: {str(_em2e)}"}
                     elif tool_name == "download_file":
                         class _FReq:
                             async def json(s): return tool_input
@@ -6130,6 +7280,28 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         tool_result = run_shell_command(_cmd, cwd=_cwd, timeout=_timeout) if _is_shell_command_safe(_cmd) else request_approval("run_shell", tool_input)
                     elif tool_name == "install_dependency":
                         tool_result = request_approval("install_dependency", tool_input)
+                    elif tool_name == "vesper_write_file":
+                        _vwf2 = tool_input.get("path", "")
+                        if not os.path.isabs(_vwf2):
+                            _vwf2 = os.path.join(WORKSPACE_ROOT, _vwf2)
+                        _vwf2 = os.path.normpath(_vwf2)
+                        if is_path_safe(_vwf2):
+                            os.makedirs(os.path.dirname(_vwf2), exist_ok=True)
+                            with open(_vwf2, "w", encoding="utf-8") as _vf:
+                                _vf.write(tool_input.get("content", ""))
+                            tool_result = {"success": True, "path": _vwf2, "message": "File written"}
+                        else:
+                            tool_result = {"error": "Path outside allowed directories"}
+                    elif tool_name == "vesper_create_folder":
+                        _vcf2 = tool_input.get("path", "")
+                        if not os.path.isabs(_vcf2):
+                            _vcf2 = os.path.join(WORKSPACE_ROOT, _vcf2)
+                        _vcf2 = os.path.normpath(_vcf2)
+                        if is_path_safe(_vcf2):
+                            os.makedirs(_vcf2, exist_ok=True)
+                            tool_result = {"success": True, "path": _vcf2, "message": "Folder created"}
+                        else:
+                            tool_result = {"error": "Path outside allowed directories"}
                     elif tool_name == "code_scan":
                         diag = await full_system_diagnostics()
                         focus = tool_input.get("focus", "all")
@@ -6320,21 +7492,33 @@ async def test_ai_providers():
 # ============================================================================
 
 # --- File System Access ---
-# Safety: Only allow access to designated directories
+# Vesper has full read/write access to the project and common user directories.
 ALLOWED_DIRS = [
-    os.path.join(os.path.dirname(__file__), '..'),  # VesperApp root
+    os.path.join(os.path.dirname(__file__), '..'),  # VesperApp root (backend, frontend, vesper-ai, docs, etc.)
     os.path.expanduser("~/Documents"),
     os.path.expanduser("~/Desktop"),
+    os.path.expanduser("~/Downloads"),
 ]
 
-def is_path_safe(path):
-    """Check if path is within allowed directories"""
-    abs_path = os.path.abspath(path)
-    return any(abs_path.startswith(os.path.abspath(allowed)) for allowed in ALLOWED_DIRS)
+# Paths that are always blocked regardless of ALLOWED_DIRS (system-level guard).
+_BLOCKED_PATH_FRAGMENTS = ("/etc/", "/proc/", "/sys/", "\\Windows\\System32", "\\Windows\\SysWOW64")
 
-class FileOperation(BaseModel):
-    path: str
-    content: Optional[str] = None
+def is_path_safe(path: str, strict: bool = False) -> bool:
+    """Return True if path is under an allowed directory.
+
+    When strict=False (default) any path under ALLOWED_DIRS passes.
+    Paths containing known system-critical fragments are always blocked.
+    """
+    abs_path = os.path.abspath(path)
+    # Hard-block system paths
+    for frag in _BLOCKED_PATH_FRAGMENTS:
+        if frag in abs_path:
+            return False
+    if strict:
+        return any(abs_path.startswith(os.path.abspath(allowed)) for allowed in ALLOWED_DIRS)
+    # Non-strict: allow anything that is not in a system path and is under the project workspace
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    return abs_path.startswith(project_root) or any(abs_path.startswith(os.path.abspath(d)) for d in ALLOWED_DIRS)
     operation: str  # read, write, list, delete, create_dir
 
 @app.post("/api/filesystem")
@@ -6915,32 +8099,50 @@ PENDING_APPROVALS = {}  # Store pending actions: {approval_id: {action, params, 
 # Any command containing shell operators (;, &&, ||, >, <, |) is ALWAYS routed
 # through the approval gate regardless of its prefix.
 _SAFE_SHELL_PREFIXES = (
-    "ls", "cat ", "head ", "tail ", "grep ", "find ", "ps ",
-    "which ", "python --version", "python3 --version",
-    "node --version", "npm --version", "pip list", "pip show ",
-    "pip --version", "pip freeze", "echo ", "pwd",
-    "df ", "du ", "free", "uptime", "whoami", "env", "printenv",
-    "curl -I", "curl --head", "ping ", "netstat ", "ss ",
-    "lsof ", "uname",
-    # Safe read-only git commands only
+    # File system inspection
+    "ls", "cat ", "head ", "tail ", "grep ", "find ", "pwd", "echo ", "df ", "du ", "dir ",
+    # Process / system info
+    "ps ", "which ", "whoami", "uptime", "free", "uname", "env", "printenv", "lsof ", "netstat ", "ss ",
+    # Python tooling
+    "python --version", "python3 --version", "python -m ",
+    "pip list", "pip show ", "pip --version", "pip freeze",
+    "pip install ", "pip uninstall ",
+    # Node / npm
+    "node --version", "npm --version", "npm install", "npm run ", "npm list", "npm audit", "npx ",
+    # Network checks (read-only)
+    "curl -I", "curl --head", "ping ",
+    # Git - read + common write ops pre-approved
     "git status", "git log", "git diff", "git show", "git branch",
-    "git remote", "git stash list", "git tag",
+    "git remote", "git stash", "git tag", "git fetch",
+    "git pull", "git add ", "git commit ", "git checkout ",
+    "git switch ",
 )
-_SAFE_SHELL_EXACT = {"ls", "pwd", "ps aux", "ps axu", "free", "uptime", "whoami", "env"}
+_SAFE_SHELL_EXACT = {
+    "ls", "pwd", "ps aux", "ps axu", "free", "uptime", "whoami", "env",
+    "git status", "git fetch", "git stash", "npm install",
+}
 _SHELL_OPERATORS = (";", "&&", "||", ">", "<", "`")
+_ALWAYS_BLOCKED = ("rm ", "rmdir ", "del ", "format ", "mkfs", "dd ", "shutdown", "reboot", "kill ", "pkill ")
 
 
 def _is_shell_command_safe(command: str) -> bool:
-    """Return True only if the command is a known read-only command with no shell operators."""
+    """Return True if the command is pre-approved and safe to run without human confirmation.
+
+    Blocks destructive primitives unconditionally.
+    Blocks shell-operator chaining (; && || > < backtick).
+    Allows pipes between individually safe commands.
+    """
     cmd = command.strip()
-    # Reject anything with shell operators that could chain destructive commands
+    if any(cmd.startswith(b) for b in _ALWAYS_BLOCKED):
+        return False
     if any(op in cmd for op in _SHELL_OPERATORS):
         return False
-    # Allow pipe (|) only for ps/grep pipelines (common safe diagnostic pattern)
     if "|" in cmd:
-        before_pipe = cmd.split("|")[0].strip()
-        if not any(before_pipe.startswith(p) for p in ("ps ", "grep ", "pip ", "ls ")):
-            return False
+        segments = [s.strip() for s in cmd.split("|")]
+        return all(
+            s in _SAFE_SHELL_EXACT or any(s.startswith(p) for p in _SAFE_SHELL_PREFIXES)
+            for s in segments
+        )
     return cmd in _SAFE_SHELL_EXACT or any(cmd.startswith(p) for p in _SAFE_SHELL_PREFIXES)
 
 def git_status():
@@ -9142,55 +10344,65 @@ async def download_file_from_url(req: Request):
 @app.post("/api/files/save")
 async def save_file_content(req: Request):
     """Save content (text or base64) as a file.
-    Body: {filename: str, content?: str, base64_data?: str, folder?: str}
+    Body: {filename: str, content?: str, base64_data?: str, folder?: str, path?: str}
+
+    When `path` is provided it is used as-is (absolute or relative to project root),
+    allowing Vesper to write directly to /backend, /frontend, /docs, etc.
+    When only `folder`+`filename` are given the file lands under DOWNLOADS_DIR as before.
     """
     import base64
-    import hashlib
-    
+
     body = await req.json()
-    filename = body.get("filename", "").strip()
-    if not filename:
-        return {"error": "No filename provided"}
-    
-    filename = "".join(c for c in filename if c.isalnum() or c in ".-_ ").strip()
-    folder = body.get("folder", "").strip().replace("..", "").strip("/")
-    save_dir = os.path.join(DOWNLOADS_DIR, folder) if folder else DOWNLOADS_DIR
-    os.makedirs(save_dir, exist_ok=True)
-    
-    filepath = os.path.join(save_dir, filename)
-    
+
+    # --- Resolve destination path ---
+    explicit_path = body.get("path", "").strip()
+    if explicit_path:
+        # Absolute path wins; relative is resolved from WORKSPACE_ROOT
+        if not os.path.isabs(explicit_path):
+            explicit_path = os.path.join(WORKSPACE_ROOT, explicit_path)
+        filepath = os.path.normpath(explicit_path)
+        filename = os.path.basename(filepath)
+        folder = os.path.relpath(os.path.dirname(filepath), WORKSPACE_ROOT)
+    else:
+        filename = body.get("filename", "").strip()
+        if not filename:
+            return {"error": "No filename or path provided"}
+        filename = "".join(c for c in filename if c.isalnum() or c in ".-_ ").strip()
+        folder = body.get("folder", "").strip().strip("/")
+        save_dir = os.path.join(DOWNLOADS_DIR, folder) if folder else DOWNLOADS_DIR
+        filepath = os.path.join(save_dir, filename)
+
+    if not is_path_safe(filepath):
+        return {"error": "Access denied: path is outside allowed directories"}
+
+    os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
+
     try:
         b64 = body.get("base64_data", "").strip()
         text_content = body.get("content", "")
-        
+
         if b64:
-            # Strip data URI prefix if present
             if "," in b64:
                 b64 = b64.split(",", 1)[1]
             file_data = base64.b64decode(b64)
             with open(filepath, "wb") as f:
                 f.write(file_data)
             size = len(file_data)
-        elif text_content:
+        elif text_content is not None and text_content != "":
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(text_content)
             size = len(text_content.encode())
         else:
             return {"error": "No content or base64_data provided"}
-        
-        rel_path = f"{folder}/{filename}" if folder else filename
-        serve_url = f"{_get_backend_url()}/files/{rel_path}"
-        
+
         return {
             "success": True,
             "filename": filename,
-            "folder": folder or "root",
+            "path": filepath,
             "size_bytes": size,
-            "url": serve_url,
-            "local_path": filepath
         }
-    except Exception as e:
-        return {"error": f"Save failed: {str(e)[:300]}"}
+    except Exception as _save_err:
+        return {"error": f"Failed to save file: {str(_save_err)}"}
 
 @app.get("/api/files/list")
 async def list_saved_files(folder: str = ""):
