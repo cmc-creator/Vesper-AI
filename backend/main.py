@@ -178,12 +178,53 @@ def get_runtime_capabilities():
     source_video = os.path.join(source_dir, "vesper_base.mp4")
     ffmpeg_path = shutil.which("ffmpeg")
     configured_voice = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
+    deployment_target = "local"
+    if os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
+        deployment_target = "vercel"
+    elif os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_STATIC_URL"):
+        deployment_target = "railway"
+
+    provider_stats = ai_router.get_stats() if hasattr(ai_router, "get_stats") else {}
+    providers = provider_stats.get("providers", {}) if isinstance(provider_stats, dict) else {}
+    active_ai_providers = sum(1 for available in providers.values() if available)
 
     voice_ready = bool(ELEVENLABS_API_KEY and (ELEVENLABS_VOICES or configured_voice))
     video_ready = bool(os.path.exists(source_video) and ffmpeg_path and voice_ready)
+    blockers = []
+    warnings = []
+
+    if active_ai_providers == 0:
+        blockers.append("No AI provider is available.")
+    elif active_ai_providers == 1:
+        warnings.append("Only one AI provider is active; no failover is available.")
+
+    if not ELEVENLABS_API_KEY:
+        blockers.append("ELEVENLABS_API_KEY is missing.")
+    if not configured_voice:
+        blockers.append("ELEVENLABS_VOICE_ID is missing.")
+    if not ffmpeg_path:
+        blockers.append("ffmpeg is not available on PATH.")
+    if not os.path.exists(source_video):
+        blockers.append("Base avatar video is missing.")
+
+    if not ELEVENLABS_AVAILABLE and ELEVENLABS_API_KEY:
+        warnings.append("ElevenLabs SDK did not initialize; REST fallback may still work.")
+    if not EDGE_TTS_AVAILABLE:
+        warnings.append("edge-tts fallback is not installed.")
+
+    readiness_checks = {
+        "chat": active_ai_providers > 0,
+        "threads": True,
+        "memory": True,
+        "tts": voice_ready,
+        "video_avatar": video_ready,
+        "diagnostics": True,
+    }
+    readiness_score = round((sum(1 for ok in readiness_checks.values() if ok) / max(len(readiness_checks), 1)) * 100)
 
     return {
         "status": "ok",
+        "deployment_target": deployment_target,
         "environment": {
             "has_elevenlabs_key": bool(ELEVENLABS_API_KEY),
             "has_elevenlabs_voice_id": bool(configured_voice),
@@ -192,11 +233,19 @@ def get_runtime_capabilities():
             "voice_catalog_loaded": len(ELEVENLABS_VOICES),
             "ffmpeg_available": bool(ffmpeg_path),
             "base_video_available": os.path.exists(source_video),
+            "active_ai_providers": active_ai_providers,
         },
         "features": {
             "tts": voice_ready,
             "video_avatar": video_ready,
             "video_avatar_fallback": os.path.exists(source_video),
+        },
+        "readiness": {
+            "score": readiness_score,
+            "sellable": len(blockers) == 0,
+            "checks": readiness_checks,
+            "blockers": blockers,
+            "warnings": warnings,
         },
         "hints": {
             "tts": None if voice_ready else "Set ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID, then restart backend.",

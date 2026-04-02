@@ -4739,6 +4739,78 @@ export default function App() {
               </Tooltip>
             </DragHandleArea>
             <Stack spacing={2.5}>
+              {runtimeCapabilities?.readiness && (
+                <Box sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  background: runtimeCapabilities.readiness.sellable
+                    ? 'linear-gradient(135deg, rgba(14,40,28,0.88), rgba(10,24,18,0.92))'
+                    : 'linear-gradient(135deg, rgba(42,26,12,0.9), rgba(26,16,10,0.92))',
+                  border: runtimeCapabilities.readiness.sellable
+                    ? '1px solid rgba(0,255,136,0.25)'
+                    : '1px solid rgba(218,165,32,0.28)',
+                  boxShadow: runtimeCapabilities.readiness.sellable
+                    ? '0 12px 36px rgba(0,255,136,0.08)'
+                    : '0 12px 36px rgba(218,165,32,0.08)',
+                }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 1.25 }}>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: runtimeCapabilities.readiness.sellable ? '#7ff2b8' : '#f6d38c' }}>
+                        Launch Readiness
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.58)' }}>
+                        {runtimeCapabilities.deployment_target.toUpperCase()} environment · score {runtimeCapabilities.readiness.score}/100
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={runtimeCapabilities.readiness.sellable ? 'SELLABLE' : 'BLOCKED'}
+                      size="small"
+                      sx={{
+                        bgcolor: runtimeCapabilities.readiness.sellable ? 'rgba(0,255,136,0.14)' : 'rgba(218,165,32,0.16)',
+                        color: runtimeCapabilities.readiness.sellable ? '#7ff2b8' : '#f6d38c',
+                        border: `1px solid ${runtimeCapabilities.readiness.sellable ? 'rgba(0,255,136,0.25)' : 'rgba(218,165,32,0.28)'}`,
+                        fontWeight: 800,
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: runtimeCapabilities.readiness.blockers?.length ? 1.25 : 0 }}>
+                    {Object.entries(runtimeCapabilities.readiness.checks || {}).map(([key, ok]) => (
+                      <Chip
+                        key={key}
+                        label={`${ok ? '✓' : '•'} ${key.replace(/_/g, ' ')}`}
+                        size="small"
+                        sx={{
+                          bgcolor: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.06)',
+                          color: ok ? '#7ff2b8' : 'rgba(255,255,255,0.7)',
+                          border: `1px solid ${ok ? 'rgba(0,255,136,0.2)' : 'rgba(255,255,255,0.08)'}`,
+                        }}
+                      />
+                    ))}
+                  </Box>
+                  {runtimeCapabilities.readiness.blockers?.length > 0 && (
+                    <Stack spacing={0.75} sx={{ mb: 1.25 }}>
+                      {runtimeCapabilities.readiness.blockers.slice(0, 4).map((blocker) => (
+                        <Typography key={blocker} variant="caption" sx={{ color: '#ffd9a6', display: 'block' }}>
+                          • {blocker}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  )}
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setDiagnosticsOpen(true)}
+                    sx={{
+                      borderColor: 'rgba(255,255,255,0.15)',
+                      color: '#fff',
+                      '&:hover': { borderColor: 'var(--accent)', bgcolor: 'rgba(255,255,255,0.04)' },
+                    }}
+                  >
+                    Open Readiness Diagnostics
+                  </Button>
+                </Box>
+              )}
+
               {/* ── Quick Navigation ── */}
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', letterSpacing: 1, textTransform: 'uppercase' }}>Quick Links</Typography>
@@ -6326,6 +6398,32 @@ export default function App() {
                     >
                       New Chat
                     </Button>
+                  </Box>
+                )}
+                {threads.length > 1 && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 0.85, maxWidth: 560 }}>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', mr: 0.25 }}>
+                      Recent:
+                    </Typography>
+                    {threads
+                      .filter((thread) => thread.id !== currentThreadId)
+                      .slice(0, 3)
+                      .map((thread) => (
+                        <Chip
+                          key={thread.id}
+                          label={thread.title || 'Untitled'}
+                          size="small"
+                          onClick={() => loadThread(thread.id)}
+                          sx={{
+                            maxWidth: 180,
+                            bgcolor: 'rgba(255,255,255,0.04)',
+                            color: 'rgba(255,255,255,0.82)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            '.MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' },
+                            '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.12)', borderColor: 'rgba(var(--accent-rgb),0.26)' },
+                          }}
+                        />
+                      ))}
                   </Box>
                 )}
               </Box>

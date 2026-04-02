@@ -87,6 +87,26 @@ if (-not (Test-Path "frontend\.env")) {
     }
 }
 
+# Launch readiness validation
+Write-Host "[+] Running launch readiness checks..." -ForegroundColor Cyan
+$envText = if (Test-Path ".env") { Get-Content ".env" -Raw } else { "" }
+$hasElevenKey = $envText -match '(?m)^ELEVENLABS_API_KEY\s*=\s*.+$'
+$hasElevenVoice = $envText -match '(?m)^ELEVENLABS_VOICE_ID\s*=\s*.+$'
+$ffmpegCmd = Get-Command ffmpeg -ErrorAction SilentlyContinue
+
+if (-not $hasElevenKey) {
+    Write-Host "[WARN] ELEVENLABS_API_KEY is not configured locally. Voice features will fall back or fail." -ForegroundColor Yellow
+}
+if (-not $hasElevenVoice) {
+    Write-Host "[WARN] ELEVENLABS_VOICE_ID is not configured locally. Premium voice selection will not be reliable." -ForegroundColor Yellow
+}
+if (-not $ffmpegCmd) {
+    Write-Host "[WARN] ffmpeg is not on PATH. Video speech generation will be unavailable." -ForegroundColor Yellow
+}
+if ($hasElevenKey -and $hasElevenVoice -and $ffmpegCmd) {
+    Write-Host "[OK] Launch readiness: voice + video prerequisites detected" -ForegroundColor Green
+}
+
 Write-Host ""
 Write-Host "====================================================" -ForegroundColor Cyan
 Write-Host "  VESPER AI - Developer Console" -ForegroundColor Cyan

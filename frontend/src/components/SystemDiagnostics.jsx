@@ -143,6 +143,7 @@ const IssueItem = ({ issue }) => (
 
 export default function SystemDiagnostics({ open, onClose, apiBase }) {
   const [data, setData] = useState(null);
+  const [capabilities, setCapabilities] = useState(null);
   const [healData, setHealData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [healing, setHealing] = useState(false);
@@ -193,6 +194,17 @@ export default function SystemDiagnostics({ open, onClose, apiBase }) {
     setLoading(false);
   }, [apiBase]);
 
+  const fetchCapabilities = useCallback(async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/system/capabilities`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Capabilities endpoint unavailable');
+      const json = await res.json();
+      setCapabilities(json);
+    } catch (err) {
+      console.warn('Capabilities fetch failed', err);
+    }
+  }, [apiBase]);
+
   const runSelfHeal = async () => {
     setHealing(true);
     setTab('heal');
@@ -213,10 +225,11 @@ export default function SystemDiagnostics({ open, onClose, apiBase }) {
   useEffect(() => {
     if (open) {
       fetchDiagnostics();
+      fetchCapabilities();
       const interval = setInterval(fetchDiagnostics, 10000); // 10s refresh (more complex now)
       return () => clearInterval(interval);
     }
-  }, [open, fetchDiagnostics]);
+  }, [open, fetchDiagnostics, fetchCapabilities]);
 
   const checks = data?.checks || {};
 
@@ -294,6 +307,55 @@ export default function SystemDiagnostics({ open, onClose, apiBase }) {
           </Box>
         ) : (
           <Stack spacing={2.5}>
+            {capabilities?.readiness && (
+              <Box sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: capabilities.readiness.sellable ? 'rgba(0,255,136,0.06)' : 'rgba(255,187,0,0.08)',
+                border: `1px solid ${capabilities.readiness.sellable ? 'rgba(0,255,136,0.2)' : 'rgba(255,187,0,0.22)'}`,
+              }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 1 }}>
+                  <Typography variant="subtitle2" sx={{ color: '#fff', fontWeight: 700 }}>
+                    Launch Readiness
+                  </Typography>
+                  <Chip
+                    label={`${capabilities.readiness.score}/100`}
+                    size="small"
+                    sx={{
+                      bgcolor: capabilities.readiness.sellable ? 'rgba(0,255,136,0.16)' : 'rgba(255,187,0,0.16)',
+                      color: capabilities.readiness.sellable ? '#7ff2b8' : '#ffcf75',
+                      fontWeight: 800,
+                    }}
+                  />
+                </Box>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.55)', display: 'block', mb: 1 }}>
+                  Target: {String(capabilities.deployment_target || 'local').toUpperCase()}
+                </Typography>
+                <Grid container spacing={1} sx={{ mb: capabilities.readiness.blockers?.length ? 1 : 0 }}>
+                  {Object.entries(capabilities.readiness.checks || {}).map(([key, ok]) => (
+                    <Grid item xs={6} sm={4} key={key}>
+                      <MetricCard
+                        icon={ok ? <CheckIcon sx={{ fontSize: 16 }} /> : <WarningIcon sx={{ fontSize: 16 }} />}
+                        label={key.replace(/_/g, ' ')}
+                        value={ok ? 'Ready' : 'Blocked'}
+                        color={ok ? '#7ff2b8' : '#ffcf75'}
+                        status={ok ? 'ok' : 'warning'}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+                {capabilities.readiness.blockers?.length > 0 && (
+                  <Box>
+                    {capabilities.readiness.blockers.slice(0, 5).map((blocker) => (
+                      <Typography key={blocker} variant="caption" sx={{ display: 'block', color: '#ffd9a6', py: 0.25 }}>
+                        • {blocker}
+                      </Typography>
+                    ))}
+                  </Box>
+                )}
+              </Box>
+            )}
+
             {/* Overall Status Banner */}
             <Box sx={{
               p: 2, borderRadius: 2,
