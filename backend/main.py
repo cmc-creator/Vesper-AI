@@ -1884,14 +1884,19 @@ def get_all_memories(category: str = None, limit: int = 100):
 
 @app.post("/api/memories")
 async def create_memory(data: dict):
-    """Create a new memory entry with tags"""
+    """Create a new memory entry with tags and title"""
     try:
         category = data.get("category", "notes")
+        title = data.get("title", "")  # Optional summary title
         content = data.get("content", "")
         importance = data.get("importance", 5)
         tags = data.get("tags", [])
         
+        # Store title in meta_data if provided
         memory = memory_db.add_memory(category, content, importance, tags)
+        if title and hasattr(memory, 'title'):
+            memory.title = title
+            memory_db.session.commit()
         return {"status": "success", "memory": memory}
     except Exception as e:
         print(f"❌ Error creating memory: {e}")

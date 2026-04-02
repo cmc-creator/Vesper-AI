@@ -432,6 +432,8 @@ function App() {
   const [exportThreadData, setExportThreadData] = useState(null);
   const [threadMenuAnchor, setThreadMenuAnchor] = useState(null);
   const [threadMenuThread, setThreadMenuThread] = useState(null);
+  const [memoryMenuAnchor, setMemoryMenuAnchor] = useState(null);
+  const [memoryMenuItem, setMemoryMenuItem] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [themeMenuAnchor, setThemeMenuAnchor] = useState(null);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -2513,6 +2515,26 @@ export default function App() {
     }
   };
 
+  const deleteMemory = async (memoryId) => {
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase}/api/memories/${memoryId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        fetchMemory(memoryCategory);
+        setToast('Memory deleted', 'success');
+      }
+    } catch (error) {
+      console.error('Delete memory failed:', error);
+      setToast('Failed to delete memory', 'warn');
+    } finally {
+      setMemoryMenuAnchor(null);
+      setMemoryMenuItem(null);
+    }
+  };
+
   const executeDelete = async () => {
     if (deleteTargetId === 'bulk') {
       let count = 0;
@@ -4117,8 +4139,8 @@ export default function App() {
                   </Typography>
                   <Box className="board-list">
                     {(memoryItems || []).slice().reverse().map((item, idx) => (
-                      <Box key={`${item.id || item.timestamp}-${idx}`} className="board-row" title={formatFullDateTime(item.timestamp || item.created_at || Date.now())}>
-                        <Box sx={{ width: '100%' }}>
+                      <Box key={`${item.id || item.timestamp}-${idx}`} className="board-row" sx={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }} title={formatFullDateTime(item.timestamp || item.created_at || Date.now())}>
+                        <Box sx={{ width: '100%', pr: 1 }}>
                           {item.title && (
                             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.95)', mb: 0.5 }}>
                               {item.title}
@@ -4145,6 +4167,25 @@ export default function App() {
                             {formatTime(item.timestamp || item.created_at || Date.now())}
                           </Typography>
                         </Box>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); setMemoryMenuAnchor(e.currentTarget); setMemoryMenuItem(item); }}
+                          sx={{ ml: 1, flexShrink: 0 }}
+                        >
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
+                        <Menu
+                          anchorEl={memoryMenuAnchor}
+                          open={memoryMenuItem?.id === item.id || memoryMenuItem?.timestamp === item.timestamp}
+                          onClose={() => { setMemoryMenuAnchor(null); setMemoryMenuItem(null); }}
+                          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                        >
+                          <MenuItem onClick={() => deleteMemory(item.id)}>
+                            <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+                            Delete
+                          </MenuItem>
+                        </Menu>
                       </Box>
                     ))}
                     {!memoryItems?.length && !memoryLoading && (

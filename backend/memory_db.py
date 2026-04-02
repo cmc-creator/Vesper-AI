@@ -34,6 +34,7 @@ class Memory(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     category = Column(String, nullable=False, index=True)  # personal, technical, preferences, events, relationships
+    title = Column(String, nullable=True)  # Summary title for memory
     content = Column(Text, nullable=False)
     importance = Column(Integer, default=5)  # 1-10 scale
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

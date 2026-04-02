@@ -1,14 +1,15 @@
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-feature-settings: 'kern' 1;
-  background: var(--bg, #000);
+  background: var(--bg, #0a0a0a);
   color: #e8f6ff;
-  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-y: auto;
   overflow-x: hidden;
+  letter-spacing: 0.3px;
 }
 
 .gradient-background {
@@ -606,14 +607,41 @@ body[data-style="arctic"] .hex-grid {
 }
 
 .intel-board {
-  padding: 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(var(--accent-rgb), 0.25);
-  background: var(--panel-bg, rgba(0, 0, 0, 0.85));
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 40px rgba(var(--accent-rgb), 0.15), inset 0 0 60px rgba(var(--accent-rgb), 0.05);
-  backdrop-filter: blur(20px);
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(218, 165, 32, 0.25);
+  background: linear-gradient(135deg, rgba(15, 15, 25, 0.95) 0%, rgba(20, 20, 30, 0.9) 100%);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.9),
+    0 0 80px rgba(218, 165, 32, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 40px rgba(218, 165, 32, 0.08);
+  backdrop-filter: blur(25px);
   max-width: 500px;
   margin: 0 auto;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.intel-board::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(218, 165, 32, 0.05) 0%, transparent 40%, rgba(218, 165, 32, 0.02) 100%);
+  pointer-events: none;
+}
+
+.intel-board:hover {
+  box-shadow: 
+    0 25px 70px rgba(0, 0, 0, 0.95),
+    0 0 100px rgba(218, 165, 32, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 0 50px rgba(218, 165, 32, 0.12);
+  transform: translateY(-2px);
 }
 
 .board-header {
@@ -681,18 +709,31 @@ body[data-style="arctic"] .hex-grid {
 .board-list::-webkit-scrollbar-thumb { background: rgba(var(--accent-rgb),0.3); border-radius: 4px; }
 
 .board-row {
-  padding: 14px 16px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.03);
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(218, 165, 32, 0.15);
+  background: linear-gradient(135deg, rgba(30, 30, 40, 0.5) 0%, rgba(25, 25, 35, 0.4) 100%);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 10px;
+  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
   position: relative;
   overflow: visible;
   cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(218, 165, 32, 0.08);
+}
+
+.board-row::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(218, 165, 32, 0.03) 0%, transparent 100%);
+  border-radius: 12px;
+  pointer-events: none;
 }
 
 .board-row::before {
@@ -702,15 +743,17 @@ body[data-style="arctic"] .hex-grid {
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--accent);
+  background: linear-gradient(180deg, #daa520 0%, rgba(218, 165, 32, 0.3) 100%);
+  border-radius: 3px 0 0 3px;
   transform: scaleY(0);
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .board-row:hover {
-  background: rgba(var(--accent-rgb), 0.06);
-  border-color: rgba(var(--accent-rgb), 0.2);
-  transform: translateX(4px);
+  background: linear-gradient(135deg, rgba(40, 40, 50, 0.6) 0%, rgba(35, 35, 45, 0.5) 100%);
+  border-color: rgba(218, 165, 32, 0.35);
+  transform: translateX(6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(218, 165, 32, 0.15), 0 0 30px rgba(218, 165, 32, 0.06);
 }
 
 .board-row:hover::before {
@@ -718,7 +761,7 @@ body[data-style="arctic"] .hex-grid {
 }
 
 .board-row:active {
-  transform: translateX(2px) scale(0.99);
+  transform: translateX(4px) scale(0.98);
 }
 
 .task-column {
