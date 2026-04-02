@@ -1174,9 +1174,10 @@ export default function App() {
     inputRef.current?.focus();
   }, [currentThreadId]);
 
-  const saveMessageToThread = async (role, content, overrideThreadId) => {
+  const saveMessageToThread = async (role, content, overrideThreadId, options = {}) => {
     if (!apiBase) return null;
     try {
+      const createOnly = options.createOnly === true;
       let threadId = overrideThreadId || currentThreadId;
       
       // If no thread, create one
@@ -1212,7 +1213,7 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title,
-            messages: [{ role, content, timestamp: Date.now() }],
+            messages: createOnly ? [] : [{ role, content, timestamp: Date.now() }],
           }),
         });
         
@@ -1228,6 +1229,8 @@ export default function App() {
         // CRITICAL: Refresh thread list after creating
         fetchThreads();
         console.log('✅ Thread created:', threadId);
+        return threadId;
+      } else if (createOnly) {
         return threadId;
       } else {
         // Add message to existing thread
@@ -1350,7 +1353,7 @@ export default function App() {
     
     let savedThreadId;
     try {
-      savedThreadId = await saveMessageToThread('user', userMessage);
+      savedThreadId = await saveMessageToThread('user', userMessage, undefined, { createOnly: true });
     } catch(e) {
       console.warn('Thread save failed, continuing:', e);
       savedThreadId = currentThreadId;
@@ -1426,7 +1429,10 @@ export default function App() {
       let currentModel = '';
       
       while (true) {
-        const { done, value } = await reader.read();
+        const { done, value } = await Promise.race([
+          reader.read(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Stream stalled')), 30000)),
+        ]);
         if (done) break;
         
         buffer += decoder.decode(value, { stream: true });
@@ -1494,13 +1500,12 @@ export default function App() {
       if (!messageAdded && accumulatedText) {
         addLocalMessage('assistant', accumulatedText);
       }
+      if (!messageAdded && !accumulatedText.trim()) {
+        const stalledMsg = 'I started working on that, but the response came back empty. Send it again and I will retry cleanly.';
+        addLocalMessage('assistant', stalledMsg);
+      }
       
       console.log(`🤖 Streamed response from ${currentProvider} (${accumulatedText.length} chars)`);
-      
-      // Save assistant response to thread
-      if (accumulatedText) {
-        await saveMessageToThread('assistant', accumulatedText, savedThreadId);
-      }
       
       // Auto-generate a proper topic title for new threads
       const threadToTitle = savedThreadId || currentThreadId;
@@ -1535,9 +1540,10 @@ export default function App() {
       playSound('error');
       // Restore the user's message so they can re-send without retyping
       setInput(userMessage);
-      const errorMsg = "⚠️ Couldn't reach the backend — Railway may still be waking up. Your message has been restored in the input box. Wait a moment, then hit Send again.";
+      const errorMsg = error.message === 'Stream stalled'
+        ? "⚠️ Vesper started working, but the response stalled out. Your message has been restored in the input box. Wait a moment, then hit Send again."
+        : "⚠️ Couldn't reach the backend — Railway may still be waking up. Your message has been restored in the input box. Wait a moment, then hit Send again.";
       addLocalMessage('assistant', errorMsg);
-      await saveMessageToThread('assistant', errorMsg);
       if (autoSpeak) speak(errorMsg);
     } finally {
       setAbortController(null);
@@ -6406,29 +6412,6 @@ export default function App() {
                 </Typography>
               )}
             </Box>
-            {/* New Chat Button - always pinned at bottom of sidebar */}
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={startNewChat}
-              startIcon={<AddIcon />}
-              sx={{
-                color: 'var(--accent)',
-                borderColor: 'var(--accent)',
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontWeight: 600,
-                py: 1,
-                mt: 1,
-                flexShrink: 0,
-                '&:hover': {
-                  bgcolor: 'rgba(0,255,255,0.1)',
-                  borderColor: 'var(--accent)',
-                }
-              }}
-            >
-              New Chat
-            </Button>
           </Box>
         </aside>
 
@@ -6516,21 +6499,6 @@ export default function App() {
                     >
                       Conversations
                     </Button>
-                    <Button 
-                      size="small" 
-                      variant="outlined"
-                      onClick={startNewChat}
-                      sx={{ 
-                        fontSize: '0.7rem', 
-                        py: 0.25, 
-                        px: 1,
-                        borderColor: 'var(--accent)',
-                        color: 'var(--accent)',
-                        '&:hover': { bgcolor: 'rgba(0,255,255,0.1)', borderColor: 'var(--accent)' }
-                      }}
-                    >
-                      New Chat
-                    </Button>
                   </Box>
                 )}
                 {threads.length > 1 && !launchMode && (
@@ -6561,7 +6529,7 @@ export default function App() {
                 )}
               </Box>
               </Box>{/* end mobile-menu-btn + title wrapper */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 0.5 }}>
                 {/* Model Picker */}
                 {availableModels.length > 0 && (
                   <Select
@@ -6590,6 +6558,28 @@ export default function App() {
                     ))}
                   </Select>
                 )}
+
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={startNewChat}
+                  startIcon={<AddIcon />}
+                  sx={{
+                    color: 'var(--accent)',
+                    borderColor: 'rgba(0,255,255,0.35)',
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    minWidth: 96,
+                    height: 32,
+                    px: 1.25,
+                    '&:hover': {
+                      bgcolor: 'rgba(0,255,255,0.1)',
+                      borderColor: 'var(--accent)',
+                    },
+                  }}
+                >
+                  New Chat
+                </Button>
 
                 {/* Auto-speak Toggle */}
                 <Tooltip title={autoSpeak ? "Auto-speak ON (click to disable)" : "Auto-speak OFF (click to enable)"} placement="left">
@@ -6676,7 +6666,6 @@ export default function App() {
                     }}
                   />
                 )}
-                <Box className="status-dot" />
               </Box>
             </Box>
 
