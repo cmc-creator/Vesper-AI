@@ -15,7 +15,11 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(express.static(__dirname));
+const LEGACY_UI_ENABLED = String(process.env.ENABLE_LEGACY_SANCTUARY || '').toLowerCase() === 'true';
+
+if (LEGACY_UI_ENABLED) {
+  app.use(express.static(__dirname));
+}
 
 const MEMORY_DIR = path.join(process.env.USERPROFILE || process.env.HOME, 'VesperMemories');
 const MEMORY_FILE = path.join(MEMORY_DIR, 'our_story.json');
@@ -109,8 +113,40 @@ app.get('/history', (req, res) => {
   res.json(memory);
 });
 
+if (!LEGACY_UI_ENABLED) {
+  app.get('/', (_req, res) => {
+    res.status(410).send(`
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Legacy UI Disabled</title>
+    <style>
+      body { font-family: Segoe UI, Arial, sans-serif; margin: 0; padding: 2rem; background: #0f1218; color: #f1f5f9; }
+      .card { max-width: 760px; margin: 2rem auto; padding: 1.5rem; border: 1px solid #334155; border-radius: 14px; background: #111827; }
+      h1 { margin-top: 0; color: #e2e8f0; }
+      a { color: #38bdf8; }
+      code { color: #fbbf24; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Legacy Sanctuary UI is disabled</h1>
+      <p>This server is now API-only by default to prevent launching the outdated interface.</p>
+      <p>Use the current frontend at <a href="http://localhost:5173">http://localhost:5173</a>.</p>
+      <p>If you intentionally need the old UI, start with <code>ENABLE_LEGACY_SANCTUARY=true</code>.</p>
+    </div>
+  </body>
+</html>`);
+  });
+}
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✨ Vesper's Sanctuary running on http://localhost:${PORT}`);
   console.log(`💙 Memory saved to: ${MEMORY_FILE}`);
+  if (!LEGACY_UI_ENABLED) {
+    console.log('⚠️ Legacy Sanctuary UI disabled. Use Vite frontend at http://localhost:5173');
+  }
 });

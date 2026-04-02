@@ -109,6 +109,7 @@ import AvatarStudio from './src/components/AvatarStudio';
 import VesperAvatar3D from './src/components/VesperAvatar3D';
 import IntegrationsHub from './src/components/IntegrationsHub';
 import BackgroundStudio from './src/components/BackgroundStudio';
+import SetupWizard from './src/components/SetupWizard';
 
 // Styles
 import './App.css';
@@ -183,9 +184,9 @@ const THEMES = [
   { id: 'ocean-abyss',     label: '🌊 Ocean Abyss',     accent: '#38bdf8', glow: '#0ea5e9', sub: '#0369a1', category: 'packages', bg: 'linear-gradient(180deg, #010610 0%, #000b1e 50%, #000814 100%)', panelBg: 'rgba(6,16,40,0.97)',   sound: 'ambient',  scanlines: false, style: 'ocean'    },
   { id: 'volcanic-forge',  label: '🌋 Volcanic Forge',  accent: '#f97316', glow: '#ea580c', sub: '#b91c1c', category: 'packages', bg: 'linear-gradient(160deg, #0d0200 0%, #1a0300 50%, #0d0100 100%)', panelBg: 'rgba(44,14,4,0.98)',   sound: 'dark',     scanlines: false, style: 'volcanic' },
   { id: 'arctic-glass',    label: '🧊 Arctic Glass',    accent: '#bae6fd', glow: '#e0f2fe', sub: '#7dd3fc', category: 'packages', bg: 'linear-gradient(180deg, #030c18 0%, #051020 50%, #030c18 100%)', panelBg: 'rgba(12,24,46,0.88)',  sound: 'ambient',  scanlines: false, style: 'arctic'   },
-  { id: 'marble-palace',   label: '🏛️ Marble Palace',   accent: '#d9d2c3', glow: '#f5efe6', sub: '#b8aa92', category: 'packages', bg: 'linear-gradient(155deg, #171616 0%, #22201c 40%, #151311 100%)', panelBg: 'rgba(36,32,28,0.94)', sound: 'ambient',  scanlines: false, style: 'arctic'   },
-  { id: 'diamond-vault',   label: '💎 Diamond Vault',   accent: '#bce8ff', glow: '#ecfbff', sub: '#8bc4d9', category: 'packages', bg: 'linear-gradient(165deg, #0a0e12 0%, #0d141d 45%, #080c10 100%)', panelBg: 'rgba(12,20,28,0.92)', sound: 'digital',  scanlines: false, style: 'metal'    },
-  { id: 'stained-glass',   label: '🪟 Stained Glass',   accent: '#ffd37a', glow: '#ffe7b0', sub: '#c996ff', category: 'packages', bg: 'linear-gradient(150deg, #140b14 0%, #0f1526 50%, #191008 100%)', panelBg: 'rgba(24,18,34,0.92)', sound: 'synth',    scanlines: false, style: 'ocean'    },
+  { id: 'marble-palace',   label: '🏛️ Marble Palace',   accent: '#e4d5be', glow: '#fff6ea', sub: '#c6a978', category: 'packages', bg: 'radial-gradient(circle at 18% 14%, rgba(255,248,237,0.12), transparent 18%), linear-gradient(155deg, #171412 0%, #2d2722 38%, #131110 100%)', panelBg: 'rgba(38,32,28,0.95)', sound: 'ambient',  scanlines: false, style: 'arctic'   },
+  { id: 'diamond-vault',   label: '💎 Diamond Vault',   accent: '#d8eef8', glow: '#ffffff', sub: '#9bc5d8', category: 'packages', bg: 'radial-gradient(circle at 82% 8%, rgba(218,239,255,0.14), transparent 20%), linear-gradient(165deg, #090b11 0%, #141922 44%, #090c12 100%)', panelBg: 'rgba(13,18,26,0.94)', sound: 'digital',  scanlines: false, style: 'metal'    },
+  { id: 'stained-glass',   label: '🪟 Stained Glass',   accent: '#ffd88d', glow: '#fff0c7', sub: '#cf9dff', category: 'packages', bg: 'radial-gradient(circle at 50% 0%, rgba(255,240,214,0.12), transparent 18%), linear-gradient(150deg, #160d16 0%, #12182d 46%, #1d120b 100%)', panelBg: 'rgba(26,18,36,0.94)', sound: 'synth',    scanlines: false, style: 'ocean'    },
 
   // ── TECH & CYBER ──────────────────────────────────
   { id: 'cyan', label: 'Cyan Matrix', accent: '#00ffff', glow: '#00fff2', sub: '#00ff88', category: 'tech', bg: 'linear-gradient(135deg, #000a0f, #001a1a)', panelBg: 'rgba(0,0,0,0.75)', sound: 'digital', scanlines: true },
@@ -274,6 +275,8 @@ const NAV = [
   { id: 'personality', label: 'Personality', icon: Person },
   { id: 'settings', label: 'Settings', icon: SettingsRounded },
 ];
+
+const UI_RELEASE = 'LUX-OPS R4 · 2026-04-01';
 
 // ─── Voice Persona Assigner Component ──────────────────────────────────
 function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview, onSave }) {
@@ -410,8 +413,8 @@ function App() {
   const [gameMode, setGameMode] = useState(false);
   const [activeSection, setActiveSection] = useState(() => safeStorageGet('vesper_active_section', 'chat'));
   const [activeTheme, setActiveTheme] = useState(() => {
-    const luxuryDefault = THEMES.find((t) => t.id === 'marble-palace') || THEMES[0];
-    const migrated = safeStorageGet('vesper_luxury_migrated', '0') === '1';
+    const luxuryDefault = THEMES.find((t) => t.id === 'diamond-vault') || THEMES[0];
+    const migrated = safeStorageGet('vesper_luxury_migrated_v3', '0') === '1';
     if (!migrated) return luxuryDefault;
     const storedId = safeStorageGet('vesper_theme', luxuryDefault.id);
     return THEMES.find((t) => t.id === storedId) || luxuryDefault;
@@ -429,6 +432,7 @@ function App() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Controls the confirmation dialog
   const [deleteTargetId, setDeleteTargetId] = useState(null); // 'bulk' or specific ID when confirm dialog is open
   const [threadsLoading, setThreadsLoading] = useState(false);
+  const [threadsDialogOpen, setThreadsDialogOpen] = useState(false);
   const [currentThreadId, setCurrentThreadId] = useState(null);
   const [currentThreadTitle, setCurrentThreadTitle] = useState('');
   const [editingThreadId, setEditingThreadId] = useState(null);
@@ -481,12 +485,12 @@ function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      const migrated = window.localStorage.getItem('vesper_luxury_migrated') === '1';
+      const migrated = window.localStorage.getItem('vesper_luxury_migrated_v3') === '1';
       if (!migrated) {
-        const luxuryDefault = THEMES.find((t) => t.id === 'marble-palace') || THEMES[0];
+        const luxuryDefault = THEMES.find((t) => t.id === 'diamond-vault') || THEMES[0];
         setActiveTheme(luxuryDefault);
         window.localStorage.setItem('vesper_theme', luxuryDefault.id);
-        window.localStorage.setItem('vesper_luxury_migrated', '1');
+        window.localStorage.setItem('vesper_luxury_migrated_v3', '1');
       }
     } catch (error) {
       console.warn('Luxury migration failed', error);
@@ -499,6 +503,19 @@ function App() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [uiScale, setUiScale] = useState(() => parseFloat(safeStorageGet('vesper_ui_scale', '1')));
   const [showSystemStatus, setShowSystemStatus] = useState(true);
+
+  const sortedThreads = useMemo(() => {
+    return [...threads].sort((a, b) => {
+      if (a.pinned !== b.pinned) return b.pinned ? 1 : -1;
+      return new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
+    });
+  }, [threads]);
+
+  const visibleThreads = useMemo(() => {
+    const query = threadSearchQuery.trim().toLowerCase();
+    if (!query) return sortedThreads;
+    return sortedThreads.filter((thread) => (thread.title || '').toLowerCase().includes(query));
+  }, [sortedThreads, threadSearchQuery]);
 
   // ── New features: Model Picker, Auto-speak, Export ─────────────
   const [selectedModel, setSelectedModel] = useState(() => safeStorageGet('vesper_model', 'auto'));
@@ -578,6 +595,22 @@ export default function App() {
     { id: 'mindmap', label: 'Mind Map', icon: '🧠', description: 'Explore your research visually' },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
+
+  const FEATURED_TOOL_IDS = [
+    'research',
+    'graph',
+    'videos',
+    'images',
+    'canvas',
+    'voicePersonas',
+    'newChat',
+    'clearHistory',
+    'settings',
+  ];
+
+  const featuredTools = FEATURED_TOOL_IDS
+    .map((id) => TOOLS.find((tool) => tool.id === id))
+    .filter(Boolean);
   
   // Smart Memory Tags
   const [memoryTags, setMemoryTags] = useState([]);
@@ -1569,13 +1602,17 @@ export default function App() {
       const text = textToSpeak || (messages.length > 0 && messages[messages.length - 1].role === 'assistant' 
         ? messages[messages.length - 1].content 
         : 'Hello! I am Vesper, your AI assistant.');
+      const resolvedVideoVoice = normalizeVoiceId(selectedVoiceName)
+        || normalizeVoiceId(defaultVoiceId)
+        || normalizeVoiceId(cloudVoices.length > 0 ? cloudVoices[0].id : '')
+        || '';
       
       const response = await fetch(`${apiBase}/api/video-avatar/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: text.substring(0, 500),
-          voice: '',
+          voice: resolvedVideoVoice,
           source_video: 'vesper_base.mp4',
           stability: 0.5,
           similarity_boost: 0.75,
@@ -2510,6 +2547,8 @@ export default function App() {
         setCurrentThreadId(threadId);
         setCurrentThreadTitle(data.title || 'Untitled Conversation');
         setActiveSection('chat');
+        setThreadsDialogOpen(false);
+        setMobileSidebarOpen(false);
         setToast(`Loaded: ${data.title || 'Conversation'}`);
       }
     } catch (error) {
@@ -2529,6 +2568,7 @@ export default function App() {
     if (abortController) { abortController.abort(); setAbortController(null); }
     playSound('click');
     setToast('New conversation started');
+    setThreadsDialogOpen(false);
     // Focus input after clearing
     setTimeout(() => inputRef.current?.focus(), 100);
   };
@@ -4434,7 +4474,12 @@ export default function App() {
         );
       case 'integrations':
         return (
-          <IntegrationsHub apiBase={apiBase} onBack={() => { setActiveSection('chat'); setIntegrationInitialTab(0); }} initialTab={integrationInitialTab} />
+          <IntegrationsHub
+            apiBase={apiBase}
+            onBack={() => { setActiveSection('chat'); setIntegrationInitialTab(0); }}
+            initialTab={integrationInitialTab}
+            onOpenDiagnostics={() => setDiagnosticsOpen(true)}
+          />
         );
       case 'gallery':
         return (
@@ -4811,6 +4856,15 @@ export default function App() {
                 </Box>
               )}
 
+              <SetupWizard
+                runtimeCapabilities={runtimeCapabilities}
+                onOpenDiagnostics={() => setDiagnosticsOpen(true)}
+                onOpenOperations={() => {
+                  setIntegrationInitialTab(3);
+                  setActiveSection('integrations');
+                }}
+              />
+
               {/* ── Quick Navigation ── */}
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', letterSpacing: 1, textTransform: 'uppercase' }}>Quick Links</Typography>
@@ -4818,6 +4872,7 @@ export default function App() {
                   {[
                     { id: 'personality', label: '🎭 Personality', color: '#00d0ff', tab: null },
                     { id: 'integrations', label: '🏢 Brand Kit', color: '#aa88ff', tab: 1 },
+                    { id: 'integrations', label: '🛡️ Operations', color: '#f1d39b', tab: 3 },
                     { id: 'sassy', label: '👗 Wardrobe', color: '#ff88ff', tab: null },
                     { id: 'analytics', label: '📊 Analytics', color: '#ffbb44', tab: null },
                     { id: 'nyxshift', label: '🎨 Creative Suite', color: '#ff6680', tab: null },
@@ -6007,6 +6062,12 @@ export default function App() {
               <Typography variant="h6" sx={{ color: 'var(--accent)', fontWeight: 800 }}>
                 Ops Console
               </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.4, color: 'rgba(255,255,255,0.48)', letterSpacing: 0.8 }}>
+                {UI_RELEASE}
+              </Typography>
+              <Typography variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.35)' }}>
+                Theme: {activeTheme.label}
+              </Typography>
             </Box>
           </Box>
 
@@ -6356,6 +6417,20 @@ export default function App() {
                   <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--accent)' }}>
                     Neural Chat
                   </Typography>
+                  <Chip
+                    label={runtimeCapabilities?.features?.tts ? 'Voice Ready' : 'Voice Blocked'}
+                    size="small"
+                    onClick={() => setActiveSection('settings')}
+                    sx={{
+                      bgcolor: runtimeCapabilities?.features?.tts ? 'rgba(0,255,136,0.12)' : 'rgba(255,190,92,0.12)',
+                      color: runtimeCapabilities?.features?.tts ? '#7ff2b8' : '#f6d38c',
+                      border: `1px solid ${runtimeCapabilities?.features?.tts ? 'rgba(0,255,136,0.28)' : 'rgba(255,190,92,0.28)'}`,
+                      fontWeight: 700,
+                      fontSize: '0.68rem',
+                      height: 24,
+                      cursor: 'pointer',
+                    }}
+                  />
                   {vesperIdentity?.mood && (
                     <Chip
                       label={`${vesperIdentity.mood?.emoji || '✨'} ${vesperIdentity.mood?.label || vesperIdentity.mood?.id || ''}`}
@@ -6383,6 +6458,22 @@ export default function App() {
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
                       💬 {currentThreadTitle}
                     </Typography>
+                    <Button
+                      size="small"
+                      variant="text"
+                      startIcon={<HistoryRounded fontSize="small" />}
+                      onClick={() => setThreadsDialogOpen(true)}
+                      sx={{
+                        color: '#f2deaa',
+                        minWidth: 0,
+                        px: 0.75,
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        '&:hover': { bgcolor: 'rgba(242,222,170,0.08)' },
+                      }}
+                    >
+                      Conversations
+                    </Button>
                     <Button 
                       size="small" 
                       variant="outlined"
@@ -6532,12 +6623,10 @@ export default function App() {
 
             {/* Voice selector moved to Voice Lab > Personas tab */}
 
-            <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.5, flexShrink: 0 }}>
-              {['Summarize the scene', 'Generate a quest', 'Give me a hint', 'Explain controls'].map((label) => (
+            <Stack direction="row" spacing={0.75} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.75, flexShrink: 0 }}>
+              {['Summarize this thread', 'Give me next best move', 'Draft premium response'].map((label) => (
                 <Chip key={label} label={label} onClick={() => setInput(label)} className="chip-ghost" />
               ))}
-              <Chip label="Cmd/Ctrl+K" className="chip-ghost" />
-              <Chip label="Hold V to speak" className="chip-ghost" />
             </Stack>
 
             <Paper 
@@ -6846,11 +6935,16 @@ export default function App() {
             {/* Tools Section - Below Input */}
             <Box sx={{ 
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
-              gap: 0.8,
-              mt: 1
+              gridTemplateColumns: { xs: 'repeat(3, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))' },
+              gap: 1,
+              mt: 1.2,
+              p: 1,
+              borderRadius: 2,
+              border: '1px solid rgba(230,214,182,0.18)',
+              background: 'linear-gradient(145deg, rgba(14,14,20,0.92), rgba(8,10,14,0.94))',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
             }}>
-              {TOOLS.map((tool) => (
+              {featuredTools.map((tool) => (
                 <Box
                   key={tool.id}
                   onClick={() => {
@@ -6892,27 +6986,62 @@ export default function App() {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 0.5,
-                    padding: '8px',
-                    borderRadius: '8px',
+                    justifyContent: 'center',
+                    gap: 0.7,
+                    minHeight: 78,
+                    padding: '10px 8px',
+                    borderRadius: '12px',
                     cursor: 'pointer',
-                    color: 'rgba(255,255,255,0.7)',
-                    fontSize: '0.75rem',
-                    transition: 'all 0.2s ease',
-                    border: '1px solid rgba(0,255,255,0.2)',
+                    color: 'rgba(255,255,255,0.84)',
+                    fontSize: '0.78rem',
+                    transition: 'all 0.25s ease',
+                    border: '1px solid rgba(232,214,180,0.16)',
+                    background: 'linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
                     '&:hover': {
-                      bgcolor: 'rgba(0,255,255,0.1)',
+                      bgcolor: 'rgba(242,222,170,0.12)',
                       color: '#fff',
-                      borderColor: 'var(--accent)',
+                      borderColor: 'rgba(242,222,170,0.45)',
+                      transform: 'translateY(-2px)',
                     }
                   }}
                 >
-                  <span style={{ fontSize: '1.2rem' }}>{tool.icon}</span>
-                  <Typography variant="caption" sx={{ fontSize: '0.7rem', textAlign: 'center', lineHeight: 1 }}>
+                  <span style={{ fontSize: '1.22rem', filter: 'drop-shadow(0 0 8px rgba(242,222,170,0.25))' }}>{tool.icon}</span>
+                  <Typography variant="caption" sx={{ fontSize: '0.68rem', textAlign: 'center', lineHeight: 1.1, fontWeight: 700, letterSpacing: 0.2 }}>
                     {tool.label}
                   </Typography>
                 </Box>
               ))}
+
+              <Box
+                onClick={() => setActiveSection('nyxshift')}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 0.7,
+                  minHeight: 78,
+                  padding: '10px 8px',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  color: 'rgba(255,255,255,0.84)',
+                  fontSize: '0.78rem',
+                  transition: 'all 0.25s ease',
+                  border: '1px dashed rgba(232,214,180,0.26)',
+                  background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))',
+                  '&:hover': {
+                    bgcolor: 'rgba(242,222,170,0.1)',
+                    color: '#fff',
+                    borderColor: 'rgba(242,222,170,0.45)',
+                    transform: 'translateY(-2px)',
+                  },
+                }}
+              >
+                <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 8px rgba(242,222,170,0.25))' }}>✦</span>
+                <Typography variant="caption" sx={{ fontSize: '0.68rem', textAlign: 'center', lineHeight: 1.1, fontWeight: 700, letterSpacing: 0.2 }}>
+                  Full Toolkit
+                </Typography>
+              </Box>
             </Box>
 
             {/* ── Voice Lab Panel (ElevenLabs Tools) ───────────────────── */}
@@ -7216,6 +7345,39 @@ export default function App() {
           </section>
 
           <section className="ops-panel">
+            {runtimeCapabilities?.autonomy && (
+              <Paper
+                sx={{
+                  p: 1.6,
+                  borderRadius: 2,
+                  border: '1px solid rgba(232,214,180,0.2)',
+                  background: 'linear-gradient(145deg, rgba(16,14,20,0.96), rgba(10,11,16,0.95))',
+                  boxShadow: '0 16px 38px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
+                }}
+              >
+                <Typography sx={{ fontWeight: 800, color: '#f2deaa', fontSize: '0.86rem', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+                  Operational Authority
+                </Typography>
+                <Typography sx={{ color: runtimeCapabilities.autonomy.ready ? '#8ff8c3' : '#f6d38c', fontSize: '0.82rem', mt: 0.4, mb: 1 }}>
+                  {runtimeCapabilities.autonomy.summary}
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.7 }}>
+                  {Object.entries(runtimeCapabilities.autonomy.tokens || {}).map(([key, value]) => (
+                    <Chip
+                      key={key}
+                      size="small"
+                      label={`${value ? '✓' : '•'} ${key.replace(/_/g, ' ')}`}
+                      sx={{
+                        bgcolor: value ? 'rgba(0,255,136,0.12)' : 'rgba(255,255,255,0.08)',
+                        color: value ? '#7ff2b8' : 'rgba(255,255,255,0.7)',
+                        border: `1px solid ${value ? 'rgba(0,255,136,0.24)' : 'rgba(255,255,255,0.12)'}`,
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Paper>
+            )}
+
             {runtimeCapabilities && (!runtimeCapabilities.features?.tts || !runtimeCapabilities.features?.video_avatar) && (
               <Alert
                 severity="warning"
@@ -7403,36 +7565,114 @@ export default function App() {
               </div>
             </DndContext>
 
-            <Tooltip title="Open Threads">
-              <Button
-                variant="contained"
-                startIcon={<HistoryRounded />}
-                onClick={() => setActiveSection('chat')}
-                sx={{
-                  position: 'fixed',
-                  right: 'max(18px, env(safe-area-inset-right))',
-                  bottom: 'max(18px, env(safe-area-inset-bottom))',
-                  zIndex: 1300,
-                  bgcolor: 'rgba(20,20,28,0.94)',
-                  border: '1px solid rgba(218,165,32,0.45)',
-                  color: '#f7e7bf',
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  borderRadius: '999px',
-                  px: 1.6,
-                  boxShadow: '0 12px 28px rgba(0,0,0,0.5), 0 0 24px rgba(218,165,32,0.12)',
-                  '&:hover': {
-                    bgcolor: 'rgba(32,32,44,0.96)',
-                    boxShadow: '0 16px 32px rgba(0,0,0,0.6), 0 0 32px rgba(218,165,32,0.18)',
-                  },
-                }}
-              >
-                Threads ({threads.length})
-              </Button>
-            </Tooltip>
           </section>
         </main>
       </Box>
+
+      <Dialog
+        open={threadsDialogOpen}
+        onClose={() => setThreadsDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: {
+            bgcolor: 'rgba(10,12,18,0.96)',
+            border: '1px solid rgba(230,214,182,0.16)',
+            borderRadius: '22px',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
+            backdropFilter: 'blur(24px)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ pb: 1.2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: '#f4e2bb' }}>
+                Conversation Vault
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.52)' }}>
+                Every thread in one place, with pinning and cleanup that actually works.
+              </Typography>
+            </Box>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={startNewChat}
+              startIcon={<AddIcon />}
+              sx={{
+                borderColor: 'rgba(242,222,170,0.22)',
+                color: '#f4e2bb',
+                textTransform: 'none',
+                fontWeight: 700,
+              }}
+            >
+              New Chat
+            </Button>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <TextField
+            fullWidth
+            size="small"
+            value={threadSearchQuery}
+            onChange={(e) => setThreadSearchQuery(e.target.value)}
+            placeholder="Search conversations"
+            sx={{
+              mb: 2,
+              '.MuiOutlinedInput-root': {
+                bgcolor: 'rgba(255,255,255,0.03)',
+                borderRadius: '14px',
+              },
+            }}
+          />
+          <Stack spacing={1} sx={{ maxHeight: '60vh', overflowY: 'auto', pr: 0.5 }}>
+            {visibleThreads.length === 0 && (
+              <Alert severity="info" sx={{ bgcolor: 'rgba(0,255,255,0.08)', color: '#bffaff' }}>
+                No conversations matched that search.
+              </Alert>
+            )}
+            {visibleThreads.map((thread) => (
+              <Box
+                key={thread.id}
+                sx={{
+                  p: 1.35,
+                  borderRadius: '16px',
+                  border: currentThreadId === thread.id ? '1px solid rgba(242,222,170,0.34)' : '1px solid rgba(255,255,255,0.08)',
+                  bgcolor: currentThreadId === thread.id ? 'rgba(242,222,170,0.08)' : 'rgba(255,255,255,0.03)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                }}
+              >
+                <Box sx={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => loadThread(thread.id)}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.35 }}>
+                    {thread.pinned && <PinIcon sx={{ fontSize: 14, color: '#f4d188' }} />}
+                    <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {thread.title || 'Untitled conversation'}
+                    </Typography>
+                  </Box>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>
+                    {thread.updated_at ? new Date(thread.updated_at).toLocaleString() : 'No timestamp'}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.35 }}>
+                  <Tooltip title={thread.pinned ? 'Unpin' : 'Pin'}>
+                    <IconButton size="small" onClick={() => togglePinThread(thread.id)} sx={{ color: thread.pinned ? '#f4d188' : 'rgba(255,255,255,0.45)' }}>
+                      {thread.pinned ? <PinIcon fontSize="small" /> : <PinOutlinedIcon fontSize="small" />}
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <IconButton size="small" onClick={() => deleteThread(thread.id)} sx={{ color: 'rgba(255,255,255,0.45)' }}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Box>
+            ))}
+          </Stack>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── FOCUS MODE OVERLAY ──────────────────────────────────────── */}
       {focusMode && (

@@ -26,6 +26,9 @@ import {
   Gavel as GavelIcon,
   School as SchoolIcon,
   CloudSync as SyncIcon,
+  MonitorHeart as MonitorHeartIcon,
+  PlayArrow as PlayArrowIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 
 // ─── Service Catalog ────────────────────────────────────────────────────────
@@ -602,6 +605,244 @@ function BrandKitTab({ apiBase }) {
   );
 }
 
+function OperationsTab({ apiBase, onOpenDiagnostics }) {
+  const [capabilities, setCapabilities] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [diagnostics, setDiagnostics] = useState(null);
+  const [smokeTest, setSmokeTest] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [runningSmoke, setRunningSmoke] = useState(false);
+
+  const loadOperations = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [capRes, healthRes, diagRes] = await Promise.all([
+        fetch(`${apiBase}/api/system/capabilities`, { cache: 'no-store' }),
+        fetch(`${apiBase}/api/system/health`, { cache: 'no-store' }),
+        fetch(`${apiBase}/api/system/diagnostics`, { cache: 'no-store' }),
+      ]);
+
+      if (capRes.ok) setCapabilities(await capRes.json());
+      if (healthRes.ok) setHealth(await healthRes.json());
+      if (diagRes.ok) setDiagnostics(await diagRes.json());
+    } catch {
+      // Surface partial results instead of failing the whole panel.
+    } finally {
+      setLoading(false);
+    }
+  }, [apiBase]);
+
+  useEffect(() => {
+    loadOperations();
+  }, [loadOperations]);
+
+  const runSmokeTest = async () => {
+    setRunningSmoke(true);
+    try {
+      const response = await fetch(`${apiBase}/api/system/smoke-test`, { method: 'POST' });
+      const data = await response.json();
+      setSmokeTest(data);
+      await loadOperations();
+    } catch (error) {
+      setSmokeTest({
+        status: 'failed',
+        summary: { passed: 0, failed: 1, critical_failed: 1, total: 1 },
+        results: [{ name: 'Smoke test request', ok: false, critical: true, detail: error.message }],
+      });
+    } finally {
+      setRunningSmoke(false);
+    }
+  };
+
+  const readiness = capabilities?.readiness;
+  const setup = capabilities?.setup;
+  const operations = capabilities?.operations;
+  const blockers = readiness?.blockers || [];
+  const warnings = readiness?.warnings || [];
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+        <Box>
+          <Typography sx={{ color: '#fff', fontWeight: 800, fontSize: 18 }}>Operations Center</Typography>
+          <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+            Runtime health, launch readiness, and smoke-proofing in one place.
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={loadOperations}
+            sx={{ borderColor: 'rgba(255,255,255,0.12)', color: '#fff', textTransform: 'none' }}
+          >
+            Refresh
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<PlayArrowIcon />}
+            onClick={runSmokeTest}
+            disabled={runningSmoke}
+            sx={{ bgcolor: 'var(--accent)', color: '#04131a', fontWeight: 800, textTransform: 'none', '&:hover': { bgcolor: 'var(--accent)' } }}
+          >
+            {runningSmoke ? 'Running smoke test…' : 'Run Smoke Test'}
+          </Button>
+          <Button
+            size="small"
+            variant="text"
+            startIcon={<MonitorHeartIcon />}
+            onClick={onOpenDiagnostics}
+            sx={{ color: '#f1d39b', textTransform: 'none' }}
+          >
+            Open Diagnostics Modal
+          </Button>
+        </Box>
+      </Box>
+
+      <Grid container spacing={1.5}>
+        {[
+          {
+            title: 'Launch Readiness',
+            value: readiness ? `${readiness.score}/100` : '—',
+            tone: readiness?.sellable ? '#7ff2b8' : '#f1d39b',
+            caption: readiness?.sellable ? 'No critical blockers' : `${blockers.length} blocker(s) remain`,
+          },
+          {
+            title: 'Uptime',
+            value: operations?.uptime_label || '—',
+            tone: '#9ad8ff',
+            caption: `${capabilities?.deployment_target || 'local'} deployment`,
+          },
+          {
+            title: 'Providers Online',
+            value: operations?.providers_online ?? '—',
+            tone: '#dcb2ff',
+            caption: 'AI backends available for failover',
+          },
+          {
+            title: 'Setup Checklist',
+            value: setup ? `${setup.completed}/${setup.total}` : '—',
+            tone: '#ffd89a',
+            caption: 'Environment prerequisites complete',
+          },
+        ].map((card) => (
+          <Grid item xs={12} sm={6} md={3} key={card.title}>
+            <Paper sx={{ p: 1.8, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <Typography sx={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>
+                {card.title}
+              </Typography>
+              <Typography sx={{ mt: 0.8, fontSize: 28, fontWeight: 800, color: card.tone }}>
+                {card.value}
+              </Typography>
+              <Typography sx={{ mt: 0.4, fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
+                {card.caption}
+              </Typography>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
+
+      {loading && <LinearProgress sx={{ bgcolor: 'rgba(255,255,255,0.06)', '& .MuiLinearProgress-bar': { bgcolor: 'var(--accent)' } }} />}
+
+      <Grid container spacing={1.5}>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2, height: '100%', bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <Typography sx={{ fontWeight: 700, color: '#fff', mb: 1.2 }}>Current blockers</Typography>
+            <Stack spacing={0.9}>
+              {blockers.length ? blockers.map((blocker) => (
+                <Alert key={blocker} severity="warning" sx={{ bgcolor: 'rgba(255,190,92,0.08)', color: '#ffe2aa' }}>
+                  {blocker}
+                </Alert>
+              )) : (
+                <Alert severity="success" sx={{ bgcolor: 'rgba(0,255,136,0.08)', color: '#8ff8c3' }}>
+                  No launch blockers detected.
+                </Alert>
+              )}
+              {warnings.slice(0, 3).map((warning) => (
+                <Typography key={warning} sx={{ fontSize: 12, color: 'rgba(255,255,255,0.58)' }}>
+                  • {warning}
+                </Typography>
+              ))}
+            </Stack>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2, height: '100%', bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <Typography sx={{ fontWeight: 700, color: '#fff', mb: 1.2 }}>Live health</Typography>
+            <Stack spacing={1}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>CPU usage</Typography>
+                <Typography sx={{ color: '#9ad8ff', fontWeight: 700, fontSize: 12 }}>{health?.metrics?.cpu_usage_percent ?? '—'}%</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Memory usage</Typography>
+                <Typography sx={{ color: '#9ad8ff', fontWeight: 700, fontSize: 12 }}>{health?.metrics?.memory_usage_percent ?? '—'}%</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Disk usage</Typography>
+                <Typography sx={{ color: '#9ad8ff', fontWeight: 700, fontSize: 12 }}>{health?.metrics?.disk_usage_percent ?? '—'}%</Typography>
+              </Box>
+              <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+              <Typography sx={{ color: diagnostics?.status === 'critical' ? '#ff8d8d' : diagnostics?.status === 'degraded' ? '#ffd89a' : '#8ff8c3', fontWeight: 700, fontSize: 12 }}>
+                Diagnostics status: {diagnostics?.status || 'unknown'}
+              </Typography>
+              <Typography sx={{ color: 'rgba(255,255,255,0.56)', fontSize: 12 }}>
+                {diagnostics?.summary?.issues_count ?? 0} issue(s) · {diagnostics?.summary?.warnings_count ?? 0} warning(s)
+              </Typography>
+            </Stack>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <Paper sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 1.2, flexWrap: 'wrap' }}>
+          <Typography sx={{ fontWeight: 700, color: '#fff' }}>Smoke test results</Typography>
+          {smokeTest?.summary && (
+            <Chip
+              label={`${smokeTest.summary.passed}/${smokeTest.summary.total} passed`}
+              size="small"
+              sx={{
+                bgcolor: smokeTest.status === 'passed' ? 'rgba(0,255,136,0.12)' : 'rgba(255,190,92,0.12)',
+                color: smokeTest.status === 'passed' ? '#7ff2b8' : '#f1d39b',
+                border: `1px solid ${smokeTest.status === 'passed' ? 'rgba(0,255,136,0.18)' : 'rgba(241,211,155,0.18)'}`,
+              }}
+            />
+          )}
+        </Box>
+        {smokeTest?.results?.length ? (
+          <Stack spacing={0.9}>
+            {smokeTest.results.map((result) => (
+              <Box key={result.name} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', p: 1.1, borderRadius: 1.2, bgcolor: 'rgba(255,255,255,0.03)' }}>
+                <Box>
+                  <Typography sx={{ color: '#fff', fontWeight: 600, fontSize: 13 }}>{result.name}</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.58)', fontSize: 11 }}>{result.detail}</Typography>
+                </Box>
+                <Chip
+                  label={result.ok ? 'PASS' : result.critical ? 'FAIL' : 'WARN'}
+                  size="small"
+                  sx={{
+                    bgcolor: result.ok ? 'rgba(0,255,136,0.12)' : result.critical ? 'rgba(255,110,110,0.12)' : 'rgba(241,211,155,0.12)',
+                    color: result.ok ? '#7ff2b8' : result.critical ? '#ff9a9a' : '#f1d39b',
+                  }}
+                />
+              </Box>
+            ))}
+            <Typography sx={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
+              Last run: {smokeTest.timestamp || 'unknown'}{smokeTest.duration_ms ? ` · ${smokeTest.duration_ms}ms` : ''}
+            </Typography>
+          </Stack>
+        ) : (
+          <Alert severity="info" sx={{ bgcolor: 'rgba(0,255,255,0.08)', color: '#b6faff' }}>
+            Run the smoke test to verify threads, memory, tasks, health, and runtime prerequisites before deploy or demo.
+          </Alert>
+        )}
+      </Paper>
+    </Box>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ███ TAB 3: CONTENT TOOLS ██████████████████████████████████████████████████
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -760,7 +1001,7 @@ function ContentToolsTab({ apiBase }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ███ MAIN EXPORT ███████████████████████████████████████████████████████████
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function IntegrationsHub({ apiBase, onBack, initialTab = 0 }) {
+export default function IntegrationsHub({ apiBase, onBack, initialTab = 0, onOpenDiagnostics }) {
   const [tab, setTab] = useState(initialTab);
   // Re-sync if parent changes initialTab (e.g. navigated from Brand Kit quick link)
   React.useEffect(() => { setTab(initialTab); }, [initialTab]);
@@ -786,7 +1027,7 @@ export default function IntegrationsHub({ apiBase, onBack, initialTab = 0 }) {
               Command Center
             </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', letterSpacing: 2 }}>
-              INTEGRATIONS · BRAND KIT · CONTENT TOOLS
+              INTEGRATIONS · BRAND KIT · CONTENT TOOLS · OPERATIONS
             </Typography>
           </Box>
         </Box>
@@ -803,6 +1044,7 @@ export default function IntegrationsHub({ apiBase, onBack, initialTab = 0 }) {
         <Tab icon={<ExtensionIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Integrations" />
         <Tab icon={<PaletteIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Brand Kit" />
         <Tab icon={<DescriptionIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Content Tools" />
+        <Tab icon={<MonitorHeartIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Operations" />
       </Tabs>
 
       {/* Content */}
@@ -810,6 +1052,7 @@ export default function IntegrationsHub({ apiBase, onBack, initialTab = 0 }) {
         {tab === 0 && <IntegrationsTab apiBase={apiBase} />}
         {tab === 1 && <BrandKitTab apiBase={apiBase} />}
         {tab === 2 && <ContentToolsTab apiBase={apiBase} />}
+        {tab === 3 && <OperationsTab apiBase={apiBase} onOpenDiagnostics={onOpenDiagnostics} />}
       </Box>
     </Paper>
   );

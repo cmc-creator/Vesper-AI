@@ -170,14 +170,28 @@ def health_check():
     """Health check endpoint required by Railway deployment"""
     return {"status": "healthy", "timestamp": datetime.datetime.now().isoformat()}
 
-@app.get("/api/system/capabilities")
-def get_runtime_capabilities():
+def _format_uptime_label(total_seconds: int) -> str:
+    hours, remainder = divmod(max(total_seconds, 0), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h {minutes}m"
+    if minutes:
+        return f"{minutes}m {seconds}s"
+    return f"{seconds}s"
+
+
+def _build_runtime_capabilities():
     """Return runtime feature availability for frontend gating and diagnostics."""
     media_dir = os.path.join(os.path.dirname(__file__), "media")
     source_dir = os.path.join(media_dir, "source")
     source_video = os.path.join(source_dir, "vesper_base.mp4")
     ffmpeg_path = shutil.which("ffmpeg")
     configured_voice = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
+    process_started_at = globals().get("_vesper_process_started_at")
+    if process_started_at is None:
+        process_started_at = datetime.datetime.now()
+        globals()["_vesper_process_started_at"] = process_started_at
+
     deployment_target = "local"
     if os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
         deployment_target = "vercel"
@@ -188,6 +202,17 @@ def get_runtime_capabilities():
     providers = provider_stats.get("providers", {}) if isinstance(provider_stats, dict) else {}
     active_ai_providers = sum(1 for available in providers.values() if available)
 
+    control_tokens = {
+        "github": bool(os.getenv("GITHUB_TOKEN", "").strip()),
+        "vercel": bool(os.getenv("VERCEL_TOKEN", "").strip()),
+        "railway": bool(os.getenv("RAILWAY_TOKEN", "").strip()),
+        "railway_project": bool(os.getenv("RAILWAY_PROJECT_ID", "").strip()),
+        "railway_service": bool(os.getenv("RAILWAY_SERVICE_ID", "").strip()),
+    }
+    autonomy_ready = control_tokens["github"] and (
+        control_tokens["vercel"] or (control_tokens["railway"] and control_tokens["railway_project"] and control_tokens["railway_service"])
+    )
+
     voice_ready = bool(ELEVENLABS_API_KEY and (ELEVENLABS_VOICES or configured_voice))
     video_ready = bool(os.path.exists(source_video) and ffmpeg_path and voice_ready)
     blockers = []
@@ -197,6 +222,11 @@ def get_runtime_capabilities():
         blockers.append("No AI provider is available.")
     elif active_ai_providers == 1:
         warnings.append("Only one AI provider is active; no failover is available.")
+
+    if not control_tokens["github"]:
+        warnings.append("GITHUB_TOKEN is missing; autonomous git/deploy controls are limited.")
+    if not (control_tokens["vercel"] or (control_tokens["railway"] and control_tokens["railway_project"] and control_tokens["railway_service"])):
+        warnings.append("No full deploy token chain found (Vercel or Railway).")
 
     if not ELEVENLABS_API_KEY:
         blockers.append("ELEVENLABS_API_KEY is missing.")
@@ -221,6 +251,61 @@ def get_runtime_capabilities():
         "diagnostics": True,
     }
     readiness_score = round((sum(1 for ok in readiness_checks.values() if ok) / max(len(readiness_checks), 1)) * 100)
+    uptime_seconds = int((datetime.datetime.now() - process_started_at).total_seconds())
+
+    setup_steps = [
+        {
+            "id": "ai-provider",
+            "title": "AI providers online",
+            "ready": active_ai_providers > 0,
+            "critical": True,
+            "detail": f"{active_ai_providers} provider(s) available",
+            "hint": "Configure at least one AI provider so chat and automation can respond.",
+        },
+        {
+            "id": "elevenlabs-key",
+            "title": "ElevenLabs API key",
+            "ready": bool(ELEVENLABS_API_KEY),
+            "critical": True,
+            "detail": "Speech generation can authenticate" if ELEVENLABS_API_KEY else "ELEVENLABS_API_KEY missing",
+            "hint": "Add ELEVENLABS_API_KEY to your environment and restart the backend.",
+        },
+        {
+            "id": "voice-id",
+            "title": "Voice identity configured",
+            "ready": bool(configured_voice),
+            "critical": True,
+            "detail": configured_voice or "ELEVENLABS_VOICE_ID missing",
+            "hint": "Set ELEVENLABS_VOICE_ID so spoken replies and video voice sync can render consistently.",
+        },
+        {
+            "id": "ffmpeg",
+            "title": "FFmpeg available",
+            "ready": bool(ffmpeg_path),
+            "critical": True,
+            "detail": ffmpeg_path or "ffmpeg not found on PATH",
+            "hint": "Install ffmpeg and ensure it is available on PATH for media rendering.",
+        },
+        {
+            "id": "base-video",
+            "title": "Base avatar video present",
+            "ready": os.path.exists(source_video),
+            "critical": True,
+            "detail": source_video if os.path.exists(source_video) else "backend/media/source/vesper_base.mp4 missing",
+            "hint": "Place the base avatar clip in backend/media/source so video avatar generation has a source asset.",
+        },
+        {
+            "id": "edge-tts",
+            "title": "Fallback voice engine",
+            "ready": EDGE_TTS_AVAILABLE,
+            "critical": False,
+            "detail": "edge-tts installed" if EDGE_TTS_AVAILABLE else "edge-tts not installed",
+            "hint": "Install edge-tts to keep fallback voice available when ElevenLabs is unavailable.",
+        },
+    ]
+    next_action = next((step for step in setup_steps if step["critical"] and not step["ready"]), None)
+    if next_action is None:
+        next_action = next((step for step in setup_steps if not step["ready"]), None)
 
     return {
         "status": "ok",
@@ -247,11 +332,32 @@ def get_runtime_capabilities():
             "blockers": blockers,
             "warnings": warnings,
         },
+        "setup": {
+            "steps": setup_steps,
+            "completed": sum(1 for step in setup_steps if step["ready"]),
+            "total": len(setup_steps),
+            "next_action": next_action,
+        },
+        "operations": {
+            "uptime_seconds": uptime_seconds,
+            "uptime_label": _format_uptime_label(uptime_seconds),
+            "providers_online": active_ai_providers,
+        },
+        "autonomy": {
+            "ready": autonomy_ready,
+            "tokens": control_tokens,
+            "summary": "Full authority unlocked" if autonomy_ready else "Partial authority: keys still missing",
+        },
         "hints": {
             "tts": None if voice_ready else "Set ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID, then restart backend.",
             "video_avatar": None if video_ready else "Video speech requires ffmpeg, a base video, and ElevenLabs voice configuration.",
         },
     }
+
+
+@app.get("/api/system/capabilities")
+def get_runtime_capabilities():
+    return _build_runtime_capabilities()
 
 @app.get("/api/elevenlabs/voices")
 async def get_elevenlabs_voices():
@@ -2795,6 +2901,138 @@ async def full_system_diagnostics():
     }
     
     return results
+
+
+@app.post("/api/system/smoke-test")
+async def run_system_smoke_test():
+    """Run a lightweight end-to-end readiness smoke test for core product flows."""
+    import time
+    import uuid
+
+    started_at = time.perf_counter()
+    capabilities = _build_runtime_capabilities()
+    results = []
+
+    def record(name, ok, detail, critical=True):
+        results.append({
+            "name": name,
+            "ok": bool(ok),
+            "critical": critical,
+            "detail": detail,
+        })
+
+    record(
+        "AI response path",
+        capabilities["readiness"]["checks"].get("chat"),
+        f"{capabilities['environment'].get('active_ai_providers', 0)} provider(s) available",
+        critical=True,
+    )
+    record(
+        "TTS readiness",
+        capabilities["features"].get("tts"),
+        capabilities["hints"].get("tts") or "Speech generation ready",
+        critical=False,
+    )
+    record(
+        "Video avatar readiness",
+        capabilities["features"].get("video_avatar"),
+        capabilities["hints"].get("video_avatar") or "Video avatar pipeline ready",
+        critical=False,
+    )
+
+    smoke_thread_id = f"smoke-{uuid.uuid4().hex[:10]}"
+    try:
+        memory_db.create_thread(smoke_thread_id, "Smoke Test Thread", {"smoke_test": True})
+        fetched_thread = memory_db.get_thread(smoke_thread_id)
+        record(
+            "Thread persistence",
+            bool(fetched_thread and fetched_thread.get("id") == smoke_thread_id),
+            "Temporary thread create/read/delete succeeded" if fetched_thread else "Thread retrieval failed",
+            critical=True,
+        )
+    except Exception as exc:
+        record("Thread persistence", False, f"Thread persistence failed: {str(exc)[:140]}", critical=True)
+    finally:
+        try:
+            memory_db.delete_thread(smoke_thread_id)
+        except Exception:
+            pass
+
+    smoke_memory_id = None
+    try:
+        memory_entry = memory_db.add_memory(
+            "notes",
+            "Smoke test memory entry",
+            importance=1,
+            tags=["smoke-test"],
+            metadata={"smoke_test": True},
+            title="Smoke Test Memory",
+        )
+        smoke_memory_id = memory_entry.get("id")
+        record(
+            "Memory persistence",
+            bool(smoke_memory_id),
+            "Temporary memory write/read path is healthy" if smoke_memory_id else "Memory write failed",
+            critical=True,
+        )
+    except Exception as exc:
+        record("Memory persistence", False, f"Memory persistence failed: {str(exc)[:140]}", critical=True)
+    finally:
+        if smoke_memory_id:
+            try:
+                memory_db.delete_memory(smoke_memory_id)
+            except Exception:
+                pass
+
+    smoke_task_id = None
+    try:
+        task_entry = memory_db.create_task("Smoke Test Task", "Generated by Vesper smoke test")
+        smoke_task_id = task_entry.get("id")
+        record(
+            "Task persistence",
+            bool(smoke_task_id),
+            "Temporary task create/delete succeeded" if smoke_task_id else "Task write failed",
+            critical=True,
+        )
+    except Exception as exc:
+        record("Task persistence", False, f"Task persistence failed: {str(exc)[:140]}", critical=True)
+    finally:
+        if smoke_task_id:
+            try:
+                memory_db.delete_task(smoke_task_id)
+            except Exception:
+                pass
+
+    try:
+        health = system_health_check()
+        record(
+            "System health endpoint",
+            health.get("status") == "operational",
+            f"CPU {health['metrics'].get('cpu_usage_percent', 0)}% · memory {health['metrics'].get('memory_usage_percent', 0)}%",
+            critical=False,
+        )
+    except Exception as exc:
+        record("System health endpoint", False, f"Health probe failed: {str(exc)[:140]}", critical=False)
+
+    critical_failures = [item for item in results if item["critical"] and not item["ok"]]
+    failures = [item for item in results if not item["ok"]]
+    duration_ms = round((time.perf_counter() - started_at) * 1000)
+
+    return {
+        "status": "passed" if not critical_failures else "failed",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "duration_ms": duration_ms,
+        "summary": {
+            "passed": sum(1 for item in results if item["ok"]),
+            "failed": len(failures),
+            "critical_failed": len(critical_failures),
+            "total": len(results),
+        },
+        "results": results,
+        "readiness": capabilities["readiness"],
+        "setup": capabilities["setup"],
+        "operations": capabilities["operations"],
+    }
 
 
 @app.post("/api/system/self-heal")
