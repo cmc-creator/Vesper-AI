@@ -2586,6 +2586,7 @@ export default function App() {
     playSound('click');
     setToast('New conversation started');
     setThreadsDialogOpen(false);
+    setActiveSection('chat');
     // Focus input after clearing
     setTimeout(() => inputRef.current?.focus(), 100);
   };
