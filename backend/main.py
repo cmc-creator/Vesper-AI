@@ -8731,6 +8731,14 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
             final_text = ai_response_obj.get("content", "") or ""
             provider = ai_response_obj.get("provider", "unknown")
             model = ai_response_obj.get("model", "")
+
+            # Guard against empty provider output so the client never receives
+            # a silent "done" event with no visible assistant message.
+            if not str(final_text).strip():
+                final_text = (
+                    "I hit a response glitch and came back empty. "
+                    "Please send that again and I will answer it properly."
+                )
             
             # Send provider info
             yield f"data: {json.dumps({'type': 'provider', 'provider': provider, 'model': model})}\n\n"
