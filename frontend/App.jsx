@@ -2545,9 +2545,14 @@ export default function App() {
     try {
       const res = await fetch(`${apiBase}/api/threads/${threadId}`);
       const data = await res.json();
-      if (data && data.messages) {
+      if (data && data.status === 'not_found') {
+        setToast('Conversation not found');
+        return;
+      }
+      if (data && (data.messages || data.messages === null)) {
         // Convert backend message format to frontend format
-        const formattedMessages = data.messages.map((msg, idx) => ({
+        const rawMessages = data.messages || [];
+        const formattedMessages = rawMessages.map((msg, idx) => ({
           id: msg.id || `thread-${threadId}-${idx}-${Date.now()}`,
           role: msg.role,
           content: msg.content,
@@ -2866,6 +2871,13 @@ export default function App() {
     }
   }, [activeSection, analyticsDays, analytics, fetchAnalytics]);
 
+  // Refresh thread history when navigating to Memory Core
+  useEffect(() => {
+    if (activeSection === 'memory') {
+      fetchThreads();
+    }
+  }, [activeSection, fetchThreads]);
+
   // Fetch personality when personality section is viewed
   useEffect(() => {
     if (activeSection === 'personality' && !personality) {
@@ -2993,6 +3005,16 @@ export default function App() {
     } catch {
       return '';
     }
+  };
+
+  // Clean up thread titles that have markdown artifacts or trailing ellipsis from old threads
+  const sanitizeTitle = (title) => {
+    if (!title) return 'Untitled';
+    return title
+      .replace(/\*([^*]*)\*/g, '$1')  // Strip *markdown* bold/italic
+      .replace(/\.\.\.$/, '')          // Remove hardcoded trailing "..."
+      .replace(/\n+/g, ' ')            // Flatten newlines to single space
+      .trim() || 'Untitled';
   };
 
   // Load available ElevenLabs voices from backend (no browser voices — they sound robotic)
@@ -3991,7 +4013,7 @@ export default function App() {
                 {threadsLoading ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     {[1, 2, 3, 4].map((i) => (
-                      <Box key={i} className="board-row" sx={{ opacity: 0.6 }}>
+                      <Box key={i} className="board-row" sx={{ opacity: 0.6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Box sx={{ flex: 1 }}>
                           <Box className="skeleton" sx={{ height: 20, width: '70%', mb: 0.5 }} />
                           <Box className="skeleton" sx={{ height: 16, width: '40%' }} />
@@ -4022,6 +4044,7 @@ export default function App() {
                       className="board-row" 
                       sx={{ 
                         display: 'flex', 
+                        flexDirection: 'row',
                         alignItems: 'center', 
                         gap: 1, 
                         py: 1.2,
@@ -4064,8 +4087,13 @@ export default function App() {
                         <>
                           <Box sx={{ flex: 1, cursor: 'pointer', minWidth: 0, overflow: 'hidden' }} onClick={() => loadThread(thread.id)}>
                             <Typography sx={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
-                              📌 {thread.title}
+                              📌 {sanitizeTitle(thread.title)}
                             </Typography>
+                            {thread.summary && (
+                              <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.2, lineHeight: 1.3 }}>
+                                {thread.summary}
+                              </Typography>
+                            )}
                             <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', mt: 0.3, lineHeight: 1.3 }}>
                               {thread.message_count || 0} {(thread.message_count === 1) ? 'message' : 'messages'} · {formatTime(thread.updated_at)}
                             </Typography>
@@ -4098,6 +4126,7 @@ export default function App() {
                       className="board-row" 
                       sx={{ 
                         display: 'flex', 
+                        flexDirection: 'row',
                         alignItems: 'center', 
                         gap: 1, 
                         py: 1.2,
@@ -4140,8 +4169,13 @@ export default function App() {
                         <>
                           <Box sx={{ flex: 1, cursor: 'pointer', minWidth: 0, overflow: 'hidden' }} onClick={() => loadThread(thread.id)}>
                             <Typography sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 400, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
-                              {thread.title}
+                              {sanitizeTitle(thread.title)}
                             </Typography>
+                            {thread.summary && (
+                              <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.2, lineHeight: 1.3 }}>
+                                {thread.summary}
+                              </Typography>
+                            )}
                             <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', mt: 0.3, lineHeight: 1.3 }}>
                               {thread.message_count || 0} {(thread.message_count === 1) ? 'message' : 'messages'} · {formatTime(thread.updated_at)}
                             </Typography>
@@ -6203,7 +6237,7 @@ export default function App() {
                           }}
                           title={thread.title}
                         >
-                          {thread.title}
+                          {sanitizeTitle(thread.title)}
                         </Typography>
                       )}
                     </Box>
@@ -7676,7 +7710,7 @@ export default function App() {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.35 }}>
                     {thread.pinned && <PinIcon sx={{ fontSize: 14, color: '#f4d188' }} />}
                     <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {thread.title || 'Untitled conversation'}
+                      {sanitizeTitle(thread.title) || 'Untitled conversation'}
                     </Typography>
                   </Box>
                   <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>
