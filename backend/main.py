@@ -170,6 +170,40 @@ def health_check():
     """Health check endpoint required by Railway deployment"""
     return {"status": "healthy", "timestamp": datetime.datetime.now().isoformat()}
 
+@app.get("/api/system/capabilities")
+def get_runtime_capabilities():
+    """Return runtime feature availability for frontend gating and diagnostics."""
+    media_dir = os.path.join(os.path.dirname(__file__), "media")
+    source_dir = os.path.join(media_dir, "source")
+    source_video = os.path.join(source_dir, "vesper_base.mp4")
+    ffmpeg_path = shutil.which("ffmpeg")
+    configured_voice = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
+
+    voice_ready = bool(ELEVENLABS_API_KEY and (ELEVENLABS_VOICES or configured_voice))
+    video_ready = bool(os.path.exists(source_video) and ffmpeg_path and voice_ready)
+
+    return {
+        "status": "ok",
+        "environment": {
+            "has_elevenlabs_key": bool(ELEVENLABS_API_KEY),
+            "has_elevenlabs_voice_id": bool(configured_voice),
+            "elevenlabs_available": ELEVENLABS_AVAILABLE,
+            "edge_tts_available": EDGE_TTS_AVAILABLE,
+            "voice_catalog_loaded": len(ELEVENLABS_VOICES),
+            "ffmpeg_available": bool(ffmpeg_path),
+            "base_video_available": os.path.exists(source_video),
+        },
+        "features": {
+            "tts": voice_ready,
+            "video_avatar": video_ready,
+            "video_avatar_fallback": os.path.exists(source_video),
+        },
+        "hints": {
+            "tts": None if voice_ready else "Set ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID, then restart backend.",
+            "video_avatar": None if video_ready else "Video speech requires ffmpeg, a base video, and ElevenLabs voice configuration.",
+        },
+    }
+
 @app.get("/api/elevenlabs/voices")
 async def get_elevenlabs_voices():
     """Fetch available voices from ElevenLabs API"""

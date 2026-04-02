@@ -472,6 +472,7 @@ function App() {
   const [voiceStability, setVoiceStability] = useState(() => parseFloat(safeStorageGet('vesper_voice_stability', '0.5')));
   const [voiceSimilarityBoost, setVoiceSimilarityBoost] = useState(() => parseFloat(safeStorageGet('vesper_voice_similarity', '0.75')));
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
+  const [runtimeCapabilities, setRuntimeCapabilities] = useState(null);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [abortController, setAbortController] = useState(null);
@@ -889,6 +890,17 @@ export default function App() {
     return '';
   }, []);
 
+  const fetchRuntimeCapabilities = useCallback(async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/system/capabilities`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      setRuntimeCapabilities(data);
+    } catch (error) {
+      console.warn('Capabilities check failed', error);
+    }
+  }, [apiBase]);
+
   const firebaseAuthEnabled = useMemo(
     () => String(import.meta.env.VITE_FIREBASE_AUTH_ENABLED).toLowerCase() === 'true',
     []
@@ -987,6 +999,10 @@ export default function App() {
       console.warn('Storage write failed', error);
     }
   }, [activeTheme, activeSection, memoryCategory]);
+
+  useEffect(() => {
+    fetchRuntimeCapabilities();
+  }, [fetchRuntimeCapabilities]);
 
   // ── Background auto-rotation ──
   useEffect(() => {
@@ -1540,10 +1556,11 @@ export default function App() {
   // ── Generate Video Avatar ─────────────────────────────────────────
   const generateVideoAvatar = async (textToSpeak = null) => {
     try {
+      if (runtimeCapabilities?.features?.video_avatar === false && runtimeCapabilities?.features?.video_avatar_fallback) {
+        showToast(runtimeCapabilities?.hints?.video_avatar || 'Video speech is not configured in this environment yet.', 'warn');
+      }
       setVideoGenLoading(true);
-      const mediaBase = (!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost'))
-        ? 'http://localhost:8000'
-        : (apiBase || '');
+      const mediaBase = apiBase || '';
 
       // Keep the panel pinned to the real base video clip while speech is generated.
       setVideoAvatarUrl(`${mediaBase}/media/source/vesper_base.mp4`);
@@ -1584,7 +1601,7 @@ export default function App() {
         if (hasGeneratedSpeech) {
           showToast(`Video created${result.mode === 'wav2lip' ? ' with true lip-sync!' : ' with speech'}`, 'success');
         } else {
-          showToast('Video loaded. Add ELEVENLABS_API_KEY in .env, then restart backend for speech.', 'warn');
+          showToast(runtimeCapabilities?.hints?.tts || 'Video loaded in fallback mode. Configure voice to enable speech.', 'warn');
         }
       }
     } catch (err) {
@@ -7101,6 +7118,23 @@ export default function App() {
           </section>
 
           <section className="ops-panel">
+            {runtimeCapabilities && (!runtimeCapabilities.features?.tts || !runtimeCapabilities.features?.video_avatar) && (
+              <Alert
+                severity="warning"
+                sx={{
+                  mb: 1.5,
+                  bgcolor: 'rgba(30,20,12,0.88)',
+                  border: '1px solid rgba(218,165,32,0.35)',
+                  color: '#f6e7c4',
+                  '.MuiAlert-icon': { color: '#d9a441' },
+                }}
+              >
+                {runtimeCapabilities.features?.tts
+                  ? 'Voice is ready, but full video speech is still missing ffmpeg or base media in this environment.'
+                  : (runtimeCapabilities.hints?.tts || 'Voice is not fully configured in this environment yet.')}
+              </Alert>
+            )}
+
             {/* ═══ AVATAR PORTRAIT ═══ */}
             <Box sx={{
               width: 170,
