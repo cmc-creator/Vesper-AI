@@ -2136,14 +2136,19 @@ export default function App() {
         .map(t => t.trim())
         .filter(t => t.length > 0);
       
+      // Generate a summary title from the first 50 chars of content
+      const title = memoryText.substring(0, 50).trim() + (memoryText.length > 50 ? '...' : '');
+      
       const res = await fetch(`${apiBase}/api/memories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           category: memoryCategory, 
+          title: title,
           content: memoryText,
           importance: 5,
-          tags: tags
+          tags: tags,
+          created_at: new Date().toISOString()
         }),
       });
       
@@ -2859,7 +2864,15 @@ export default function App() {
 
   const formatTime = (d) => {
     try {
-      return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return new Date(d).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+  
+  const formatFullDateTime = (d) => {
+    try {
+      return new Date(d).toLocaleString([], { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
     } catch {
       return '';
     }
@@ -4104,20 +4117,25 @@ export default function App() {
                   </Typography>
                   <Box className="board-list">
                     {(memoryItems || []).slice().reverse().map((item, idx) => (
-                      <Box key={`${item.id || item.timestamp}-${idx}`} className="board-row">
-                        <Box>
-                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                      <Box key={`${item.id || item.timestamp}-${idx}`} className="board-row" title={formatFullDateTime(item.timestamp || item.created_at || Date.now())}>
+                        <Box sx={{ width: '100%' }}>
+                          {item.title && (
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.95)', mb: 0.5 }}>
+                              {item.title}
+                            </Typography>
+                          )}
+                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                             {item.content}
                           </Typography>
                           {item.tags && item.tags.length > 0 && (
-                            <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
+                            <Box sx={{ display: 'flex', gap: 0.5, mt: 1.5, flexWrap: 'wrap' }}>
                               {item.tags.map((tag) => (
                                 <Chip
                                   key={tag}
                                   label={tag}
                                   size="small"
                                   variant="outlined"
-                                  sx={{ height: 24, fontSize: '0.75rem' }}
+                                  sx={{ height: 24, fontSize: '0.75rem', cursor: 'pointer' }}
                                   onClick={() => toggleTagFilter(tag)}
                                 />
                               ))}
