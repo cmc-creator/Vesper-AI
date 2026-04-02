@@ -184,9 +184,9 @@ const THEMES = [
   { id: 'ocean-abyss',     label: '🌊 Ocean Abyss',     accent: '#38bdf8', glow: '#0ea5e9', sub: '#0369a1', category: 'packages', bg: 'linear-gradient(180deg, #010610 0%, #000b1e 50%, #000814 100%)', panelBg: 'rgba(6,16,40,0.97)',   sound: 'ambient',  scanlines: false, style: 'ocean'    },
   { id: 'volcanic-forge',  label: '🌋 Volcanic Forge',  accent: '#f97316', glow: '#ea580c', sub: '#b91c1c', category: 'packages', bg: 'linear-gradient(160deg, #0d0200 0%, #1a0300 50%, #0d0100 100%)', panelBg: 'rgba(44,14,4,0.98)',   sound: 'dark',     scanlines: false, style: 'volcanic' },
   { id: 'arctic-glass',    label: '🧊 Arctic Glass',    accent: '#bae6fd', glow: '#e0f2fe', sub: '#7dd3fc', category: 'packages', bg: 'linear-gradient(180deg, #030c18 0%, #051020 50%, #030c18 100%)', panelBg: 'rgba(12,24,46,0.88)',  sound: 'ambient',  scanlines: false, style: 'arctic'   },
-  { id: 'marble-palace',   label: '🏛️ Marble Palace',   accent: '#e4d5be', glow: '#fff6ea', sub: '#c6a978', category: 'packages', bg: 'radial-gradient(circle at 18% 14%, rgba(255,248,237,0.12), transparent 18%), linear-gradient(155deg, #171412 0%, #2d2722 38%, #131110 100%)', panelBg: 'rgba(38,32,28,0.95)', sound: 'ambient',  scanlines: false, style: 'arctic'   },
-  { id: 'diamond-vault',   label: '💎 Diamond Vault',   accent: '#d8eef8', glow: '#ffffff', sub: '#9bc5d8', category: 'packages', bg: 'radial-gradient(circle at 82% 8%, rgba(218,239,255,0.14), transparent 20%), linear-gradient(165deg, #090b11 0%, #141922 44%, #090c12 100%)', panelBg: 'rgba(13,18,26,0.94)', sound: 'digital',  scanlines: false, style: 'metal'    },
-  { id: 'stained-glass',   label: '🪟 Stained Glass',   accent: '#ffd88d', glow: '#fff0c7', sub: '#cf9dff', category: 'packages', bg: 'radial-gradient(circle at 50% 0%, rgba(255,240,214,0.12), transparent 18%), linear-gradient(150deg, #160d16 0%, #12182d 46%, #1d120b 100%)', panelBg: 'rgba(26,18,36,0.94)', sound: 'synth',    scanlines: false, style: 'ocean'    },
+  { id: 'marble-palace',   label: '🏛️ Marble Palace',   accent: '#e4d5be', glow: '#fff6ea', sub: '#c6a978', category: 'packages', bg: 'radial-gradient(circle at 18% 14%, rgba(255,248,237,0.12), transparent 18%), linear-gradient(155deg, #171412 0%, #2d2722 38%, #131110 100%)', panelBg: 'rgba(38,32,28,0.95)', sound: 'ambient',  scanlines: false, style: 'lux' },
+  { id: 'diamond-vault',   label: '💎 Diamond Vault',   accent: '#d8eef8', glow: '#ffffff', sub: '#9bc5d8', category: 'packages', bg: 'radial-gradient(circle at 82% 8%, rgba(218,239,255,0.14), transparent 20%), linear-gradient(165deg, #090b11 0%, #141922 44%, #090c12 100%)', panelBg: 'rgba(13,18,26,0.94)', sound: 'digital',  scanlines: false, style: 'lux' },
+  { id: 'stained-glass',   label: '🪟 Stained Glass',   accent: '#ffd88d', glow: '#fff0c7', sub: '#cf9dff', category: 'packages', bg: 'radial-gradient(circle at 50% 0%, rgba(255,240,214,0.12), transparent 18%), linear-gradient(150deg, #160d16 0%, #12182d 46%, #1d120b 100%)', panelBg: 'rgba(26,18,36,0.94)', sound: 'synth',    scanlines: false, style: 'lux' },
 
   // ── TECH & CYBER ──────────────────────────────────
   { id: 'cyan', label: 'Cyan Matrix', accent: '#00ffff', glow: '#00fff2', sub: '#00ff88', category: 'tech', bg: 'linear-gradient(135deg, #000a0f, #001a1a)', panelBg: 'rgba(0,0,0,0.75)', sound: 'digital', scanlines: true },
@@ -503,6 +503,7 @@ function App() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [uiScale, setUiScale] = useState(() => parseFloat(safeStorageGet('vesper_ui_scale', '1')));
   const [showSystemStatus, setShowSystemStatus] = useState(true);
+  const [launchMode, setLaunchMode] = useState(() => safeStorageGet('vesper_launch_mode', 'true') === 'true');
 
   const sortedThreads = useMemo(() => {
     return [...threads].sort((a, b) => {
@@ -516,6 +517,15 @@ function App() {
     if (!query) return sortedThreads;
     return sortedThreads.filter((thread) => (thread.title || '').toLowerCase().includes(query));
   }, [sortedThreads, threadSearchQuery]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('vesper_launch_mode', launchMode ? 'true' : 'false');
+    } catch (error) {
+      console.warn('Launch mode persistence failed', error);
+    }
+  }, [launchMode]);
 
   // ── New features: Model Picker, Auto-speak, Export ─────────────
   const [selectedModel, setSelectedModel] = useState(() => safeStorageGet('vesper_model', 'auto'));
@@ -6043,7 +6053,7 @@ export default function App() {
         );
       })}
 
-      <Box className="app-shell" style={themeVars} data-style={activeTheme.style || 'cyber'}>
+      <Box className={`app-shell ${launchMode ? 'launch-mode' : ''}`} style={themeVars} data-style={activeTheme.style || 'cyber'}>
         {/* Scanlines overlay - renders when theme has scanlines enabled */}
         {activeTheme.scanlines && (
           <div className="scanlines" style={{
@@ -6491,7 +6501,7 @@ export default function App() {
                     </Button>
                   </Box>
                 )}
-                {threads.length > 1 && (
+                {threads.length > 1 && !launchMode && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 0.85, maxWidth: 560 }}>
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', mr: 0.25 }}>
                       Recent:
@@ -6581,6 +6591,23 @@ export default function App() {
                   </IconButton>
                 </Tooltip>
 
+                <Tooltip title={launchMode ? 'Launch Mode ON (click to edit)' : 'Launch Mode OFF (click for clean demo view)'} placement="left">
+                  <IconButton
+                    size="small"
+                    onClick={() => setLaunchMode((prev) => !prev)}
+                    sx={{
+                      color: launchMode ? '#f2deaa' : 'rgba(255,255,255,0.35)',
+                      bgcolor: launchMode ? 'rgba(242,222,170,0.1)' : 'transparent',
+                      border: launchMode ? '1px solid rgba(242,222,170,0.4)' : '1px solid rgba(255,255,255,0.15)',
+                      '&:hover': { color: '#f2deaa', bgcolor: 'rgba(242,222,170,0.14)' },
+                      width: 32,
+                      height: 32,
+                    }}
+                  >
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800 }}>L</span>
+                  </IconButton>
+                </Tooltip>
+
                 {/* Voice ON/OFF Toggle */}
                 <Tooltip title={ttsEnabled ? "Turn voice OFF" : "Turn voice ON"} placement="left">
                   <IconButton 
@@ -6623,7 +6650,7 @@ export default function App() {
 
             {/* Voice selector moved to Voice Lab > Personas tab */}
 
-            <Stack direction="row" spacing={0.75} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.75, flexShrink: 0 }}>
+            <Stack className="prompt-rail" direction="row" spacing={0.75} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.75, flexShrink: 0 }}>
               {['Summarize this thread', 'Give me next best move', 'Draft premium response'].map((label) => (
                 <Chip key={label} label={label} onClick={() => setInput(label)} className="chip-ghost" />
               ))}
@@ -6933,7 +6960,7 @@ export default function App() {
             </Paper>
 
             {/* Tools Section - Below Input */}
-            <Box sx={{ 
+            <Box className="command-deck" sx={{ 
               display: 'grid',
               gridTemplateColumns: { xs: 'repeat(3, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))' },
               gap: 1,
