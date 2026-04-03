@@ -6710,7 +6710,7 @@ export default function App() {
                     borderRadius: 'inherit',
                     maskImage: 'linear-gradient(to bottom, black 0%, black 62%, transparent 94%)',
                     WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 62%, transparent 94%)',
-                    animation: isSpeaking ? 'portraitShimmer 1.5s ease-in-out infinite, portraitBreathing 3s ease-in-out infinite' : 'portraitBreathing 4s ease-in-out infinite',
+                    animation: isSpeaking ? 'portraitShimmer 3.2s ease-in-out infinite, portraitBreathing 5.5s ease-in-out infinite' : 'portraitBreathing 7s ease-in-out infinite',
                   }}
                 >
                   <video
@@ -6721,7 +6721,7 @@ export default function App() {
                       height: '100%',
                       objectFit: 'cover',
                       filter: isSpeaking ? `brightness(1.15) drop-shadow(0 0 12px ${activeTheme.accent}88)` : 'brightness(1)',
-                      animation: isSpeaking ? 'portraitLips 0.4s ease-in-out infinite, portraitGaze 8s ease-in-out infinite' : 'none',
+                      animation: isSpeaking ? 'portraitLips 1.25s ease-in-out infinite, portraitGaze 16s ease-in-out infinite' : 'none',
                     }}
                     muted
                     playsInline
