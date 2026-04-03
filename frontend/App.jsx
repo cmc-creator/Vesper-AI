@@ -6767,10 +6767,11 @@ export default function App() {
               ))}
             </Stack>
 
-            <Box className="chat-stage-shell">
-              {/* Left column: video + refresh button stacked */}
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                <Box className="chat-avatar-card" sx={{ borderColor: `${activeTheme.accent}55` }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
+              <Box
+                className="chat-avatar-card"
+                sx={{ borderColor: `${activeTheme.accent}55`, width: 220, height: 280, flexShrink: 0 }}
+              >
                   <Box
                     sx={{
                       width: '100%',
@@ -6819,46 +6820,28 @@ export default function App() {
                     />
                   </Box>
                 </Box>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => generateVideoAvatar()}
-                  disabled={videogenLoading}
-                  sx={{
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => generateVideoAvatar()}
+                disabled={videogenLoading}
+                sx={{
+                  width: 220,
+                  borderColor: activeTheme.accent,
+                  color: activeTheme.accent,
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.7rem',
+                  py: 0.5,
+                  '&:hover': {
                     borderColor: activeTheme.accent,
-                    color: activeTheme.accent,
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    fontSize: '0.7rem',
-                    py: 0.5,
-                    '&:hover': {
-                      borderColor: activeTheme.accent,
-                      backgroundColor: `${activeTheme.accent}12`,
-                    },
-                  }}
-                >
-                  {videogenLoading ? <CircularProgress size={12} sx={{ mr: 0.5 }} /> : null}
-                  Refresh Video Speech
-                </Button>
-              </Box>
-
-              {/* Right column: logo fills the card */}
-              <Box className="chat-stage-meta" sx={{ justifyContent: 'center', alignItems: 'center', p: '10px' }}>
-                <Box
-                  component="img"
-                  src="/Vesper_Logo.png"
-                  alt="Vesper logo"
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                    borderRadius: 2,
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    boxShadow: '0 14px 32px rgba(0,0,0,0.42), 0 0 24px rgba(var(--accent-rgb),0.18)',
-                    background: 'rgba(0,0,0,0.22)',
-                  }}
-                />
-              </Box>
+                    backgroundColor: `${activeTheme.accent}12`,
+                  },
+                }}
+              >
+                {videogenLoading ? <CircularProgress size={12} sx={{ mr: 0.5 }} /> : null}
+                Refresh Video Speech
+              </Button>
             </Box>
 
             <Paper 
@@ -7552,6 +7535,24 @@ export default function App() {
           </section>
 
           <section className="ops-panel">
+            {/* Logo */}
+            <Box
+              component="img"
+              src="/Vesper_Logo.png"
+              alt="Vesper"
+              sx={{
+                width: '100%',
+                maxWidth: 340,
+                display: 'block',
+                mx: 'auto',
+                mb: 1,
+                borderRadius: 3,
+                border: '1px solid rgba(255,255,255,0.1)',
+                boxShadow: '0 12px 28px rgba(0,0,0,0.45), 0 0 20px rgba(var(--accent-rgb),0.14)',
+                background: 'rgba(0,0,0,0.18)',
+              }}
+            />
+
             {runtimeCapabilities?.autonomy && (
               <Paper
                 sx={{
