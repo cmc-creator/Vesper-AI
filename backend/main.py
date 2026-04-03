@@ -8030,7 +8030,16 @@ async def chat_stream(chat: ChatMessage):
                     )
                 except:
                     thread = {"id": chat.thread_id, "messages": [], "metadata": {}}
-            
+
+            # Track whether the user message was already saved by the frontend
+            # (frontend saves it when creating the thread, so don't duplicate it)
+            _initial_msgs = thread.get("messages", []) if thread else []
+            _user_already_saved = bool(
+                _initial_msgs
+                and _initial_msgs[-1].get("role") == "user"
+                and _initial_msgs[-1].get("content") == chat.message
+            )
+
             memory_summary = ""
             try:
                 memories = memory_db.get_memories(limit=10)
@@ -8757,20 +8766,27 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
             if visualizations:
                 yield f"data: {json.dumps({'type': 'visualizations', 'data': visualizations})}\n\n"
             
-            # Done event
-            yield f"data: {json.dumps({'type': 'done', 'provider': provider, 'model': model})}\n\n"
-            
-            # Save to thread
+            # Save to thread BEFORE sending done — guarantees messages are committed
+            # before the client can call auto-title (eliminates race in multi-worker deploys)
             ai_response_clean = str(final_text) if not isinstance(final_text, str) else final_text
-            memory_db.add_message_to_thread(chat.thread_id, {
-                "role": "user", "content": chat.message,
-                "timestamp": datetime.datetime.now().isoformat()
-            })
-            memory_db.add_message_to_thread(chat.thread_id, {
-                "role": "assistant", "content": ai_response_clean,
-                "timestamp": datetime.datetime.now().isoformat(),
-                "provider": provider
-            })
+            try:
+                # Only save user message if it wasn't already saved by the frontend
+                # (frontend saves it at thread creation to show during streaming)
+                if not _user_already_saved:
+                    memory_db.add_message_to_thread(chat.thread_id, {
+                        "role": "user", "content": chat.message,
+                        "timestamp": datetime.datetime.now().isoformat()
+                    })
+                memory_db.add_message_to_thread(chat.thread_id, {
+                    "role": "assistant", "content": ai_response_clean,
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "provider": provider
+                })
+            except Exception as save_err:
+                print(f"⚠️  Thread save failed (messages may be lost): {save_err}")
+
+            # Done event — client receives this AFTER messages are committed
+            yield f"data: {json.dumps({'type': 'done', 'provider': provider, 'model': model})}\n\n"
             
         except Exception as e:
             print(f"❌ Stream error: {e}")

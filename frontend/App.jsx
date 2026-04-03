@@ -1417,7 +1417,9 @@ export default function App() {
     
     let savedThreadId;
     try {
-      savedThreadId = await saveMessageToThread('user', userMessage, undefined, { createOnly: true });
+      // Save user message immediately (creates thread WITH message for new convos,
+      // or appends to existing thread). Backend deduplicates if already present.
+      savedThreadId = await saveMessageToThread('user', userMessage, undefined);
     } catch(e) {
       console.warn('Thread save failed, continuing:', e);
       savedThreadId = currentThreadId;
