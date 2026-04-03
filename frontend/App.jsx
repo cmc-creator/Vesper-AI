@@ -18,6 +18,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  Drawer,
   Alert,
   Switch,
   FormControlLabel,
@@ -1383,6 +1384,13 @@ export default function App() {
       console.warn('Thread save failed, continuing:', e);
       savedThreadId = currentThreadId;
     }
+
+    // Never fall back to "default"; enforce a unique thread id so every chat is loggable.
+    const effectiveThreadId = savedThreadId || currentThreadId || `thread_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    if (!currentThreadId && !savedThreadId) {
+      setCurrentThreadId(effectiveThreadId);
+      setCurrentThreadTitle(`Chat ${new Date().toLocaleDateString()}`);
+    }
     
     // Create a placeholder assistant message for streaming
     const streamMsgId = `stream-${Date.now()}-${Math.random()}`;
@@ -1393,7 +1401,7 @@ export default function App() {
     try {
       const payload = { 
         message: userMessage,
-        thread_id: savedThreadId || currentThreadId || 'default',
+        thread_id: effectiveThreadId,
         images: currentImages.length > 0 ? currentImages.map(img => img.dataUrl) : [],
         model: selectedModel !== 'auto' ? selectedModel : null,
       };
@@ -1533,7 +1541,7 @@ export default function App() {
       console.log(`🤖 Streamed response from ${currentProvider} (${accumulatedText.length} chars)`);
       
       // Auto-generate a proper topic title for new threads
-      const threadToTitle = savedThreadId || currentThreadId;
+      const threadToTitle = effectiveThreadId;
       if (threadToTitle && accumulatedText) {
         try {
           const titleRes = await fetch(`${apiBase}/api/threads/${threadToTitle}/auto-title`, { method: 'POST' });
@@ -7671,48 +7679,62 @@ export default function App() {
         </main>
       </Box>
 
-      <Dialog
+      <Drawer
+        anchor="left"
         open={threadsDialogOpen}
         onClose={() => setThreadsDialogOpen(false)}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{
-          sx: {
-            bgcolor: 'rgba(10,12,18,0.96)',
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: { xs: '94vw', sm: 500 },
+            maxWidth: '94vw',
+            left: { xs: 0, md: '302px' },
+            top: { xs: 0, md: '20px' },
+            height: { xs: '100%', md: 'calc(100% - 40px)' },
+            borderRadius: { xs: 0, md: '0 22px 22px 0' },
+            bgcolor: 'rgba(10,12,18,0.97)',
             border: '1px solid rgba(230,214,182,0.16)',
-            borderRadius: '22px',
             boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
             backdropFilter: 'blur(24px)',
+            overflow: 'hidden',
           },
         }}
       >
-        <DialogTitle sx={{ pb: 1.2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+        <Box sx={{ p: 2.2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, pb: 1.2 }}>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 800, color: '#f4e2bb' }}>
-                Conversation Vault
+                Memory Core
               </Typography>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.52)' }}>
-                Every thread in one place, with pinning and cleanup that actually works.
+                Thread history with pinning, organized in one place.
               </Typography>
             </Box>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={startNewChat}
-              startIcon={<AddIcon />}
-              sx={{
-                borderColor: 'rgba(242,222,170,0.22)',
-                color: '#f4e2bb',
-                textTransform: 'none',
-                fontWeight: 700,
-              }}
-            >
-              New Chat
-            </Button>
+            <Stack direction="row" spacing={0.8}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={startNewChat}
+                startIcon={<AddIcon />}
+                sx={{
+                  borderColor: 'rgba(242,222,170,0.22)',
+                  color: '#f4e2bb',
+                  textTransform: 'none',
+                  fontWeight: 700,
+                }}
+              >
+                New Chat
+              </Button>
+              <IconButton
+                size="small"
+                onClick={() => setThreadsDialogOpen(false)}
+                sx={{ color: 'rgba(255,255,255,0.72)' }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Stack>
           </Box>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
+
           <TextField
             fullWidth
             size="small"
@@ -7727,7 +7749,7 @@ export default function App() {
               },
             }}
           />
-          <Stack spacing={1} sx={{ maxHeight: '60vh', overflowY: 'auto', pr: 0.5 }}>
+          <Stack spacing={1} sx={{ flex: 1, overflowY: 'auto', pr: 0.5 }}>
             {visibleThreads.length === 0 && (
               <Alert severity="info" sx={{ bgcolor: 'rgba(0,255,255,0.08)', color: '#bffaff' }}>
                 No conversations matched that search.
@@ -7773,8 +7795,8 @@ export default function App() {
               </Box>
             ))}
           </Stack>
-        </DialogContent>
-      </Dialog>
+        </Box>
+      </Drawer>
 
       {/* ─── FOCUS MODE OVERLAY ──────────────────────────────────────── */}
       {focusMode && (
