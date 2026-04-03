@@ -554,6 +554,48 @@ function App() {
   const [videogenLoading, setVideoGenLoading] = useState(false);
   const [videoShouldAutoplay, setVideoShouldAutoplay] = useState(false);
   const avatarVideoRef = useRef(null);
+  const sidebarRef = useRef(null);
+  const [drawerFrame, setDrawerFrame] = useState({ left: 300, top: 12, height: 820 });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateDrawerFrame = () => {
+      const el = sidebarRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const computedLeft = Math.max(8, Math.round(rect.right + 8));
+      const computedTop = Math.max(0, Math.round(rect.top));
+      const computedHeight = Math.max(360, Math.round(rect.height));
+
+      setDrawerFrame((prev) => {
+        if (
+          prev.left === computedLeft &&
+          prev.top === computedTop &&
+          prev.height === computedHeight
+        ) {
+          return prev;
+        }
+        return { left: computedLeft, top: computedTop, height: computedHeight };
+      });
+    };
+
+    updateDrawerFrame();
+    window.addEventListener('resize', updateDrawerFrame);
+    window.addEventListener('scroll', updateDrawerFrame, true);
+
+    let resizeObserver;
+    if (typeof ResizeObserver !== 'undefined' && sidebarRef.current) {
+      resizeObserver = new ResizeObserver(updateDrawerFrame);
+      resizeObserver.observe(sidebarRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateDrawerFrame);
+      window.removeEventListener('scroll', updateDrawerFrame, true);
+      if (resizeObserver) resizeObserver.disconnect();
+    };
+  }, [launchMode, uiScale, activeTheme.id]);
 
   // Background Studio
   const [backgroundStudioOpen, setBackgroundStudioOpen] = useState(false);
@@ -5029,7 +5071,11 @@ export default function App() {
                     sx={{
                       '& .MuiDrawer-paper': {
                         width: { xs: '100vw', sm: 620, md: 760 },
-                        maxWidth: '100vw',
+                        maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+                        left: { xs: 0, md: `${drawerFrame.left}px` },
+                        top: { xs: 0, md: `${drawerFrame.top}px` },
+                        height: { xs: '100%', md: `${drawerFrame.height}px` },
+                        borderRadius: { xs: 0, md: '0 22px 22px 0' },
                         bgcolor: 'rgba(8, 8, 18, 0.97)',
                         border: '1px solid rgba(255,255,255,0.08)',
                         boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
@@ -6142,26 +6188,9 @@ export default function App() {
             zIndex: 9999,
           }} />
         )}
-        <aside className={`sidebar glass-panel${mobileSidebarOpen ? ' mobile-open' : ''}`}>
+        <aside ref={sidebarRef} className={`sidebar glass-panel${mobileSidebarOpen ? ' mobile-open' : ''}`}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, minWidth: 0 }}>
-              <Box
-                component="img"
-                src="/Vesper_Logo.png"
-                alt="Vesper logo"
-                sx={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 1.6,
-                  objectFit: 'cover',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  boxShadow: '0 8px 22px rgba(0,0,0,0.42), 0 0 12px rgba(var(--accent-rgb),0.18)',
-                  flexShrink: 0,
-                }}
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
               <Box sx={{ minWidth: 0 }}>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 2 }}>
                 VESPER AI
@@ -6790,18 +6819,12 @@ export default function App() {
               </Box>
 
               <Box className="chat-stage-meta">
-                <Typography variant="subtitle2" sx={{ color: '#f2deaa', fontWeight: 800, letterSpacing: 0.3 }}>
-                  Vesper Presence
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.68)', lineHeight: 1.35 }}>
-                  Clean presence mode. Larger branding, less clutter.
-                </Typography>
                 <Box
                   component="img"
                   src="/Vesper_Logo.png"
                   alt="Vesper logo"
                   sx={{
-                    width: { xs: 170, sm: 210 },
+                    width: { xs: 240, sm: 300 },
                     maxWidth: '100%',
                     height: 'auto',
                     alignSelf: 'center',
@@ -6812,18 +6835,6 @@ export default function App() {
                     background: 'rgba(0,0,0,0.22)',
                   }}
                 />
-                <Stack direction="row" spacing={0.8} sx={{ flexWrap: 'wrap', rowGap: 0.8, mt: 0.2 }}>
-                  <Chip
-                    size="small"
-                    label={isSpeaking ? 'Speaking' : 'Idle'}
-                    sx={{
-                      bgcolor: isSpeaking ? 'rgba(0,255,136,0.16)' : 'rgba(255,255,255,0.08)',
-                      color: isSpeaking ? '#7ff2b8' : 'rgba(255,255,255,0.72)',
-                      border: `1px solid ${isSpeaking ? 'rgba(0,255,136,0.26)' : 'rgba(255,255,255,0.14)'}`,
-                      fontWeight: 700,
-                    }}
-                  />
-                </Stack>
                 <Button
                   size="small"
                   variant="outlined"
@@ -6845,13 +6856,6 @@ export default function App() {
                   {videogenLoading ? <CircularProgress size={14} sx={{ mr: 0.6 }} /> : null}
                   Refresh Video Speech
                 </Button>
-                {runtimeCapabilities && (!runtimeCapabilities.features?.tts || !runtimeCapabilities.features?.video_avatar) && (
-                  <Typography variant="caption" sx={{ color: '#f6d38c', display: 'block', mt: 0.4 }}>
-                    {runtimeCapabilities.features?.tts
-                      ? 'Voice is ready, but full video speech is still missing ffmpeg or base media in this environment.'
-                      : (runtimeCapabilities.hints?.tts || 'Voice is not fully configured in this environment yet.')}
-                  </Typography>
-                )}
               </Box>
             </Box>
 
@@ -7729,7 +7733,11 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '94vw', sm: 500 },
-            maxWidth: '94vw',
+            maxWidth: { xs: '94vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+            left: { xs: 0, md: `${drawerFrame.left}px` },
+            top: { xs: 0, md: `${drawerFrame.top}px` },
+            height: { xs: '100%', md: `${drawerFrame.height}px` },
+            borderRadius: { xs: 0, md: '0 22px 22px 0' },
             bgcolor: 'rgba(10,12,18,0.97)',
             border: '1px solid rgba(230,214,182,0.16)',
             boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
@@ -8104,7 +8112,11 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: '100vw',
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+            left: { xs: 0, md: `${drawerFrame.left}px` },
+            top: { xs: 0, md: `${drawerFrame.top}px` },
+            height: { xs: '100%', md: `${drawerFrame.height}px` },
+            borderRadius: { xs: 0, md: '0 22px 22px 0' },
             bgcolor: 'rgba(10,12,18,0.98)',
             border: '1px solid rgba(230,214,182,0.16)',
             boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
@@ -8134,7 +8146,11 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: '100vw',
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+            left: { xs: 0, md: `${drawerFrame.left}px` },
+            top: { xs: 0, md: `${drawerFrame.top}px` },
+            height: { xs: '100%', md: `${drawerFrame.height}px` },
+            borderRadius: { xs: 0, md: '0 22px 22px 0' },
             bgcolor: 'rgba(10,12,18,0.98)',
             border: '1px solid rgba(230,214,182,0.16)',
             boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
@@ -8164,7 +8180,11 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: '100vw',
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+            left: { xs: 0, md: `${drawerFrame.left}px` },
+            top: { xs: 0, md: `${drawerFrame.top}px` },
+            height: { xs: '100%', md: `${drawerFrame.height}px` },
+            borderRadius: { xs: 0, md: '0 22px 22px 0' },
             bgcolor: 'rgba(10,12,18,0.98)',
             border: '1px solid rgba(230,214,182,0.16)',
             boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
@@ -8194,7 +8214,11 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: '100vw',
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+            left: { xs: 0, md: `${drawerFrame.left}px` },
+            top: { xs: 0, md: `${drawerFrame.top}px` },
+            height: { xs: '100%', md: `${drawerFrame.height}px` },
+            borderRadius: { xs: 0, md: '0 22px 22px 0' },
             bgcolor: 'rgba(10,12,18,0.98)',
             border: '1px solid rgba(230,214,182,0.16)',
             boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
