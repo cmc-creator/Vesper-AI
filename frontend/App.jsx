@@ -5030,10 +5030,6 @@ export default function App() {
                       '& .MuiDrawer-paper': {
                         width: { xs: '100vw', sm: 620, md: 760 },
                         maxWidth: '100vw',
-                        left: { xs: 0, md: '292px' },
-                        top: { xs: 0, md: '20px' },
-                        height: { xs: '100%', md: 'calc(100% - 40px)' },
-                        borderRadius: { xs: 0, md: '0 22px 22px 0' },
                         bgcolor: 'rgba(8, 8, 18, 0.97)',
                         border: '1px solid rgba(255,255,255,0.08)',
                         boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
@@ -6151,7 +6147,7 @@ export default function App() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, minWidth: 0 }}>
               <Box
                 component="img"
-                src={`${mediaBase}/media/Vesper_Logo.png`}
+                src="/Vesper_Logo.png"
                 alt="Vesper logo"
                 sx={{
                   width: 44,
@@ -7728,10 +7724,6 @@ export default function App() {
           '& .MuiDrawer-paper': {
             width: { xs: '94vw', sm: 500 },
             maxWidth: '94vw',
-            left: { xs: 0, md: '292px' },
-            top: { xs: 0, md: '20px' },
-            height: { xs: '100%', md: 'calc(100% - 40px)' },
-            borderRadius: { xs: 0, md: '0 22px 22px 0' },
             bgcolor: 'rgba(10,12,18,0.97)',
             border: '1px solid rgba(230,214,182,0.16)',
             boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
@@ -8107,10 +8099,6 @@ export default function App() {
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
             maxWidth: '100vw',
-            left: { xs: 0, md: '292px' },
-            top: { xs: 0, md: '20px' },
-            height: { xs: '100%', md: 'calc(100% - 40px)' },
-            borderRadius: { xs: 0, md: '0 22px 22px 0' },
             bgcolor: 'rgba(10,12,18,0.98)',
             border: '1px solid rgba(230,214,182,0.16)',
             boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
@@ -8141,10 +8129,6 @@ export default function App() {
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
             maxWidth: '100vw',
-            left: { xs: 0, md: '292px' },
-            top: { xs: 0, md: '20px' },
-            height: { xs: '100%', md: 'calc(100% - 40px)' },
-            borderRadius: { xs: 0, md: '0 22px 22px 0' },
             bgcolor: 'rgba(10,12,18,0.98)',
             border: '1px solid rgba(230,214,182,0.16)',
             boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
@@ -8175,10 +8159,6 @@ export default function App() {
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
             maxWidth: '100vw',
-            left: { xs: 0, md: '292px' },
-            top: { xs: 0, md: '20px' },
-            height: { xs: '100%', md: 'calc(100% - 40px)' },
-            borderRadius: { xs: 0, md: '0 22px 22px 0' },
             bgcolor: 'rgba(10,12,18,0.98)',
             border: '1px solid rgba(230,214,182,0.16)',
             boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
@@ -8209,10 +8189,6 @@ export default function App() {
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
             maxWidth: '100vw',
-            left: { xs: 0, md: '292px' },
-            top: { xs: 0, md: '20px' },
-            height: { xs: '100%', md: 'calc(100% - 40px)' },
-            borderRadius: { xs: 0, md: '0 22px 22px 0' },
             bgcolor: 'rgba(10,12,18,0.98)',
             border: '1px solid rgba(230,214,182,0.16)',
             boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
