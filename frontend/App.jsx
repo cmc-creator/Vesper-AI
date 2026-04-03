@@ -6699,7 +6699,7 @@ export default function App() {
                       height: '100%',
                       objectFit: 'cover',
                       filter: isSpeaking ? `brightness(1.15) drop-shadow(0 0 12px ${activeTheme.accent}88)` : 'brightness(1)',
-                      animation: isSpeaking ? 'portraitLips 0.4s ease-in-out infinite, portraitBlink 6s ease-in-out infinite, portraitGaze 8s ease-in-out infinite' : 'portraitBlink 8s ease-in-out infinite',
+                      animation: isSpeaking ? 'portraitLips 0.4s ease-in-out infinite, portraitGaze 8s ease-in-out infinite' : 'none',
                     }}
                     autoPlay={videoShouldAutoplay}
                     loop={false}
