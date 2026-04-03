@@ -6677,6 +6677,106 @@ export default function App() {
               ))}
             </Stack>
 
+            <Box className="chat-stage-shell">
+              <Box className="chat-avatar-card" sx={{ borderColor: `${activeTheme.accent}55` }}>
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    borderRadius: 'inherit',
+                    maskImage: 'linear-gradient(to bottom, black 0%, black 62%, transparent 94%)',
+                    WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 62%, transparent 94%)',
+                    animation: isSpeaking ? 'portraitShimmer 1.5s ease-in-out infinite, portraitBreathing 3s ease-in-out infinite' : 'portraitBreathing 4s ease-in-out infinite',
+                  }}
+                >
+                  <video
+                    ref={avatarVideoRef}
+                    src={videoAvatarUrl || `${(!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost')) ? 'http://localhost:8000' : (apiBase || '')}/media/source/vesper_base.mp4`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      filter: isSpeaking ? `brightness(1.15) drop-shadow(0 0 12px ${activeTheme.accent}88)` : 'brightness(1)',
+                      animation: isSpeaking ? 'portraitLips 0.4s ease-in-out infinite, portraitBlink 6s ease-in-out infinite, portraitGaze 8s ease-in-out infinite' : 'portraitBlink 8s ease-in-out infinite',
+                    }}
+                    autoPlay={videoShouldAutoplay}
+                    loop={false}
+                    muted
+                    playsInline
+                    controls={false}
+                    onEnded={() => {
+                      if (avatarVideoRef.current) {
+                        const holdAt = Math.max(0, avatarVideoRef.current.duration - 0.04);
+                        avatarVideoRef.current.currentTime = holdAt;
+                      }
+                      setVideoShouldAutoplay(false);
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              <Box className="chat-stage-meta">
+                <Typography variant="subtitle2" sx={{ color: '#f2deaa', fontWeight: 800, letterSpacing: 0.3 }}>
+                  Vesper Presence
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.72)', lineHeight: 1.45 }}>
+                  Keep her in the conversation while you type. Refresh video speech any time after a response to re-sync motion.
+                </Typography>
+                <Stack direction="row" spacing={0.8} sx={{ flexWrap: 'wrap', rowGap: 0.8, mt: 0.5 }}>
+                  <Chip
+                    size="small"
+                    label={isSpeaking ? 'Speaking' : 'Idle'}
+                    sx={{
+                      bgcolor: isSpeaking ? 'rgba(0,255,136,0.16)' : 'rgba(255,255,255,0.1)',
+                      color: isSpeaking ? '#7ff2b8' : 'rgba(255,255,255,0.75)',
+                      border: `1px solid ${isSpeaking ? 'rgba(0,255,136,0.28)' : 'rgba(255,255,255,0.16)'}`,
+                      fontWeight: 700,
+                    }}
+                  />
+                  <Chip
+                    size="small"
+                    label={runtimeCapabilities?.features?.video_avatar ? 'Video Ready' : 'Video Fallback'}
+                    sx={{
+                      bgcolor: runtimeCapabilities?.features?.video_avatar ? 'rgba(0,255,255,0.14)' : 'rgba(242,222,170,0.14)',
+                      color: runtimeCapabilities?.features?.video_avatar ? 'var(--accent)' : '#f6d38c',
+                      border: `1px solid ${runtimeCapabilities?.features?.video_avatar ? 'rgba(0,255,255,0.26)' : 'rgba(242,222,170,0.28)'}`,
+                      fontWeight: 700,
+                    }}
+                  />
+                </Stack>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => generateVideoAvatar()}
+                  disabled={videogenLoading}
+                  sx={{
+                    mt: 0.35,
+                    alignSelf: 'flex-start',
+                    borderColor: activeTheme.accent,
+                    color: activeTheme.accent,
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    '&:hover': {
+                      borderColor: activeTheme.accent,
+                      backgroundColor: `${activeTheme.accent}12`,
+                    },
+                  }}
+                >
+                  {videogenLoading ? <CircularProgress size={14} sx={{ mr: 0.6 }} /> : null}
+                  Refresh Video Speech
+                </Button>
+                {runtimeCapabilities && (!runtimeCapabilities.features?.tts || !runtimeCapabilities.features?.video_avatar) && (
+                  <Typography variant="caption" sx={{ color: '#f6d38c', display: 'block', mt: 0.4 }}>
+                    {runtimeCapabilities.features?.tts
+                      ? 'Voice is ready, but full video speech is still missing ffmpeg or base media in this environment.'
+                      : (runtimeCapabilities.hints?.tts || 'Voice is not fully configured in this environment yet.')}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+
             <Paper 
               ref={chatContainerRef} 
               className="chat-window glass-card"
@@ -7425,99 +7525,6 @@ export default function App() {
                 </Box>
               </Paper>
             )}
-
-            {runtimeCapabilities && (!runtimeCapabilities.features?.tts || !runtimeCapabilities.features?.video_avatar) && (
-              <Alert
-                severity="warning"
-                sx={{
-                  mb: 1.5,
-                  bgcolor: 'rgba(30,20,12,0.88)',
-                  border: '1px solid rgba(218,165,32,0.35)',
-                  color: '#f6e7c4',
-                  '.MuiAlert-icon': { color: '#d9a441' },
-                }}
-              >
-                {runtimeCapabilities.features?.tts
-                  ? 'Voice is ready, but full video speech is still missing ffmpeg or base media in this environment.'
-                  : (runtimeCapabilities.hints?.tts || 'Voice is not fully configured in this environment yet.')}
-              </Alert>
-            )}
-
-            {/* ═══ AVATAR PORTRAIT ═══ */}
-            <Box sx={{
-              width: 170,
-              height: 230,
-              mx: 'auto',
-              mb: 2,
-              borderRadius: 3,
-              overflow: 'hidden',
-              border: `1px solid ${activeTheme.accent}44`,
-              background: `radial-gradient(ellipse at 50% 30%, ${activeTheme.accent}18 0%, rgba(0,0,0,0.85) 70%)`,
-              boxShadow: isSpeaking ? `0 0 28px ${activeTheme.accent}66, 0 0 60px ${activeTheme.accent}33` : `0 4px 24px rgba(0,0,0,0.5)`,
-              transition: 'all 0.3s ease',
-              animation: isSpeaking ? 'portraitSpeak 0.6s ease-in-out infinite' : 'none',
-              transform: isSpeaking ? 'scale(1.02)' : 'scale(1)',
-            }}>
-              <Box
-                sx={{
-                  width: '100%',
-                  height: '100%',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  maskImage: 'linear-gradient(to bottom, black 0%, black 56%, transparent 86%)',
-                  WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 56%, transparent 86%)',
-                  animation: isSpeaking ? 'portraitShimmer 1.5s ease-in-out infinite, portraitBreathing 3s ease-in-out infinite' : 'portraitBreathing 4s ease-in-out infinite',
-                }}
-              >
-                <video
-                  ref={avatarVideoRef}
-                  src={videoAvatarUrl || `${(!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost')) ? 'http://localhost:8000' : (apiBase || '')}/media/source/vesper_base.mp4`}
-                  style={{ 
-                    width: '100%', 
-                    height: '100%', 
-                    objectFit: 'cover', 
-                    filter: isSpeaking ? `brightness(1.15) drop-shadow(0 0 12px ${activeTheme.accent}88)` : 'brightness(1)',
-                    animation: isSpeaking ? `portraitLips 0.4s ease-in-out infinite, portraitBlink 6s ease-in-out infinite, portraitGaze 8s ease-in-out infinite` : 'portraitBlink 8s ease-in-out infinite',
-                  }}
-                  autoPlay={videoShouldAutoplay}
-                  loop={false}
-                  muted
-                  playsInline
-                  controls={false}
-                  onEnded={() => {
-                    if (avatarVideoRef.current) {
-                      const holdAt = Math.max(0, avatarVideoRef.current.duration - 0.04);
-                      avatarVideoRef.current.currentTime = holdAt;
-                    }
-                    setVideoShouldAutoplay(false);
-                  }}
-                />
-              </Box>
-            </Box>
-
-            {/* Video Avatar Refresh */}
-            <Stack direction="row" spacing={1} sx={{ mb: 2, px: 1 }}>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => generateVideoAvatar()}
-                disabled={videogenLoading}
-                sx={{
-                  flex: 1,
-                  borderColor: activeTheme.accent,
-                  color: activeTheme.accent,
-                  backgroundColor: 'transparent',
-                  fontSize: '0.75rem',
-                  '&:hover': {
-                    borderColor: activeTheme.accent,
-                    backgroundColor: `${activeTheme.accent}11`,
-                  },
-                }}
-              >
-                {videogenLoading ? <CircularProgress size={16} sx={{ mr: 0.5 }} /> : null}
-                📹 Refresh Video Speech
-              </Button>
-            </Stack>
 
             {/* Dashboard widgets row */}
             <Box className="panel-grid" sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2, mt: 1 }}>
