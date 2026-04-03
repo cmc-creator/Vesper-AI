@@ -3469,7 +3469,7 @@ export default function App() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
-            {!isUser && <AIAvatar thinking={thinking} mood={thinking ? 'thinking' : 'neutral'} />}
+            {!isUser && <AIAvatar thinking={thinking} isSpeaking={isSpeaking} mood={thinking ? 'thinking' : 'neutral'} />}
             <Typography variant="caption" sx={{ color: isUser ? 'rgba(255,255,255,0.8)' : 'var(--accent)', fontWeight: 700 }}>
               {isUser ? 'You' : 'Vesper'}
             </Typography>
@@ -6967,7 +6967,7 @@ export default function App() {
               ) : (
                 <Tooltip title="Send (Enter)" placement="top">
                   <span>
-                    <IconButton type="submit" disabled={!input.trim()} className="cta-button" size="small">
+                    <IconButton onClick={sendMessage} disabled={!input.trim()} className="cta-button" size="small">
                       <SendIcon />
                     </IconButton>
                   </span>
