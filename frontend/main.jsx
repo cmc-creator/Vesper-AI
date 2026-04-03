@@ -3,8 +3,8 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
-// Clear stale service workers/caches in local dev to avoid old Workbox bundles.
-if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+// Clear stale service workers/caches so older Workbox bundles cannot pin the UI to an old deploy.
+if (typeof window !== 'undefined') {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then((regs) => {
       regs.forEach((reg) => reg.unregister())
