@@ -1175,7 +1175,6 @@ export default function App() {
   }, [currentThreadId]);
 
   const saveMessageToThread = async (role, content, overrideThreadId, options = {}) => {
-    if (!apiBase) return null;
     try {
       const createOnly = options.createOnly === true;
       let threadId = overrideThreadId || currentThreadId;
@@ -2513,7 +2512,6 @@ export default function App() {
 
 
   const fetchThreads = useCallback(async () => {
-    if (!apiBase) return;
     setThreadsLoading(true);
     try {
       const res = await fetch(`${apiBase}/api/threads`);
@@ -2527,7 +2525,6 @@ export default function App() {
   }, [apiBase]);
 
   const togglePinThread = async (threadId) => {
-    if (!apiBase) return;
     try {
       const res = await fetch(`${apiBase}/api/threads/${threadId}/pin`, {
         method: 'POST',
@@ -2549,7 +2546,6 @@ export default function App() {
   };
 
   const loadThread = async (threadId) => {
-    if (!apiBase) return;
     try {
       const res = await fetch(`${apiBase}/api/threads/${threadId}`);
       const data = await res.json();
