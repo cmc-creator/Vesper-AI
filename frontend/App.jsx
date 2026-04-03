@@ -936,6 +936,13 @@ export default function App() {
     return '';
   }, []);
 
+  const mediaBase = useMemo(() => {
+    if (!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost')) {
+      return 'http://localhost:8000';
+    }
+    return apiBase || '';
+  }, [apiBase]);
+
   const fetchRuntimeCapabilities = useCallback(async () => {
     try {
       const res = await fetch(`${apiBase}/api/system/capabilities`, { cache: 'no-store' });
@@ -957,13 +964,10 @@ export default function App() {
   );
 
   useEffect(() => {
-    const mediaBase = (!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost'))
-      ? 'http://localhost:8000'
-      : (apiBase || '');
     if (!videoAvatarUrl) {
       setVideoAvatarUrl(`${mediaBase}/media/source/vesper_base.mp4`);
     }
-  }, [apiBase, videoAvatarUrl]);
+  }, [mediaBase, videoAvatarUrl]);
 
   useEffect(() => {
     const video = avatarVideoRef.current;
@@ -5012,6 +5016,7 @@ export default function App() {
                     anchor="left"
                     open={Boolean(themeMenuAnchor)}
                     onClose={() => setThemeMenuAnchor(null)}
+                    transitionDuration={{ enter: 320, exit: 220 }}
                     ModalProps={{
                       keepMounted: true,
                       BackdropProps: {
@@ -6143,7 +6148,25 @@ export default function App() {
         )}
         <aside className={`sidebar glass-panel${mobileSidebarOpen ? ' mobile-open' : ''}`}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, minWidth: 0 }}>
+              <Box
+                component="img"
+                src={`${mediaBase}/media/Vesper_Logo.png`}
+                alt="Vesper logo"
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 1.6,
+                  objectFit: 'cover',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  boxShadow: '0 8px 22px rgba(0,0,0,0.42), 0 0 12px rgba(var(--accent-rgb),0.18)',
+                  flexShrink: 0,
+                }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+              <Box sx={{ minWidth: 0 }}>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 2 }}>
                 VESPER AI
               </Typography>
@@ -6156,6 +6179,7 @@ export default function App() {
               <Typography variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.35)' }}>
                 Theme: {activeTheme.label}
               </Typography>
+              </Box>
             </Box>
           </Box>
 
@@ -6734,7 +6758,7 @@ export default function App() {
                 >
                   <video
                     ref={avatarVideoRef}
-                    src={videoAvatarUrl || `${(!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost')) ? 'http://localhost:8000' : (apiBase || '')}/media/source/vesper_base.mp4`}
+                    src={videoAvatarUrl || `${mediaBase}/media/source/vesper_base.mp4`}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -7690,6 +7714,7 @@ export default function App() {
         variant="temporary"
         open={threadsDialogOpen}
         onClose={() => setThreadsDialogOpen(false)}
+        transitionDuration={{ enter: 320, exit: 220 }}
         ModalProps={{
           keepMounted: true,
           BackdropProps: {
@@ -8068,6 +8093,7 @@ export default function App() {
         anchor="left"
         open={researchOpen}
         onClose={() => setResearchOpen(false)}
+        transitionDuration={{ enter: 320, exit: 220 }}
         ModalProps={{
           keepMounted: true,
           BackdropProps: {
@@ -8101,6 +8127,7 @@ export default function App() {
         anchor="left"
         open={imageOpen}
         onClose={() => setImageOpen(false)}
+        transitionDuration={{ enter: 320, exit: 220 }}
         ModalProps={{
           keepMounted: true,
           BackdropProps: {
@@ -8134,6 +8161,7 @@ export default function App() {
         anchor="left"
         open={videoOpen}
         onClose={() => setVideoOpen(false)}
+        transitionDuration={{ enter: 320, exit: 220 }}
         ModalProps={{
           keepMounted: true,
           BackdropProps: {
@@ -8167,6 +8195,7 @@ export default function App() {
         anchor="left"
         open={learningOpen}
         onClose={() => setLearningOpen(false)}
+        transitionDuration={{ enter: 320, exit: 220 }}
         ModalProps={{
           keepMounted: true,
           BackdropProps: {
