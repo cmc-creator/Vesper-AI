@@ -501,6 +501,7 @@ function App() {
   }, []);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => safeStorageGet('vesper_sidebar_collapsed', 'false') === 'true');
   const [integrationInitialTab, setIntegrationInitialTab] = useState(0);
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -6213,7 +6214,7 @@ export default function App() {
         );
       })}
 
-      <Box className={`app-shell ${launchMode ? 'launch-mode' : ''}`} style={themeVars} data-style={activeTheme.style || 'cyber'}>
+      <Box className={`app-shell ${launchMode ? 'launch-mode' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} style={themeVars} data-style={activeTheme.style || 'cyber'}>
         {/* Scanlines overlay - renders when theme has scanlines enabled */}
         {activeTheme.scanlines && (
           <div className="scanlines" style={{
@@ -6223,9 +6224,9 @@ export default function App() {
             zIndex: 9999,
           }} />
         )}
-        <aside ref={sidebarRef} className={`sidebar glass-panel${mobileSidebarOpen ? ' mobile-open' : ''}`}>
+        <aside ref={sidebarRef} className={`sidebar glass-panel${mobileSidebarOpen ? ' mobile-open' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, minWidth: 0 }}>
+            <Box className="sidebar-title-block" sx={{ display: 'flex', alignItems: 'center', gap: 1.2, minWidth: 0 }}>
               <Box sx={{ minWidth: 0 }}>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 2 }}>
                 VESPER AI
@@ -6248,6 +6249,7 @@ export default function App() {
               <Box
                 key={id}
                 className={`nav-item ${activeSection === id ? 'active' : ''}`}
+                title={label}
                 onClick={() => {
                   setActiveSection(id);
                   playSound('click');
@@ -6255,7 +6257,7 @@ export default function App() {
                 }}
               >
                 <Icon fontSize="small" />
-                <span>{label}</span>
+                <span className="nav-label">{label}</span>
               </Box>
             ))}
           </Box>
@@ -6538,6 +6540,34 @@ export default function App() {
               )}
             </Box>
           </Box>
+
+          {/* Sidebar collapse toggle — desktop only */}
+          <Box
+            className="sidebar-collapse-btn"
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={() => {
+              const next = !sidebarCollapsed;
+              setSidebarCollapsed(next);
+              localStorage.setItem('vesper_sidebar_collapsed', String(next));
+            }}
+            sx={{
+              mt: 'auto',
+              pt: 1.5,
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              display: { xs: 'none', md: 'flex' },
+              alignItems: 'center',
+              justifyContent: sidebarCollapsed ? 'center' : 'flex-end',
+              cursor: 'pointer',
+              color: 'rgba(255,255,255,0.4)',
+              fontSize: '0.72rem',
+              gap: 0.6,
+              userSelect: 'none',
+              transition: 'color 0.2s',
+              '&:hover': { color: 'var(--accent)' },
+            }}
+          >
+            {sidebarCollapsed ? '→' : '← Collapse'}
+          </Box>
         </aside>
 
         {/* Mobile backdrop – closes sidebar when tapped */}
@@ -6548,7 +6578,7 @@ export default function App() {
           />
         )}
 
-        <main className="content-grid">
+        <main className="content-grid" data-section={activeSection}>
           <section className="chat-panel glass-panel">
             <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexShrink: 0 }}>
@@ -7575,6 +7605,7 @@ export default function App() {
               component="img"
               src="/Vesper_Logo.png"
               alt="Vesper"
+              className="ops-panel-logo"
               sx={{
                 width: '100%',
                 maxWidth: 500,
