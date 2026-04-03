@@ -6697,12 +6697,13 @@ export default function App() {
                       filter: isSpeaking ? `brightness(1.15) drop-shadow(0 0 12px ${activeTheme.accent}88)` : 'brightness(1)',
                       animation: isSpeaking ? 'portraitLips 0.4s ease-in-out infinite, portraitGaze 8s ease-in-out infinite' : 'none',
                     }}
-                    autoPlay={videoShouldAutoplay}
-                    loop={false}
+                    autoPlay
+                    loop={!videoShouldAutoplay}
                     muted
                     playsInline
                     controls={false}
                     onEnded={() => {
+                      if (!videoShouldAutoplay) return;
                       if (avatarVideoRef.current) {
                         const holdAt = Math.max(0, avatarVideoRef.current.duration - 0.04);
                         avatarVideoRef.current.currentTime = holdAt;
