@@ -564,7 +564,7 @@ function App() {
       const el = sidebarRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      const computedLeft = Math.max(8, Math.round(rect.right + 8));
+      const computedLeft = Math.round(rect.right);
       const computedTop = Math.max(0, Math.round(rect.top));
       const computedHeight = Math.max(360, Math.round(rect.height));
 
@@ -5071,7 +5071,7 @@ export default function App() {
                     sx={{
                       '& .MuiDrawer-paper': {
                         width: { xs: '100vw', sm: 620, md: 760 },
-                        maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+                        maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left}px)` },
                         left: { xs: 0, md: `${drawerFrame.left}px` },
                         top: { xs: 0, md: `${drawerFrame.top}px` },
                         height: { xs: '100%', md: `${drawerFrame.height}px` },
@@ -6768,94 +6768,96 @@ export default function App() {
             </Stack>
 
             <Box className="chat-stage-shell">
-              <Box className="chat-avatar-card" sx={{ borderColor: `${activeTheme.accent}55` }}>
-                <Box
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    borderRadius: 'inherit',
-                    maskImage: 'linear-gradient(to bottom, black 0%, black 62%, transparent 94%)',
-                    WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 62%, transparent 94%)',
-                    animation: isSpeaking ? 'portraitShimmer 3.2s ease-in-out infinite, portraitBreathing 5.5s ease-in-out infinite' : 'portraitBreathing 7s ease-in-out infinite',
-                  }}
-                >
-                  <video
-                    ref={avatarVideoRef}
-                    src={videoAvatarUrl || `${mediaBase}/media/source/vesper_base.mp4`}
-                    style={{
+              {/* Left column: video + refresh button stacked */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                <Box className="chat-avatar-card" sx={{ borderColor: `${activeTheme.accent}55` }}>
+                  <Box
+                    sx={{
                       width: '100%',
                       height: '100%',
-                      objectFit: 'cover',
-                      filter: isSpeaking ? `brightness(1.15) drop-shadow(0 0 12px ${activeTheme.accent}88)` : 'brightness(1)',
-                      animation: isSpeaking ? 'portraitLips 1.25s ease-in-out infinite, portraitGaze 16s ease-in-out infinite' : 'none',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      borderRadius: 'inherit',
+                      maskImage: 'linear-gradient(to bottom, black 0%, black 62%, transparent 94%)',
+                      WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 62%, transparent 94%)',
+                      animation: isSpeaking ? 'portraitShimmer 3.2s ease-in-out infinite, portraitBreathing 5.5s ease-in-out infinite' : 'portraitBreathing 7s ease-in-out infinite',
                     }}
-                    muted
-                    playsInline
-                    controls={false}
-                    onLoadedData={() => {
-                      const shouldAnimate = Boolean(streamingMessageId) || isSpeaking || videoShouldAutoplay;
-                      if (shouldAnimate) return;
-                      if (avatarVideoRef.current) {
-                        avatarVideoRef.current.pause();
-                        try {
-                          avatarVideoRef.current.currentTime = 0;
-                        } catch (error) {
-                          // Ignore seek timing issues while media initializes.
+                  >
+                    <video
+                      ref={avatarVideoRef}
+                      src={videoAvatarUrl || `${mediaBase}/media/source/vesper_base.mp4`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        filter: isSpeaking ? `brightness(1.15) drop-shadow(0 0 12px ${activeTheme.accent}88)` : 'brightness(1)',
+                        animation: isSpeaking ? 'portraitLips 1.25s ease-in-out infinite, portraitGaze 16s ease-in-out infinite' : 'none',
+                      }}
+                      muted
+                      playsInline
+                      controls={false}
+                      onLoadedData={() => {
+                        const shouldAnimate = Boolean(streamingMessageId) || isSpeaking || videoShouldAutoplay;
+                        if (shouldAnimate) return;
+                        if (avatarVideoRef.current) {
+                          avatarVideoRef.current.pause();
+                          try {
+                            avatarVideoRef.current.currentTime = 0;
+                          } catch (error) {
+                            // Ignore seek timing issues while media initializes.
+                          }
                         }
-                      }
-                    }}
-                    onEnded={() => {
-                      if (!videoShouldAutoplay) return;
-                      if (avatarVideoRef.current) {
-                        const holdAt = Math.max(0, avatarVideoRef.current.duration - 0.04);
-                        avatarVideoRef.current.currentTime = holdAt;
-                      }
-                      setVideoShouldAutoplay(false);
-                    }}
-                  />
+                      }}
+                      onEnded={() => {
+                        if (!videoShouldAutoplay) return;
+                        if (avatarVideoRef.current) {
+                          const holdAt = Math.max(0, avatarVideoRef.current.duration - 0.04);
+                          avatarVideoRef.current.currentTime = holdAt;
+                        }
+                        setVideoShouldAutoplay(false);
+                      }}
+                    />
+                  </Box>
                 </Box>
-              </Box>
-
-              <Box className="chat-stage-meta">
-                <Box
-                  component="img"
-                  src="/Vesper_Logo.png"
-                  alt="Vesper logo"
-                  sx={{
-                    width: { xs: 240, sm: 300 },
-                    maxWidth: '100%',
-                    height: 'auto',
-                    alignSelf: 'center',
-                    borderRadius: 2,
-                    border: '1px solid rgba(255,255,255,0.16)',
-                    boxShadow: '0 14px 32px rgba(0,0,0,0.42), 0 0 24px rgba(var(--accent-rgb),0.18)',
-                    p: 0.5,
-                    background: 'rgba(0,0,0,0.22)',
-                  }}
-                />
                 <Button
                   size="small"
                   variant="outlined"
                   onClick={() => generateVideoAvatar()}
                   disabled={videogenLoading}
                   sx={{
-                    mt: 0.35,
-                    alignSelf: 'flex-start',
                     borderColor: activeTheme.accent,
                     color: activeTheme.accent,
                     textTransform: 'none',
                     fontWeight: 700,
+                    fontSize: '0.7rem',
+                    py: 0.5,
                     '&:hover': {
                       borderColor: activeTheme.accent,
                       backgroundColor: `${activeTheme.accent}12`,
                     },
                   }}
                 >
-                  {videogenLoading ? <CircularProgress size={14} sx={{ mr: 0.6 }} /> : null}
+                  {videogenLoading ? <CircularProgress size={12} sx={{ mr: 0.5 }} /> : null}
                   Refresh Video Speech
                 </Button>
+              </Box>
+
+              {/* Right column: logo fills the card */}
+              <Box className="chat-stage-meta" sx={{ justifyContent: 'center', alignItems: 'center', p: '10px' }}>
+                <Box
+                  component="img"
+                  src="/Vesper_Logo.png"
+                  alt="Vesper logo"
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    borderRadius: 2,
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    boxShadow: '0 14px 32px rgba(0,0,0,0.42), 0 0 24px rgba(var(--accent-rgb),0.18)',
+                    background: 'rgba(0,0,0,0.22)',
+                  }}
+                />
               </Box>
             </Box>
 
@@ -6972,32 +6974,7 @@ export default function App() {
               </Box>
             )}
 
-            {/* Vesper Initiative Bubbles */}
-            {vesperInitiatives.length > 0 && messages.length === 0 && (
-              <Box sx={{ display: 'flex', gap: 0.75, mb: 1, overflowX: 'auto', px: 1, flexWrap: 'wrap' }}>
-                {vesperInitiatives.map((init, i) => (
-                  <Chip
-                    key={`init-${i}`}
-                    label={`💡 ${init}`}
-                    onClick={() => {
-                      setInput(init);
-                      setVesperInitiatives([]);
-                    }}
-                    onDelete={() => setVesperInitiatives(prev => prev.filter((_, idx) => idx !== i))}
-                    sx={{
-                      bgcolor: 'rgba(255,0,255,0.08)',
-                      backdropFilter: 'blur(5px)',
-                      border: '1px solid rgba(255,0,255,0.25)',
-                      color: '#ff66ff',
-                      fontWeight: 500,
-                      fontSize: '0.75rem',
-                      '&:hover': { bgcolor: 'rgba(255,0,255,0.18)', transform: 'scale(1.02)' },
-                      transition: 'all 0.2s ease',
-                    }}
-                  />
-                ))}
-              </Box>
-            )}
+
 
             {/* Proactive Suggestions */}
             {suggestions.length > 0 && (
@@ -7733,7 +7710,7 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '94vw', sm: 500 },
-            maxWidth: { xs: '94vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+            maxWidth: { xs: '94vw', md: `calc(100vw - ${drawerFrame.left}px)` },
             left: { xs: 0, md: `${drawerFrame.left}px` },
             top: { xs: 0, md: `${drawerFrame.top}px` },
             height: { xs: '100%', md: `${drawerFrame.height}px` },
@@ -8112,7 +8089,7 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left}px)` },
             left: { xs: 0, md: `${drawerFrame.left}px` },
             top: { xs: 0, md: `${drawerFrame.top}px` },
             height: { xs: '100%', md: `${drawerFrame.height}px` },
@@ -8146,7 +8123,7 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left}px)` },
             left: { xs: 0, md: `${drawerFrame.left}px` },
             top: { xs: 0, md: `${drawerFrame.top}px` },
             height: { xs: '100%', md: `${drawerFrame.height}px` },
@@ -8180,7 +8157,7 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left}px)` },
             left: { xs: 0, md: `${drawerFrame.left}px` },
             top: { xs: 0, md: `${drawerFrame.top}px` },
             height: { xs: '100%', md: `${drawerFrame.height}px` },
@@ -8214,7 +8191,7 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left + 14}px)` },
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left}px)` },
             left: { xs: 0, md: `${drawerFrame.left}px` },
             top: { xs: 0, md: `${drawerFrame.top}px` },
             height: { xs: '100%', md: `${drawerFrame.height}px` },
@@ -8332,3 +8309,4 @@ export default function App() {
 }
 
 export default App;
+
