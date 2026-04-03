@@ -956,19 +956,6 @@ export default function App() {
     [firebaseAuthEnabled]
   );
 
-  const chatBase = useMemo(() => {
-    // This logic ensures the correct API endpoint is used for the chat stream.
-    // It prioritizes a specific chat URL if provided, otherwise falls back
-    // to the main apiBase logic. This is useful if your streaming endpoint
-    // is on a different domain or path.
-    const chatApiUrl = import.meta.env.VITE_CHAT_API_URL;
-    if (chatApiUrl) {
-      return chatApiUrl.replace(/\/$/, '');
-    }
-    // If no specific chat URL, use the same logic as apiBase.
-    return apiBase;
-  }, [apiBase]);
-
   useEffect(() => {
     const mediaBase = (!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost'))
       ? 'http://localhost:8000'
@@ -982,10 +969,10 @@ export default function App() {
     const video = avatarVideoRef.current;
     if (!video) return;
 
-    const shouldAnimate = Boolean(streamingMessageId) || isSpeaking || videoShouldAutoplay;
+    const shouldAnimate = isSpeaking;
 
     if (shouldAnimate) {
-      video.loop = !videoShouldAutoplay;
+      video.loop = true;
       const playPromise = video.play();
       if (playPromise && typeof playPromise.catch === 'function') {
         playPromise.catch(() => {});
@@ -1002,7 +989,7 @@ export default function App() {
         // Ignore seek timing issues while metadata is still loading.
       }
     }
-  }, [streamingMessageId, isSpeaking, videoShouldAutoplay, videoAvatarUrl]);
+  }, [isSpeaking, videoAvatarUrl]);
 
   const addLocalMessage = async (role, content, extras = {}) => {
     const message = {
@@ -1440,7 +1427,7 @@ export default function App() {
       const MAX_FETCH_ATTEMPTS = 3;
       while (true) {
         try {
-          response = await fetch(`${chatBase}/api/chat/stream`, {
+          response = await fetch(`${apiBase}/api/chat/stream`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
