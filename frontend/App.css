@@ -589,7 +589,7 @@ body[data-style="lux"] {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 13px 14px;
+  padding: 11px 12px;
   border-radius: 18px;
   cursor: pointer;
   color: rgba(255, 255, 255, 0.76);
@@ -597,6 +597,7 @@ body[data-style="lux"] {
   border: 1px solid rgba(255,255,255,0.04);
   backdrop-filter: blur(12px);
   font-weight: 600;
+  box-sizing: border-box;
 }
 
 .nav-item:hover {
@@ -609,13 +610,13 @@ body[data-style="lux"] {
   background:
     linear-gradient(135deg, rgba(var(--accent-rgb), 0.18), rgba(255,255,255,0.05)),
     rgba(0,0,0,0.18);
-  border-color: rgba(var(--accent-rgb), 0.46);
+  border-color: rgba(var(--accent-rgb), 0.34);
   box-shadow:
-    0 18px 34px rgba(0,0,0,0.28),
+    0 10px 20px rgba(0,0,0,0.22),
     inset 0 1px 0 rgba(255,255,255,0.08),
-    0 0 26px rgba(var(--accent-rgb), 0.16);
+    0 0 14px rgba(var(--accent-rgb), 0.12);
   color: #fff;
-  transform: translateX(7px);
+  transform: translateX(4px);
   animation: none;
 }
 
@@ -1666,14 +1667,14 @@ body[data-style="wood"] {
   background: linear-gradient(180deg,
     rgba(var(--accent-rgb), 0.30),
     rgba(var(--accent-rgb), 0.12)) !important;
-  border: 2px solid rgba(var(--accent-rgb), 0.68) !important;
+  border: 1px solid rgba(var(--accent-rgb), 0.56) !important;
   box-shadow:
     inset 0 2px 4px rgba(0,0,0,0.52),
     inset 0 -1px 0 rgba(220,160,50,0.30),
-    0 0 20px rgba(var(--accent-rgb), 0.40) !important;
+    0 0 12px rgba(var(--accent-rgb), 0.26) !important;
   animation: none !important;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
 }
 
 [data-style="wood"] .MuiTypography-h6,
