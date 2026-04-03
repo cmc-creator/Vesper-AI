@@ -109,6 +109,7 @@ import Sassy from './src/components/Sassy';
 import MediaGallery from './src/components/MediaGallery';
 import AvatarStudio from './src/components/AvatarStudio';
 import VesperAvatar3D from './src/components/VesperAvatar3D';
+import TalkingAvatar from './src/components/TalkingAvatar';
 import IntegrationsHub from './src/components/IntegrationsHub';
 import BackgroundStudio from './src/components/BackgroundStudio';
 import SetupWizard from './src/components/SetupWizard';
@@ -6117,6 +6118,16 @@ export default function App() {
               </Typography>
             </Box>
           </Box>
+
+          {/* Vesper live avatar — lip-syncs to TTS audio */}
+          <TalkingAvatar
+            avatarUrl={rpmAvatarUrl || null}
+            isSpeaking={isSpeaking}
+            analyserRef={analyserRef}
+            compact
+            accentColor={activeTheme.accent}
+            showControls={false}
+          />
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, mb: 3 }}>
             {NAV.map(({ id, label, icon: Icon }) => (

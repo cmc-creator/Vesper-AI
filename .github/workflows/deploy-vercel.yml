@@ -26,12 +26,19 @@ jobs:
       env:
         VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     
+    - name: Set up Node.js
+      if: steps.check.outputs.configured == 'true'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
     - name: Deploy to Vercel
       if: steps.check.outputs.configured == 'true'
       working-directory: ./frontend
       run: |
         npm install -g vercel
         vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        npm ci --legacy-peer-deps
         vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
       env:
