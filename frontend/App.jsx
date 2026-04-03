@@ -3066,11 +3066,16 @@ export default function App() {
   }, [apiBase]);
 
   const fetchVoices = useCallback(async () => {
-    if (!apiBase || voicesLoading) return;
+    if (voicesLoading) return;
     setVoicesLoading(true);
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const r = await fetch(`${apiBase}/api/elevenlabs/voices`);
+        // Primary endpoint for unified TTS providers
+        let r = await fetch(`${apiBase}/api/tts/voices`);
+        // Backward-compatible fallback for older backend routes
+        if (!r.ok && r.status === 404) {
+          r = await fetch(`${apiBase}/api/elevenlabs/voices`);
+        }
         const data = await r.json();
         if (data.voices) {
           setCloudVoices(data.voices);
