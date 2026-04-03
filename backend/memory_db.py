@@ -997,13 +997,21 @@ class PersistentMemoryDB:
         session = self.SessionLocal()
         try:
             dialect = session.bind.dialect.name if session.bind else ""
-            if dialect != "sqlite":
-                return
+            if dialect == "sqlite":
+                # SQLite: use PRAGMA to inspect columns
+                mem_cols = {row[1] for row in session.execute(text("PRAGMA table_info(memories)")).fetchall()}
+                if "title" not in mem_cols:
+                    session.execute(text("ALTER TABLE memories ADD COLUMN title VARCHAR"))
+                    session.commit()
 
-            columns = session.execute(text("PRAGMA table_info(memories)")).fetchall()
-            column_names = {row[1] for row in columns}
-            if "title" not in column_names:
-                session.execute(text("ALTER TABLE memories ADD COLUMN title VARCHAR"))
+                thr_cols = {row[1] for row in session.execute(text("PRAGMA table_info(threads)")).fetchall()}
+                if "pinned" not in thr_cols:
+                    session.execute(text("ALTER TABLE threads ADD COLUMN pinned BOOLEAN DEFAULT 0"))
+                    session.commit()
+            else:
+                # PostgreSQL: use ADD COLUMN IF NOT EXISTS
+                session.execute(text("ALTER TABLE memories ADD COLUMN IF NOT EXISTS title VARCHAR"))
+                session.execute(text("ALTER TABLE threads ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT false"))
                 session.commit()
         except Exception:
             session.rollback()

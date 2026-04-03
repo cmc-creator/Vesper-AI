@@ -553,7 +553,8 @@ function App() {
   const [videoAvatarUrl, setVideoAvatarUrl] = useState('');
   const [videogenLoading, setVideoGenLoading] = useState(false);
   const [videoShouldAutoplay, setVideoShouldAutoplay] = useState(false);
-  const avatarVideoRef = useRef(null);
+    const [idleAnimating, setIdleAnimating] = useState(false); // true = play full idle gesture video
+    const avatarVideoRef = useRef(null);
   const sidebarRef = useRef(null);
   const [drawerFrame, setDrawerFrame] = useState({ left: 300, top: 12, height: 820 });
 
@@ -1018,14 +1019,35 @@ export default function App() {
     const shouldAnimate = isSpeaking;
 
     if (shouldAnimate) {
-      video.loop = true;
+      // During speech: loop only the opening portion so the looking-down section
+      // stays hidden. Tune SPEAKING_LOOP_END to match your video.
+      const SPEAKING_LOOP_END = 3.8; // seconds — adjust to where look-down starts
+      video.loop = false;
       const playPromise = video.play();
       if (playPromise && typeof playPromise.catch === 'function') {
         playPromise.catch(() => {});
       }
-      return;
+      const clampTime = () => {
+        if (video.currentTime >= SPEAKING_LOOP_END) video.currentTime = 0;
+      };
+      video.addEventListener('timeupdate', clampTime);
+      return () => video.removeEventListener('timeupdate', clampTime);
     }
 
+    if (idleAnimating) {
+      // Play the FULL video once (including look-down) as an idle gesture
+      video.loop = false;
+      video.currentTime = 0;
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {});
+      }
+      const onEnded = () => setIdleAnimating(false);
+      video.addEventListener('ended', onEnded, { once: true });
+      return () => video.removeEventListener('ended', onEnded);
+    }
+
+    // Not speaking, not idle — pause on first frame
     video.loop = false;
     video.pause();
     if (video.readyState >= 2) {
@@ -1035,7 +1057,15 @@ export default function App() {
         // Ignore seek timing issues while metadata is still loading.
       }
     }
-  }, [isSpeaking, videoAvatarUrl]);
+  }, [isSpeaking, idleAnimating, videoAvatarUrl]);
+
+  // Idle gesture timer — randomly triggers the look-down animation when at rest
+  useEffect(() => {
+    if (isSpeaking || idleAnimating) return; // don't start timer while busy
+    const delay = 12000 + Math.random() * 18000; // 12–30 s random interval
+    const timer = setTimeout(() => setIdleAnimating(true), delay);
+    return () => clearTimeout(timer);
+  }, [isSpeaking, idleAnimating]);
 
   const addLocalMessage = async (role, content, extras = {}) => {
     const message = {
@@ -2613,9 +2643,12 @@ export default function App() {
             })
         );
         setToast(data.pinned ? 'Pinned!' : 'Unpinned');
+      } else {
+        setToast('Pin failed — try again');
       }
     } catch (error) {
       console.error('Pin failed:', error);
+      setToast('Pin failed — check connection');
     }
   };
 
@@ -7179,9 +7212,9 @@ export default function App() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 0.7,
-                    minHeight: 78,
-                    padding: '10px 8px',
+                    gap: 0.4,
+                    minHeight: 52,
+                    padding: '6px 4px',
                     borderRadius: '12px',
                     cursor: 'pointer',
                     color: 'rgba(255,255,255,0.84)',
@@ -7197,8 +7230,8 @@ export default function App() {
                     }
                   }}
                 >
-                  <span style={{ fontSize: '1.22rem', filter: 'drop-shadow(0 0 8px rgba(242,222,170,0.25))' }}>{tool.icon}</span>
-                  <Typography variant="caption" sx={{ fontSize: '0.68rem', textAlign: 'center', lineHeight: 1.1, fontWeight: 700, letterSpacing: 0.2 }}>
+                  <span style={{ fontSize: '0.95rem', filter: 'drop-shadow(0 0 8px rgba(242,222,170,0.25))' }}>{tool.icon}</span>
+                  <Typography variant="caption" sx={{ fontSize: '0.62rem', textAlign: 'center', lineHeight: 1.05, fontWeight: 700, letterSpacing: 0.2 }}>
                     {tool.label}
                   </Typography>
                 </Box>
@@ -7211,9 +7244,9 @@ export default function App() {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 0.7,
-                  minHeight: 78,
-                  padding: '10px 8px',
+                  gap: 0.4,
+                  minHeight: 52,
+                  padding: '6px 4px',
                   borderRadius: '12px',
                   cursor: 'pointer',
                   color: 'rgba(255,255,255,0.84)',
@@ -7229,8 +7262,8 @@ export default function App() {
                   },
                 }}
               >
-                <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 8px rgba(242,222,170,0.25))' }}>✦</span>
-                <Typography variant="caption" sx={{ fontSize: '0.68rem', textAlign: 'center', lineHeight: 1.1, fontWeight: 700, letterSpacing: 0.2 }}>
+                <span style={{ fontSize: '0.95rem', filter: 'drop-shadow(0 0 8px rgba(242,222,170,0.25))' }}>✦</span>
+                <Typography variant="caption" sx={{ fontSize: '0.62rem', textAlign: 'center', lineHeight: 1.05, fontWeight: 700, letterSpacing: 0.2 }}>
                   Full Toolkit
                 </Typography>
               </Box>
@@ -7544,7 +7577,7 @@ export default function App() {
               alt="Vesper"
               sx={{
                 width: '100%',
-                maxWidth: 340,
+                maxWidth: 500,
                 display: 'block',
                 mx: 'auto',
                 mb: 1,
