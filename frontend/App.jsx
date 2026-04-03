@@ -8041,25 +8041,105 @@ export default function App() {
         </Box>
       </Dialog>
 
-      {/* Deep Research Modal */}
-      <Dialog open={researchOpen} onClose={() => setResearchOpen(false)} maxWidth="md" fullWidth sx={{ height: '90vh' }}>
+      {/* Deep Research Drawer */}
+      <Drawer
+        anchor="left"
+        open={researchOpen}
+        onClose={() => setResearchOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: { xs: '100vw', sm: 560, md: 680 },
+            maxWidth: '100vw',
+            left: { xs: 0, md: '292px' },
+            top: { xs: 0, md: '20px' },
+            height: { xs: '100%', md: 'calc(100% - 40px)' },
+            borderRadius: { xs: 0, md: '0 22px 22px 0' },
+            bgcolor: 'rgba(10,12,18,0.98)',
+            border: '1px solid rgba(230,214,182,0.16)',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
+            backdropFilter: 'blur(24px)',
+            overflow: 'auto',
+          },
+        }}
+      >
         <DeepResearch apiBase={apiBase} onClose={() => setResearchOpen(false)} />
-      </Dialog>
+      </Drawer>
 
-      {/* Image Generator Modal */}
-      <Dialog open={imageOpen} onClose={() => setImageOpen(false)} maxWidth="md" fullWidth>
+      {/* Image Generator Drawer */}
+      <Drawer
+        anchor="left"
+        open={imageOpen}
+        onClose={() => setImageOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: { xs: '100vw', sm: 560, md: 680 },
+            maxWidth: '100vw',
+            left: { xs: 0, md: '292px' },
+            top: { xs: 0, md: '20px' },
+            height: { xs: '100%', md: 'calc(100% - 40px)' },
+            borderRadius: { xs: 0, md: '0 22px 22px 0' },
+            bgcolor: 'rgba(10,12,18,0.98)',
+            border: '1px solid rgba(230,214,182,0.16)',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
+            backdropFilter: 'blur(24px)',
+            overflow: 'auto',
+          },
+        }}
+      >
         <ImageGenerator apiBase={apiBase} onClose={() => setImageOpen(false)} />
-      </Dialog>
+      </Drawer>
 
-      {/* Video Creator Modal */}
-      <Dialog open={videoOpen} onClose={() => setVideoOpen(false)} maxWidth="md" fullWidth>
+      {/* Video Creator Drawer */}
+      <Drawer
+        anchor="left"
+        open={videoOpen}
+        onClose={() => setVideoOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: { xs: '100vw', sm: 560, md: 680 },
+            maxWidth: '100vw',
+            left: { xs: 0, md: '292px' },
+            top: { xs: 0, md: '20px' },
+            height: { xs: '100%', md: 'calc(100% - 40px)' },
+            borderRadius: { xs: 0, md: '0 22px 22px 0' },
+            bgcolor: 'rgba(10,12,18,0.98)',
+            border: '1px solid rgba(230,214,182,0.16)',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
+            backdropFilter: 'blur(24px)',
+            overflow: 'auto',
+          },
+        }}
+      >
         <VideoCreator apiBase={apiBase} onClose={() => setVideoOpen(false)} />
-      </Dialog>
+      </Drawer>
 
-      {/* Guided Learning Modal */}
-      <Dialog open={learningOpen} onClose={() => setLearningOpen(false)} maxWidth="md" fullWidth>
+      {/* Guided Learning Drawer */}
+      <Drawer
+        anchor="left"
+        open={learningOpen}
+        onClose={() => setLearningOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: { xs: '100vw', sm: 560, md: 680 },
+            maxWidth: '100vw',
+            left: { xs: 0, md: '292px' },
+            top: { xs: 0, md: '20px' },
+            height: { xs: '100%', md: 'calc(100% - 40px)' },
+            borderRadius: { xs: 0, md: '0 22px 22px 0' },
+            bgcolor: 'rgba(10,12,18,0.98)',
+            border: '1px solid rgba(230,214,182,0.16)',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
+            backdropFilter: 'blur(24px)',
+            overflow: 'auto',
+          },
+        }}
+      >
         <GuidedLearning apiBase={apiBase} onClose={() => setLearningOpen(false)} />
-      </Dialog>
+      </Drawer>
       
       {/* System Diagnostics Modal */}
       <SystemDiagnostics 
