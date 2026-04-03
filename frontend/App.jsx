@@ -977,6 +977,32 @@ export default function App() {
     }
   }, [apiBase, videoAvatarUrl]);
 
+  useEffect(() => {
+    const video = avatarVideoRef.current;
+    if (!video) return;
+
+    const shouldAnimate = Boolean(streamingMessageId) || isSpeaking || videoShouldAutoplay;
+
+    if (shouldAnimate) {
+      video.loop = !videoShouldAutoplay;
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {});
+      }
+      return;
+    }
+
+    video.loop = false;
+    video.pause();
+    if (video.readyState >= 2) {
+      try {
+        video.currentTime = 0;
+      } catch (error) {
+        // Ignore seek timing issues while metadata is still loading.
+      }
+    }
+  }, [streamingMessageId, isSpeaking, videoShouldAutoplay, videoAvatarUrl]);
+
   const addLocalMessage = async (role, content, extras = {}) => {
     const message = {
       id: `${Date.now()}-${Math.random()}`,
@@ -6697,11 +6723,21 @@ export default function App() {
                       filter: isSpeaking ? `brightness(1.15) drop-shadow(0 0 12px ${activeTheme.accent}88)` : 'brightness(1)',
                       animation: isSpeaking ? 'portraitLips 0.4s ease-in-out infinite, portraitGaze 8s ease-in-out infinite' : 'none',
                     }}
-                    autoPlay
-                    loop={!videoShouldAutoplay}
                     muted
                     playsInline
                     controls={false}
+                    onLoadedData={() => {
+                      const shouldAnimate = Boolean(streamingMessageId) || isSpeaking || videoShouldAutoplay;
+                      if (shouldAnimate) return;
+                      if (avatarVideoRef.current) {
+                        avatarVideoRef.current.pause();
+                        try {
+                          avatarVideoRef.current.currentTime = 0;
+                        } catch (error) {
+                          // Ignore seek timing issues while media initializes.
+                        }
+                      }
+                    }}
                     onEnded={() => {
                       if (!videoShouldAutoplay) return;
                       if (avatarVideoRef.current) {
