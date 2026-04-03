@@ -8086,7 +8086,16 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
             
             messages = [{"role": "system", "content": enhanced_system}]
             if thread.get("messages"):
-                for msg in thread['messages'][-30:]:
+                # If the frontend already pre-saved the user message it will be the
+                # last entry in the thread.  Exclude it here so we don't end up
+                # with two consecutive user-role messages, which breaks Anthropic's
+                # strict alternation requirement and silently destroys context.
+                thread_msgs = list(thread["messages"])
+                if (thread_msgs
+                        and thread_msgs[-1].get("role") == "user"
+                        and thread_msgs[-1].get("content") == chat.message):
+                    thread_msgs = thread_msgs[:-1]
+                for msg in thread_msgs[-30:]:
                     role = msg.get("role", "user" if msg.get("from") == "user" else "assistant")
                     content = msg.get("content", msg.get("text", ""))
                     if role in ["user", "assistant"] and content:
