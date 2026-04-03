@@ -603,7 +603,7 @@ body[data-style="lux"] {
 .nav-item:hover {
   background: linear-gradient(90deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
   border-color: rgba(255, 255, 255, 0.12);
-  transform: translateX(4px);
+  transform: translateX(2px);
 }
 
 .nav-item.active {
@@ -616,8 +616,24 @@ body[data-style="lux"] {
     inset 0 1px 0 rgba(255,255,255,0.08),
     0 0 14px rgba(var(--accent-rgb), 0.12);
   color: #fff;
-  transform: translateX(4px);
+  transform: translateX(2px);
   animation: none;
+}
+
+/* Keep sidepanel items stable across all style packs when active/open. */
+.sidebar .nav-item,
+.sidebar .nav-item.active {
+  min-height: 40px;
+  padding: 11px 12px !important;
+  border-width: 1px !important;
+  animation: none !important;
+}
+
+.sidebar .nav-item.active {
+  box-shadow:
+    0 8px 18px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 0 12px rgba(var(--accent-rgb), 0.1) !important;
 }
 
 .theme-chip {

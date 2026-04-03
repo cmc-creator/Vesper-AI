@@ -6793,27 +6793,33 @@ export default function App() {
                 <Typography variant="subtitle2" sx={{ color: '#f2deaa', fontWeight: 800, letterSpacing: 0.3 }}>
                   Vesper Presence
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.72)', lineHeight: 1.45 }}>
-                  Keep her in the conversation while you type. Refresh video speech any time after a response to re-sync motion.
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.68)', lineHeight: 1.35 }}>
+                  Clean presence mode. Larger branding, less clutter.
                 </Typography>
-                <Stack direction="row" spacing={0.8} sx={{ flexWrap: 'wrap', rowGap: 0.8, mt: 0.5 }}>
+                <Box
+                  component="img"
+                  src="/Vesper_Logo.png"
+                  alt="Vesper logo"
+                  sx={{
+                    width: { xs: 170, sm: 210 },
+                    maxWidth: '100%',
+                    height: 'auto',
+                    alignSelf: 'center',
+                    borderRadius: 2,
+                    border: '1px solid rgba(255,255,255,0.16)',
+                    boxShadow: '0 14px 32px rgba(0,0,0,0.42), 0 0 24px rgba(var(--accent-rgb),0.18)',
+                    p: 0.5,
+                    background: 'rgba(0,0,0,0.22)',
+                  }}
+                />
+                <Stack direction="row" spacing={0.8} sx={{ flexWrap: 'wrap', rowGap: 0.8, mt: 0.2 }}>
                   <Chip
                     size="small"
                     label={isSpeaking ? 'Speaking' : 'Idle'}
                     sx={{
-                      bgcolor: isSpeaking ? 'rgba(0,255,136,0.16)' : 'rgba(255,255,255,0.1)',
-                      color: isSpeaking ? '#7ff2b8' : 'rgba(255,255,255,0.75)',
-                      border: `1px solid ${isSpeaking ? 'rgba(0,255,136,0.28)' : 'rgba(255,255,255,0.16)'}`,
-                      fontWeight: 700,
-                    }}
-                  />
-                  <Chip
-                    size="small"
-                    label={runtimeCapabilities?.features?.video_avatar ? 'Video Ready' : 'Video Fallback'}
-                    sx={{
-                      bgcolor: runtimeCapabilities?.features?.video_avatar ? 'rgba(0,255,255,0.14)' : 'rgba(242,222,170,0.14)',
-                      color: runtimeCapabilities?.features?.video_avatar ? 'var(--accent)' : '#f6d38c',
-                      border: `1px solid ${runtimeCapabilities?.features?.video_avatar ? 'rgba(0,255,255,0.26)' : 'rgba(242,222,170,0.28)'}`,
+                      bgcolor: isSpeaking ? 'rgba(0,255,136,0.16)' : 'rgba(255,255,255,0.08)',
+                      color: isSpeaking ? '#7ff2b8' : 'rgba(255,255,255,0.72)',
+                      border: `1px solid ${isSpeaking ? 'rgba(0,255,136,0.26)' : 'rgba(255,255,255,0.14)'}`,
                       fontWeight: 700,
                     }}
                   />
