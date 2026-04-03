@@ -4995,7 +4995,7 @@ export default function App() {
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>{activeTheme.label} ({THEME_CATEGORIES.find(c => c.id === activeTheme.category)?.label || '⚡ Tech'})</Typography>
                     </Box>
                     <IconButton 
-                      onClick={(e) => setThemeMenuAnchor(e.currentTarget)}
+                      onClick={() => setThemeMenuAnchor(true)}
                       sx={{ 
                         bgcolor: activeTheme.accent, 
                         color: '#000',
@@ -5008,22 +5008,36 @@ export default function App() {
                   </Box>
                   
                   {/* Theme Catalog - Categorized Grid */}
-                  <Dialog
+                  <Drawer
+                    anchor="left"
                     open={Boolean(themeMenuAnchor)}
                     onClose={() => setThemeMenuAnchor(null)}
-                    maxWidth="md"
-                    fullWidth
-                    PaperProps={{
-                      sx: {
+                    ModalProps={{
+                      keepMounted: true,
+                      BackdropProps: {
+                        sx: {
+                          backgroundColor: 'rgba(2, 4, 10, 0.56)',
+                          backdropFilter: 'blur(4px)',
+                        },
+                      },
+                    }}
+                    sx={{
+                      '& .MuiDrawer-paper': {
+                        width: { xs: '100vw', sm: 620, md: 760 },
+                        maxWidth: '100vw',
+                        left: { xs: 0, md: '292px' },
+                        top: { xs: 0, md: '20px' },
+                        height: { xs: '100%', md: 'calc(100% - 40px)' },
+                        borderRadius: { xs: 0, md: '0 22px 22px 0' },
                         bgcolor: 'rgba(8, 8, 18, 0.97)',
-                        backdropFilter: 'blur(30px)',
                         border: '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: '20px',
-                        maxHeight: '80vh',
-                      }
+                        boxShadow: '0 24px 80px rgba(0,0,0,0.72), 0 0 48px rgba(218,165,32,0.1)',
+                        backdropFilter: 'blur(30px)',
+                        overflow: 'hidden',
+                      },
                     }}
                   >
-                    <Box sx={{ p: 3 }}>
+                    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
                         <Box>
                           <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--accent)' }}>
@@ -5038,7 +5052,7 @@ export default function App() {
                         </IconButton>
                       </Box>
 
-                      <Box sx={{ overflowY: 'auto', maxHeight: '60vh', pr: 1 }}>
+                      <Box sx={{ overflowY: 'auto', flex: 1, pr: 1 }}>
                         {THEME_CATEGORIES.map((cat) => {
                           const catThemes = THEMES.filter(t => t.category === cat.id);
                           if (catThemes.length === 0) return null;
@@ -5143,7 +5157,7 @@ export default function App() {
                         </Button>
                       </Box>
                     </Box>
-                  </Dialog>
+                  </Drawer>
 
                   {/* Wallpaper */}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -7676,7 +7690,15 @@ export default function App() {
         variant="temporary"
         open={threadsDialogOpen}
         onClose={() => setThreadsDialogOpen(false)}
-        ModalProps={{ keepMounted: true, hideBackdrop: true }}
+        ModalProps={{
+          keepMounted: true,
+          BackdropProps: {
+            sx: {
+              backgroundColor: 'rgba(2, 4, 10, 0.56)',
+              backdropFilter: 'blur(4px)',
+            },
+          },
+        }}
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '94vw', sm: 500 },
@@ -8046,7 +8068,15 @@ export default function App() {
         anchor="left"
         open={researchOpen}
         onClose={() => setResearchOpen(false)}
-        ModalProps={{ keepMounted: true }}
+        ModalProps={{
+          keepMounted: true,
+          BackdropProps: {
+            sx: {
+              backgroundColor: 'rgba(2, 4, 10, 0.56)',
+              backdropFilter: 'blur(4px)',
+            },
+          },
+        }}
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
@@ -8071,7 +8101,15 @@ export default function App() {
         anchor="left"
         open={imageOpen}
         onClose={() => setImageOpen(false)}
-        ModalProps={{ keepMounted: true }}
+        ModalProps={{
+          keepMounted: true,
+          BackdropProps: {
+            sx: {
+              backgroundColor: 'rgba(2, 4, 10, 0.56)',
+              backdropFilter: 'blur(4px)',
+            },
+          },
+        }}
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
@@ -8096,7 +8134,15 @@ export default function App() {
         anchor="left"
         open={videoOpen}
         onClose={() => setVideoOpen(false)}
-        ModalProps={{ keepMounted: true }}
+        ModalProps={{
+          keepMounted: true,
+          BackdropProps: {
+            sx: {
+              backgroundColor: 'rgba(2, 4, 10, 0.56)',
+              backdropFilter: 'blur(4px)',
+            },
+          },
+        }}
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
@@ -8121,7 +8167,15 @@ export default function App() {
         anchor="left"
         open={learningOpen}
         onClose={() => setLearningOpen(false)}
-        ModalProps={{ keepMounted: true }}
+        ModalProps={{
+          keepMounted: true,
+          BackdropProps: {
+            sx: {
+              backgroundColor: 'rgba(2, 4, 10, 0.56)',
+              backdropFilter: 'blur(4px)',
+            },
+          },
+        }}
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
