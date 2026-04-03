@@ -414,7 +414,7 @@ function App() {
   };
 
   const [gameMode, setGameMode] = useState(false);
-  const [activeSection, setActiveSection] = useState(() => safeStorageGet('vesper_active_section', 'chat'));
+  const [activeSection, setActiveSection] = useState('chat');
   const [activeTheme, setActiveTheme] = useState(() => {
     const luxuryDefault = THEMES.find((t) => t.id === 'diamond-vault') || THEMES[0];
     const migrated = safeStorageGet('vesper_luxury_migrated_v3', '0') === '1';
@@ -1071,6 +1071,11 @@ export default function App() {
       console.warn('Storage write failed', error);
     }
   }, [activeTheme, activeSection, memoryCategory]);
+
+  useEffect(() => {
+    // Safety reset: never let Memory Core drawer stay open across app boot.
+    setThreadsDialogOpen(false);
+  }, []);
 
   useEffect(() => {
     fetchRuntimeCapabilities();
@@ -7681,14 +7686,15 @@ export default function App() {
 
       <Drawer
         anchor="left"
+        variant="temporary"
         open={threadsDialogOpen}
         onClose={() => setThreadsDialogOpen(false)}
-        ModalProps={{ keepMounted: true }}
+        ModalProps={{ keepMounted: true, hideBackdrop: true }}
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '94vw', sm: 500 },
             maxWidth: '94vw',
-            left: { xs: 0, md: '302px' },
+            left: { xs: 0, md: '292px' },
             top: { xs: 0, md: '20px' },
             height: { xs: '100%', md: 'calc(100% - 40px)' },
             borderRadius: { xs: 0, md: '0 22px 22px 0' },
