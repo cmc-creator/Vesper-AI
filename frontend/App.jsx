@@ -3266,8 +3266,6 @@ export default function App() {
     const clean = cleanTextForSpeech(text);
     if (!clean) return;
 
-    setIsSpeaking(true);
-
     // Resolve voice: persona context ALWAYS takes priority → user selection → default → Lily
     let voice = '';
     const contextVoice = await resolveVoiceForContext(context);
@@ -3318,6 +3316,7 @@ export default function App() {
 
         audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
         audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
+        setIsSpeaking(true);
         await audio.play();
         return;
       } catch (e) {
@@ -3353,6 +3352,7 @@ export default function App() {
 
       audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
       audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
+      setIsSpeaking(true);
       await audio.play();
       return;
     } catch (e) {
@@ -3400,7 +3400,6 @@ export default function App() {
     // Preview the voice via ElevenLabs (never use browser SpeechSynthesis)
     if (normalizedVoice) {
       stopSpeaking();
-      setIsSpeaking(true);
       try {
         const response = await fetch(`${apiBase}/api/tts`, {
           method: 'POST',
@@ -3416,6 +3415,7 @@ export default function App() {
         connectAudioToAnalyser(audio);
         audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
         audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
+        setIsSpeaking(true);
         await audio.play();
       } catch (e) {
         console.warn('[TTS] Voice preview failed:', e.message);
