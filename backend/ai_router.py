@@ -196,10 +196,6 @@ class AIRouter:
     
     def get_available_provider(self, task_type: TaskType) -> Optional[ModelProvider]:
         """Get first available provider for task type"""
-        # CRITCAL FIX: Prioritize Anthropic if available (user preference for personality)
-        if self.is_provider_available(ModelProvider.ANTHROPIC):
-            return ModelProvider.ANTHROPIC
-            
         for provider in self.routing_strategy[task_type]:
             if self.is_provider_available(provider):
                 return provider
