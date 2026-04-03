@@ -176,6 +176,76 @@ canvas {
   }
 }
 
+@keyframes portraitSpeak {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+@keyframes portraitShimmer {
+  0%, 100% {
+    filter: brightness(1.15);
+  }
+  50% {
+    filter: brightness(1.25);
+  }
+}
+
+@keyframes portraitLips {
+  0%, 100% {
+    opacity: 1;
+    filter: saturate(1);
+  }
+  25% {
+    opacity: 0.98;
+    filter: saturate(1.05);
+  }
+  50% {
+    opacity: 0.95;
+    filter: saturate(1.1);
+  }
+  75% {
+    opacity: 0.98;
+    filter: saturate(1.05);
+  }
+}
+
+@keyframes portraitBlink {
+  0%, 10%, 20%, 100% {
+    clip-path: inset(0);
+  }
+  5%, 15% {
+    clip-path: inset(35% 0 35% 0);
+  }
+}
+
+@keyframes portraitGaze {
+  0%, 100% {
+    transform: translateX(0) translateY(0);
+  }
+  25% {
+    transform: translateX(1px) translateY(-0.5px);
+  }
+  50% {
+    transform: translateX(0) translateY(1px);
+  }
+  75% {
+    transform: translateX(-1px) translateY(-0.5px);
+  }
+}
+
+@keyframes portraitBreathing {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.01);
+  }
+}
+
 @keyframes pupilDialate {
   0%, 100% {
     r: 4.5;

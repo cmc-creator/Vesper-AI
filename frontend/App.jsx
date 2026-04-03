@@ -4818,12 +4818,12 @@ export default function App() {
           <DraggableBoard id="settings">
             <Paper className="intel-board glass-card">
               <DragHandleArea className="board-header">
-                <Box>
+                <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Settings</Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', overflow: 'visible' }}>
                     Customize your Vesper AI experience
-                </Typography>
-              </Box>
+                  </Typography>
+                </Box>
               <Tooltip title="Back to Chat">
                 <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
                   <ArrowBackIcon fontSize="small" />
@@ -7453,8 +7453,10 @@ export default function App() {
               overflow: 'hidden',
               border: `1px solid ${activeTheme.accent}44`,
               background: `radial-gradient(ellipse at 50% 30%, ${activeTheme.accent}18 0%, rgba(0,0,0,0.85) 70%)`,
-              boxShadow: isSpeaking ? `0 0 28px ${activeTheme.accent}66` : `0 4px 24px rgba(0,0,0,0.5)`,
-              transition: 'box-shadow 0.4s ease',
+              boxShadow: isSpeaking ? `0 0 28px ${activeTheme.accent}66, 0 0 60px ${activeTheme.accent}33` : `0 4px 24px rgba(0,0,0,0.5)`,
+              transition: 'all 0.3s ease',
+              animation: isSpeaking ? 'portraitSpeak 0.6s ease-in-out infinite' : 'none',
+              transform: isSpeaking ? 'scale(1.02)' : 'scale(1)',
             }}>
               <Box
                 sx={{
@@ -7464,12 +7466,19 @@ export default function App() {
                   overflow: 'hidden',
                   maskImage: 'linear-gradient(to bottom, black 0%, black 56%, transparent 86%)',
                   WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 56%, transparent 86%)',
+                  animation: isSpeaking ? 'portraitShimmer 1.5s ease-in-out infinite, portraitBreathing 3s ease-in-out infinite' : 'portraitBreathing 4s ease-in-out infinite',
                 }}
               >
                 <video
                   ref={avatarVideoRef}
                   src={videoAvatarUrl || `${(!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost')) ? 'http://localhost:8000' : (apiBase || '')}/media/source/vesper_base.mp4`}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    objectFit: 'cover', 
+                    filter: isSpeaking ? `brightness(1.15) drop-shadow(0 0 12px ${activeTheme.accent}88)` : 'brightness(1)',
+                    animation: isSpeaking ? `portraitLips 0.4s ease-in-out infinite, portraitBlink 6s ease-in-out infinite, portraitGaze 8s ease-in-out infinite` : 'portraitBlink 8s ease-in-out infinite',
+                  }}
                   autoPlay={videoShouldAutoplay}
                   loop={false}
                   muted
