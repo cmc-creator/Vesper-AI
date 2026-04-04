@@ -488,6 +488,7 @@ body[data-style="lux"] .hex-grid {
   gap: 20px;
   color: #eef2f7;
   overflow: visible;
+  transition: grid-template-columns 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .app-shell::before {
@@ -563,10 +564,16 @@ body[data-style="lux"] .hex-grid {
 .app-shell.sidebar-collapsed .nav-item {
   justify-content: center;
   padding: 10px 0;
+  min-width: 0;
 }
 
-/* Hide the thread list when collapsed */
+/* Hide the thread list + title when collapsed */
 .app-shell.sidebar-collapsed .sidebar > .MuiBox-root:nth-child(3) {
+  display: none;
+}
+
+/* Sidebar collapse button: hide "VESPER AI" label text when collapsed */
+.app-shell.sidebar-collapsed .sidebar-collapse-btn-label {
   display: none;
 }
 
@@ -606,6 +613,10 @@ body[data-style="lux"] {
   top: 12px;
   height: calc(100vh - 24px);
   align-self: start;
+  transition:
+    width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-item {

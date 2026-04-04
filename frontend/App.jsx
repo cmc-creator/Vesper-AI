@@ -65,6 +65,8 @@ import {
   ZoomOut as ZoomOutIcon,
   MoreVert as MoreVertIcon,
   Menu as MenuIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -558,6 +560,11 @@ function App() {
     const avatarVideoRef = useRef(null);
   const sidebarRef = useRef(null);
   const [drawerFrame, setDrawerFrame] = useState({ left: 300, top: 12, height: 820 });
+
+  // Compute drawer attachment point from known CSS layout constants — always in sync
+  // with sidebar state without relying on DOM measurement timing.
+  // Values mirror: app-shell padding (20px) + sidebar CSS widths (262/56px).
+  const drawerLeft = sidebarCollapsed ? 76 : 282;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -5151,8 +5158,8 @@ export default function App() {
                     sx={{
                       '& .MuiDrawer-paper': {
                         width: { xs: '100vw', sm: 620, md: 760 },
-                        maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left}px)` },
-                        left: { xs: 0, md: `${drawerFrame.left}px` },
+                        maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerLeft}px)` },
+                        left: { xs: 0, md: `${drawerLeft}px` },
                         top: { xs: 0, md: `${drawerFrame.top}px` },
                         height: { xs: '100%', md: `${drawerFrame.height}px` },
                         borderRadius: { xs: 0, md: '0 22px 22px 0' },
@@ -6585,32 +6592,43 @@ export default function App() {
             </Box>
           </Box>
 
-          {/* Sidebar collapse toggle — desktop only */}
+          {/* Sidebar collapse toggle */}
           <Box
-            className="sidebar-collapse-btn"
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            onClick={() => {
-              const next = !sidebarCollapsed;
-              setSidebarCollapsed(next);
-              localStorage.setItem('vesper_sidebar_collapsed', String(next));
-            }}
             sx={{
               mt: 'auto',
-              pt: 1.5,
+              pt: 1,
               borderTop: '1px solid rgba(255,255,255,0.08)',
-              display: { xs: 'none', md: 'flex' },
+              display: 'flex',
               alignItems: 'center',
-              justifyContent: sidebarCollapsed ? 'center' : 'flex-end',
-              cursor: 'pointer',
-              color: 'rgba(255,255,255,0.4)',
-              fontSize: '0.72rem',
-              gap: 0.6,
-              userSelect: 'none',
-              transition: 'color 0.2s',
-              '&:hover': { color: 'var(--accent)' },
+              justifyContent: sidebarCollapsed ? 'center' : 'space-between',
             }}
           >
-            {sidebarCollapsed ? '→' : '← Collapse'}
+            {!sidebarCollapsed && (
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.62rem', userSelect: 'none' }}>
+                VESPER AI
+              </Typography>
+            )}
+            <Tooltip title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} placement="right">
+              <IconButton
+                size="small"
+                onClick={() => {
+                  const next = !sidebarCollapsed;
+                  setSidebarCollapsed(next);
+                  try { localStorage.setItem('vesper_sidebar_collapsed', String(next)); } catch (_) {}
+                }}
+                sx={{
+                  color: 'rgba(255,255,255,0.35)',
+                  bgcolor: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  width: 28, height: 28,
+                  '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(var(--accent-rgb),0.1)', borderColor: 'rgba(var(--accent-rgb),0.3)' },
+                }}
+              >
+                {sidebarCollapsed
+                  ? <ChevronRightIcon sx={{ fontSize: 16 }} />
+                  : <ChevronLeftIcon sx={{ fontSize: 16 }} />}
+              </IconButton>
+            </Tooltip>
           </Box>
         </aside>
 
@@ -7822,8 +7840,8 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '94vw', sm: 500 },
-            maxWidth: { xs: '94vw', md: `calc(100vw - ${drawerFrame.left}px)` },
-            left: { xs: 0, md: `${drawerFrame.left}px` },
+            maxWidth: { xs: '94vw', md: `calc(100vw - ${drawerLeft}px)` },
+            left: { xs: 0, md: `${drawerLeft}px` },
             top: { xs: 0, md: `${drawerFrame.top}px` },
             height: { xs: '100%', md: `${drawerFrame.height}px` },
             borderRadius: { xs: 0, md: '0 22px 22px 0' },
@@ -8201,8 +8219,8 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left}px)` },
-            left: { xs: 0, md: `${drawerFrame.left}px` },
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerLeft}px)` },
+            left: { xs: 0, md: `${drawerLeft}px` },
             top: { xs: 0, md: `${drawerFrame.top}px` },
             height: { xs: '100%', md: `${drawerFrame.height}px` },
             borderRadius: { xs: 0, md: '0 22px 22px 0' },
@@ -8235,8 +8253,8 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left}px)` },
-            left: { xs: 0, md: `${drawerFrame.left}px` },
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerLeft}px)` },
+            left: { xs: 0, md: `${drawerLeft}px` },
             top: { xs: 0, md: `${drawerFrame.top}px` },
             height: { xs: '100%', md: `${drawerFrame.height}px` },
             borderRadius: { xs: 0, md: '0 22px 22px 0' },
@@ -8269,8 +8287,8 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left}px)` },
-            left: { xs: 0, md: `${drawerFrame.left}px` },
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerLeft}px)` },
+            left: { xs: 0, md: `${drawerLeft}px` },
             top: { xs: 0, md: `${drawerFrame.top}px` },
             height: { xs: '100%', md: `${drawerFrame.height}px` },
             borderRadius: { xs: 0, md: '0 22px 22px 0' },
@@ -8303,8 +8321,8 @@ export default function App() {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100vw', sm: 560, md: 680 },
-            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerFrame.left}px)` },
-            left: { xs: 0, md: `${drawerFrame.left}px` },
+            maxWidth: { xs: '100vw', md: `calc(100vw - ${drawerLeft}px)` },
+            left: { xs: 0, md: `${drawerLeft}px` },
             top: { xs: 0, md: `${drawerFrame.top}px` },
             height: { xs: '100%', md: `${drawerFrame.height}px` },
             borderRadius: { xs: 0, md: '0 22px 22px 0' },
