@@ -7797,10 +7797,10 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
 
 
                 elif tool_name == "persistence_status":
-                    import os, sys, time, datetime
-                    _ps_start = getattr(persistence_status, "_start_time", None) or time.time()
+                    import sys, time as _time2
+                    _ps_start = getattr(persistence_status, "_start_time", None) or _time2.time()
                     persistence_status._start_time = _ps_start
-                    _uptime = int(time.time() - _ps_start)
+                    _uptime = int(_time2.time() - _ps_start)
                     tool_result = {
                         "pid": os.getpid(),
                         "uptime_seconds": _uptime,
