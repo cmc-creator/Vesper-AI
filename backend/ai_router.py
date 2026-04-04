@@ -363,10 +363,12 @@ class AIRouter:
     
     async def _chat_openai(self, messages, model, tools, max_tokens, temperature):
         """Chat with OpenAI GPT"""
+        # GPT-5.x uses max_completion_tokens; older models use max_tokens
+        tokens_key = "max_completion_tokens" if model.startswith("gpt-5") else "max_tokens"
         kwargs = {
             "model": model,
             "messages": messages,
-            "max_tokens": max_tokens,
+            tokens_key: max_tokens,
             "temperature": temperature,
             "frequency_penalty": 0.5,  # Reduce repetition of tokens
             "presence_penalty": 0.5    # Encourage new topics
