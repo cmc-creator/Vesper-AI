@@ -279,7 +279,7 @@ class AIRouter:
             fallback_providers = [p for p in self.routing_strategy[task_type] if p not in _tried_providers and self.is_provider_available(p)]
             if fallback_providers:
                 print(f"[FALLBACK] Falling back to {fallback_providers[0].value}")
-                return await self.chat(messages, task_type, tools, max_tokens, temperature, fallback_providers[0], _tried_providers, _errors)
+                return await self.chat(messages, task_type, tools, max_tokens, temperature, preferred_provider=fallback_providers[0], _tried_providers=_tried_providers, _errors=_errors)
             error_summary = " | ".join(_errors)
             return {"error": f"All providers failed: {error_summary}", "provider": provider.value, "model": model}
     
