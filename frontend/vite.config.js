@@ -9,8 +9,8 @@ export default defineConfig({
     host: true, // Enable network access
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:8000',
-      '/media': 'http://localhost:8000',
+      '/api': 'https://vesper-backend-production-b486.up.railway.app',
+      '/media': 'https://vesper-backend-production-b486.up.railway.app',
     },
   },
   build: {

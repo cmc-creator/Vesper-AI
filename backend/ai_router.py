@@ -188,10 +188,10 @@ class AIRouter:
         
         # Model selection per provider - PERSONALITY-FIRST (Vesper needs to stay in character)
         self.models = {
-            ModelProvider.OPENAI: "gpt-4o-mini",  # Budget model ($0.15/M input, $0.60/M output)
-            ModelProvider.GOOGLE: "gemini-2.0-flash",  # Updated to 2.0 flash (better system prompt following)
-            ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",  # Claude Sonnet 4 — strong personality, great conversation quality
-            ModelProvider.OLLAMA: "llama3.2:latest"  # Free local
+            ModelProvider.OPENAI: "gpt-4o-mini",       # Fast + affordable ($0.15/M input)
+            ModelProvider.GOOGLE: "gemini-2.0-flash",  # Current Gemini Flash (free tier)
+            ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20241022",  # Claude 3.5 Sonnet — strong personality
+            ModelProvider.OLLAMA: "llama3.2:latest"    # Free local
         }
     
     def get_available_provider(self, task_type: TaskType) -> Optional[ModelProvider]:
@@ -221,6 +221,7 @@ class AIRouter:
         max_tokens: int = 4096,
         temperature: float = 0.7,
         preferred_provider: Optional[ModelProvider] = None,
+        model_override: Optional[str] = None,
         _tried_providers: Optional[set] = None,
         _errors: Optional[list] = None
     ) -> Dict[str, Any]:
@@ -259,7 +260,7 @@ class AIRouter:
             }
         
         _tried_providers.add(provider)
-        model = self.models[provider]
+        model = model_override if model_override else self.models[provider]
         
         try:
             if provider == ModelProvider.ANTHROPIC:

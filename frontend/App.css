@@ -196,29 +196,20 @@ canvas {
 
 @keyframes portraitLips {
   0%, 100% {
-    opacity: 1;
-    filter: saturate(1);
+    transform: scale(1);
+    filter: saturate(1) brightness(1);
   }
   25% {
-    opacity: 0.98;
-    filter: saturate(1.05);
+    transform: scale(1.003, 0.998);
+    filter: saturate(1.03) brightness(1.01);
   }
   50% {
-    opacity: 0.95;
-    filter: saturate(1.1);
+    transform: scale(1.006, 0.996);
+    filter: saturate(1.05) brightness(1.015);
   }
   75% {
-    opacity: 0.98;
-    filter: saturate(1.05);
-  }
-}
-
-@keyframes portraitBlink {
-  0%, 10%, 20%, 100% {
-    clip-path: inset(0);
-  }
-  5%, 15% {
-    clip-path: inset(35% 0 35% 0);
+    transform: scale(1.003, 0.998);
+    filter: saturate(1.03) brightness(1.01);
   }
 }
 
@@ -529,7 +520,7 @@ body[data-style="lux"] .hex-grid {
 }
 
 .app-shell.launch-mode .command-deck > .MuiBox-root {
-  min-height: 84px !important;
+  min-height: 32px !important;
 }
 
 .app-shell.launch-mode .chat-panel {
@@ -1547,18 +1538,102 @@ button:active,
 
 /* ─── Tablet (769-1199px): collapse to single column ─── */
 @media (max-width: 1199px) {
+  /* Collapse app shell to single column — sidebar becomes off-canvas */
+  .app-shell {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  /* Sidebar-collapsed is desktop-only; on tablet/mobile sidebar goes off-canvas */
+  .app-shell.sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell.launch-mode {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 12px;
+  }
+
   .content-grid {
     grid-template-columns: 1fr;
   }
-  /* Hide decorative logo on tablet – saves vertical space */
+
+  /* Sidebar slides off-canvas */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 270px;
+    z-index: 1000;
+    border-radius: 0 18px 18px 0;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 16px 14px;
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 40px rgba(0, 0, 0, 0.8), 4px 0 20px rgba(var(--accent-rgb), 0.15);
+  }
+
+  /* Backdrop appears behind open sidebar */
+  .mobile-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 999;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  /* Show hamburger on all non-desktop screens */
+  .mobile-menu-btn {
+    display: flex !important;
+  }
+
+  /* Hide decorative logo – saves vertical space */
   .ops-panel-logo {
     display: none !important;
+  }
+
+  /* Chat stage: stack avatar above chat on tablet/mobile */
+  .chat-stage-shell {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .chat-avatar-card {
+    width: min(240px, 100%);
+    height: 186px;
+    justify-self: center;
+  }
+
+  /* Section-based show/hide */
+  .content-grid[data-section="chat"] .ops-panel {
+    display: none;
+  }
+  .content-grid[data-section="research"] .chat-panel,
+  .content-grid[data-section="memory"] .chat-panel,
+  .content-grid[data-section="tasks"] .chat-panel,
+  .content-grid[data-section="settings"] .chat-panel {
+    display: none;
+  }
+  .content-grid[data-section="research"] .ops-panel,
+  .content-grid[data-section="memory"] .ops-panel,
+  .content-grid[data-section="tasks"] .ops-panel,
+  .content-grid[data-section="settings"] .ops-panel {
+    min-height: calc(100svh - 24px);
   }
 }
 
 @media (max-width: 768px) {
   .app-shell {
-    grid-template-columns: 1fr;
     padding: 8px;
     gap: 8px;
   }
@@ -1570,39 +1645,12 @@ button:active,
 
   /* Sidebar becomes a fixed off-canvas drawer */
   .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
     width: 260px;
-    z-index: 1000;
-    border-radius: 0 18px 18px 0;
-    transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    max-height: 100vh;
-    overflow-y: auto;
     padding: 16px 12px;
-  }
-
-  .sidebar.mobile-open {
-    transform: translateX(0);
-    box-shadow: 4px 0 40px rgba(0, 0, 0, 0.8), 4px 0 20px rgba(var(--accent-rgb), 0.15);
-  }
-
-  /* Backdrop visible when sidebar is open */
-  .mobile-sidebar-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 999;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
   }
 
   /* Content fills the full width */
   .content-grid {
-    grid-template-columns: 1fr;
     min-height: calc(100vh - 16px);
   }
 
@@ -1625,26 +1673,6 @@ button:active,
     max-height: 55svh;
   }
 
-  /* Show hamburger button */
-  .mobile-menu-btn {
-    display: flex !important;
-  }
-
-  /* Always hide the decorative ops-panel logo on mobile */
-  .ops-panel-logo {
-    display: none !important;
-  }
-
-  /* Section-based layout: when in chat, hide ops-panel; when in a board, hide chat-panel */
-  .content-grid[data-section="chat"] .ops-panel {
-    display: none;
-  }
-  .content-grid[data-section="research"] .chat-panel,
-  .content-grid[data-section="memory"] .chat-panel,
-  .content-grid[data-section="tasks"] .chat-panel,
-  .content-grid[data-section="settings"] .chat-panel {
-    display: none;
-  }
   /* Board sections fill the full mobile viewport */
   .content-grid[data-section="research"] .ops-panel,
   .content-grid[data-section="memory"] .ops-panel,

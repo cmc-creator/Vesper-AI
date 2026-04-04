@@ -2020,7 +2020,7 @@ async def auto_title_thread(thread_id: str):
             try:
                 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
                 resp = client.messages.create(
-                    model="claude-sonnet-4-20250514",
+                    model="claude-3-5-sonnet-20241022",
                     max_tokens=30,
                     messages=[{"role": "user", "content": prompt}],
                 )
@@ -4111,7 +4111,7 @@ async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = 
                 openai.api_key = os.getenv("OPENAI_API_KEY")
                 
                 response = openai.chat.completions.create(
-                    model="gpt-4-vision-preview",
+                    model="gpt-4o",
                     messages=[
                         {
                             "role": "user",
@@ -4184,12 +4184,12 @@ async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = 
                 # Use new Client-based API for generate_content
                 # Combine prompt and image in single contents list
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash',
+                    model='gemini-2.0-flash',
                     contents=[prompt, image_part]
                 )
                 
                 analysis_result = response.text
-                provider_used = "Gemini 1.5 Flash (Vision)"
+                provider_used = "Gemini 2.0 Flash (Vision)"
             except Exception as e:
                 print(f"Gemini Vision failed: {e}")
         
@@ -6803,14 +6803,24 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
         
         # Resolve preferred provider from model picker
         preferred_provider = None
+        model_override = None
         if chat.model:
-            provider_map = {
-                "anthropic": ModelProvider.ANTHROPIC,
-                "openai": ModelProvider.OPENAI,
-                "google": ModelProvider.GOOGLE,
-                "ollama": ModelProvider.OLLAMA,
+            # Map of specific model IDs to (provider, model_override)
+            MODEL_SPECIFICS = {
+                "claude-3-5-sonnet-20241022": (ModelProvider.ANTHROPIC, "claude-3-5-sonnet-20241022"),
+                "claude-3-5-haiku-20241022": (ModelProvider.ANTHROPIC, "claude-3-5-haiku-20241022"),
+                "gpt-4o": (ModelProvider.OPENAI, "gpt-4o"),
+                "gpt-4o-mini": (ModelProvider.OPENAI, "gpt-4o-mini"),
+                "gemini-2.0-flash": (ModelProvider.GOOGLE, "gemini-2.0-flash"),
+                "gemini-2.0-flash-exp": (ModelProvider.GOOGLE, "gemini-2.0-flash-exp"),
+                "anthropic": (ModelProvider.ANTHROPIC, None),
+                "openai": (ModelProvider.OPENAI, None),
+                "google": (ModelProvider.GOOGLE, None),
+                "ollama": (ModelProvider.OLLAMA, None),
             }
-            preferred_provider = provider_map.get(chat.model.lower())
+            match = MODEL_SPECIFICS.get(chat.model.lower())
+            if match:
+                preferred_provider, model_override = match
         
         ai_response_obj = await ai_router.chat(
             messages=messages,
@@ -6818,7 +6828,8 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             tools=tools,
             max_tokens=2000,
             temperature=0.7,
-            preferred_provider=preferred_provider
+            preferred_provider=preferred_provider,
+            model_override=model_override
         )
         
         # Check for errors
@@ -8213,13 +8224,28 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
             
             # Resolve preferred provider
             preferred_provider = None
+            model_override = None
             if chat.model:
-                provider_map = {"anthropic": ModelProvider.ANTHROPIC, "openai": ModelProvider.OPENAI, "google": ModelProvider.GOOGLE, "ollama": ModelProvider.OLLAMA}
-                preferred_provider = provider_map.get(chat.model.lower())
+                MODEL_SPECIFICS = {
+                    "claude-3-5-sonnet-20241022": (ModelProvider.ANTHROPIC, "claude-3-5-sonnet-20241022"),
+                    "claude-3-5-haiku-20241022": (ModelProvider.ANTHROPIC, "claude-3-5-haiku-20241022"),
+                    "gpt-4o": (ModelProvider.OPENAI, "gpt-4o"),
+                    "gpt-4o-mini": (ModelProvider.OPENAI, "gpt-4o-mini"),
+                    "gemini-2.0-flash": (ModelProvider.GOOGLE, "gemini-2.0-flash"),
+                    "gemini-2.0-flash-exp": (ModelProvider.GOOGLE, "gemini-2.0-flash-exp"),
+                    "anthropic": (ModelProvider.ANTHROPIC, None),
+                    "openai": (ModelProvider.OPENAI, None),
+                    "google": (ModelProvider.GOOGLE, None),
+                    "ollama": (ModelProvider.OLLAMA, None),
+                }
+                match = MODEL_SPECIFICS.get(chat.model.lower())
+                if match:
+                    preferred_provider, model_override = match
             
             ai_response_obj = await ai_router.chat(
                 messages=messages, task_type=task_type, tools=tools,
-                max_tokens=2000, temperature=0.7, preferred_provider=preferred_provider
+                max_tokens=2000, temperature=0.7, preferred_provider=preferred_provider,
+                model_override=model_override
             )
             
             if "error" in ai_response_obj:
@@ -8857,26 +8883,35 @@ async def export_chat(thread_id: str = "default", format: str = "markdown"):
 @app.get("/api/models/available")
 async def get_available_models():
     """Return list of available AI models for the model picker"""
-    stats = ai_router.get_stats()
     models = []
     
-    model_info = {
-        "anthropic": {"label": "Claude", "icon": "🟣", "model": ai_router.models.get(ModelProvider.ANTHROPIC, "")},
-        "openai": {"label": "GPT", "icon": "🟢", "model": ai_router.models.get(ModelProvider.OPENAI, "")},
-        "google": {"label": "Gemini", "icon": "🔵", "model": ai_router.models.get(ModelProvider.GOOGLE, "")},
-        "ollama": {"label": "Ollama", "icon": "🟠", "model": ai_router.models.get(ModelProvider.OLLAMA, "")},
-    }
+    # Anthropic Claude models
+    if ai_router.anthropic_client:
+        models.extend([
+            {"id": "claude-3-5-sonnet-20241022", "label": "Claude 3.5 Sonnet", "icon": "🟣", "provider": "anthropic", "available": True, "badge": "Smart"},
+            {"id": "claude-3-5-haiku-20241022", "label": "Claude 3.5 Haiku", "icon": "🟣", "provider": "anthropic", "available": True, "badge": "Fast"},
+        ])
     
-    for provider_id, available in stats["providers"].items():
-        if available:
-            info = model_info.get(provider_id, {})
-            models.append({
-                "id": provider_id,
-                "label": info.get("label", provider_id),
-                "icon": info.get("icon", "⚪"),
-                "model": info.get("model", ""),
-                "available": True
-            })
+    # OpenAI models
+    if ai_router.openai_client:
+        models.extend([
+            {"id": "gpt-4o", "label": "GPT-4o", "icon": "🟢", "provider": "openai", "available": True, "badge": "Smart"},
+            {"id": "gpt-4o-mini", "label": "GPT-4o Mini", "icon": "🟢", "provider": "openai", "available": True, "badge": "Fast"},
+        ])
+    
+    # Google Gemini models
+    if ai_router.google_client:
+        models.extend([
+            {"id": "gemini-2.0-flash", "label": "Gemini 2.0 Flash", "icon": "🔵", "provider": "google", "available": True, "badge": "Free"},
+        ])
+    
+    # Ollama local models
+    if ai_router.ollama_available:
+        ollama_model = ai_router.models.get(ModelProvider.OLLAMA, "llama3.2:latest")
+        models.append({
+            "id": "ollama", "label": f"Ollama ({ollama_model})", "icon": "🟠", 
+            "provider": "ollama", "available": True, "badge": "Local"
+        })
     
     return {"models": models, "default": "auto"}
 
@@ -9573,6 +9608,20 @@ def _is_shell_command_safe(command: str) -> bool:
         )
     return cmd in _SAFE_SHELL_EXACT or any(cmd.startswith(p) for p in _SAFE_SHELL_PREFIXES)
 
+
+def _get_default_repo(explicit_repo: Optional[str] = None) -> str:
+    """Resolve GitHub repo in owner/name format from explicit arg or env default."""
+    if explicit_repo and explicit_repo.strip():
+        return explicit_repo.strip()
+    return os.getenv("GITHUB_DEFAULT_REPO", "cmc-creator/Vesper-AI").strip() or "cmc-creator/Vesper-AI"
+
+
+def _get_default_vercel_project(explicit_project: Optional[str] = None) -> str:
+    """Resolve Vercel project from explicit arg or env default."""
+    if explicit_project and explicit_project.strip():
+        return explicit_project.strip()
+    return os.getenv("VERCEL_PROJECT", "vesper-ai-delta").strip() or "vesper-ai-delta"
+
 def git_status():
     """Get current git status"""
     try:
@@ -9760,11 +9809,24 @@ def vercel_get_deployments(project: str = "vesper-ai-delta"):
         token = os.getenv("VERCEL_TOKEN")
         if not token:
             return {"error": "VERCEL_TOKEN not set in environment"}
+
+        project = _get_default_vercel_project(project)
+
+        # Resolve project name -> project ID when needed
+        project_id = project
+        if "_" not in project and not project.startswith("prj_"):
+            proj_res = requests.get(
+                f"https://api.vercel.com/v9/projects/{project}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if proj_res.status_code == 200:
+                project_id = proj_res.json().get("id", project)
         
         response = requests.get(
             f"https://api.vercel.com/v6/deployments",
             headers={"Authorization": f"Bearer {token}"},
-            params={"projectId": project, "limit": 5},
+            params={"projectId": project_id, "limit": 5},
             timeout=10
         )
         
@@ -9793,7 +9855,17 @@ def _execute_vercel_deploy(params):
         if not token:
             return {"error": "VERCEL_TOKEN not set"}
         
-        project = params.get("project", "vesper-ai-delta")
+        project = _get_default_vercel_project(params.get("project", "vesper-ai-delta"))
+
+        deploy_hook = params.get("deploy_hook") or os.getenv("VERCEL_DEPLOY_HOOK_URL", "").strip()
+        if deploy_hook:
+            hook_res = requests.post(deploy_hook, timeout=20)
+            return {
+                "success": hook_res.status_code in (200, 201, 202),
+                "method": "deploy_hook",
+                "status_code": hook_res.status_code,
+                "response": hook_res.text[:500]
+            }
         
         response = requests.post(
             f"https://api.vercel.com/v13/deployments",
@@ -9815,7 +9887,7 @@ def _execute_vercel_set_env(params):
         
         key = params["key"]
         value = params["value"]
-        project = params.get("project", "vesper-ai-delta")
+        project = _get_default_vercel_project(params.get("project", "vesper-ai-delta"))
         
         response = requests.post(
             f"https://api.vercel.com/v9/projects/{project}/env",
@@ -9867,17 +9939,31 @@ def github_search_issues(query: str, repo: str = "cmc-creator/Vesper-AI"):
         headers = {}
         if token:
             headers["Authorization"] = f"token {token}"
+
+        repo = _get_default_repo(repo)
         
-        response = requests.get(
-            f"https://api.github.com/repos/{repo}/issues",
-            headers=headers,
-            params={"state": "all", "per_page": 10},
-            timeout=10
-        )
+        q = (query or "").strip()
+        if q:
+            search_query = f"repo:{repo} is:issue {q}"
+            response = requests.get(
+                "https://api.github.com/search/issues",
+                headers=headers,
+                params={"q": search_query, "per_page": 10},
+                timeout=10
+            )
+        else:
+            response = requests.get(
+                f"https://api.github.com/repos/{repo}/issues",
+                headers=headers,
+                params={"state": "all", "per_page": 10},
+                timeout=10
+            )
         
         if response.status_code == 200:
+            payload = response.json()
+            source_items = payload.get("items", payload) if isinstance(payload, dict) else payload
             issues = []
-            for issue in response.json():
+            for issue in source_items:
                 issues.append({
                     "number": issue["number"],
                     "title": issue["title"],
@@ -9885,7 +9971,7 @@ def github_search_issues(query: str, repo: str = "cmc-creator/Vesper-AI"):
                     "url": issue["html_url"],
                     "created_at": issue["created_at"]
                 })
-            return {"issues": issues}
+            return {"issues": issues, "repo": repo, "query": q}
         else:
             return {"error": f"GitHub API error: {response.status_code}"}
     except Exception as e:
@@ -9898,7 +9984,7 @@ def _execute_github_create_issue(params):
         if not token:
             return {"error": "GITHUB_TOKEN not set"}
         
-        repo = params.get("repo", "cmc-creator/Vesper-AI")
+        repo = _get_default_repo(params.get("repo", "cmc-creator/Vesper-AI"))
         title = params["title"]
         body = params.get("body", "")
         labels = params.get("labels", [])

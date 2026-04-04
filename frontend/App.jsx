@@ -954,37 +954,16 @@ export default function App() {
     }
   }, [customizations.chatBoxHeight]);
 
+  const RAILWAY_URL = 'https://vesper-backend-production-b486.up.railway.app';
+
   const apiBase = useMemo(() => {
-    // VITE_API_URL is the source of truth for the backend URL.
-    // It should be set in the .env file for local dev,
-    // and in Vercel/Railway environment variables for production.
     const apiUrl = import.meta.env.VITE_API_URL;
-
-    // If VITE_API_URL is defined, use it.
-    if (apiUrl) {
-      return apiUrl.replace(/\/$/, '');
-    }
-
-    // For local development, if VITE_API_URL is NOT set,
-    // we fall back to a relative path. This relies on the Vite
-    // proxy you have configured in vite.config.js to forward
-    // /api requests to your local backend on port 8000.
-    if (typeof window !== 'undefined' && window.location.origin.includes('localhost')) {
-      return '';
-    }
-
-    // In a production environment (like Vercel) where VITE_API_URL is not set,
-    // this will default to the frontend's own origin. For Vercel, we want
-    // to use relative paths so the vercel.json rewrites can handle it.
-    // A blank string '' ensures requests are relative (e.g., /api/chat).
-    return '';
+    if (apiUrl) return apiUrl.replace(/\/$/, '');
+    return RAILWAY_URL;
   }, []);
 
   const mediaBase = useMemo(() => {
-    if (!apiBase && typeof window !== 'undefined' && window.location.origin.includes('localhost')) {
-      return 'http://localhost:8000';
-    }
-    return apiBase || '';
+    return apiBase;
   }, [apiBase]);
 
   const fetchRuntimeCapabilities = useCallback(async () => {
@@ -3352,11 +3331,12 @@ export default function App() {
 
         audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
         audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
+        await audio.play();  // only mark speaking AFTER audio actually starts
         setIsSpeaking(true);
-        await audio.play();
         return;
       } catch (e) {
-        if (e.name === 'AbortError') { setIsSpeaking(false); return; }
+        setIsSpeaking(false);
+        if (e.name === 'AbortError') return;
         console.warn('[TTS] Streaming failed, trying full download:', e.message);
       }
     }
@@ -3388,11 +3368,12 @@ export default function App() {
 
       audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
       audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); ttsAudioRef.current = null; };
+      await audio.play();  // only mark speaking AFTER audio actually starts
       setIsSpeaking(true);
-      await audio.play();
       return;
     } catch (e) {
-      if (e.name === 'AbortError') { setIsSpeaking(false); return; }
+      setIsSpeaking(false);
+      if (e.name === 'AbortError') return;
       console.warn('[TTS] Cloud TTS unavailable:', e.message);
       showVoiceError(`ElevenLabs voice error: ${e.message}`);
     }
@@ -4069,7 +4050,7 @@ export default function App() {
             </Tabs>
             {memoryView === 'notes' && (
               <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                {['notes', 'conversations', 'sensory_experiences', 'creative_moments', 'emotional_bonds'].map((cat) => (
+                {customizations.memoryCategories.map((cat) => (
                   <Chip
                     key={cat}
                     label={cat.replace(/_/g, ' ')}
@@ -5901,14 +5882,14 @@ export default function App() {
                   >
                     <MenuItem value="auto">🔄 Auto (best available)</MenuItem>
                     {availableModels.map(m => (
-                      <MenuItem key={m.id} value={m.id}>{m.icon} {m.label}</MenuItem>
+                      <MenuItem key={m.id} value={m.id}>{m.icon} {m.label}{m.badge ? ` · ${m.badge}` : ''}</MenuItem>
                     ))}
                     {availableModels.length === 0 && (
                       <MenuItem value="gpt-4o-mini">☁️ GPT-4o-mini (cloud)</MenuItem>
                     )}
                   </Select>
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', mt: 0.75, display: 'block' }}>
-                    {availableModels.length > 0 ? `${availableModels.length} models detected` : 'Connect to Ollama for local models'}
+                    {availableModels.length > 0 ? `${availableModels.length} models available` : 'Connect to Ollama for local models'}
                   </Typography>
                 </Box>
               </Box>
@@ -7190,12 +7171,12 @@ export default function App() {
             {/* Tools Section - Below Input */}
             <Box className="command-deck" sx={{ 
               display: 'grid',
-              gridTemplateColumns: { xs: 'repeat(3, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))' },
-              gap: 1,
-              mt: 1.2,
-              p: 1,
-              borderRadius: 2,
-              border: '1px solid rgba(230,214,182,0.18)',
+              gridTemplateColumns: { xs: 'repeat(5, minmax(0, 1fr))', md: 'repeat(5, minmax(0, 1fr))' },
+              gap: 0.5,
+              mt: 0.5,
+              p: 0.5,
+              borderRadius: 1.5,
+              border: '1px solid rgba(230,214,182,0.12)',
               background: 'linear-gradient(145deg, rgba(14,14,20,0.92), rgba(8,10,14,0.94))',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
             }}>
@@ -7242,26 +7223,26 @@ export default function App() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 0.4,
-                    minHeight: 52,
-                    padding: '6px 4px',
-                    borderRadius: '12px',
+                    gap: 0.2,
+                    minHeight: 32,
+                    padding: '3px 2px',
+                    borderRadius: '8px',
                     cursor: 'pointer',
                     color: 'rgba(255,255,255,0.84)',
-                    fontSize: '0.78rem',
-                    transition: 'all 0.25s ease',
-                    border: '1px solid rgba(232,214,180,0.16)',
+                    fontSize: '0.68rem',
+                    transition: 'all 0.2s ease',
+                    border: '1px solid rgba(232,214,180,0.14)',
                     background: 'linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
                     '&:hover': {
                       bgcolor: 'rgba(242,222,170,0.12)',
                       color: '#fff',
                       borderColor: 'rgba(242,222,170,0.45)',
-                      transform: 'translateY(-2px)',
+                      transform: 'translateY(-1px)',
                     }
                   }}
                 >
-                  <span style={{ fontSize: '0.95rem', filter: 'drop-shadow(0 0 8px rgba(242,222,170,0.25))' }}>{tool.icon}</span>
-                  <Typography variant="caption" sx={{ fontSize: '0.62rem', textAlign: 'center', lineHeight: 1.05, fontWeight: 700, letterSpacing: 0.2 }}>
+                  <span style={{ fontSize: '0.75rem', filter: 'drop-shadow(0 0 6px rgba(242,222,170,0.25))' }}>{tool.icon}</span>
+                  <Typography variant="caption" sx={{ fontSize: '0.55rem', textAlign: 'center', lineHeight: 1.05, fontWeight: 700, letterSpacing: 0.1 }}>
                     {tool.label}
                   </Typography>
                 </Box>
@@ -7274,26 +7255,26 @@ export default function App() {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 0.4,
-                  minHeight: 52,
-                  padding: '6px 4px',
-                  borderRadius: '12px',
+                  gap: 0.2,
+                  minHeight: 32,
+                  padding: '3px 2px',
+                  borderRadius: '8px',
                   cursor: 'pointer',
                   color: 'rgba(255,255,255,0.84)',
-                  fontSize: '0.78rem',
-                  transition: 'all 0.25s ease',
-                  border: '1px dashed rgba(232,214,180,0.26)',
+                  fontSize: '0.68rem',
+                  transition: 'all 0.2s ease',
+                  border: '1px dashed rgba(232,214,180,0.22)',
                   background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))',
                   '&:hover': {
                     bgcolor: 'rgba(242,222,170,0.1)',
                     color: '#fff',
                     borderColor: 'rgba(242,222,170,0.45)',
-                    transform: 'translateY(-2px)',
+                    transform: 'translateY(-1px)',
                   },
                 }}
               >
-                <span style={{ fontSize: '0.95rem', filter: 'drop-shadow(0 0 8px rgba(242,222,170,0.25))' }}>✦</span>
-                <Typography variant="caption" sx={{ fontSize: '0.62rem', textAlign: 'center', lineHeight: 1.05, fontWeight: 700, letterSpacing: 0.2 }}>
+                <span style={{ fontSize: '0.75rem', filter: 'drop-shadow(0 0 6px rgba(242,222,170,0.25))' }}>✦</span>
+                <Typography variant="caption" sx={{ fontSize: '0.55rem', textAlign: 'center', lineHeight: 1.05, fontWeight: 700, letterSpacing: 0.1 }}>
                   Full Toolkit
                 </Typography>
               </Box>
@@ -7651,6 +7632,7 @@ export default function App() {
                 </Box>
               </Paper>
             )}
+
 
             {/* Dashboard widgets row */}
             <Box className="panel-grid" sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2, mt: 1 }}>
