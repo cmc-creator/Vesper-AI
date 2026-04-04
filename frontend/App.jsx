@@ -996,46 +996,72 @@ export default function App() {
     const video = avatarVideoRef.current;
     if (!video) return;
 
-    const shouldAnimate = isSpeaking;
+    if (isSpeaking) {
+      // ── Amplitude-driven lip-sync ──────────────────────────────────────
+      // The video loops the speaking section. We drive playbackRate from the
+      // analyser so the mouth moves fast on loud syllables and slows/pauses
+      // on silence — making it look like she's actually saying words.
+      const SPEAKING_LOOP_END = 3.8; // seconds — end of speaking section
+      const SILENCE_THRESHOLD = 6;    // analyser RMS below this = silence
+      const MIN_RATE  = 0.0;          // rate when totally silent
+      const MAX_RATE  = 1.8;          // rate at peak volume
+      const data = new Uint8Array(analyserRef.current?.frequencyBinCount || 128);
 
-    if (shouldAnimate) {
-      // During speech: loop only the opening portion so the looking-down section
-      // stays hidden. Tune SPEAKING_LOOP_END to match your video.
-      const SPEAKING_LOOP_END = 3.8; // seconds — adjust to where look-down starts
       video.loop = false;
-      const playPromise = video.play();
-      if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch(() => {});
-      }
-      const clampTime = () => {
-        if (video.currentTime >= SPEAKING_LOOP_END) video.currentTime = 0;
+      video.playbackRate = 1;
+      video.play().catch(() => {});
+
+      let rafId;
+      const tick = () => {
+        if (!video || video.paused) { rafId = requestAnimationFrame(tick); return; }
+
+        // Clamp to speaking section
+        if (video.currentTime >= SPEAKING_LOOP_END) {
+          try { video.currentTime = 0.05; } catch (_) {}
+        }
+
+        // Read amplitude from analyser
+        if (analyserRef.current) {
+          analyserRef.current.getByteFrequencyData(data);
+          const sum = data.reduce((a, b) => a + b, 0);
+          const rms = Math.sqrt(sum / data.length);
+
+          if (rms < SILENCE_THRESHOLD) {
+            // Silence between words — slow nearly to a halt
+            video.playbackRate = MIN_RATE || 0.05;
+          } else {
+            // Map loudness → playback rate (0.4 min so it never looks frozen mid-word)
+            const rate = 0.4 + ((rms - SILENCE_THRESHOLD) / (128 - SILENCE_THRESHOLD)) * (MAX_RATE - 0.4);
+            video.playbackRate = Math.min(MAX_RATE, Math.max(0.4, rate));
+          }
+        }
+
+        rafId = requestAnimationFrame(tick);
       };
-      video.addEventListener('timeupdate', clampTime);
-      return () => video.removeEventListener('timeupdate', clampTime);
+      rafId = requestAnimationFrame(tick);
+      return () => {
+        cancelAnimationFrame(rafId);
+        video.playbackRate = 1;
+      };
     }
 
     if (idleAnimating) {
       // Play the FULL video once (including look-down) as an idle gesture
       video.loop = false;
+      video.playbackRate = 1;
       video.currentTime = 0;
-      const playPromise = video.play();
-      if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch(() => {});
-      }
+      video.play().catch(() => {});
       const onEnded = () => setIdleAnimating(false);
       video.addEventListener('ended', onEnded, { once: true });
       return () => video.removeEventListener('ended', onEnded);
     }
 
-    // Not speaking, not idle — pause on first frame
+    // Not speaking, not idle — freeze on first frame
     video.loop = false;
+    video.playbackRate = 1;
     video.pause();
     if (video.readyState >= 2) {
-      try {
-        video.currentTime = 0;
-      } catch (error) {
-        // Ignore seek timing issues while metadata is still loading.
-      }
+      try { video.currentTime = 0; } catch (_) {}
     }
   }, [isSpeaking, idleAnimating, videoAvatarUrl]);
 
