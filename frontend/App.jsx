@@ -436,7 +436,7 @@ function App() {
   const [deleteTargetId, setDeleteTargetId] = useState(null); // 'bulk' or specific ID when confirm dialog is open
   const [threadsLoading, setThreadsLoading] = useState(false);
   const [threadsDialogOpen, setThreadsDialogOpen] = useState(false);
-  const [currentThreadId, setCurrentThreadId] = useState(null);
+  const [currentThreadId, setCurrentThreadId] = useState(() => safeStorageGet('vesper_last_thread_id', null));
   const [currentThreadTitle, setCurrentThreadTitle] = useState('');
   const [editingThreadId, setEditingThreadId] = useState(null);
   const [editingThreadTitle, setEditingThreadTitle] = useState('');
@@ -2600,7 +2600,36 @@ export default function App() {
     try {
       const res = await fetch(`${apiBase}/api/threads`);
       const data = await res.json();
-      setThreads(Array.isArray(data) ? data : []);
+      const threadList = Array.isArray(data) ? data : [];
+      setThreads(threadList);
+
+      // Auto-restore last open conversation on startup
+      const savedId = safeStorageGet('vesper_last_thread_id', null);
+      if (savedId && threadList.some(t => t.id === savedId)) {
+        // Only restore if no conversation is already active
+        setCurrentThreadId(prev => {
+          if (!prev) {
+            // Load messages for the restored thread
+            fetch(`${apiBase}/api/threads/${savedId}`)
+              .then(r => r.json())
+              .then(threadData => {
+                if (threadData && threadData.messages) {
+                  const formatted = (threadData.messages || []).map((msg, idx) => ({
+                    id: msg.id || `thread-${savedId}-${idx}-${Date.now()}`,
+                    role: msg.role,
+                    content: msg.content,
+                    timestamp: msg.timestamp || Date.now()
+                  }));
+                  setMessages(formatted);
+                  setCurrentThreadTitle(threadData.title || '');
+                }
+              })
+              .catch(() => {});
+            return savedId;
+          }
+          return prev;
+        });
+      }
     } catch (error) {
       console.error('Threads fetch failed:', error);
     } finally {
@@ -2667,6 +2696,7 @@ export default function App() {
     setMessages([]);
     setCurrentThreadId(null);
     setCurrentThreadTitle('New Conversation');
+    try { localStorage.removeItem('vesper_last_thread_id'); } catch (_) {}
     setStreamingMessageId(null);
     setLoading(false);
     setThinking(false);
@@ -2943,6 +2973,13 @@ export default function App() {
       setThinking(false);
     }
   };
+
+  // Persist last open thread so it survives page refresh
+  useEffect(() => {
+    if (currentThreadId) {
+      try { localStorage.setItem('vesper_last_thread_id', currentThreadId); } catch (_) {}
+    }
+  }, [currentThreadId]);
 
   useEffect(() => {
     fetchResearch();
