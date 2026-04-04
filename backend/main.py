@@ -4086,7 +4086,7 @@ async def extract_text(file: UploadFile = File(...)):
 @app.post("/api/image/analyze")
 async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = "Describe this image in detail"):
     """
-    Analyze an image using AI vision capabilities (GPT-4 Vision or Claude with vision).
+    Analyze an image using AI vision capabilities (GPT-5.4 Vision or Claude Sonnet 4.6 with vision).
     Returns detailed description, detected objects, text, and contextual analysis.
     """
     try:
@@ -4124,7 +4124,7 @@ async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = 
                             ]
                         }
                     ],
-                    max_tokens=1000
+                    max_completion_tokens=1000
                 )
                 
                 analysis_result = response.choices[0].message.content
@@ -4163,7 +4163,7 @@ async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = 
                 )
                 
                 analysis_result = message.content[0].text
-                provider_used = "Claude 3.5 Sonnet (Vision)"
+                provider_used = "Claude Sonnet 4.6 (Vision)"
             except Exception as e:
                 print(f"Claude Vision failed: {e}")
         
