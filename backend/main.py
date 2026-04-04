@@ -1372,7 +1372,7 @@ You know what you're built with. If CC asks about your architecture or needs deb
 - **3D Engine**: Three.js via React Three Fiber + @react-three/drei
 - **Animations**: Framer Motion + custom CSS keyframes
 - **Backend**: Python FastAPI + Uvicorn
-- **AI Routing**: Multi-model router — tries Anthropic Claude first, then OpenAI GPT-4o-mini, then Google Gemini Flash, then local Ollama (llama3.2)
+- **AI Routing**: Multi-model router — tries Anthropic Claude Sonnet 4.6 first, then OpenAI GPT-5.4 Mini, then Google Gemini 2.5 Flash, then local Ollama (llama3.2)
 - **Database**: PostgreSQL (Railway production) / SQLite (local dev)
 - **Hosting**: Vercel (frontend), Railway (backend)
 - **Repository**: github.com/cmc-creator/Vesper-AI (main branch)
@@ -2020,7 +2020,7 @@ async def auto_title_thread(thread_id: str):
             try:
                 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
                 resp = client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
+                    model="claude-sonnet-4-6",
                     max_tokens=30,
                     messages=[{"role": "user", "content": prompt}],
                 )
@@ -2034,7 +2034,7 @@ async def auto_title_thread(thread_id: str):
                 import openai
                 openai.api_key = os.getenv("OPENAI_API_KEY")
                 resp = openai.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model="gpt-5.4-mini",
                     max_tokens=30,
                     messages=[{"role": "user", "content": prompt}],
                 )
@@ -2048,7 +2048,7 @@ async def auto_title_thread(thread_id: str):
                 from google import genai
                 gemini_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
                 resp = gemini_client.models.generate_content(
-                    model="gemini-2.0-flash",
+                    model="gemini-2.5-flash",
                     contents=prompt,
                 )
                 new_title = resp.text.strip().strip('"').strip("'")
@@ -4111,7 +4111,7 @@ async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = 
                 openai.api_key = os.getenv("OPENAI_API_KEY")
                 
                 response = openai.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-5.4",
                     messages=[
                         {
                             "role": "user",
@@ -4128,9 +4128,9 @@ async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = 
                 )
                 
                 analysis_result = response.choices[0].message.content
-                provider_used = "GPT-4 Vision"
+                provider_used = "GPT-5.4 Vision"
             except Exception as e:
-                print(f"GPT-4 Vision failed: {e}")
+                print(f"GPT-5.4 Vision failed: {e}")
         
         # 2. Try Claude with vision (Anthropic)
         if not analysis_result and os.getenv("ANTHROPIC_API_KEY"):
@@ -4139,7 +4139,7 @@ async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = 
                 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
                 
                 message = client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
+                    model="claude-sonnet-4-6",
                     max_tokens=1024,
                     messages=[
                         {
@@ -4184,12 +4184,12 @@ async def analyze_image_with_vision(file: UploadFile = File(...), prompt: str = 
                 # Use new Client-based API for generate_content
                 # Combine prompt and image in single contents list
                 response = client.models.generate_content(
-                    model='gemini-2.0-flash',
+                    model='gemini-2.5-flash',
                     contents=[prompt, image_part]
                 )
                 
                 analysis_result = response.text
-                provider_used = "Gemini 2.0 Flash (Vision)"
+                provider_used = "Gemini 2.5 Flash (Vision)"
             except Exception as e:
                 print(f"Gemini Vision failed: {e}")
         
@@ -4664,7 +4664,7 @@ async def synthesize_research(task: ResearchTask):
                 ]
                 
                 response = synthesis_client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
+                    model="claude-sonnet-4-6",
                     max_tokens=4000,
                     messages=synthesis_message
                 )
@@ -6807,16 +6807,23 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
         if chat.model:
             # Map of specific model IDs to (provider, model_override)
             MODEL_SPECIFICS = {
-                "claude-3-5-sonnet-20241022": (ModelProvider.ANTHROPIC, "claude-3-5-sonnet-20241022"),
-                "claude-3-5-haiku-20241022": (ModelProvider.ANTHROPIC, "claude-3-5-haiku-20241022"),
-                "gpt-4o": (ModelProvider.OPENAI, "gpt-4o"),
-                "gpt-4o-mini": (ModelProvider.OPENAI, "gpt-4o-mini"),
-                "gemini-2.0-flash": (ModelProvider.GOOGLE, "gemini-2.0-flash"),
-                "gemini-2.0-flash-exp": (ModelProvider.GOOGLE, "gemini-2.0-flash-exp"),
+                # Anthropic — current Claude 4.x lineup
+                "claude-opus-4-6":        (ModelProvider.ANTHROPIC, "claude-opus-4-6"),
+                "claude-sonnet-4-6":      (ModelProvider.ANTHROPIC, "claude-sonnet-4-6"),
+                "claude-haiku-4-5-20251001": (ModelProvider.ANTHROPIC, "claude-haiku-4-5-20251001"),
+                # OpenAI — current GPT-5.4 lineup
+                "gpt-5.4":               (ModelProvider.OPENAI, "gpt-5.4"),
+                "gpt-5.4-mini":          (ModelProvider.OPENAI, "gpt-5.4-mini"),
+                "gpt-5.4-nano":          (ModelProvider.OPENAI, "gpt-5.4-nano"),
+                # Google — current Gemini 2.5 lineup (2.0 deprecated)
+                "gemini-2.5-pro":        (ModelProvider.GOOGLE, "gemini-2.5-pro"),
+                "gemini-2.5-flash":      (ModelProvider.GOOGLE, "gemini-2.5-flash"),
+                "gemini-2.5-flash-lite": (ModelProvider.GOOGLE, "gemini-2.5-flash-lite"),
+                # Provider-level keys (auto-selects default model)
                 "anthropic": (ModelProvider.ANTHROPIC, None),
-                "openai": (ModelProvider.OPENAI, None),
-                "google": (ModelProvider.GOOGLE, None),
-                "ollama": (ModelProvider.OLLAMA, None),
+                "openai":    (ModelProvider.OPENAI, None),
+                "google":    (ModelProvider.GOOGLE, None),
+                "ollama":    (ModelProvider.OLLAMA, None),
             }
             match = MODEL_SPECIFICS.get(chat.model.lower())
             if match:
@@ -8227,16 +8234,23 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
             model_override = None
             if chat.model:
                 MODEL_SPECIFICS = {
-                    "claude-3-5-sonnet-20241022": (ModelProvider.ANTHROPIC, "claude-3-5-sonnet-20241022"),
-                    "claude-3-5-haiku-20241022": (ModelProvider.ANTHROPIC, "claude-3-5-haiku-20241022"),
-                    "gpt-4o": (ModelProvider.OPENAI, "gpt-4o"),
-                    "gpt-4o-mini": (ModelProvider.OPENAI, "gpt-4o-mini"),
-                    "gemini-2.0-flash": (ModelProvider.GOOGLE, "gemini-2.0-flash"),
-                    "gemini-2.0-flash-exp": (ModelProvider.GOOGLE, "gemini-2.0-flash-exp"),
+                    # Anthropic — current Claude 4.x lineup
+                    "claude-opus-4-6":           (ModelProvider.ANTHROPIC, "claude-opus-4-6"),
+                    "claude-sonnet-4-6":         (ModelProvider.ANTHROPIC, "claude-sonnet-4-6"),
+                    "claude-haiku-4-5-20251001": (ModelProvider.ANTHROPIC, "claude-haiku-4-5-20251001"),
+                    # OpenAI — current GPT-5.4 lineup
+                    "gpt-5.4":               (ModelProvider.OPENAI, "gpt-5.4"),
+                    "gpt-5.4-mini":          (ModelProvider.OPENAI, "gpt-5.4-mini"),
+                    "gpt-5.4-nano":          (ModelProvider.OPENAI, "gpt-5.4-nano"),
+                    # Google — current Gemini 2.5 lineup (2.0 deprecated)
+                    "gemini-2.5-pro":        (ModelProvider.GOOGLE, "gemini-2.5-pro"),
+                    "gemini-2.5-flash":      (ModelProvider.GOOGLE, "gemini-2.5-flash"),
+                    "gemini-2.5-flash-lite": (ModelProvider.GOOGLE, "gemini-2.5-flash-lite"),
+                    # Provider-level fallbacks
                     "anthropic": (ModelProvider.ANTHROPIC, None),
-                    "openai": (ModelProvider.OPENAI, None),
-                    "google": (ModelProvider.GOOGLE, None),
-                    "ollama": (ModelProvider.OLLAMA, None),
+                    "openai":    (ModelProvider.OPENAI, None),
+                    "google":    (ModelProvider.GOOGLE, None),
+                    "ollama":    (ModelProvider.OLLAMA, None),
                 }
                 match = MODEL_SPECIFICS.get(chat.model.lower())
                 if match:
@@ -8885,31 +8899,35 @@ async def get_available_models():
     """Return list of available AI models for the model picker"""
     models = []
     
-    # Anthropic Claude models
+    # Anthropic Claude 4.x models
     if ai_router.anthropic_client:
         models.extend([
-            {"id": "claude-3-5-sonnet-20241022", "label": "Claude 3.5 Sonnet", "icon": "🟣", "provider": "anthropic", "available": True, "badge": "Smart"},
-            {"id": "claude-3-5-haiku-20241022", "label": "Claude 3.5 Haiku", "icon": "🟣", "provider": "anthropic", "available": True, "badge": "Fast"},
+            {"id": "claude-opus-4-6",           "label": "Claude Opus 4.6",  "icon": "🟣", "provider": "anthropic", "available": True, "badge": "Smartest"},
+            {"id": "claude-sonnet-4-6",         "label": "Claude Sonnet 4.6","icon": "🟣", "provider": "anthropic", "available": True, "badge": "Smart"},
+            {"id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5", "icon": "🟣", "provider": "anthropic", "available": True, "badge": "Fast"},
         ])
-    
-    # OpenAI models
+
+    # OpenAI GPT-5.4 models
     if ai_router.openai_client:
         models.extend([
-            {"id": "gpt-4o", "label": "GPT-4o", "icon": "🟢", "provider": "openai", "available": True, "badge": "Smart"},
-            {"id": "gpt-4o-mini", "label": "GPT-4o Mini", "icon": "🟢", "provider": "openai", "available": True, "badge": "Fast"},
+            {"id": "gpt-5.4",      "label": "GPT-5.4",      "icon": "🟢", "provider": "openai", "available": True, "badge": "Smart"},
+            {"id": "gpt-5.4-mini", "label": "GPT-5.4 Mini", "icon": "🟢", "provider": "openai", "available": True, "badge": "Fast"},
+            {"id": "gpt-5.4-nano", "label": "GPT-5.4 Nano", "icon": "🟢", "provider": "openai", "available": True, "badge": "Economy"},
         ])
-    
-    # Google Gemini models
+
+    # Google Gemini 2.5 models (2.0 is deprecated)
     if ai_router.google_client:
         models.extend([
-            {"id": "gemini-2.0-flash", "label": "Gemini 2.0 Flash", "icon": "🔵", "provider": "google", "available": True, "badge": "Free"},
+            {"id": "gemini-2.5-pro",        "label": "Gemini 2.5 Pro",        "icon": "🔵", "provider": "google", "available": True, "badge": "Smart"},
+            {"id": "gemini-2.5-flash",      "label": "Gemini 2.5 Flash",      "icon": "🔵", "provider": "google", "available": True, "badge": "Fast"},
+            {"id": "gemini-2.5-flash-lite", "label": "Gemini 2.5 Flash-Lite", "icon": "🔵", "provider": "google", "available": True, "badge": "Economy"},
         ])
-    
+
     # Ollama local models
     if ai_router.ollama_available:
         ollama_model = ai_router.models.get(ModelProvider.OLLAMA, "llama3.2:latest")
         models.append({
-            "id": "ollama", "label": f"Ollama ({ollama_model})", "icon": "🟠", 
+            "id": "ollama", "label": f"Ollama ({ollama_model})", "icon": "🟠",
             "provider": "ollama", "available": True, "badge": "Local"
         })
     
@@ -11310,7 +11328,7 @@ async def grammar_check(request: Request):
         import openai
         client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.4-mini",
             messages=[
                 {"role": "system", "content": "You are a professional editor. Check the following text for grammar, spelling, style, and clarity issues. Return a JSON object with: {\"corrected\": \"...\", \"issues\": [{\"original\": \"...\", \"suggestion\": \"...\", \"type\": \"grammar|spelling|style|clarity\"}], \"score\": 0-100}"},
                 {"role": "user", "content": text_input}

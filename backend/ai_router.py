@@ -186,12 +186,12 @@ class AIRouter:
                 ]
             }
         
-        # Model selection per provider - PERSONALITY-FIRST (Vesper needs to stay in character)
+        # Model selection per provider — ALWAYS latest stable
         self.models = {
-            ModelProvider.OPENAI: "gpt-4o-mini",       # Fast + affordable ($0.15/M input)
-            ModelProvider.GOOGLE: "gemini-2.0-flash",  # Current Gemini Flash (free tier)
-            ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20241022",  # Claude 3.5 Sonnet — strong personality
-            ModelProvider.OLLAMA: "llama3.2:latest"    # Free local
+            ModelProvider.OPENAI: "gpt-5.4-mini",     # GPT-5.4 Mini — fast + affordable
+            ModelProvider.GOOGLE: "gemini-2.5-flash", # Gemini 2.5 Flash — stable (2.0 is deprecated)
+            ModelProvider.ANTHROPIC: "claude-sonnet-4-6",  # Claude Sonnet 4.6 — best balance
+            ModelProvider.OLLAMA: "llama3.2:latest"   # Free local
         }
     
     def get_available_provider(self, task_type: TaskType) -> Optional[ModelProvider]:

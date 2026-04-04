@@ -597,7 +597,7 @@ function App() {
       window.removeEventListener('scroll', updateDrawerFrame, true);
       if (resizeObserver) resizeObserver.disconnect();
     };
-  }, [launchMode, uiScale, activeTheme.id]);
+  }, [launchMode, uiScale, activeTheme.id, sidebarCollapsed]);
 
   // Background Studio
   const [backgroundStudioOpen, setBackgroundStudioOpen] = useState(false);
