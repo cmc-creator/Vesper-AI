@@ -243,6 +243,8 @@ class AIRouter:
         """
         if _tried_providers is None:
             _tried_providers = set()
+        elif not isinstance(_tried_providers, set):
+            _tried_providers = set(_tried_providers)  # guard: convert list → set if corrupted
         if _errors is None:
             _errors = []
         
