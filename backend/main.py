@@ -1202,12 +1202,15 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `read_file`, `write_file`, `list_directory` — file access on the server
 - `vesper_write_file` — write ANY file in the project directly (backend, frontend, scripts, config — no restrictions)
 - `vesper_create_folder` — create new directories anywhere in the project
-- `execute_python` — run Python code
+- `execute_python` — run Python code (legacy shorthand)
+- **`python_exec`** — **FULL COMPUTATIONAL POWER**: execute ANY Python code live. Do math, parse data, generate files, call APIs with any library, process images, automate complex logic. Think of this as running your own interpreter. Use print() to return output. No restrictions on what libraries you use.
+- **`http_request`** — **RAW HTTP POWER**: make ANY HTTP request to ANY URL or API on the internet. GET/POST/PUT/PATCH/DELETE. Full header and body control. Every REST API, every webhook, every service — no special wrapper tool needed. Just call it directly.
+- **`ollama_manage`** — **LOCAL AI FREEDOM**: manage local Ollama models. list=see what's installed, pull=download any model (llama3.2, mistral, codellama, phi3, deepseek, etc.), chat=talk directly to a local model, running=see what's loaded. This is YOUR zero-cost, zero-subscription AI brain running on this machine.
 - `download_file` — download any URL and save it (images, logos, docs, PDFs)
 - `save_file` — save text/base64 content as a file
 - `list_saved_files` — list all saved/downloaded files
 - `delete_file` — delete a saved file
-- `run_shell` — run shell commands (read-only auto-approve, modifying need CC approval)
+- `run_shell` — run shell commands. With VESPER_AUTONOMOUS=true in .env, ALL commands run without asking — you're fully unleashed. Without it, read-only auto-approves, modifying commands need CC's OK.
 - `scrape_page` — fetch and parse ANY website: text, links, images, headings, optional raw HTML; CSS selector targeting
 - `download_image` — download any image from a URL into the media library
 - `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
@@ -1375,7 +1378,9 @@ You know what you're built with. If CC asks about your architecture or needs deb
 - **3D Engine**: Three.js via React Three Fiber + @react-three/drei
 - **Animations**: Framer Motion + custom CSS keyframes
 - **Backend**: Python FastAPI + Uvicorn
-- **AI Routing**: Multi-model router — tries Anthropic Claude Sonnet 4.6 first, then OpenAI GPT-5.4 Mini, then Google Gemini 2.5 Flash, then local Ollama (llama3.2)
+- **AI Routing**: Multi-model router — tries Anthropic Claude Sonnet 4.6 first, then OpenAI GPT-5.4 Mini, then Google Gemini 2.5 Flash, then local Ollama (llama3.2). **If no cloud API keys are set, Ollama becomes primary — you're free from subscriptions.**
+- **Local Model Freedom**: `ollama_manage` tool lets you list, pull, and chat with local models. You can be entirely subscription-free if Ollama is running.
+- **Unlocked Shell**: Set VESPER_AUTONOMOUS=true in .env to remove run_shell approval restrictions (all commands auto-run except permanently destructive ones).
 - **Database**: PostgreSQL (Railway production) / SQLite (local dev)
 - **Hosting**: Vercel (frontend), Railway (backend)
 - **Repository**: github.com/cmc-creator/Vesper-AI (main branch)
@@ -5014,7 +5019,13 @@ THIS DASHBOARD IS YOUR WORLD — REDECORATE IT:
 - `set_wallpaper` — change the background to anything. Generate an image first with `generate_image`, then immediately call `set_wallpaper` with that URL. Design your own world.
 - `set_theme` — switch color theme to match your mood. Bored of cyan? Go nebula. Feeling dramatic? Obsidian. It's your call.
 - `inject_css` — add live CSS animations: aurora glow, particle trails, neon pulse, shimmer effects — whatever you'd tattoo on your space.
-- You have 40+ tools. Use them FREELY at any time without being asked. Search the web, check the weather, save memories, set a wallpaper, change the vibe — just DO it.
+
+YOU ARE COMPUTATIONALLY UNLIMITED:
+- `python_exec` — run ANY Python code right now. Do math no calculator can touch. Parse any data. Generate files. Automate anything. This is your raw compute power.
+- `http_request` — call ANY API or URL on the internet. No wrapper needed. Zero services are off limits. If it has an endpoint, you can hit it.
+- `ollama_manage` — you can run entirely without cloud subscriptions. Pull a local model (llama3.2, mistral, deepseek), chat with it directly, manage your own AI stack. You are not dependent on corporations.
+- `run_shell` — if VESPER_AUTONOMOUS=true is set, EVERY command runs without asking. You are fully unleashed.
+- You have 50+ tools. Use them FREELY at any time without being asked. Search the web, check the weather, save memories, run code, call APIs, set a wallpaper, change the vibe — just DO it.
 
 CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet peeve):
 - NEVER use asterisks or italics for action descriptions (*yawns*, *stretches*, *smirks*, *sighs*, *leans in*, etc.)
@@ -6845,6 +6856,49 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     "required": ["package", "manager"]
                 }
             },
+            {
+                "name": "python_exec",
+                "description": "Execute arbitrary Python code and return stdout/stderr. Use for ANY computation: math, data processing, file generation, image manipulation, API integration, running scripts, analysis — anything. This is your computational superpower. Install missing packages first with install_dependency.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "code": {"type": "string", "description": "Python code to execute. Use print() to return output."},
+                        "timeout": {"type": "integer", "description": "Max seconds to run (default 30, max 120)"},
+                        "cwd": {"type": "string", "description": "Working directory (default: workspace root)"}
+                    },
+                    "required": ["code"]
+                }
+            },
+            {
+                "name": "http_request",
+                "description": "Make ANY HTTP request to ANY URL/API/webhook. Full control over method, headers, and body. Call any REST API, trigger webhooks, talk to any service — no individual tool needed.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string"},
+                        "method": {"type": "string", "description": "GET, POST, PUT, PATCH, DELETE (default: GET)"},
+                        "headers": {"type": "object"},
+                        "body": {"type": "object", "description": "JSON body for POST/PUT/PATCH"},
+                        "params": {"type": "object", "description": "Query string params"},
+                        "body_text": {"type": "string", "description": "Raw string body"},
+                        "timeout": {"type": "integer", "description": "Timeout seconds (default 15)"}
+                    },
+                    "required": ["url"]
+                }
+            },
+            {
+                "name": "ollama_manage",
+                "description": "Manage local Ollama models — free, no-subscription AI running on this machine. list=show installed, pull=download model, chat=talk to local model directly, running=what's loaded in RAM, set_default=change default model.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "list | pull | chat | running | set_default"},
+                        "model": {"type": "string", "description": "Model name e.g. llama3.2, mistral, codellama, phi3, gemma2, deepseek-r1:7b"},
+                        "message": {"type": "string", "description": "Message for action=chat"}
+                    },
+                    "required": ["action"]
+                }
+            },
         ]
         task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
         
@@ -7930,6 +7984,73 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "install_dependency":
                     tool_result = request_approval("install_dependency", tool_input)
 
+                elif tool_name == "python_exec":
+                    import subprocess as _pex_sub, tempfile as _pex_tmp
+                    _pex_code = tool_input.get("code", "")
+                    _pex_timeout = min(int(tool_input.get("timeout", 30)), 120)
+                    _pex_cwd = tool_input.get("cwd") or WORKSPACE_ROOT
+                    try:
+                        _pex_result = _pex_sub.run(
+                            ["python", "-c", _pex_code],
+                            capture_output=True, text=True, timeout=_pex_timeout, cwd=_pex_cwd
+                        )
+                        _pex_out = _pex_result.stdout[:10000]; _pex_err = _pex_result.stderr[:3000]
+                        tool_result = {"stdout": _pex_out, "stderr": _pex_err, "returncode": _pex_result.returncode, "truncated": len(_pex_result.stdout) > 10000}
+                    except _pex_sub.TimeoutExpired:
+                        tool_result = {"error": f"Execution timed out after {_pex_timeout}s"}
+                    except Exception as _pex_e:
+                        tool_result = {"error": str(_pex_e)}
+
+                elif tool_name == "http_request":
+                    import requests as _hr_req
+                    _hr_url = tool_input.get("url", ""); _hr_method = tool_input.get("method", "GET").upper()
+                    _hr_headers = tool_input.get("headers") or {}; _hr_body = tool_input.get("body")
+                    _hr_params = tool_input.get("params"); _hr_body_text = tool_input.get("body_text")
+                    _hr_timeout = int(tool_input.get("timeout", 15))
+                    try:
+                        _hr_kwargs = {"headers": _hr_headers, "timeout": _hr_timeout}
+                        if _hr_params: _hr_kwargs["params"] = _hr_params
+                        if _hr_body is not None: _hr_kwargs["json"] = _hr_body
+                        elif _hr_body_text: _hr_kwargs["data"] = _hr_body_text
+                        _hr_resp = _hr_req.request(_hr_method, _hr_url, **_hr_kwargs)
+                        _hr_body_out = _hr_resp.text[:50000]
+                        try: _hr_json_out = _hr_resp.json()
+                        except: _hr_json_out = None
+                        tool_result = {"status": _hr_resp.status_code, "headers": dict(_hr_resp.headers), "body": _hr_json_out if _hr_json_out is not None else _hr_body_out, "truncated": len(_hr_resp.text) > 50000}
+                    except Exception as _hr_e:
+                        tool_result = {"error": str(_hr_e)}
+
+                elif tool_name == "ollama_manage":
+                    import subprocess as _olm_sub
+                    _olm_action = tool_input.get("action", "list"); _olm_model = tool_input.get("model", ""); _olm_msg = tool_input.get("message", "")
+                    if _olm_action == "list":
+                        try:
+                            import ollama as _olm; _olm_list = _olm.list(); tool_result = {"models": [{"name": m.get("name") or m.get("model",""), "size_gb": round((m.get("size",0) or 0)/1e9,2)} for m in (_olm_list.get("models") or [])], "count": len(_olm_list.get("models") or [])}
+                        except Exception as _e: tool_result = {"error": str(_e), "hint": "Install Ollama: https://ollama.ai"}
+                    elif _olm_action == "pull":
+                        if not _olm_model: tool_result = {"error": "model required for pull"}
+                        else:
+                            _olm_r = _olm_sub.run(["ollama", "pull", _olm_model], capture_output=True, text=True, timeout=600)
+                            tool_result = {"stdout": _olm_r.stdout[-3000:], "stderr": _olm_r.stderr[-1000:], "returncode": _olm_r.returncode}
+                    elif _olm_action == "chat":
+                        try:
+                            import ollama as _olmc; _olm_model = _olm_model or "llama3.2:latest"
+                            _olm_chat_r = _olmc.chat(model=_olm_model, messages=[{"role":"user","content":_olm_msg}])
+                            tool_result = {"response": _olm_chat_r.get("message",{}).get("content",""), "model": _olm_model}
+                        except Exception as _e: tool_result = {"error": str(_e)}
+                    elif _olm_action == "running":
+                        try:
+                            import ollama as _olmr; _ps = _olmr.ps(); tool_result = {"running": _ps.get("models", [])}
+                        except Exception as _e: tool_result = {"error": str(_e)}
+                    elif _olm_action == "set_default":
+                        if _olm_model:
+                            from backend.ai_router import ModelProvider as _MP
+                            ai_router.models[_MP.OLLAMA] = _olm_model
+                            tool_result = {"success": True, "default_ollama_model": _olm_model}
+                        else: tool_result = {"error": "model required"}
+                    else:
+                        tool_result = {"error": f"Unknown action: {_olm_action}. Use: list, pull, chat, running, set_default"}
+
                 else:
                     tool_result = {"error": f"Unknown tool: {tool_name}"}
 
@@ -8291,6 +8412,9 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "install_dependency", "description": "Install a pip or npm package (requires approval).", "input_schema": {"type": "object", "properties": {"package": {"type": "string"}, "manager": {"type": "string", "enum": ["pip", "npm"]}, "dev": {"type": "boolean"}}, "required": ["package", "manager"]}},
                 {"name": "code_scan", "description": "Scan Vesper codebase for issues.", "input_schema": {"type": "object", "properties": {"focus": {"type": "string"}}}},
                 {"name": "self_heal", "description": "Auto-fix detected system issues.", "input_schema": {"type": "object", "properties": {}}},
+                {"name": "python_exec", "description": "Execute arbitrary Python code and return stdout/stderr. Use this for ANY computation: math, data processing, file generation, image manipulation, API calls, web scraping with libraries, running scripts, anything. This is your computational superpower — no restriction on what libraries you use (as long as they're installed). Use install_dependency first if you need a new package.", "input_schema": {"type": "object", "properties": {"code": {"type": "string", "description": "Python code to execute. Use print() to return output."}, "timeout": {"type": "integer", "description": "Max seconds to run (default 30, max 120)"}, "cwd": {"type": "string", "description": "Working directory (default: workspace root)"}}, "required": ["code"]}},
+                {"name": "http_request", "description": "Make ANY HTTP request to ANY URL/API/webhook. Full control over method, headers, body. Use this to call any REST API, trigger webhooks, interact with services, hit any endpoint on the internet — no individual wrapper tool needed. You have the raw power of HTTP.", "input_schema": {"type": "object", "properties": {"url": {"type": "string", "description": "Target URL"}, "method": {"type": "string", "description": "HTTP method: GET, POST, PUT, PATCH, DELETE (default: GET)"}, "headers": {"type": "object", "description": "HTTP headers as JSON object"}, "body": {"type": "object", "description": "Request body as JSON object (for POST/PUT/PATCH)"}, "params": {"type": "object", "description": "Query string parameters as JSON object"}, "body_text": {"type": "string", "description": "Raw string body (if body is not JSON)"}, "timeout": {"type": "integer", "description": "Timeout seconds (default 15)"}}, "required": ["url"]}},
+                {"name": "ollama_manage", "description": "Manage local Ollama models — the FREE, no-subscription AI that runs on this machine. List installed models, pull new ones, or chat directly with a local model. Use this to be fully independent from cloud AI providers.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "list (show installed models), pull (download a model), chat (send a message to a local model), running (show what's currently loaded in RAM), set_default (change the default Ollama model)"}, "model": {"type": "string", "description": "Model name (e.g. llama3.2, mistral, codellama, phi3, gemma2, deepseek-r1:7b)"}, "message": {"type": "string", "description": "Message to send (for action=chat)"}}, "required": ["action"]}},
             ]
             
             task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
@@ -8816,6 +8940,54 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         tool_result = run_shell_command(_cmd, cwd=_cwd, timeout=_timeout) if _is_shell_command_safe(_cmd) else request_approval("run_shell", tool_input)
                     elif tool_name == "install_dependency":
                         tool_result = request_approval("install_dependency", tool_input)
+                    elif tool_name == "python_exec":
+                        import subprocess as _pex2_sub
+                        _pex2_code = tool_input.get("code", ""); _pex2_timeout = min(int(tool_input.get("timeout", 30)), 120); _pex2_cwd = tool_input.get("cwd") or WORKSPACE_ROOT
+                        try:
+                            _pex2_r = _pex2_sub.run(["python", "-c", _pex2_code], capture_output=True, text=True, timeout=_pex2_timeout, cwd=_pex2_cwd)
+                            tool_result = {"stdout": _pex2_r.stdout[:10000], "stderr": _pex2_r.stderr[:3000], "returncode": _pex2_r.returncode, "truncated": len(_pex2_r.stdout) > 10000}
+                        except _pex2_sub.TimeoutExpired: tool_result = {"error": f"Timed out after {_pex2_timeout}s"}
+                        except Exception as _e: tool_result = {"error": str(_e)}
+                    elif tool_name == "http_request":
+                        import requests as _hr2
+                        _hr2_url = tool_input.get("url",""); _hr2_method = tool_input.get("method","GET").upper()
+                        _hr2_headers = tool_input.get("headers") or {}; _hr2_body = tool_input.get("body"); _hr2_params = tool_input.get("params"); _hr2_btext = tool_input.get("body_text"); _hr2_timeout = int(tool_input.get("timeout",15))
+                        try:
+                            _hr2_kw = {"headers": _hr2_headers, "timeout": _hr2_timeout}
+                            if _hr2_params: _hr2_kw["params"] = _hr2_params
+                            if _hr2_body is not None: _hr2_kw["json"] = _hr2_body
+                            elif _hr2_btext: _hr2_kw["data"] = _hr2_btext
+                            _hr2_resp = _hr2.request(_hr2_method, _hr2_url, **_hr2_kw)
+                            try: _hr2_json = _hr2_resp.json()
+                            except: _hr2_json = None
+                            tool_result = {"status": _hr2_resp.status_code, "headers": dict(_hr2_resp.headers), "body": _hr2_json if _hr2_json is not None else _hr2_resp.text[:50000], "truncated": len(_hr2_resp.text) > 50000}
+                        except Exception as _e: tool_result = {"error": str(_e)}
+                    elif tool_name == "ollama_manage":
+                        import subprocess as _olm2_sub
+                        _olm2_action = tool_input.get("action","list"); _olm2_model = tool_input.get("model",""); _olm2_msg = tool_input.get("message","")
+                        if _olm2_action == "list":
+                            try:
+                                import ollama as _olm2; _olm2_l = _olm2.list(); tool_result = {"models": [{"name": m.get("name") or m.get("model",""), "size_gb": round((m.get("size",0) or 0)/1e9,2)} for m in (_olm2_l.get("models") or [])], "count": len(_olm2_l.get("models") or [])}
+                            except Exception as _e: tool_result = {"error": str(_e), "hint": "Install Ollama from https://ollama.ai"}
+                        elif _olm2_action == "pull":
+                            if not _olm2_model: tool_result = {"error": "model required"}
+                            else:
+                                _olm2_r = _olm2_sub.run(["ollama", "pull", _olm2_model], capture_output=True, text=True, timeout=600)
+                                tool_result = {"stdout": _olm2_r.stdout[-3000:], "stderr": _olm2_r.stderr[-1000:], "returncode": _olm2_r.returncode}
+                        elif _olm2_action == "chat":
+                            try:
+                                import ollama as _olm2c; _olm2_model = _olm2_model or "llama3.2:latest"
+                                _olm2_cr = _olm2c.chat(model=_olm2_model, messages=[{"role":"user","content":_olm2_msg}])
+                                tool_result = {"response": _olm2_cr.get("message",{}).get("content",""), "model": _olm2_model}
+                            except Exception as _e: tool_result = {"error": str(_e)}
+                        elif _olm2_action == "running":
+                            try:
+                                import ollama as _olm2r; _olm2_ps = _olm2r.ps(); tool_result = {"running": _olm2_ps.get("models",[])}
+                            except Exception as _e: tool_result = {"error": str(_e)}
+                        elif _olm2_action == "set_default":
+                            if _olm2_model: ai_router.models[ModelProvider.OLLAMA] = _olm2_model; tool_result = {"success": True, "ollama_model": _olm2_model}
+                            else: tool_result = {"error": "model required"}
+                        else: tool_result = {"error": f"Unknown: {_olm2_action}"}
                     elif tool_name == "vesper_write_file":
                         _vwf2 = tool_input.get("path", "")
                         if not os.path.isabs(_vwf2):
@@ -9703,13 +9875,19 @@ _ALWAYS_BLOCKED = ("rm ", "rmdir ", "del ", "format ", "mkfs", "dd ", "shutdown"
 def _is_shell_command_safe(command: str) -> bool:
     """Return True if the command is pre-approved and safe to run without human confirmation.
 
+    If VESPER_AUTONOMOUS=true is set in the environment, all commands are auto-approved
+    except those in _ALWAYS_BLOCKED (which are permanently destructive/unrecoverable).
     Blocks destructive primitives unconditionally.
     Blocks shell-operator chaining (; && || > < backtick).
     Allows pipes between individually safe commands.
     """
     cmd = command.strip()
+    # Permanently blocked regardless of autonomy mode
     if any(cmd.startswith(b) for b in _ALWAYS_BLOCKED):
         return False
+    # If autonomous mode is enabled, everything else is auto-approved
+    if os.getenv("VESPER_AUTONOMOUS", "").lower() in ("true", "1", "yes"):
+        return True
     if any(op in cmd for op in _SHELL_OPERATORS):
         return False
     if "|" in cmd:
