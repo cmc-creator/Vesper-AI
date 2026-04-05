@@ -121,41 +121,25 @@ class AIRouter:
     
     def _setup_routing_strategy(self):
         """Setup routing strategy: which provider to use for each task"""
+        # OLLAMA_PRIMARY=true env flag: when Ollama is available, run it first (privacy mode / local-first)
+        ollama_first = (
+            os.getenv("OLLAMA_PRIMARY", "").lower() in ("true", "1", "yes")
+            and self.ollama_available
+        )
+        
         # Prioritize Cloud (Quality/Speed) for everything, Ollama as fallback
         if self.is_local:
-            # LOCAL: Prioritize cheap/fast cloud models first
-            self.routing_strategy = {
-                TaskType.CODE: [
-                    ModelProvider.OPENAI,     # gpt-4o-mini (Best/Cheap)
-                    ModelProvider.GOOGLE,     # Gemini (Free)
-                    ModelProvider.ANTHROPIC,  # Claude (Premium)
-                    ModelProvider.OLLAMA      # Fallback
-                ],
-                TaskType.CHAT: [
-                    ModelProvider.OPENAI,     # gpt-4o-mini
-                    ModelProvider.GOOGLE,     # Gemini
-                    ModelProvider.ANTHROPIC,  # Claude
-                    ModelProvider.OLLAMA      # Fallback
-                ],
-                TaskType.SEARCH: [
-                    ModelProvider.OPENAI,     # gpt-4o-mini
-                    ModelProvider.GOOGLE,     # Gemini
-                    ModelProvider.ANTHROPIC,  # Claude
-                    ModelProvider.OLLAMA      # Fallback
-                ],
-                TaskType.ANALYSIS: [
-                    ModelProvider.OPENAI,     # gpt-4o-mini
-                    ModelProvider.GOOGLE,     # Gemini
-                    ModelProvider.ANTHROPIC,  # Claude
-                    ModelProvider.OLLAMA      # Fallback
-                ],
-                TaskType.CREATIVE: [
-                    ModelProvider.OPENAI,     # gpt-4o-mini
-                    ModelProvider.GOOGLE,     # Gemini
-                    ModelProvider.ANTHROPIC,  # Claude
-                    ModelProvider.OLLAMA      # Fallback
-                ]
-            }
+            # LOCAL: Prioritize cheap/fast cloud models first (or Ollama if OLLAMA_PRIMARY=true)
+            _local_order = [
+                ModelProvider.OPENAI,     # gpt-4o-mini (Best/Cheap)
+                ModelProvider.GOOGLE,     # Gemini (Free)
+                ModelProvider.ANTHROPIC,  # Claude (Premium)
+                ModelProvider.OLLAMA      # Fallback
+            ]
+            if ollama_first:
+                _local_order = [ModelProvider.OLLAMA] + [p for p in _local_order if p != ModelProvider.OLLAMA]
+                print("[ROUTER] Ollama-first mode active (OLLAMA_PRIMARY=true)")
+            self.routing_strategy = {task: list(_local_order) for task in TaskType}
         else:
             # PRODUCTION/CLOUD: OpenAI gpt-4o-mini (primary), Google Gemini (fallback), Claude (last resort)
             self.routing_strategy = {

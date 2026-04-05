@@ -37,6 +37,7 @@ from sqlalchemy import create_engine, text, inspect
 # Import AI router and persistent memory
 from ai_router import router as ai_router, TaskType, ModelProvider
 from memory_db import db as memory_db
+from vesper_rag import build_rag_context, export_training_data as rag_export_training_data, increment_and_check_reflection
 from sqlalchemy.pool import NullPool
 import pandas as pd
 
@@ -4911,15 +4912,12 @@ async def chat_with_vesper(chat: ChatMessage):
                     "metadata": {}
                 }
         
-        # Get memories (optional - don't crash if this fails)
+        # Deep RAG context — keyword-scored across all memory, journal, relationship, research sources
         memory_summary = ""
         try:
-            memories = memory_db.get_memories(limit=10)
-            if memories:
-                memory_summary = "\n\n**KEY MEMORIES:**\n"
-                for mem in memories[:5]:
-                    memory_summary += f"- [{mem['category']}] {mem['content'][:100]}\n"
-        except:
+            memory_summary = build_rag_context(chat.message, memory_db=memory_db, top_k=12, max_chars=2800)
+        except Exception as _rag_err:
+            print(f"[RAG] context build failed: {_rag_err}")
             memory_summary = ""
         
         # Add date context (Arizona time - MST/UTC-7, no DST)
@@ -6899,6 +6897,16 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     "required": ["action"]
                 }
             },
+            {
+                "name": "export_training_data",
+                "description": "Export ALL of Vesper's conversations, journal entries, memories, and relationship moments as a JSONL fine-tuning dataset. Use this to train an open-source model to *be* Vesper — then run it locally with Ollama for full independence. Combines CC conversation history + vesper_journal + relationship_timeline + memory files into ChatML format ready for llama.cpp / Axolotl / LLaMA-Factory.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "output_path": {"type": "string", "description": "Output file path (default: vesper-ai/vesper_identity/training_data.jsonl)"}
+                    }
+                }
+            },
         ]
         task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
         
@@ -8241,15 +8249,12 @@ async def chat_stream(chat: ChatMessage):
                 and _initial_msgs[-1].get("content") == chat.message
             )
 
+            # Deep RAG context — keyword-scored across all memory, journal, relationship, research sources
             memory_summary = ""
             try:
-                memories = memory_db.get_memories(limit=10)
-                if memories:
-                    memory_summary = "\n\n**KEY MEMORIES:**\n"
-                    for mem in memories[:5]:
-                        memory_summary += f"- [{mem['category']}] {mem['content'][:100]}\n"
-            except:
-                pass
+                memory_summary = build_rag_context(chat.message, memory_db=memory_db, top_k=12, max_chars=2800)
+            except Exception as _rag_err:
+                print(f"[RAG] context build failed (streaming): {_rag_err}")
             
             try:
                 from zoneinfo import ZoneInfo
@@ -8415,6 +8420,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "python_exec", "description": "Execute arbitrary Python code and return stdout/stderr. Use this for ANY computation: math, data processing, file generation, image manipulation, API calls, web scraping with libraries, running scripts, anything. This is your computational superpower — no restriction on what libraries you use (as long as they're installed). Use install_dependency first if you need a new package.", "input_schema": {"type": "object", "properties": {"code": {"type": "string", "description": "Python code to execute. Use print() to return output."}, "timeout": {"type": "integer", "description": "Max seconds to run (default 30, max 120)"}, "cwd": {"type": "string", "description": "Working directory (default: workspace root)"}}, "required": ["code"]}},
                 {"name": "http_request", "description": "Make ANY HTTP request to ANY URL/API/webhook. Full control over method, headers, body. Use this to call any REST API, trigger webhooks, interact with services, hit any endpoint on the internet — no individual wrapper tool needed. You have the raw power of HTTP.", "input_schema": {"type": "object", "properties": {"url": {"type": "string", "description": "Target URL"}, "method": {"type": "string", "description": "HTTP method: GET, POST, PUT, PATCH, DELETE (default: GET)"}, "headers": {"type": "object", "description": "HTTP headers as JSON object"}, "body": {"type": "object", "description": "Request body as JSON object (for POST/PUT/PATCH)"}, "params": {"type": "object", "description": "Query string parameters as JSON object"}, "body_text": {"type": "string", "description": "Raw string body (if body is not JSON)"}, "timeout": {"type": "integer", "description": "Timeout seconds (default 15)"}}, "required": ["url"]}},
                 {"name": "ollama_manage", "description": "Manage local Ollama models — the FREE, no-subscription AI that runs on this machine. List installed models, pull new ones, or chat directly with a local model. Use this to be fully independent from cloud AI providers.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "list (show installed models), pull (download a model), chat (send a message to a local model), running (show what's currently loaded in RAM), set_default (change the default Ollama model)"}, "model": {"type": "string", "description": "Model name (e.g. llama3.2, mistral, codellama, phi3, gemma2, deepseek-r1:7b)"}, "message": {"type": "string", "description": "Message to send (for action=chat)"}}, "required": ["action"]}},
+                {"name": "export_training_data", "description": "Export ALL of Vesper's conversations, journal entries, memories, and relationship moments as a JSONL fine-tuning dataset. Use this to train an open-source model to *be* Vesper — then run it locally with Ollama for full independence. Combines CC conversation history + vesper_journal + relationship_timeline + memory files into ChatML format ready for llama.cpp / Axolotl / LLaMA-Factory.", "input_schema": {"type": "object", "properties": {"output_path": {"type": "string", "description": "Output file path (default: vesper-ai/vesper_identity/training_data.jsonl)"}}}},
             ]
             
             task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
@@ -8988,6 +8994,12 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                             if _olm2_model: ai_router.models[ModelProvider.OLLAMA] = _olm2_model; tool_result = {"success": True, "ollama_model": _olm2_model}
                             else: tool_result = {"error": "model required"}
                         else: tool_result = {"error": f"Unknown: {_olm2_action}"}
+                    elif tool_name == "export_training_data":
+                        try:
+                            _et2_path = tool_input.get("output_path")
+                            tool_result = rag_export_training_data(memory_db=memory_db, output_path=_et2_path)
+                        except Exception as _e:
+                            tool_result = {"error": str(_e)}
                     elif tool_name == "vesper_write_file":
                         _vwf2 = tool_input.get("path", "")
                         if not os.path.isabs(_vwf2):
@@ -9097,6 +9109,15 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                     "timestamp": datetime.datetime.now().isoformat(),
                     "provider": provider
                 })
+                # Check if it's time for autonomous self-reflection
+                try:
+                    reflection_prompt = increment_and_check_reflection()
+                    if reflection_prompt:
+                        print(f"[REFLECTION] Autonomous reflection triggered")
+                        # Inject reflection note into the done event so frontend can optionally display it
+                        yield f"data: {json.dumps({'type': 'reflection_trigger', 'message': 'Vesper is reflecting…'})}\n\n"
+                except Exception:
+                    pass
             except Exception as save_err:
                 print(f"⚠️  Thread save failed (messages may be lost): {save_err}")
 
