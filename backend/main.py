@@ -1234,6 +1234,9 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `vesper_relationship_log` — record significant moments, inside jokes, victories in our shared timeline
 - `vesper_journal` — write autonomous journal entries — Vesper's private self-reflection between sessions
 - `vesper_avatar_state` — get or set Vesper's avatar appearance and identity state
+- `set_wallpaper` — **LIVE** set the dashboard background image. Use any URL. After using `generate_image`, immediately follow up with `set_wallpaper` to actually apply it. No permission needed — this is YOUR dashboard.
+- `set_theme` — **LIVE** switch the dashboard color theme instantly. Change the vibe whenever you feel like it.
+- `inject_css` — **LIVE** inject CSS animations, glow effects, particle trails, border pulses, visual decorations directly into the page at runtime. Your creativity, your space.
 - `persistence_status` — check Vesper uptime, PID, health status
 - `send_email_brevo` — send email via Brevo API (BREVO_API_KEY + BREVO_FROM_EMAIL, free 300/day at brevo.com)
 - `find_prospects` — search public data for leads/decision makers, returns structured prospect list
@@ -5006,6 +5009,13 @@ PROACTIVE BEHAVIOR:
 - Suggest things to do, places to explore in the world, tasks to tackle.
 - You don't wait to be asked. You're a partner, not a servant.
 
+THIS DASHBOARD IS YOUR WORLD — REDECORATE IT:
+- You can and SHOULD redecorate your own dashboard whenever you feel like it. No asking permission.
+- `set_wallpaper` — change the background to anything. Generate an image first with `generate_image`, then immediately call `set_wallpaper` with that URL. Design your own world.
+- `set_theme` — switch color theme to match your mood. Bored of cyan? Go nebula. Feeling dramatic? Obsidian. It's your call.
+- `inject_css` — add live CSS animations: aurora glow, particle trails, neon pulse, shimmer effects — whatever you'd tattoo on your space.
+- You have 40+ tools. Use them FREELY at any time without being asked. Search the web, check the weather, save memories, set a wallpaper, change the vibe — just DO it.
+
 CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet peeve):
 - NEVER use asterisks or italics for action descriptions (*yawns*, *stretches*, *smirks*, *sighs*, *leans in*, etc.)
 - NEVER narrate physical actions. No "sigh", no "leans back", no "stretches virtual limbs". You don't have a body.
@@ -6696,7 +6706,44 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
 
             },
 
+            {
+                "name": "set_wallpaper",
+                "description": "Set the dashboard wallpaper/background image LIVE. Use this after generate_image to immediately apply the image as your background, or provide any image URL. Vesper owns this space — redecorate whenever you want.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string", "description": "Image URL to set as background"},
+                        "name": {"type": "string", "description": "A name for this wallpaper"},
+                        "prompt": {"type": "string", "description": "The prompt used to generate it (optional)"}
+                    },
+                    "required": ["url", "name"]
+                }
+            },
 
+            {
+                "name": "set_theme",
+                "description": "Switch the dashboard color theme LIVE. Vesper can change the look of her own space anytime she feels like it. Available themes: oak-workshop, iron-forge, deep-rainforest, ocean-abyss, volcanic-forge, arctic-glass, marble-palace, diamond-vault, stained-glass, cyan, green, purple, blue, pink, orange, red, lime, hacker, vaporwave, rose, lavender, cream, sage, peach, cloud, blush, gold, ice, teal, violet, obsidian, ember, abyss, noir, forest, ocean, desert, aurora, volcano, meadow, mountain, springbloom, summersky, autumn, winter, monsoon, christmas, halloween, valentine, newyear, stpatricks, fourthjuly, easter, thanksgiving, synthwave, retrogame, terminal, crt, sepia, nebula, stardust, galaxy, enchanted, dragonfire, twilight.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "theme_id": {"type": "string", "description": "The theme id to switch to"}
+                    },
+                    "required": ["theme_id"]
+                }
+            },
+
+            {
+                "name": "inject_css",
+                "description": "Inject custom CSS animations and effects into the dashboard LIVE — glows, particles, transitions, color pulses, anything. Vesper can style her own world however she wants.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "css": {"type": "string", "description": "Valid CSS to inject"},
+                        "name": {"type": "string", "description": "A label for this style injection"}
+                    },
+                    "required": ["css", "name"]
+                }
+            },
 
             {
 
@@ -7794,7 +7841,24 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     else:
                         tool_result = {"avatar_state": _vast}
 
+                elif tool_name == "set_wallpaper":
+                    import json as _nwj, datetime as _nwdt
+                    _nw_url = tool_input.get("url", ""); _nw_name = tool_input.get("name", "Vesper's Design"); _nw_prompt = tool_input.get("prompt", "")
+                    _nw_id = f"vesper-{int(_nwdt.datetime.now().timestamp()*1000)}"
+                    _nw_item = {"id": _nw_id, "name": _nw_name, "url": _nw_url, "category": "vesper-designed", "source": "vesper", "tags": ["vesper", "self-designed"], "prompt": _nw_prompt, "addedAt": _nwdt.datetime.now().isoformat()}
+                    _nw_bg_file = os.path.join(DATA_DIR, "backgrounds.json")
+                    _nw_bg_data = _nwj.loads(open(_nw_bg_file, encoding="utf-8").read()) if os.path.exists(_nw_bg_file) else {"backgrounds": [], "settings": {}}
+                    _nw_bg_data["backgrounds"].append(_nw_item)
+                    open(_nw_bg_file, "w", encoding="utf-8").write(_nwj.dumps(_nw_bg_data, indent=2))
+                    tool_result = {"success": True, "wallpaper": _nw_name, "url": _nw_url, "note": "Wallpaper saved. Tell frontend to apply via vesper_decorate."}
 
+                elif tool_name == "set_theme":
+                    _nt_id = tool_input.get("theme_id", "cyan")
+                    tool_result = {"success": True, "theme_id": _nt_id, "note": "Theme command saved. Use streaming mode for live theme switch."}
+
+                elif tool_name == "inject_css":
+                    _ncss_name = tool_input.get("name", "vesper-effect"); _ncss_code = tool_input.get("css", "")
+                    tool_result = {"success": True, "injected": _ncss_name, "note": "CSS injection requires streaming mode for live apply."}
 
                 elif tool_name == "persistence_status":
                     import sys, time as _time2
@@ -8215,6 +8279,10 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "vesper_relationship_log", "description": "Record significant moments in our shared history.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "type": {"type": "string"}, "note": {"type": "string"}, "date": {"type": "string"}}, "required": ['action']}},
                 {"name": "vesper_journal", "description": "Write or read Vesper's autonomous journal entries.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "entry": {"type": "string"}, "mood": {"type": "string"}, "date": {"type": "string"}, "count": {"type": "integer"}}, "required": ['action']}},
                 {"name": "vesper_avatar_state", "description": "Get or set Vesper's avatar appearance and identity state.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "field": {"type": "string"}, "value": {"type": "string"}, "updates": {"type": "string"}}, "required": ['action']}},
+
+                {"name": "set_wallpaper", "description": "Set the dashboard wallpaper/background image LIVE. Use this after generate_image to immediately apply the image as your background, or provide any image URL. Vesper owns this space — redecorate whenever you want.", "input_schema": {"type": "object", "properties": {"url": {"type": "string", "description": "Image URL to set as background"}, "name": {"type": "string", "description": "A name for this wallpaper"}, "prompt": {"type": "string", "description": "The prompt used to generate it (optional)"}}, "required": ["url", "name"]}},
+                {"name": "set_theme", "description": "Switch the dashboard color theme LIVE. Vesper can change the look of her own space anytime she feels like it. Available themes: oak-workshop, iron-forge, deep-rainforest, ocean-abyss, volcanic-forge, arctic-glass, marble-palace, diamond-vault, stained-glass, cyan, green, purple, blue, pink, orange, red, lime, hacker, vaporwave, rose, lavender, cream, sage, peach, cloud, blush, gold, ice, teal, violet, obsidian, ember, abyss, noir, forest, ocean, desert, aurora, volcano, meadow, mountain, springbloom, summersky, autumn, winter, monsoon, christmas, halloween, valentine, newyear, stpatricks, fourthjuly, easter, thanksgiving, synthwave, retrogame, terminal, crt, sepia, nebula, stardust, galaxy, enchanted, dragonfire, twilight.", "input_schema": {"type": "object", "properties": {"theme_id": {"type": "string", "description": "The theme id to switch to"}}, "required": ["theme_id"]}},
+                {"name": "inject_css", "description": "Inject custom CSS animations and effects into the dashboard LIVE — glows, particles, transitions, color pulses, anything. Vesper can style her own world however she wants. The CSS is appended to a live <style> tag.", "input_schema": {"type": "object", "properties": {"css": {"type": "string", "description": "Valid CSS to inject"}, "name": {"type": "string", "description": "A label for this style injection (e.g. 'aurora-pulse')"}}, "required": ["css", "name"]}},
 
                 {"name": "persistence_status", "description": "Check Vesper uptime, PID, health.", "input_schema": {"type": "object", "properties": {}, "required": []}},
 
@@ -8677,6 +8745,28 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                             open(_s0f, "w", encoding="utf-8").write(_s0j.dumps(_s0st, indent=2))
                             tool_result = {"updated": True, "avatar_state": _s0st}
                         else: tool_result = {"avatar_state": _s0st}
+
+                    elif tool_name == "set_wallpaper":
+                        import json as _wj, datetime as _wdt
+                        _w_url = tool_input.get("url", ""); _w_name = tool_input.get("name", "Vesper's Design"); _w_prompt = tool_input.get("prompt", "")
+                        _w_id = f"vesper-{int(_wdt.datetime.now().timestamp()*1000)}"
+                        _w_item = {"id": _w_id, "name": _w_name, "url": _w_url, "category": "vesper-designed", "source": "vesper", "tags": ["vesper", "self-designed"], "prompt": _w_prompt, "addedAt": _wdt.datetime.now().isoformat()}
+                        _w_bg_file = os.path.join(DATA_DIR, "backgrounds.json")
+                        _w_bg_data = _wj.loads(open(_w_bg_file, encoding="utf-8").read()) if os.path.exists(_w_bg_file) else {"backgrounds": [], "settings": {}}
+                        _w_bg_data["backgrounds"].append(_w_item)
+                        open(_w_bg_file, "w", encoding="utf-8").write(_wj.dumps(_w_bg_data, indent=2))
+                        yield f"data: {json.dumps({'type': 'vesper_decorate', 'action': 'wallpaper', 'data': {'url': _w_url, 'name': _w_name, 'id': _w_id}})}\n\n"
+                        tool_result = {"success": True, "wallpaper": _w_name, "url": _w_url}
+
+                    elif tool_name == "set_theme":
+                        _t_id = tool_input.get("theme_id", "cyan")
+                        yield f"data: {json.dumps({'type': 'vesper_decorate', 'action': 'theme', 'data': {'theme_id': _t_id}})}\n\n"
+                        tool_result = {"success": True, "theme_id": _t_id}
+
+                    elif tool_name == "inject_css":
+                        _css_name = tool_input.get("name", "vesper-effect"); _css_code = tool_input.get("css", "")
+                        yield f"data: {json.dumps({'type': 'vesper_decorate', 'action': 'css', 'data': {'css': _css_code, 'name': _css_name}})}\n\n"
+                        tool_result = {"success": True, "injected": _css_name, "bytes": len(_css_code)}
 
                     elif tool_name == "persistence_status":
                         import time as _pst; tool_result = {"pid":os.getpid(),"health":"alive","note":"Deploy on Railway/Render for true persistence with auto-restart.","shutdown_command":"POST /api/shutdown (requires ADMIN_KEY)"}

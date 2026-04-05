@@ -1592,6 +1592,27 @@ export default function App() {
                   addLocalMessage('assistant', `Here's your image ✨`, { type: 'image', imageUrl: viz.image_url, imagePrompt: viz.prompt, imageProvider: viz.provider });
                 }
               });
+            } else if (data.type === 'vesper_decorate') {
+              if (data.action === 'wallpaper' && data.data?.url) {
+                const bg = { id: data.data.id || `vesper-${Date.now()}`, url: data.data.url, name: data.data.name || "Vesper's Design", category: 'vesper-designed' };
+                setCustomBackground(bg);
+                try { localStorage.setItem('vesper_custom_bg', JSON.stringify(bg)); } catch(e) {}
+                setBackgroundGallery(prev => [...prev.filter(b => b.id !== bg.id), bg]);
+                showToast(`✨ Vesper set wallpaper: ${bg.name}`, 'success');
+              } else if (data.action === 'theme' && data.data?.theme_id) {
+                const t = THEMES.find(th => th.id === data.data.theme_id);
+                if (t) {
+                  setActiveTheme(t);
+                  try { localStorage.setItem('vesper_theme', t.id); } catch(e) {}
+                  showToast(`🎨 Vesper switched to ${t.label}`, 'success');
+                }
+              } else if (data.action === 'css' && data.data?.css) {
+                const s = document.createElement('style');
+                s.id = `vesper-effect-${Date.now()}`;
+                s.textContent = data.data.css;
+                document.head.appendChild(s);
+                showToast(`✨ Vesper applied: ${data.data.name || 'effect'}`, 'success');
+              }
             } else if (data.type === 'done') {
               currentProvider = data.provider || currentProvider;
               currentModel = data.model || currentModel;
@@ -3020,6 +3041,11 @@ export default function App() {
     fetchThreads(false); // startup: show loading spinner on first load
     fetchDocuments(); // Load documents on startup
     fetchPersonalityPresets(); // Load personality presets on startup
+    // Load Vesper's background gallery
+    fetch(`${apiBase}/api/backgrounds`)
+      .then(r => r.json())
+      .then(d => { if (d?.backgrounds) setBackgroundGallery(d.backgrounds); })
+      .catch(() => {});
   }, [fetchResearch, fetchTasks, fetchThreads, fetchDocuments, fetchPersonalityPresets]);
 
   useEffect(() => {
