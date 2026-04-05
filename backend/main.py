@@ -7910,31 +7910,29 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 })
                 
             else:
-                # Anthropic format
-                # Assistant message needs to include tool_use block
-                content_blocks = []
-                if assistant_content:
-                    content_blocks.append({"type": "text", "text": assistant_content})
-                
-                content_blocks.append({
-                    "type": "tool_use",
-                    "id": tool_id,
-                    "name": tool_name,
-                    "input": tool_input
-                })
-                
-                messages.append({"role": "assistant", "content": content_blocks})
-                
-                # Tool result message
+                # Anthropic / Google format
                 content_str = json.dumps(tool_result, default=safe_serialize)
-                messages.append({
-                    "role": "user",
-                    "content": [{
-                        "type": "tool_result",
-                        "tool_use_id": tool_id,
-                        "content": content_str
-                    }]
-                })
+                if provider == "google":
+                    # Google: use plain text tool result so _chat_google can handle it cleanly
+                    if assistant_content:
+                        messages.append({"role": "assistant", "content": assistant_content})
+                    messages.append({"role": "user", "content": f"[Tool result for {tool_name}]: {content_str}"})
+                else:
+                    # Anthropic (Claude) format
+                    content_blocks = []
+                    if assistant_content:
+                        content_blocks.append({"type": "text", "text": assistant_content})
+                    content_blocks.append({
+                        "type": "tool_use",
+                        "id": tool_id,
+                        "name": tool_name,
+                        "input": tool_input
+                    })
+                    messages.append({"role": "assistant", "content": content_blocks})
+                    messages.append({
+                        "role": "user",
+                        "content": [{"type": "tool_result", "tool_use_id": tool_id, "content": content_str}]
+                    })
              
             
             # Continue conversation
@@ -8770,7 +8768,13 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                     assistant_msg["tool_calls"] = [{"id": tool_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}]
                     messages.append(assistant_msg)
                     messages.append({"role": "tool", "tool_call_id": tool_id, "content": content_str})
+                elif provider == "google":
+                    # Google: append tool result as plain text so _chat_google can process it
+                    if assistant_content:
+                        messages.append({"role": "assistant", "content": assistant_content})
+                    messages.append({"role": "user", "content": f"[Tool result for {tool_name}]: {content_str}"})
                 else:
+                    # Anthropic (Claude) format
                     content_blocks = []
                     if assistant_content:
                         content_blocks.append({"type": "text", "text": assistant_content})

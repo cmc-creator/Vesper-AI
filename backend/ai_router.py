@@ -409,49 +409,105 @@ class AIRouter:
         }
     
     async def _chat_google(self, messages, model, tools, max_tokens, temperature):
-        """Chat with Google Gemini using new google-genai SDK
-        
-        Note: This method handles text-only chat messages. Image/multimodal 
-        content is handled separately in the image analysis endpoint.
-        """
-        # Extract system message for system_instruction (NOT as a user message!)
+        """Chat with Google Gemini using new google-genai SDK with full function calling support."""
+        # Extract system message for system_instruction
         system_msg = None
         contents = []
         for msg in messages:
             if msg["role"] == "system":
                 system_msg = msg["content"] if isinstance(msg["content"], str) else str(msg["content"])
-                continue  # Don't add system messages to contents
+                continue
             role = "user" if msg["role"] == "user" else "model"
-            content_text = msg["content"] if isinstance(msg["content"], str) else str(msg["content"])
-            contents.append({
-                "role": role,
-                "parts": [{"text": content_text}]
-            })
-        
-        # Use new Client-based API with proper system instruction
+            # Handle list content (tool results / multimodal) — flatten to text
+            raw = msg["content"]
+            if isinstance(raw, list):
+                parts = []
+                for item in raw:
+                    if isinstance(item, dict):
+                        if item.get("type") == "text":
+                            parts.append({"text": item.get("text", "")})
+                        elif item.get("type") in ("tool_use", "tool_result"):
+                            # Represent tool interaction as text so Gemini understands context
+                            parts.append({"text": json.dumps(item)})
+                        else:
+                            parts.append({"text": json.dumps(item)})
+                    else:
+                        parts.append({"text": str(item)})
+                contents.append({"role": role, "parts": parts})
+            else:
+                contents.append({"role": role, "parts": [{"text": str(raw)}]})
+
+        # Build config
         config = {
             "max_output_tokens": max_tokens,
             "temperature": temperature,
         }
         if system_msg:
             config["system_instruction"] = system_msg
-        
-        # Note: Gemini's function calling format is different, simplified for now
+
+        # Add function declarations if tools are provided
+        if tools:
+            try:
+                from google.genai import types as _gtypes
+                func_decls = []
+                for tool in tools:
+                    schema = dict(tool.get("input_schema", {}))
+                    # Gemini requires properties to exist even if empty
+                    if "properties" not in schema:
+                        schema["properties"] = {}
+                    func_decls.append(_gtypes.FunctionDeclaration(
+                        name=tool["name"],
+                        description=tool.get("description", ""),
+                        parameters=schema,
+                    ))
+                config["tools"] = [_gtypes.Tool(function_declarations=func_decls)]
+            except Exception as _te:
+                print(f"[WARN] Google tool setup failed: {_te}")
+
         response = self.google_client.models.generate_content(
             model=model,
             contents=contents,
             config=config
         )
-        
+
+        # Extract text content safely
+        content_text = ""
+        try:
+            content_text = response.text or ""
+        except Exception:
+            # response.text raises if there are only function calls or safety blocks
+            pass
+
+        # Extract function calls if any
+        tool_calls = []
+        try:
+            for candidate in (response.candidates or []):
+                for part in (candidate.content.parts if candidate.content else []):
+                    if hasattr(part, "function_call") and part.function_call:
+                        fc = part.function_call
+                        tool_calls.append({
+                            "id": f"google-{fc.name}-{len(tool_calls)}",
+                            "name": fc.name,
+                            "input": dict(fc.args) if fc.args else {},
+                        })
+        except Exception as _tce:
+            print(f"[WARN] Google tool call extraction failed: {_tce}")
+
+        usage_in = 0
+        usage_out = 0
+        try:
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                usage_in = response.usage_metadata.prompt_token_count or 0
+                usage_out = response.usage_metadata.candidates_token_count or 0
+        except Exception:
+            pass
+
         return {
-            "content": response.text,
+            "content": content_text,
             "provider": ModelProvider.GOOGLE.value,
             "model": model,
-            "usage": {
-                "input_tokens": response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0,
-                "output_tokens": response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0
-            },
-            "tool_calls": []  # Simplified - Gemini has different tool format
+            "usage": {"input_tokens": usage_in, "output_tokens": usage_out},
+            "tool_calls": tool_calls,
         }
     
     async def _chat_ollama(self, messages, model, max_tokens, temperature):

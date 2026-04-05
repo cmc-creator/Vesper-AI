@@ -1334,7 +1334,7 @@ export default function App() {
         setCurrentThreadTitle(title);
         
         // CRITICAL: Refresh thread list after creating
-        fetchThreads();
+        fetchThreads(true); // silent — don't reset scroll position
         console.log('✅ Thread created:', threadId);
         return threadId;
       } else if (createOnly) {
@@ -1645,7 +1645,7 @@ export default function App() {
       }
       playSound('notification');
       
-      fetchThreads();
+      fetchThreads(true); // silent — don't reset scroll position
     } catch (error) {
       if (error.name === 'AbortError') {
         console.log('🛑 Generation stopped by user');
@@ -2628,8 +2628,8 @@ export default function App() {
   }, [apiBase, fetchTasks, vesperReact, exportChat, showToast]);
 
 
-  const fetchThreads = useCallback(async () => {
-    setThreadsLoading(true);
+  const fetchThreads = useCallback(async (silent = false) => {
+    if (!silent) setThreadsLoading(true);
     try {
       const res = await fetch(`${apiBase}/api/threads`);
       const data = await res.json();
@@ -3017,7 +3017,7 @@ export default function App() {
   useEffect(() => {
     fetchResearch();
     fetchTasks();
-    fetchThreads(); // CRITICAL FIX: Load chat history on startup
+    fetchThreads(false); // startup: show loading spinner on first load
     fetchDocuments(); // Load documents on startup
     fetchPersonalityPresets(); // Load personality presets on startup
   }, [fetchResearch, fetchTasks, fetchThreads, fetchDocuments, fetchPersonalityPresets]);
@@ -3036,7 +3036,7 @@ export default function App() {
   // Refresh thread history when navigating to Memory Core
   useEffect(() => {
     if (activeSection === 'memory') {
-      fetchThreads();
+      fetchThreads(true); // silent refresh when switching sections
     }
   }, [activeSection, fetchThreads]);
 
