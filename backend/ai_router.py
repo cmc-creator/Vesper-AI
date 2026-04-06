@@ -42,6 +42,14 @@ except ImportError:
     OLLAMA_AVAILABLE = False
     print("[WARN] ollama not installed")
 
+try:
+    from groq import AsyncGroq
+    GROQ_AVAILABLE = True
+except ImportError:
+    AsyncGroq = None
+    GROQ_AVAILABLE = False
+    print("[WARN] groq not installed (pip install groq)")
+
 class TaskType(Enum):
     CODE = "code"
     CHAT = "chat"
@@ -54,6 +62,7 @@ class ModelProvider(Enum):
     OPENAI = "openai"
     GOOGLE = "google"
     OLLAMA = "ollama"
+    GROQ = "groq"
 
 class AIRouter:
     """Intelligent AI model router with fallback support"""
@@ -64,6 +73,7 @@ class AIRouter:
         self.openai_client = None
         self.google_client = None  # Changed from google_configured to google_client
         self.ollama_available = False
+        self.groq_client = None
         
         # Detect environment: local vs production
         self.is_local = self._detect_local_environment()
@@ -89,6 +99,13 @@ class AIRouter:
                 self.google_client = genai.Client(api_key=google_key)
                 print("[OK] Google Gemini configured")
         
+        # Configure Groq (free tier: 14,400 req/day, 500,000 tokens/min)
+        if GROQ_AVAILABLE:
+            groq_key = os.getenv("GROQ_API_KEY")
+            if groq_key:
+                self.groq_client = AsyncGroq(api_key=groq_key)
+                print("[OK] Groq configured (free tier: 14k req/day)")
+
         # Check Ollama availability
         if OLLAMA_AVAILABLE:
             try:
@@ -129,49 +146,32 @@ class AIRouter:
         
         # Prioritize Cloud (Quality/Speed) for everything, Ollama as fallback
         if self.is_local:
-            # LOCAL: Prioritize cheap/fast cloud models first (or Ollama if OLLAMA_PRIMARY=true)
+            # LOCAL: Groq first (14k req/day free), then Gemini (1.5M tok/day free), then Ollama, then paid
             _local_order = [
-                ModelProvider.OPENAI,     # gpt-5.4-mini (Best/Cheap)
-                ModelProvider.GOOGLE,     # Gemini (Free)
-                ModelProvider.ANTHROPIC,  # Claude (Premium)
-                ModelProvider.OLLAMA      # Fallback
+                ModelProvider.GROQ,       # Groq — FREE (14,400 req/day, blazing fast Llama/Gemma)
+                ModelProvider.GOOGLE,     # Gemini 2.5 Flash — FREE tier (1500 req/day, 1M tokens/day)
+                ModelProvider.OLLAMA,     # Fully free local
+                ModelProvider.OPENAI,     # Paid fallback
+                ModelProvider.ANTHROPIC,  # Paid last resort
             ]
             if ollama_first:
                 _local_order = [ModelProvider.OLLAMA] + [p for p in _local_order if p != ModelProvider.OLLAMA]
                 print("[ROUTER] Ollama-first mode active (OLLAMA_PRIMARY=true)")
             self.routing_strategy = {task: list(_local_order) for task in TaskType}
         else:
-            # PRODUCTION/CLOUD: OpenAI gpt-5.4-mini (primary), Google Gemini (fallback), Claude (last resort)
-            self.routing_strategy = {
-                TaskType.CODE: [
-                    ModelProvider.OPENAI,     # gpt-5.4-mini for code
-                    ModelProvider.GOOGLE,     # Gemini Flash fallback
-                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
-                ],
-                TaskType.CHAT: [
-                    ModelProvider.OPENAI,     # gpt-5.4-mini primary
-                    ModelProvider.GOOGLE,     # Gemini Flash fallback
-                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
-                ],
-                TaskType.SEARCH: [
-                    ModelProvider.OPENAI,     # gpt-5.4-mini
-                    ModelProvider.GOOGLE,     # Gemini for grounding
-                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
-                ],
-                TaskType.ANALYSIS: [
-                    ModelProvider.OPENAI,     # gpt-5.4-mini for analysis
-                    ModelProvider.GOOGLE,     # Gemini Flash fallback
-                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
-                ],
-                TaskType.CREATIVE: [
-                    ModelProvider.OPENAI,     # gpt-5.4-mini
-                    ModelProvider.GOOGLE,     # Gemini Flash
-                    ModelProvider.ANTHROPIC   # Claude Haiku last resort
-                ]
-            }
+            # PRODUCTION: Groq first (free tier), then Gemini (free), then paid as last resort
+            _prod_order = [
+                ModelProvider.GROQ,       # Groq — FREE (14,400 req/day, Llama 3.3 70B)
+                ModelProvider.GOOGLE,     # Gemini 2.5 Flash — FREE (1500 req/day, 1M tok/day)
+                ModelProvider.OLLAMA,     # Free local (if deployed on a machine with Ollama)
+                ModelProvider.OPENAI,     # Paid fallback
+                ModelProvider.ANTHROPIC,  # Paid last resort
+            ]
+            self.routing_strategy = {task: list(_prod_order) for task in TaskType}
         
         # Model selection per provider — current model IDs (April 2026)
         self.models = {
+            ModelProvider.GROQ: "llama-3.3-70b-versatile",   # Free tier — 14k req/day, fast + smart
             ModelProvider.OPENAI: "gpt-5.4-mini",             # Current mini — fast + affordable
             ModelProvider.GOOGLE: "gemini-2.5-flash",         # Current stable free tier
             ModelProvider.ANTHROPIC: "claude-sonnet-4-6",     # Current sonnet — fast + smart
@@ -195,6 +195,8 @@ class AIRouter:
             return self.google_client is not None  # Changed from google_configured
         elif provider == ModelProvider.OLLAMA:
             return self.ollama_available
+        elif provider == ModelProvider.GROQ:
+            return self.groq_client is not None
         return False
     
     async def chat(
@@ -257,6 +259,8 @@ class AIRouter:
                 return await self._chat_google(messages, model, tools, max_tokens, temperature)
             elif provider == ModelProvider.OLLAMA:
                 return await self._chat_ollama(messages, model, max_tokens, temperature)
+            elif provider == ModelProvider.GROQ:
+                return await self._chat_groq(messages, model, tools, max_tokens, temperature)
         except Exception as e:
             # Collect error and fallback to next provider (excluding ALL previously tried ones)
             error_msg = f"{provider.value}: {str(e)[:200]}"
@@ -519,6 +523,49 @@ class AIRouter:
             "tool_calls": []  # Ollama doesn't support function calling
         }
     
+    async def _chat_groq(self, messages, model, tools, max_tokens, temperature):
+        """Chat with Groq (free tier: 14,400 req/day, Llama 3.3 70B)"""
+        kwargs = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
+
+        if tools:
+            # Groq uses OpenAI-compatible tool format
+            kwargs["tools"] = [self._convert_tool_to_openai(t) for t in tools]
+            kwargs["tool_choice"] = "auto"
+
+        response = await self.groq_client.chat.completions.create(**kwargs)
+        choice = response.choices[0]
+
+        # Extract tool calls
+        tool_calls = []
+        raw_tcs = getattr(choice.message, "tool_calls", None) or []
+        for tc in raw_tcs:
+            args = getattr(tc.function, "arguments", "")
+            try:
+                parsed = json.loads(args) if isinstance(args, str) else (args or {})
+            except Exception:
+                parsed = {"raw": args}
+            tool_calls.append({
+                "id": getattr(tc, "id", None),
+                "name": tc.function.name,
+                "input": parsed,
+            })
+
+        return {
+            "content": choice.message.content or "",
+            "provider": ModelProvider.GROQ.value,
+            "model": model,
+            "usage": {
+                "input_tokens": response.usage.prompt_tokens,
+                "output_tokens": response.usage.completion_tokens,
+            },
+            "tool_calls": tool_calls,
+        }
+
     def _convert_tool_to_openai(self, claude_tool: Dict) -> Dict:
         """Convert Claude tool format to OpenAI format"""
         return {

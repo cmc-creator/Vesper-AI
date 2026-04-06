@@ -129,6 +129,42 @@ import httpx
 # except Exception as e:
 #     print(f"[WARN] Tracing setup failed: {e}")
 
+
+def _build_thread_context(thread_msgs: list, max_recent: int = 80):
+    """
+    Smart thread context builder with summarization for long conversations.
+    Returns (summary_block: str | None, recent_msgs: list).
+    
+    If thread has <= 120 messages: return all as-is.
+    If > 120: compress older messages into a text summary, keep most recent max_recent.
+    This lets Vesper remember EVERYTHING — older context as a summary block, 
+    recent messages verbatim.
+    """
+    if len(thread_msgs) <= 120:
+        return None, thread_msgs
+
+    old_msgs = thread_msgs[:-max_recent]
+    recent = thread_msgs[-max_recent:]
+
+    lines = []
+    for m in old_msgs:
+        role = m.get("role", "")
+        content = str(m.get("content", m.get("text", "")))
+        # Keep meaningful content, truncate very long entries
+        if role in ("user", "assistant") and content.strip():
+            snippet = content.strip().replace("\n", " ")[:200]
+            prefix = "CC" if role == "user" else "Vesper"
+            lines.append(f"- {prefix}: {snippet}")
+
+    # Cap summary to avoid prompt bloat
+    summary_lines = lines[:80]
+    summary_block = (
+        "**EARLIER CONVERSATION (compressed):**\n"
+        + "\n".join(summary_lines)
+        + "\n\n(Full detail resumes below in the recent messages.)"
+    )
+    return summary_block, recent
+
 try:
     # Initialize FastAPI app immediately after imports
     app = FastAPI()
@@ -4955,7 +4991,7 @@ async def chat_with_vesper(chat: ChatMessage):
         # Deep RAG context — keyword-scored across all memory, journal, relationship, research sources
         memory_summary = ""
         try:
-            memory_summary = build_rag_context(chat.message, memory_db=memory_db, top_k=12, max_chars=2800)
+            memory_summary = build_rag_context(chat.message, memory_db=memory_db, top_k=20, max_chars=5000)
         except Exception as _rag_err:
             print(f"[RAG] context build failed: {_rag_err}")
             memory_summary = ""
@@ -5077,14 +5113,17 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
         # If user explicitly requested a persona in the UI (e.g. via settings/context),
         # we can inject additional style instructions here, but NEVER replace the core identity.
         
-        # Build messages from thread
+        # Build messages from thread — with smart summarization for long conversations
+        _thread_summary, _recent_msgs = _build_thread_context(thread.get("messages", []))
+        if _thread_summary:
+            # Inject compressed older context as a system-level note
+            enhanced_system += f"\n\n{_thread_summary}"
         messages = [{"role": "system", "content": enhanced_system}]
-        if thread.get("messages"):
-            for msg in thread['messages'][-30:]:  # Last 30 messages for better conversation memory
-                role = msg.get("role", "user" if msg.get("from") == "user" else "assistant")
-                content = msg.get("content", msg.get("text", ""))
-                if role in ["user", "assistant"] and content:
-                    messages.append({"role": role, "content": content})
+        for msg in _recent_msgs:
+            role = msg.get("role", "user" if msg.get("from") == "user" else "assistant")
+            content = msg.get("content", msg.get("text", ""))
+            if role in ["user", "assistant"] and content:
+                messages.append({"role": role, "content": content})
         
         # Add current message (handle vision)
         if hasattr(chat, 'images') and chat.images and len(chat.images) > 0:
@@ -8352,7 +8391,7 @@ async def chat_stream(chat: ChatMessage):
             # Deep RAG context — keyword-scored across all memory, journal, relationship, research sources
             memory_summary = ""
             try:
-                memory_summary = build_rag_context(chat.message, memory_db=memory_db, top_k=12, max_chars=2800)
+                memory_summary = build_rag_context(chat.message, memory_db=memory_db, top_k=20, max_chars=5000)
             except Exception as _rag_err:
                 print(f"[RAG] context build failed (streaming): {_rag_err}")
             
@@ -8390,18 +8429,20 @@ NEVER say "I'm an AI assistant" or "I'm Claude" or any corporate phrases.
 CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TALK normally.
 ---"""
             
+            # Build messages from thread — with smart summarization for long conversations
             messages = [{"role": "system", "content": enhanced_system}]
             if thread.get("messages"):
-                # If the frontend already pre-saved the user message it will be the
-                # last entry in the thread.  Exclude it here so we don't end up
-                # with two consecutive user-role messages, which breaks Anthropic's
-                # strict alternation requirement and silently destroys context.
+                # Exclude last message if frontend already pre-saved it
                 thread_msgs = list(thread["messages"])
                 if (thread_msgs
                         and thread_msgs[-1].get("role") == "user"
                         and thread_msgs[-1].get("content") == chat.message):
                     thread_msgs = thread_msgs[:-1]
-                for msg in thread_msgs[-30:]:
+                _thread_summary, _recent_msgs = _build_thread_context(thread_msgs)
+                if _thread_summary:
+                    # Inject compressed older context as a system-level note
+                    messages[0]["content"] += f"\n\n{_thread_summary}"
+                for msg in _recent_msgs:
                     role = msg.get("role", "user" if msg.get("from") == "user" else "assistant")
                     content = msg.get("content", msg.get("text", ""))
                     if role in ["user", "assistant"] and content:
