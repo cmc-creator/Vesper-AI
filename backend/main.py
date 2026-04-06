@@ -8216,6 +8216,12 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     if assistant_content:
                         messages.append({"role": "assistant", "content": assistant_content})
                     messages.append({"role": "user", "content": f"[Tool result for {tool_name}]: {content_str}"})
+                elif provider == "groq":
+                    # Groq is OpenAI-compatible — use the same format as OpenAI
+                    assistant_msg = {"role": "assistant", "content": assistant_content or None}
+                    assistant_msg["tool_calls"] = [{"id": tool_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}]
+                    messages.append(assistant_msg)
+                    messages.append({"role": "tool", "tool_call_id": tool_id, "content": content_str})
                 else:
                     # Anthropic (Claude) format
                     content_blocks = []
@@ -9172,7 +9178,8 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 assistant_content = ai_response_obj.get("content", "")
                 content_str = json.dumps(tool_result, default=safe_serialize)
                 
-                if provider == "openai":
+                if provider == "openai" or provider == "groq":
+                    # OpenAI / Groq (OpenAI-compatible) format
                     assistant_msg = {"role": "assistant", "content": assistant_content or None}
                     assistant_msg["tool_calls"] = [{"id": tool_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}]
                     messages.append(assistant_msg)
