@@ -19,10 +19,10 @@ except ImportError:
     print("[WARN] anthropic not installed")
 
 try:
-    from openai import OpenAI
+    from openai import AsyncOpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
-    OpenAI = None
+    AsyncOpenAI = None
     OPENAI_AVAILABLE = False
     print("[WARN] openai not installed")
 
@@ -79,7 +79,7 @@ class AIRouter:
         if OPENAI_AVAILABLE:
             openai_key = os.getenv("OPENAI_API_KEY")
             if openai_key:
-                self.openai_client = OpenAI(api_key=openai_key)
+                self.openai_client = AsyncOpenAI(api_key=openai_key)
                 print("[OK] OpenAI GPT configured")
         
         # Configure Google Gemini (new google-genai SDK with Client-based API)
@@ -365,7 +365,7 @@ class AIRouter:
             openai_tools = [self._convert_tool_to_openai(tool) for tool in tools]
             kwargs["tools"] = openai_tools
         
-        response = self.openai_client.chat.completions.create(**kwargs)
+        response = await self.openai_client.chat.completions.create(**kwargs)
         
         tool_calls = []
         raw_tool_calls = response.choices[0].message.tool_calls or []
