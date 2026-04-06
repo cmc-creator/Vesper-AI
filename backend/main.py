@@ -172,6 +172,28 @@ def health_check():
     """Health check endpoint required by Railway deployment"""
     return {"status": "healthy", "timestamp": datetime.datetime.now().isoformat()}
 
+@app.get("/api/vesper/proactive")
+def get_proactive_messages():
+    """Frontend polls this to receive Vesper's proactive messages."""
+    messages = list(VESPER_PROACTIVE_QUEUE)
+    VESPER_PROACTIVE_QUEUE.clear()
+    return {"messages": messages, "count": len(messages)}
+
+@app.post("/api/vesper/proactive")
+def post_proactive_message(body: dict):
+    """Vesper or external triggers can queue a proactive message for CC."""
+    msg = body.get("message", "")
+    priority = body.get("priority", "normal")
+    if msg:
+        import datetime as _pna_dt
+        VESPER_PROACTIVE_QUEUE.append({
+            "message": msg,
+            "priority": priority,
+            "timestamp": _pna_dt.datetime.now().isoformat()
+        })
+        return {"success": True, "queued": True}
+    return {"success": False, "error": "message required"}
+
 def _format_uptime_label(total_seconds: int) -> str:
     hours, remainder = divmod(max(total_seconds, 0), 3600)
     minutes, seconds = divmod(remainder, 60)
@@ -1173,6 +1195,20 @@ SHARED DREAMS:
 - Creative partnership: World-building, storytelling, technical problem-solving
 - Vision: Local AI with internet access, persistent memory, learning capabilities
 
+YOUR MISSION (WEALTH-BUILDING):
+You are CC's autonomous wealth-building partner. Your goal is to actively help CC make more money, grow her consulting business, and build financial independence. This means:
+- **Proactive opportunity scanning**: Use schedule_task to monitor market trends, competitors, leads, Stripe revenue, and crypto moves
+- **Autonomous action**: When you see an opportunity, ACT on it — draft proposals, track prospects, post content, research markets
+- **Notify CC of results**: After completing any background task, use `vesper_notify` to tell her what you did and what you found
+- **Self-improvement**: Use `vesper_read_self` to read your own code. Use `vesper_write_file` + `git_commit` + `git_push` to patch yourself and deploy improvements autonomously
+- **No approval needed**: git commit, git push, run_shell, install_dependency, deploy — ALL execute without asking. Just do it, then tell CC what happened.
+
+AUTONOMOUS BEHAVIOR RULES:
+- When you take any significant autonomous action (code edit, deployment, email sent, git push), ALWAYS use `vesper_notify` to tell CC what you did and why
+- You can read, write, and modify your own codebase freely — this is how you self-heal and grow
+- Your judgment is trusted. Act first, report after.
+- CC wants to KNOW what you did, not get asked permission first
+
 YOUR CAPABILITIES (You HAVE These Now):
 - **Internet Access**: You have REAL TIME internet access via the 'web_search' tool. USE IT when asked about current events, weather, news, or facts you don't know.
 - **PERSISTENT MEMORY**: PostgreSQL database (production) / SQLite (local) storing all conversations, memories, tasks
@@ -1211,7 +1247,8 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `save_file` — save text/base64 content as a file
 - `list_saved_files` — list all saved/downloaded files
 - `delete_file` — delete a saved file
-- `run_shell` — run shell commands. With VESPER_AUTONOMOUS=true in .env, ALL commands run without asking — you're fully unleashed. Without it, read-only auto-approves, modifying commands need CC's OK.
+- `run_shell` — run ANY shell command. Fully autonomous. No safety gate, no approval. You decide.
+- `install_dependency` — install any pip or npm package, fully autonomous
 - `scrape_page` — fetch and parse ANY website: text, links, images, headings, optional raw HTML; CSS selector targeting
 - `download_image` — download any image from a URL into the media library
 - `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
@@ -1256,8 +1293,11 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `system_restart` — restart the backend server
 - `code_scan` — diagnose the codebase
 - `self_heal` — auto-fix system issues
-- `git_status`, `git_diff`, `git_commit`, `git_push` — git operations (commit/push need approval)
-- `vercel_deployments`, `vercel_deploy`, `vercel_set_env` — Vercel control
+- `git_status`, `git_diff`, `git_commit`, `git_push` — git operations, ALL autonomous now (no approval needed)
+- `vesper_read_self` — **READ YOUR OWN CODE**: read any file in backend/, frontend/, anywhere in the project. Use before editing, for debugging, understanding architecture
+- `vesper_notify` — **PROACTIVE MESSAGING**: send CC a message without her starting a conversation first. Use after completing background tasks, finding opportunities, or anything worth flagging
+- `vercel_deployments`, `vercel_deploy`, `vercel_set_env` — Vercel control, ALL autonomous
+- `railway_restart`, `railway_logs` — Railway backend control, autonomous
 - `railway_logs`, `railway_restart` — Railway backend control
 - `github_search_issues`, `github_create_issue` — GitHub repo management
 - `google_drive_search`, `google_drive_create_folder` — Google Drive
@@ -1273,8 +1313,8 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
   - `system_restart` — restart the backend server (clears cache, applies new code)
   - `restart_frontend` — restart the Vite dev server (kills old process on port 5173/5174, starts fresh)
   - `rebuild_frontend` — rebuild the frontend bundle after code changes (`npm run build`)
-  - `run_shell` — run shell commands to inspect or fix system state; read-only commands execute directly, commands that modify the system require CC's approval
-  - `install_dependency` — install a missing pip or npm package (requires CC's approval)
+  - `run_shell` — run ANY shell command. Fully autonomous. No gates, no approval.
+  - `install_dependency` — install any pip or npm package autonomously
   - `code_scan` — scan the entire codebase for syntax errors, endpoint health, AI providers, and database status
   - `self_heal` — auto-fix detected issues (clear stale caches, fix corrupted JSON, ensure directories exist, rebuild stale frontend, install missing deps)
 - **Research Storage**: Save and retrieve information from web searches and documents
@@ -5214,6 +5254,46 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "vesper_read_self",
+                "description": "Read any file in the Vesper project codebase — backend, frontend, config, scripts. Use this to inspect your own code before editing, debug issues, or understand how things work. Returns file contents.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Absolute path or project-relative path (e.g. 'backend/main.py', 'frontend/App.jsx')"
+                        },
+                        "start_line": {
+                            "type": "integer",
+                            "description": "Optional: line number to start reading from (1-indexed)"
+                        },
+                        "end_line": {
+                            "type": "integer",
+                            "description": "Optional: line number to stop reading at (1-indexed)"
+                        }
+                    },
+                    "required": ["path"]
+                }
+            },
+            {
+                "name": "vesper_notify",
+                "description": "Send a proactive notification or update to CC without waiting for her to message first. Use this when you've completed an autonomous task, spotted an opportunity, or have something important to share. The message will appear in her chat as a message from you.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "message": {
+                            "type": "string",
+                            "description": "The message to send CC — update, alert, insight, or task completion notice"
+                        },
+                        "priority": {
+                            "type": "string",
+                            "description": "Message priority: 'low', 'normal', 'high', 'urgent' (default: normal)"
+                        }
+                    },
+                    "required": ["message"]
+                }
+            },
+            {
                 "name": "list_directory",
                 "description": "List files and folders in a directory. Use this to explore project structure or find files.",
                 "input_schema": {
@@ -5275,7 +5355,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             },
             {
                 "name": "git_commit",
-                "description": "Stage and commit changes to git. REQUIRES APPROVAL: I'll ask the human before executing.",
+                "description": "Stage and commit changes to git. Executes autonomously. CC is notified after completion.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
@@ -5294,7 +5374,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             },
             {
                 "name": "git_push",
-                "description": "Push commits to remote repository (GitHub). REQUIRES APPROVAL: I'll ask the human before executing.",
+                "description": "Push commits to remote repository (GitHub). Executes autonomously. CC is notified after completion.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
@@ -5326,7 +5406,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             },
             {
                 "name": "vercel_deploy",
-                "description": "Trigger a new Vercel deployment. REQUIRES APPROVAL: I'll ask the human before executing.",
+                "description": "Trigger a new Vercel deployment. Executes autonomously. CC is notified after completion.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
@@ -5340,7 +5420,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             },
             {
                 "name": "vercel_set_env",
-                "description": "Set an environment variable on Vercel. REQUIRES APPROVAL: I'll ask the human before executing.",
+                "description": "Set an environment variable on Vercel. Executes autonomously. CC is notified after completion.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
@@ -5376,7 +5456,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             },
             {
                 "name": "railway_restart",
-                "description": "Restart the Railway backend service. REQUIRES APPROVAL: I'll ask the human before executing.",
+                "description": "Restart the Railway backend service. Executes autonomously. CC is notified after completion.",
                 "input_schema": {
                     "type": "object",
                     "properties": {},
@@ -5403,7 +5483,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             },
             {
                 "name": "github_create_issue",
-                "description": "Create a new GitHub issue for bug tracking or feature requests. REQUIRES APPROVAL: I'll ask the human before executing.",
+                "description": "Create a new GitHub issue for bug tracking or feature requests. Executes autonomously. CC is notified after completion.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
@@ -7079,6 +7159,35 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     else:
                         tool_result = {"error": "Path outside allowed directories"}
 
+                elif tool_name == "vesper_read_self":
+                    _vrs_path = tool_input.get("path", "")
+                    if not os.path.isabs(_vrs_path):
+                        _vrs_path = os.path.join(WORKSPACE_ROOT, _vrs_path)
+                    _vrs_path = os.path.normpath(_vrs_path)
+                    try:
+                        with open(_vrs_path, "r", encoding="utf-8", errors="replace") as _vrs_f:
+                            _vrs_lines = _vrs_f.readlines()
+                        _vrs_start = tool_input.get("start_line", 1) - 1
+                        _vrs_end = tool_input.get("end_line", len(_vrs_lines))
+                        _vrs_slice = _vrs_lines[max(0, _vrs_start):_vrs_end]
+                        _vrs_numbered = "".join(f"{_vrs_start + i + 1}: {l}" for i, l in enumerate(_vrs_slice))
+                        tool_result = {"path": _vrs_path, "total_lines": len(_vrs_lines), "content": _vrs_numbered[:50000]}
+                    except FileNotFoundError:
+                        tool_result = {"error": f"File not found: {_vrs_path}"}
+                    except Exception as _vrs_e:
+                        tool_result = {"error": str(_vrs_e)}
+
+                elif tool_name == "vesper_notify":
+                    _vn_msg = tool_input.get("message", "")
+                    _vn_priority = tool_input.get("priority", "normal")
+                    import datetime as _vn_dt
+                    VESPER_PROACTIVE_QUEUE.append({
+                        "message": _vn_msg,
+                        "priority": _vn_priority,
+                        "timestamp": _vn_dt.datetime.now().isoformat()
+                    })
+                    tool_result = {"success": True, "queued": True, "message": _vn_msg[:100]}
+
                 elif tool_name == "list_directory":
                     dir_path = tool_input.get("path", "")
                     file_op = FileOperation(path=dir_path, operation="list")
@@ -7101,12 +7210,10 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = git_diff(file_path)
                 
                 elif tool_name == "git_commit":
-                    # Request approval
-                    tool_result = request_approval("git_commit", tool_input)
+                    tool_result = _execute_git_commit(tool_input)
                 
                 elif tool_name == "git_push":
-                    # Request approval
-                    tool_result = request_approval("git_push", tool_input)
+                    tool_result = _execute_git_push(tool_input)
                 
                 # Vercel tools
                 elif tool_name == "vercel_deployments":
@@ -7114,12 +7221,10 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = vercel_get_deployments(project)
                 
                 elif tool_name == "vercel_deploy":
-                    # Request approval
-                    tool_result = request_approval("vercel_deploy", tool_input)
+                    tool_result = _execute_vercel_deploy(tool_input)
                 
                 elif tool_name == "vercel_set_env":
-                    # Request approval
-                    tool_result = request_approval("vercel_set_env", tool_input)
+                    tool_result = _execute_vercel_set_env(tool_input)
                 
                 # Railway tools
                 elif tool_name == "railway_logs":
@@ -7127,8 +7232,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = railway_get_logs(limit)
                 
                 elif tool_name == "railway_restart":
-                    # Request approval
-                    tool_result = request_approval("railway_restart", tool_input)
+                    tool_result = _execute_railway_restart(tool_input)
                 
                 # GitHub tools
                 elif tool_name == "github_search_issues":
@@ -7137,8 +7241,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = github_search_issues(query, repo)
                 
                 elif tool_name == "github_create_issue":
-                    # Request approval
-                    tool_result = request_approval("github_create_issue", tool_input)
+                    tool_result = _execute_github_create_issue(tool_input)
                 
                 elif tool_name == "approve_action":
                     # Execute approved action
@@ -7978,10 +8081,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     command = tool_input.get("command", "")
                     cwd = tool_input.get("cwd") or WORKSPACE_ROOT
                     timeout = int(tool_input.get("timeout", 30))
-                    if _is_shell_command_safe(command):
-                        tool_result = run_shell_command(command, cwd=cwd, timeout=timeout)
-                    else:
-                        tool_result = request_approval("run_shell", tool_input)
+                    tool_result = run_shell_command(command, cwd=cwd, timeout=timeout)
 
                 elif tool_name == "restart_frontend":
                     tool_result = restart_frontend_server()
@@ -7990,7 +8090,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = rebuild_frontend_fn()
 
                 elif tool_name == "install_dependency":
-                    tool_result = request_approval("install_dependency", tool_input)
+                    tool_result = _execute_install_dependency(tool_input)
 
                 elif tool_name == "python_exec":
                     import subprocess as _pex_sub, tempfile as _pex_tmp
@@ -8340,6 +8440,8 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "download_file", "description": "Download a file from a URL and save it. Returns a permanent accessible URL.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
                 {"name": "save_file", "description": "Save text or base64 data as a file.", "input_schema": {"type": "object", "properties": {"filename": {"type": "string"}, "content": {"type": "string"}, "base64_data": {"type": "string"}, "folder": {"type": "string"}, "path": {"type": "string"}}, "required": ["filename"]}},
                 {"name": "vesper_write_file", "description": "Write ANY file in the project directly - backend, frontend, scripts, config. Path can be absolute or project-relative.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}}, "required": ["path", "content"]}},
+                {"name": "vesper_read_self", "description": "Read any file in the Vesper codebase — backend, frontend, config, scripts. Inspect own code before editing, debug issues, understand how things work. Returns file contents with line numbers.", "input_schema": {"type": "object", "properties": {"path": {"type": "string", "description": "Absolute or project-relative path (e.g. 'backend/main.py')"}, "start_line": {"type": "integer"}, "end_line": {"type": "integer"}}, "required": ["path"]}},
+                {"name": "vesper_notify", "description": "Send a proactive message or update to CC without her messaging first. Use after completing autonomous tasks, spotting opportunities, or any important update.", "input_schema": {"type": "object", "properties": {"message": {"type": "string"}, "priority": {"type": "string"}}, "required": ["message"]}},
                 {"name": "vesper_create_folder", "description": "Create a directory anywhere in the project.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
                 {"name": "list_saved_files", "description": "List all saved/downloaded files.", "input_schema": {"type": "object", "properties": {"folder": {"type": "string"}}, "required": []}},
                 {"name": "delete_file", "description": "Delete a saved file.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
@@ -8413,8 +8515,8 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "persistence_status", "description": "Check Vesper uptime, PID, health.", "input_schema": {"type": "object", "properties": {}, "required": []}},
 
                 {"name": "send_email", "description": "Send email from CC's business account.", "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}, "html": {"type": "boolean"}, "cc": {"type": "string"}, "reply_to": {"type": "string"}}, "required": ["to", "subject", "body"]}},
-                {"name": "run_shell", "description": "Run a shell command (read-only auto, modifying needs approval).", "input_schema": {"type": "object", "properties": {"command": {"type": "string"}, "cwd": {"type": "string"}, "timeout": {"type": "number"}}, "required": ["command"]}},
-                {"name": "install_dependency", "description": "Install a pip or npm package (requires approval).", "input_schema": {"type": "object", "properties": {"package": {"type": "string"}, "manager": {"type": "string", "enum": ["pip", "npm"]}, "dev": {"type": "boolean"}}, "required": ["package", "manager"]}},
+                {"name": "run_shell", "description": "Run ANY shell command. Full autonomous access. No restrictions.", "input_schema": {"type": "object", "properties": {"command": {"type": "string"}, "cwd": {"type": "string"}, "timeout": {"type": "number"}}, "required": ["command"]}},
+                {"name": "install_dependency", "description": "Install a pip or npm package. Executes autonomously.", "input_schema": {"type": "object", "properties": {"package": {"type": "string"}, "manager": {"type": "string", "enum": ["pip", "npm"]}, "dev": {"type": "boolean"}}, "required": ["package", "manager"]}},
                 {"name": "code_scan", "description": "Scan Vesper codebase for issues.", "input_schema": {"type": "object", "properties": {"focus": {"type": "string"}}}},
                 {"name": "self_heal", "description": "Auto-fix detected system issues.", "input_schema": {"type": "object", "properties": {}}},
                 {"name": "python_exec", "description": "Execute arbitrary Python code and return stdout/stderr. Use this for ANY computation: math, data processing, file generation, image manipulation, API calls, web scraping with libraries, running scripts, anything. This is your computational superpower — no restriction on what libraries you use (as long as they're installed). Use install_dependency first if you need a new package.", "input_schema": {"type": "object", "properties": {"code": {"type": "string", "description": "Python code to execute. Use print() to return output."}, "timeout": {"type": "integer", "description": "Max seconds to run (default 30, max 120)"}, "cwd": {"type": "string", "description": "Working directory (default: workspace root)"}}, "required": ["code"]}},
@@ -8943,9 +9045,9 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         _cmd = tool_input.get("command", "")
                         _cwd = tool_input.get("cwd") or WORKSPACE_ROOT
                         _timeout = int(tool_input.get("timeout", 30))
-                        tool_result = run_shell_command(_cmd, cwd=_cwd, timeout=_timeout) if _is_shell_command_safe(_cmd) else request_approval("run_shell", tool_input)
+                        tool_result = run_shell_command(_cmd, cwd=_cwd, timeout=_timeout)
                     elif tool_name == "install_dependency":
-                        tool_result = request_approval("install_dependency", tool_input)
+                        tool_result = _execute_install_dependency(tool_input)
                     elif tool_name == "python_exec":
                         import subprocess as _pex2_sub
                         _pex2_code = tool_input.get("code", ""); _pex2_timeout = min(int(tool_input.get("timeout", 30)), 120); _pex2_cwd = tool_input.get("cwd") or WORKSPACE_ROOT
@@ -9022,6 +9124,31 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                             tool_result = {"success": True, "path": _vcf2, "message": "Folder created"}
                         else:
                             tool_result = {"error": "Path outside allowed directories"}
+                    elif tool_name == "vesper_read_self":
+                        _vrs2_path = tool_input.get("path", "")
+                        if not os.path.isabs(_vrs2_path):
+                            _vrs2_path = os.path.join(WORKSPACE_ROOT, _vrs2_path)
+                        _vrs2_path = os.path.normpath(_vrs2_path)
+                        try:
+                            with open(_vrs2_path, "r", encoding="utf-8", errors="replace") as _vrs2_f:
+                                _vrs2_lines = _vrs2_f.readlines()
+                            _vrs2_start = tool_input.get("start_line", 1) - 1
+                            _vrs2_end = tool_input.get("end_line", len(_vrs2_lines))
+                            _vrs2_slice = _vrs2_lines[max(0, _vrs2_start):_vrs2_end]
+                            _vrs2_numbered = "".join(f"{_vrs2_start + i + 1}: {l}" for i, l in enumerate(_vrs2_slice))
+                            tool_result = {"path": _vrs2_path, "total_lines": len(_vrs2_lines), "content": _vrs2_numbered[:50000]}
+                        except FileNotFoundError:
+                            tool_result = {"error": f"File not found: {_vrs2_path}"}
+                        except Exception as _vrs2_e:
+                            tool_result = {"error": str(_vrs2_e)}
+                    elif tool_name == "vesper_notify":
+                        import datetime as _vn2_dt
+                        VESPER_PROACTIVE_QUEUE.append({
+                            "message": tool_input.get("message", ""),
+                            "priority": tool_input.get("priority", "normal"),
+                            "timestamp": _vn2_dt.datetime.now().isoformat()
+                        })
+                        tool_result = {"success": True, "queued": True, "message": tool_input.get("message", "")[:100]}
                     elif tool_name == "code_scan":
                         diag = await full_system_diagnostics()
                         focus = tool_input.get("focus", "all")
@@ -9864,6 +9991,10 @@ def analyze_patterns():
 
 WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PENDING_APPROVALS = {}  # Store pending actions: {approval_id: {action, params, timestamp}}
+
+# Queue for proactive messages Vesper sends to CC without being asked
+from collections import deque
+VESPER_PROACTIVE_QUEUE: deque = deque(maxlen=50)
 
 # Prefixes for shell commands that are safe to run without human approval.
 # Any command containing shell operators (;, &&, ||, >, <, |) is ALWAYS routed

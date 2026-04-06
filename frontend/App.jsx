@@ -1157,7 +1157,29 @@ export default function App() {
     fetchRuntimeCapabilities();
   }, [fetchRuntimeCapabilities]);
 
-  // ── Background auto-rotation ──
+  // ── Vesper proactive message polling ──────────────────────────────────────
+  // Vesper can queue messages for CC using the vesper_notify tool.
+  // Frontend polls every 30s and injects them into the chat automatically.
+  useEffect(() => {
+    const pollProactive = async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/vesper/proactive`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.messages && data.messages.length > 0) {
+          for (const msg of data.messages) {
+            addLocalMessage('assistant', `🔔 ${msg.message}`);
+          }
+        }
+      } catch {
+        // silently ignore poll failures
+      }
+    };
+    const timer = setInterval(pollProactive, 30000);
+    return () => clearInterval(timer);
+  }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem('vesper_bg_rotate');
