@@ -9119,6 +9119,13 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         _gi_prompt = tool_input.get("prompt", "")
                         _gi_size = tool_input.get("size", "1024x1024")
                         _gi_as_wp = tool_input.get("as_wallpaper", False)
+                        # Auto-detect wallpaper intent from user message
+                        if not _gi_as_wp:
+                            _last_user_msg = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
+                            if isinstance(_last_user_msg, str):
+                                _wp_kws = ("wallpaper", "background", "set it as", "as my bg", "as my background", "set as wallpaper", "make it my wallpaper", "use as wallpaper")
+                                if any(w in _last_user_msg.lower() for w in _wp_kws):
+                                    _gi_as_wp = True
                         _gi_url = None
                         if os.getenv("OPENAI_API_KEY"):
                             try:

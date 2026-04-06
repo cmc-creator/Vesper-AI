@@ -274,7 +274,6 @@ const NAV = [
   { id: 'chat', label: 'Chat', icon: HubRounded },
   { id: 'research', label: 'Research Tools', icon: ScienceRounded },
   { id: 'documents', label: 'Documents', icon: DownloadIcon },
-  { id: 'memory', label: 'Memory Core', icon: StorageRounded },
   { id: 'tasks', label: 'Task Matrix', icon: ChecklistRounded },
   { id: 'nyxshift', label: 'Creative Suite', icon: AutoStories },
   { id: 'gallery', label: 'Media Gallery', icon: PhotoLibrary },
