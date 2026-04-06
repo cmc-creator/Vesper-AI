@@ -9104,11 +9104,13 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         "role": "user", "content": chat.message,
                         "timestamp": datetime.datetime.now().isoformat()
                     })
-                memory_db.add_message_to_thread(chat.thread_id, {
-                    "role": "assistant", "content": ai_response_clean,
-                    "timestamp": datetime.datetime.now().isoformat(),
-                    "provider": provider
-                })
+                # Only save non-empty assistant responses — empty strings corrupt context
+                if ai_response_clean and ai_response_clean.strip():
+                    memory_db.add_message_to_thread(chat.thread_id, {
+                        "role": "assistant", "content": ai_response_clean,
+                        "timestamp": datetime.datetime.now().isoformat(),
+                        "provider": provider
+                    })
                 # Check if it's time for autonomous self-reflection
                 try:
                     reflection_prompt = increment_and_check_reflection()

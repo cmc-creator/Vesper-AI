@@ -349,16 +349,19 @@ class AIRouter:
     
     async def _chat_openai(self, messages, model, tools, max_tokens, temperature):
         """Chat with OpenAI GPT"""
-        # o1/o3 models use max_completion_tokens; all others use max_tokens
-        tokens_key = "max_completion_tokens" if model.startswith(("o1", "o3")) else "max_tokens"
+        # o1/o3 and gpt-5.x (reasoning) models use max_completion_tokens, not max_tokens.
+        # They also don't support temperature, frequency_penalty, or presence_penalty.
+        is_reasoning = model.startswith(("o1", "o3", "o4", "gpt-5"))
+        tokens_key = "max_completion_tokens" if is_reasoning else "max_tokens"
         kwargs = {
             "model": model,
             "messages": messages,
             tokens_key: max_tokens,
-            "temperature": temperature,
-            "frequency_penalty": 0.5,  # Reduce repetition of tokens
-            "presence_penalty": 0.5    # Encourage new topics
         }
+        if not is_reasoning:
+            kwargs["temperature"] = temperature
+            kwargs["frequency_penalty"] = 0.5
+            kwargs["presence_penalty"] = 0.5
         
         if tools:
             # Convert Claude tools to OpenAI format
