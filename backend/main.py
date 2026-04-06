@@ -9191,8 +9191,211 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         tool_result = diag if focus == "all" or focus not in diag.get("checks", {}) else {"status": diag["status"], "focus": focus, "check": diag["checks"][focus]}
                     elif tool_name == "self_heal":
                         tool_result = await self_heal()
+                    elif tool_name == "generate_chart":
+                        tool_result = {"type": "chart_visualization", "chart_type": tool_input.get("type", "line"), "title": tool_input.get("title", "Chart"), "data": tool_input.get("data", []), "keys": {"x": tool_input.get("x_key", "x"), "y": tool_input.get("y_key", "y")}}
+                        visualizations.append(tool_result)
+                    elif tool_name == "read_file":
+                        tool_result = file_system_access(FileOperation(path=tool_input.get("path", ""), operation="read"))
+                    elif tool_name == "write_file":
+                        tool_result = file_system_access(FileOperation(path=tool_input.get("path", ""), content=tool_input.get("content", ""), operation="write"))
+                    elif tool_name == "list_directory":
+                        tool_result = file_system_access(FileOperation(path=tool_input.get("path", ""), operation="list"))
+                    elif tool_name == "execute_python":
+                        tool_result = execute_code(CodeExecution(code=tool_input.get("code", ""), language="python"))
+                    elif tool_name == "analyze_patterns":
+                        tool_result = analyze_patterns()
+                    elif tool_name == "git_status":
+                        tool_result = git_status()
+                    elif tool_name == "git_diff":
+                        tool_result = git_diff(tool_input.get("file_path"))
+                    elif tool_name == "git_commit":
+                        tool_result = _execute_git_commit(tool_input)
+                    elif tool_name == "git_push":
+                        tool_result = _execute_git_push(tool_input)
+                    elif tool_name == "vercel_deployments":
+                        tool_result = vercel_get_deployments(tool_input.get("project", "vesper-ai-delta"))
+                    elif tool_name == "vercel_deploy":
+                        tool_result = _execute_vercel_deploy(tool_input)
+                    elif tool_name == "vercel_set_env":
+                        tool_result = _execute_vercel_set_env(tool_input)
+                    elif tool_name == "railway_logs":
+                        tool_result = railway_get_logs(tool_input.get("limit", 50))
+                    elif tool_name == "railway_restart":
+                        tool_result = _execute_railway_restart(tool_input)
+                    elif tool_name == "github_search_issues":
+                        tool_result = github_search_issues(tool_input.get("query", ""), tool_input.get("repo", "cmc-creator/Vesper-AI"))
+                    elif tool_name == "github_create_issue":
+                        tool_result = _execute_github_create_issue(tool_input)
+                    elif tool_name == "approve_action":
+                        tool_result = execute_approved_action(tool_input.get("approval_id"), True)
+                    elif tool_name == "deny_action":
+                        tool_result = execute_approved_action(tool_input.get("approval_id"), False)
+                    elif tool_name == "get_recent_threads":
+                        _grt_threads = memory_db.get_all_threads()[:tool_input.get("limit", 10)]
+                        tool_result = {"threads": _grt_threads, "count": len(_grt_threads)}
+                    elif tool_name == "get_thread_messages":
+                        _gtm_thread = memory_db.get_thread(tool_input.get("thread_id"))
+                        tool_result = {"thread": _gtm_thread, "messages": _gtm_thread.get("messages", []) if _gtm_thread else []}
+                    elif tool_name == "get_research":
+                        _gr_res = memory_db.get_research(limit=tool_input.get("limit", 20))
+                        tool_result = {"research": _gr_res, "count": len(_gr_res)}
+                    elif tool_name == "stripe_create_invoice":
+                        import urllib.request as _streq2, urllib.parse as _stparse2, json as _stj2
+                        _stkey2 = os.getenv("STRIPE_SECRET_KEY", "")
+                        if not _stkey2: tool_result = {"error": "Set STRIPE_SECRET_KEY in .env. Get it from dashboard.stripe.com"}
+                        else:
+                            try:
+                                def _st_post2(endpoint, data):
+                                    r = _streq2.Request(f"https://api.stripe.com/v1/{endpoint}", data=_stparse2.urlencode(data).encode(), headers={"Authorization": f"Bearer {_stkey2}"}, method="POST")
+                                    with _streq2.urlopen(r, timeout=15) as resp: return _stj2.loads(resp.read())
+                                _cust2 = _st_post2("customers", {"email": tool_input.get("customer_email", ""), "name": tool_input.get("customer_name", "")})
+                                _inv2 = _st_post2("invoices", {"customer": _cust2["id"], "collection_method": "send_invoice", "days_until_due": "7"})
+                                _st_post2("invoiceitems", {"customer": _cust2["id"], "amount": str(tool_input.get("amount_cents", 0)), "currency": tool_input.get("currency", "usd"), "description": tool_input.get("description", ""), "invoice": _inv2["id"]})
+                                if tool_input.get("auto_send", True): _st_post2(f"invoices/{_inv2['id']}/send", {})
+                                tool_result = {"success": True, "invoice_id": _inv2["id"], "invoice_url": _inv2.get("hosted_invoice_url", ""), "customer_email": tool_input.get("customer_email"), "amount": f"${tool_input.get('amount_cents', 0) / 100:.2f}"}
+                            except Exception as _ste2: tool_result = {"error": f"Stripe error: {str(_ste2)}"}
+                    elif tool_name == "stripe_create_payment_link":
+                        import urllib.request as _stlreq2, urllib.parse as _stlparse2, json as _stlj2
+                        _stlkey2 = os.getenv("STRIPE_SECRET_KEY", "")
+                        if not _stlkey2: tool_result = {"error": "Set STRIPE_SECRET_KEY in .env"}
+                        else:
+                            try:
+                                def _stl_post2(ep, d):
+                                    r = _stlreq2.Request(f"https://api.stripe.com/v1/{ep}", data=_stlparse2.urlencode(d).encode(), headers={"Authorization": f"Bearer {_stlkey2}"}, method="POST")
+                                    return _stlj2.loads(_stlreq2.urlopen(r, timeout=15).read())
+                                _price2 = _stl_post2("prices", {"unit_amount": str(tool_input.get("amount_cents", 0)), "currency": tool_input.get("currency", "usd"), "product_data[name]": tool_input.get("name", "Service")})
+                                _link2 = _stl_post2("payment_links", {f"line_items[0][price]": _price2["id"], f"line_items[0][quantity]": str(tool_input.get("quantity", 1))})
+                                tool_result = {"success": True, "payment_link": _link2["url"], "link_id": _link2["id"], "amount": f"${tool_input.get('amount_cents', 0) / 100:.2f}", "name": tool_input.get("name")}
+                            except Exception as _stle2: tool_result = {"error": f"Stripe error: {str(_stle2)}"}
+                    elif tool_name == "stripe_list_payments":
+                        import urllib.request as _slreq2, json as _slj2
+                        _slkey2 = os.getenv("STRIPE_SECRET_KEY", "")
+                        if not _slkey2: tool_result = {"error": "Set STRIPE_SECRET_KEY in .env"}
+                        else:
+                            try:
+                                _slimit2 = min(tool_input.get("limit", 10), 100)
+                                _slr2 = _slreq2.Request(f"https://api.stripe.com/v1/payment_intents?limit={_slimit2}", headers={"Authorization": f"Bearer {_slkey2}"})
+                                with _slreq2.urlopen(_slr2, timeout=15) as _slresp2: _sldata2 = _slj2.loads(_slresp2.read())
+                                _payments2 = [{"id": p["id"], "amount": f"${p['amount'] / 100:.2f}", "currency": p["currency"], "status": p["status"], "customer": p.get("receipt_email", ""), "created": str(__import__("datetime").datetime.fromtimestamp(p["created"]))} for p in _sldata2.get("data", [])]
+                                _sf2 = tool_input.get("status", "")
+                                if _sf2: _payments2 = [p for p in _payments2 if p["status"] == _sf2]
+                                _total2 = sum(float(p["amount"].replace("$", "")) for p in _payments2 if p["status"] == "succeeded")
+                                tool_result = {"payments": _payments2, "total_succeeded": f"${_total2:.2f}", "count": len(_payments2)}
+                            except Exception as _sle2: tool_result = {"error": f"Stripe error: {str(_sle2)}"}
+                    elif tool_name == "schedule_task":
+                        import json as _schj2
+                        _sch_file2 = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "tasks_scheduled.json")
+                        try: _sch_tasks2 = _schj2.loads(open(_sch_file2).read()) if os.path.exists(_sch_file2) else {}
+                        except: _sch_tasks2 = {}
+                        _tn2 = tool_input.get("task_name", "unnamed")
+                        _sch_tasks2[_tn2] = {"task_name": _tn2, "description": tool_input.get("description", ""), "interval_hours": tool_input.get("interval_hours", 24), "action": tool_input.get("action", "custom"), "action_params": tool_input.get("action_params", "{}"), "enabled": tool_input.get("enabled", True), "created": str(__import__("datetime").datetime.utcnow()), "last_run": None, "next_run": str(__import__("datetime").datetime.utcnow())}
+                        with open(_sch_file2, "w") as _sf2: _schj2.dump(_sch_tasks2, _sf2, indent=2)
+                        tool_result = {"success": True, "task_name": _tn2, "interval_hours": tool_input.get("interval_hours", 24), "message": f"Task '{_tn2}' scheduled. Restart backend to activate."}
+                    elif tool_name == "list_scheduled_tasks":
+                        import json as _lstj2
+                        _lst_file2 = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "tasks_scheduled.json")
+                        try: _lst_tasks2 = _lstj2.loads(open(_lst_file2).read())
+                        except: _lst_tasks2 = {}
+                        tool_result = {"tasks": list(_lst_tasks2.values()), "count": len(_lst_tasks2)}
+                    elif tool_name == "cancel_scheduled_task":
+                        import json as _cstj2
+                        _cst_file2 = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "tasks_scheduled.json")
+                        try: _cst_tasks2 = _cstj2.loads(open(_cst_file2).read())
+                        except: _cst_tasks2 = {}
+                        _ctn2 = tool_input.get("task_name", "")
+                        if _ctn2 in _cst_tasks2:
+                            del _cst_tasks2[_ctn2]
+                            with open(_cst_file2, "w") as _csf2: _cstj2.dump(_cst_tasks2, _csf2, indent=2)
+                            tool_result = {"success": True, "cancelled": _ctn2}
+                        else: tool_result = {"error": f"Task '{_ctn2}' not found", "available": list(_cst_tasks2.keys())}
+                    elif tool_name == "spawn_worker":
+                        import threading as _spth2, json as _spj2, uuid as _spuuid2
+                        _sp_id2 = str(_spuuid2.uuid4())[:8]
+                        _sp_name2 = tool_input.get("worker_name", f"worker-{_sp_id2}")
+                        _sp_task2 = tool_input.get("task", "")
+                        _sp_timeout2 = tool_input.get("timeout_minutes", 30) * 60
+                        _sp_log_file2 = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "workers", f"{_sp_id2}.json")
+                        os.makedirs(os.path.dirname(_sp_log_file2), exist_ok=True)
+                        _sp_state2 = {"worker_id": _sp_id2, "worker_name": _sp_name2, "task": _sp_task2, "status": "running", "started": str(__import__("datetime").datetime.utcnow()), "output": [], "error": None}
+                        with open(_sp_log_file2, "w") as _spf2: _spj2.dump(_sp_state2, _spf2, indent=2)
+                        def _sp_run2(wid, task, log_path, timeout):
+                            import json, subprocess, datetime
+                            try:
+                                result = subprocess.run(["python", "-c", f"print('Worker {wid}: {task[:200]}')"], capture_output=True, text=True, timeout=timeout)
+                                state = json.loads(open(log_path).read())
+                                state["status"] = "completed"; state["output"] = result.stdout.splitlines(); state["finished"] = str(datetime.datetime.utcnow())
+                            except Exception as e:
+                                state = json.loads(open(log_path).read())
+                                state["status"] = "error"; state["error"] = str(e); state["finished"] = str(datetime.datetime.utcnow())
+                            with open(log_path, "w") as f: json.dump(state, f, indent=2)
+                        import threading as _spth2b
+                        _spth2b.Thread(target=_sp_run2, args=(_sp_id2, _sp_task2, _sp_log_file2, _sp_timeout2), daemon=True).start()
+                        tool_result = {"success": True, "worker_id": _sp_id2, "worker_name": _sp_name2, "task": _sp_task2, "message": f"Worker {_sp_id2} spawned. Use check_worker to get results."}
+                    elif tool_name == "check_worker":
+                        import json as _cwj2
+                        _cw_id2 = tool_input.get("worker_id", "")
+                        _cw_dir2 = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "workers")
+                        _cw_file2 = os.path.join(_cw_dir2, f"{_cw_id2}.json")
+                        if os.path.exists(_cw_file2):
+                            tool_result = _cwj2.loads(open(_cw_file2).read())
+                        else:
+                            _workers2 = os.listdir(_cw_dir2) if os.path.exists(_cw_dir2) else []
+                            tool_result = {"error": f"Worker '{_cw_id2}' not found", "available_workers": [w.replace(".json", "") for w in _workers2]}
+                    elif tool_name == "track_prospect":
+                        import json as _tpj2
+                        from datetime import datetime as _tpdt2
+                        _tpdir2 = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "crm")
+                        os.makedirs(_tpdir2, exist_ok=True)
+                        _tpfile2 = os.path.join(_tpdir2, "prospects.json")
+                        try: _tpcrm2 = _tpj2.loads(open(_tpfile2).read())
+                        except: _tpcrm2 = {}
+                        _tpemail2 = tool_input.get("email", "").strip().lower()
+                        if not _tpemail2: tool_result = {"error": "email is required to identify the prospect"}
+                        else:
+                            _tpexisting2 = _tpcrm2.get(_tpemail2, {})
+                            _tpcrm2[_tpemail2] = {**_tpexisting2, "email": _tpemail2, "name": tool_input.get("name", _tpexisting2.get("name", "")), "company": tool_input.get("company", _tpexisting2.get("company", "")), "phone": tool_input.get("phone", _tpexisting2.get("phone", "")), "status": tool_input.get("status", _tpexisting2.get("status", "lead")), "notes": tool_input.get("notes", _tpexisting2.get("notes", "")), "deal_value": tool_input.get("deal_value", _tpexisting2.get("deal_value", 0)), "next_followup": tool_input.get("next_followup", _tpexisting2.get("next_followup", "")), "tags": tool_input.get("tags", _tpexisting2.get("tags", "")), "last_updated": str(_tpdt2.utcnow())[:19]}
+                            if "created" not in _tpexisting2: _tpcrm2[_tpemail2]["created"] = str(_tpdt2.utcnow())[:19]
+                            with open(_tpfile2, "w") as _tpf2: _tpj2.dump(_tpcrm2, _tpf2, indent=2)
+                            tool_result = {"success": True, "prospect": _tpcrm2[_tpemail2], "is_new": ("created" not in _tpexisting2)}
+                    elif tool_name == "get_prospects":
+                        import json as _gpj2
+                        from datetime import datetime as _gpdt2
+                        _gpfile2 = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "crm", "prospects.json")
+                        try: _gpcrm2 = list(_gpj2.loads(open(_gpfile2).read()).values())
+                        except: _gpcrm2 = []
+                        _gpstatus2 = tool_input.get("status", ""); _gpsearch2 = tool_input.get("search", "").lower(); _gpoverdue2 = tool_input.get("overdue_only", False)
+                        _gptoday2 = str(_gpdt2.utcnow())[:10]
+                        if _gpstatus2: _gpcrm2 = [p for p in _gpcrm2 if p.get("status") == _gpstatus2]
+                        if _gpsearch2: _gpcrm2 = [p for p in _gpcrm2 if _gpsearch2 in p.get("name", "").lower() or _gpsearch2 in p.get("company", "").lower() or _gpsearch2 in p.get("email", "").lower()]
+                        _gpoverdue_list2 = [p for p in _gpcrm2 if p.get("next_followup") and p["next_followup"] <= _gptoday2]
+                        if _gpoverdue2: _gpcrm2 = _gpoverdue_list2
+                        _gpstats2 = {_s: sum(1 for p in _gpcrm2 if p.get("status") == _s) for _s in ["lead", "qualified", "proposal", "negotiating", "won", "lost"]}
+                        _gptotal_value2 = sum(p.get("deal_value", 0) for p in _gpcrm2 if p.get("status") in ("proposal", "negotiating", "won"))
+                        tool_result = {"prospects": _gpcrm2, "count": len(_gpcrm2), "overdue_followups": len(_gpoverdue_list2), "pipeline_stats": _gpstats2, "total_pipeline_value": f"${_gptotal_value2:,.0f}"}
+                    elif tool_name == "compare_prices":
+                        _cpr2 = tool_input.get("product", ""); _cpsites2 = tool_input.get("sites", "amazon,ebay,walmart"); _cplim2 = tool_input.get("limit", 10)
+                        _cpsite_filter2 = " OR ".join(f"site:{s.strip().replace('https://', '').rstrip('/')}.com" for s in _cpsites2.split(",") if s.strip())
+                        _cpq2 = f'{_cpr2} buy price {_cpsite_filter2}'
+                        try:
+                            from duckduckgo_search import DDGS as _CPDDGS2
+                            _cpresults2 = list(_CPDDGS2().text(_cpq2, max_results=_cplim2))
+                            tool_result = {"results": _cpresults2, "product": _cpr2, "count": len(_cpresults2), "tip": "Use scrape_page on any result URL for detailed pricing"}
+                        except ImportError: tool_result = {"error": "pip install duckduckgo-search"}
+                        except Exception as _cpe2: tool_result = {"error": str(_cpe2)}
+                    elif tool_name == "research_domain":
+                        import urllib.request as _dmr2, urllib.error as _dmerror2, json as _dmj2
+                        _dmdomain2 = tool_input.get("domain", "").strip().lower().lstrip("https://").lstrip("http://").rstrip("/")
+                        try:
+                            _dmreq2 = _dmr2.Request(f"https://rdap.org/domain/{_dmdomain2}", headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"})
+                            with _dmr2.urlopen(_dmreq2, timeout=10) as _dmresp2: _dmdata2 = _dmj2.loads(_dmresp2.read())
+                            _dmreg_date2 = [e.get("date", "") for e in _dmdata2.get("events", []) if e.get("eventAction") == "registration"]
+                            tool_result = {"domain": _dmdomain2, "registered": True, "status": _dmdata2.get("status", []), "registered_since": _dmreg_date2[0] if _dmreg_date2 else "unknown", "wayback_url": f"https://web.archive.org/web/*/{_dmdomain2}", "valuation_url": f"https://www.godaddy.com/domain-value-appraisal/appraisal/?checkAvail=1&domainToCheck={_dmdomain2}"}
+                        except _dmerror2.HTTPError as _dmerr2:
+                            if _dmerr2.code == 404: tool_result = {"domain": _dmdomain2, "registered": False, "available": True, "message": f"Domain {_dmdomain2} appears to be AVAILABLE!", "register_url": f"https://www.namecheap.com/domains/registration/results/?domain={_dmdomain2}"}
+                            else: tool_result = {"error": f"RDAP error: {str(_dmerr2)}"}
+                        except Exception as _dme22: tool_result = {"error": str(_dme22)}
                     else:
-                        tool_result = {"error": f"Tool not available in streaming mode: {tool_name}"}
+                        tool_result = {"error": f"Unknown tool: {tool_name}"}
                 except Exception as e:
                     tool_result = {"error": f"Tool failed: {str(e)}"}
                 
