@@ -170,12 +170,12 @@ class AIRouter:
                 ]
             }
         
-        # Model selection per provider — ALWAYS latest stable
+        # Model selection per provider — confirmed working model IDs
         self.models = {
-            ModelProvider.OPENAI: "gpt-5.4-mini",     # GPT-5.4 Mini — fast + affordable
-            ModelProvider.GOOGLE: "gemini-2.5-flash", # Gemini 2.5 Flash — stable (2.0 is deprecated)
-            ModelProvider.ANTHROPIC: "claude-sonnet-4-6",  # Claude Sonnet 4.6 — best balance
-            ModelProvider.OLLAMA: "llama3.2:latest"   # Free local
+            ModelProvider.OPENAI: "gpt-4o-mini",              # Confirmed stable — cheap + fast
+            ModelProvider.GOOGLE: "gemini-2.0-flash",         # Confirmed stable free tier
+            ModelProvider.ANTHROPIC: "claude-3-5-haiku-20241022",  # Confirmed haiku — fast + affordable
+            ModelProvider.OLLAMA: "llama3.2:latest"           # Free local
         }
     
     def get_available_provider(self, task_type: TaskType) -> Optional[ModelProvider]:
@@ -349,8 +349,8 @@ class AIRouter:
     
     async def _chat_openai(self, messages, model, tools, max_tokens, temperature):
         """Chat with OpenAI GPT"""
-        # GPT-5.x uses max_completion_tokens; older models use max_tokens
-        tokens_key = "max_completion_tokens" if model.startswith("gpt-5") else "max_tokens"
+        # o1/o3 models use max_completion_tokens; all others use max_tokens
+        tokens_key = "max_completion_tokens" if model.startswith(("o1", "o3")) else "max_tokens"
         kwargs = {
             "model": model,
             "messages": messages,
