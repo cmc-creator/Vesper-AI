@@ -4931,8 +4931,8 @@ async def chat_with_vesper(chat: ChatMessage):
     """Chat with Vesper using Multi-Model AI (supports images)"""
     try:
         # Check AI providers configured
-        if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
-            return {"response": "Need at least one API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY)"}
+        if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY")):
+            return {"response": "Need at least one API key (GROQ_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY)"}
         
         # Load thread - simple, no nested calls
         try:
@@ -8333,8 +8333,8 @@ async def chat_stream(chat: ChatMessage):
             yield f"data: {json.dumps({'type': 'status', 'content': 'Thinking...'})}\n\n"
             
             # ── Build messages exactly like /api/chat ────────────────────
-            if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
-                yield f"data: {json.dumps({'type': 'chunk', 'content': 'Need at least one API key.'})}\n\n"
+            if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY")):
+                yield f"data: {json.dumps({'type': 'chunk', 'content': 'Need at least one API key (GROQ_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY).'})}\n\n"
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
                 return
             

@@ -172,7 +172,7 @@ class AIRouter:
         # Model selection per provider — current model IDs (April 2026)
         self.models = {
             ModelProvider.GROQ: "llama-3.3-70b-versatile",   # Free tier — 14k req/day, fast + smart
-            ModelProvider.OPENAI: "gpt-5.4-mini",             # Current mini — fast + affordable
+            ModelProvider.OPENAI: "gpt-4o-mini",              # Current mini — fast + affordable
             ModelProvider.GOOGLE: "gemini-2.5-flash",         # Current stable free tier
             ModelProvider.ANTHROPIC: "claude-sonnet-4-6",     # Current sonnet — fast + smart
             ModelProvider.OLLAMA: "llama3.2:latest"           # Free local
