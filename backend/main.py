@@ -787,6 +787,7 @@ def load_sassy(name):
     return []
 
 def save_sassy(name, data):
+    os.makedirs(SASSY_DIR, exist_ok=True)
     with open(sassy_path(name), 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -3147,6 +3148,7 @@ async def self_heal():
         os.path.join(WORKSPACE_ROOT, 'vesper-ai', 'style'),
         os.path.join(WORKSPACE_ROOT, 'vesper-ai', 'growth'),
         os.path.join(WORKSPACE_ROOT, 'vesper-ai', 'sassy'),
+        os.path.join(WORKSPACE_ROOT, 'vesper-ai', 'media'),
     ]
     for d in data_dirs:
         if not os.path.exists(d):
@@ -7124,6 +7126,8 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         _wp_bg_data = _wp_json.loads(open(_wp_bg_file, encoding="utf-8").read()) if os.path.exists(_wp_bg_file) else {"backgrounds": [], "settings": {}}
                         _wp_bg_data["backgrounds"].append(_wp_item)
                         open(_wp_bg_file, "w", encoding="utf-8").write(_wp_json.dumps(_wp_bg_data, indent=2))
+                    if img_url:
+                        _save_media_item("image", img_url, img_prompt, {"provider": provider, "size": img_size})
                     tool_result = {
                         "type": "image_generation",
                         "image_url": img_url,
@@ -9134,6 +9138,8 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                             _gi_wp_id = f"vesper-{int(_gidt.datetime.now().timestamp()*1000)}"
                             _gi_wp_name = _gi_prompt[:60] if _gi_prompt else "Vesper's Design"
                             yield f"data: {json.dumps({'type': 'vesper_decorate', 'action': 'wallpaper', 'data': {'url': _gi_url, 'name': _gi_wp_name, 'id': _gi_wp_id}})}\n\n"
+                        if _gi_url:
+                            _save_media_item("image", _gi_url, _gi_prompt, {"provider": _gi_provider, "size": _gi_size})
                         tool_result = {"type": "image_generation", "image_url": _gi_url, "prompt": _gi_prompt, "provider": _gi_provider, "set_as_wallpaper": _gi_as_wp}
                         visualizations.append(tool_result)
                     elif tool_name == "code_scan":

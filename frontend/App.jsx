@@ -28,6 +28,9 @@ import {
   Slider,
   Tabs,
   Tab,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -67,6 +70,7 @@ import {
   Menu as MenuIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -267,7 +271,7 @@ const THEMES = [
 ];
 
 const NAV = [
-  { id: 'chat', label: 'Neural Chat', icon: HubRounded },
+  { id: 'chat', label: 'Chat', icon: HubRounded },
   { id: 'research', label: 'Research Tools', icon: ScienceRounded },
   { id: 'documents', label: 'Documents', icon: DownloadIcon },
   { id: 'memory', label: 'Memory Core', icon: StorageRounded },
@@ -3001,7 +3005,7 @@ export default function App() {
       await fetch(`${apiBase}/api/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...taskForm, createdAt: new Date().toISOString() }),
+        body: JSON.stringify({ ...taskForm, due_date: taskForm.dueDate || null, createdAt: new Date().toISOString() }),
       });
       setTaskForm({ title: '', status: 'inbox' });
       fetchTasks();
@@ -4807,6 +4811,11 @@ export default function App() {
                     sx={{ width: 80 }}
                     InputProps={{ sx: { color: '#fff' } }}
                   />
+                  <Tooltip title="Refresh">
+                    <IconButton size="small" onClick={() => fetchAnalytics(analyticsDays)} sx={{ color: 'var(--accent)' }}>
+                      <AutoFixHigh fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                   <Tooltip title="Back to Chat">
                     <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
                       <ArrowBackIcon fontSize="small" />
@@ -4817,69 +4826,106 @@ export default function App() {
               {analyticsLoading ? (
                 <CircularProgress sx={{ color: 'var(--accent)', mt: 2 }} />
               ) : analytics ? (
-                <Stack spacing={2}>
+                <Stack spacing={2.5}>
+                  {/* Stat Cards */}
+                  <Grid container spacing={1.5}>
+                    {[
+                      { label: 'Total Events', value: analytics.total_events || 0, color: 'var(--accent)' },
+                      { label: 'Success Rate', value: `${(analytics.success_rate || 0).toFixed(1)}%`, color: '#00ff88' },
+                      { label: 'Failed', value: analytics.failed_events || 0, color: '#ff4444' },
+                      { label: 'Avg Response', value: `${(analytics.avg_response_time_ms || 0).toFixed(0)}ms`, color: '#ffaa00' },
+                      { label: 'Total Tokens', value: (analytics.total_tokens || 0).toLocaleString(), color: '#aa88ff' },
+                      { label: 'Providers Used', value: Object.keys(analytics.providers || {}).length, color: '#ff88ff' },
+                    ].map(({ label, value, color }) => (
+                      <Grid item xs={6} sm={4} md={2} key={label}>
+                        <Box className="glass-card" sx={{ p: 1.5, textAlign: 'center' }}>
+                          <Typography variant="h6" sx={{ fontWeight: 800, color }}>{value}</Typography>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem' }}>{label}</Typography>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+
+                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+
                   <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Box className="glass-card" sx={{ p: 1.5 }}>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Total Events</Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{analytics.total_events || 0}</Typography>
-                      </Box>
+                    {/* AI Providers */}
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>🤖 AI Providers</Typography>
+                      <Stack spacing={1}>
+                        {Object.entries(analytics.providers || {}).length === 0 ? (
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>No provider data yet</Typography>
+                        ) : Object.entries(analytics.providers || {})
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([provider, count]) => {
+                            const pct = Math.round((count / (analytics.total_events || 1)) * 100);
+                            return (
+                              <Box key={provider}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                                  <Typography variant="body2" sx={{ textTransform: 'capitalize', fontWeight: 600 }}>{provider}</Typography>
+                                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>{count} ({pct}%)</Typography>
+                                </Box>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={pct}
+                                  sx={{
+                                    height: 6,
+                                    borderRadius: 3,
+                                    bgcolor: 'rgba(255,255,255,0.07)',
+                                    '& .MuiLinearProgress-bar': { bgcolor: 'var(--accent)', borderRadius: 3 }
+                                  }}
+                                />
+                              </Box>
+                            );
+                          })}
+                      </Stack>
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Box className="glass-card" sx={{ p: 1.5 }}>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Success Rate</Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{(analytics.success_rate || 0).toFixed(1)}%</Typography>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Box className="glass-card" sx={{ p: 1.5 }}>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Avg Response Time</Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{(analytics.avg_response_time_ms || 0).toFixed(0)}ms</Typography>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Box className="glass-card" sx={{ p: 1.5 }}>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Total Tokens</Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{(analytics.total_tokens || 0).toLocaleString()}</Typography>
-                      </Box>
+
+                    {/* Event Types */}
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#aa88ff' }}>⚡ Event Types</Typography>
+                      <Stack spacing={0.75}>
+                        {Object.entries(analytics.event_types || {}).length === 0 ? (
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>No event data yet</Typography>
+                        ) : Object.entries(analytics.event_types || {})
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([etype, count]) => (
+                            <Box key={etype} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 0.75, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.03)' }}>
+                              <Typography variant="body2" sx={{ textTransform: 'capitalize', fontSize: '0.8rem' }}>{etype.replace(/_/g, ' ')}</Typography>
+                              <Chip label={count} size="small" sx={{ height: 18, bgcolor: 'rgba(170,136,255,0.15)', color: '#aa88ff', fontSize: '0.65rem' }} />
+                            </Box>
+                          ))}
+                      </Stack>
                     </Grid>
                   </Grid>
-                  
-                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-                  
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Top Topics</Typography>
-                    <Stack spacing={0.5}>
-                      {Object.entries(analytics.topics || {})
-                        .sort((a, b) => b[1] - a[1])
-                        .slice(0, 5)
-                        .map(([topic, count]) => (
-                          <Box key={topic} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">{topic}</Typography>
-                            <Chip label={count} size="small" className="chip-soft" />
-                          </Box>
-                        ))}
-                    </Stack>
-                  </Box>
 
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>AI Providers</Typography>
-                    <Stack spacing={0.5}>
-                      {Object.entries(analytics.providers || {})
-                        .map(([provider, count]) => (
-                          <Box key={provider} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{provider}</Typography>
-                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                              <LinearProgress variant="determinate" value={(count / (analytics.total_events || 1)) * 100} sx={{ width: 100 }} />
-                              <Typography variant="caption">{count}</Typography>
-                            </Box>
-                          </Box>
-                        ))}
-                    </Stack>
-                  </Box>
+                  {/* Top Topics */}
+                  {Object.keys(analytics.topics || {}).length > 0 && (
+                    <>
+                      <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#ffaa00' }}>💬 Top Conversation Topics</Typography>
+                        <Stack spacing={0.5}>
+                          {Object.entries(analytics.topics || {})
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 8)
+                            .map(([topic, count]) => (
+                              <Box key={topic} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 0.75, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.03)' }}>
+                                <Typography variant="body2" sx={{ fontSize: '0.8rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', pr: 1 }}>{topic}</Typography>
+                                <Chip label={count} size="small" sx={{ height: 18, bgcolor: 'rgba(255,170,0,0.15)', color: '#ffaa00', fontSize: '0.65rem', flexShrink: 0 }} />
+                              </Box>
+                            ))}
+                        </Stack>
+                      </Box>
+                    </>
+                  )}
                 </Stack>
               ) : (
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', mt: 2 }}>No analytics data available yet</Typography>
+                <Box sx={{ textAlign: 'center', py: 6 }}>
+                  <Typography variant="h4" sx={{ mb: 1 }}>📊</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>No analytics data yet</Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', display: 'block', mt: 0.5 }}>Data appears after your first conversations</Typography>
+                </Box>
               )}
             </Paper>
           </DraggableBoard>
@@ -5521,8 +5567,11 @@ export default function App() {
               </Box>
 
               {/* Audio & Voice */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Audio & Voice</Typography>
+              <Accordion defaultExpanded disableGutters elevation={0} sx={{ bgcolor: 'transparent', '&::before': { display: 'none' }, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px !important' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'var(--accent)' }} />} sx={{ px: 2, py: 0.5, minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>🎙️ Audio &amp; Voice</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 2, pb: 2, pt: 0 }}>
                 <Stack spacing={1.5}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
@@ -5762,14 +5811,16 @@ export default function App() {
                     <Chip label="Always On" size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)' }} />
                   </Box>
                 </Stack>
-              </Box>
+                </AccordionDetails>
+              </Accordion>
 
               {/* 3D Avatar Settings */}
-              <Box>
+              <Accordion disableGutters elevation={0} sx={{ bgcolor: 'transparent', '&::before': { display: 'none' }, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px !important' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'var(--accent)' }} />} sx={{ px: 2, py: 0.5, minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>👤 3D Talking Avatar</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 2, pb: 2, pt: 0 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>
-                    👤 3D Talking Avatar
-                  </Typography>
                   <Button
                     size="small"
                     variant="contained"
@@ -5820,12 +5871,16 @@ export default function App() {
                     </Box>
                   )}
                 </Stack>
-              </Box>
+                </AccordionDetails>
+              </Accordion>
 
               {/* Voice Lab (ElevenLabs Premium) */}
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+              <Accordion disableGutters elevation={0} sx={{ bgcolor: 'transparent', '&::before': { display: 'none' }, border: '1px solid rgba(255,187,68,0.2)', borderRadius: '12px !important' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#ffbb44' }} />} sx={{ px: 2, py: 0.5, minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#ffbb44' }}>★ Voice Lab</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 2, pb: 2, pt: 0 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                   <Button
                     size="small"
                     variant="outlined"
@@ -5981,7 +6036,8 @@ export default function App() {
                     </Button>
                   </Box>
                 </Stack>
-              </Box>
+                </AccordionDetails>
+              </Accordion>
 
               {/* AI Models */}
               <Box>
@@ -6092,8 +6148,11 @@ export default function App() {
               </Box>
 
               {/* Advanced Customization */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>⚙️ Advanced Customization</Typography>
+              <Accordion disableGutters elevation={0} sx={{ bgcolor: 'transparent', '&::before': { display: 'none' }, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px !important' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'var(--accent)' }} />} sx={{ px: 2, py: 0.5, minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>⚙️ Advanced Customization</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 2, pb: 2, pt: 0 }}>
                 <Stack spacing={1.5}>
                   {/* Font Size */}
                   <Box>
@@ -6202,7 +6261,8 @@ export default function App() {
                     </Stack>
                   </Box>
                 </Stack>
-              </Box>
+                </AccordionDetails>
+              </Accordion>
 
               {/* Advanced Export */}
               <Box>
