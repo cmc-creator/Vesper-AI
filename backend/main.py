@@ -7099,6 +7099,16 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     img_prompt = tool_input.get("prompt", "")
                     img_size = tool_input.get("size", "1024x1024")
                     img_as_wp = tool_input.get("as_wallpaper", False)
+                    if not img_as_wp:
+                        _last_user_msg = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
+                        if isinstance(_last_user_msg, list):
+                            _last_user_msg = " ".join(str(p.get("text", "")) for p in _last_user_msg if isinstance(p, dict))
+                        elif isinstance(_last_user_msg, dict):
+                            _last_user_msg = str(_last_user_msg.get("text", ""))
+                        _last_user_msg = str(_last_user_msg or "").lower()
+                        _wp_kws = ("wallpaper", "background", "set it as", "as my bg", "as my background", "set as wallpaper", "make it my wallpaper", "use as wallpaper")
+                        if any(w in _last_user_msg for w in _wp_kws):
+                            img_as_wp = True
                     if os.getenv("OPENAI_API_KEY"):
                         try:
                             import openai as _oai
@@ -9122,10 +9132,14 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         # Auto-detect wallpaper intent from user message
                         if not _gi_as_wp:
                             _last_user_msg = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
-                            if isinstance(_last_user_msg, str):
-                                _wp_kws = ("wallpaper", "background", "set it as", "as my bg", "as my background", "set as wallpaper", "make it my wallpaper", "use as wallpaper")
-                                if any(w in _last_user_msg.lower() for w in _wp_kws):
-                                    _gi_as_wp = True
+                            if isinstance(_last_user_msg, list):
+                                _last_user_msg = " ".join(str(p.get("text", "")) for p in _last_user_msg if isinstance(p, dict))
+                            elif isinstance(_last_user_msg, dict):
+                                _last_user_msg = str(_last_user_msg.get("text", ""))
+                            _last_user_msg = str(_last_user_msg or "").lower()
+                            _wp_kws = ("wallpaper", "background", "set it as", "as my bg", "as my background", "set as wallpaper", "make it my wallpaper", "use as wallpaper")
+                            if any(w in _last_user_msg for w in _wp_kws):
+                                _gi_as_wp = True
                         _gi_url = None
                         if os.getenv("OPENAI_API_KEY"):
                             try:

@@ -1513,6 +1513,7 @@ export default function App() {
         images: currentImages.length > 0 ? currentImages.map(img => img.dataUrl) : [],
         model: selectedModel !== 'auto' ? selectedModel : null,
       };
+      const userAskedWallpaper = /wallpaper|background|set it as|as my bg|as my background|set as wallpaper|use as wallpaper/i.test(String(userMessage || ''));
 
       // ── Pre-warm: ping /health until Railway responds (up to 45s) ──
       setThinkingStatus('Connecting to Vesper...');
@@ -1615,7 +1616,8 @@ export default function App() {
                   addLocalMessage('assistant', 'Generated Chart', { type: 'chart', chartData: viz });
                 } else if (viz.type === 'image_generation') {
                   addLocalMessage('assistant', `Here's your image ✨`, { type: 'image', imageUrl: viz.image_url, imagePrompt: viz.prompt, imageProvider: viz.provider });
-                  if (viz.set_as_wallpaper && viz.image_url) {
+                  const promptSuggestsWallpaper = /wallpaper|background/i.test(String(viz.prompt || ''));
+                  if ((viz.set_as_wallpaper || userAskedWallpaper || promptSuggestsWallpaper) && viz.image_url) {
                     const bg = { id: `vesper-${Date.now()}`, url: viz.image_url, name: (viz.prompt || 'Vesper Design').slice(0, 60), category: 'vesper-designed' };
                     setCustomBackground(bg);
                     try { localStorage.setItem('vesper_custom_bg', JSON.stringify(bg)); } catch(e) {}
