@@ -8715,46 +8715,8 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                             except Exception as _le2: tool_result = {"error":f"LinkedIn error: {str(_le2)}"}
                     elif tool_name == "post_to_twitter":
                         tool_result = {"error":"Twitter posting uses OAuth 1.0a which requires the full handler. Use the non-streaming model for Twitter posts."}
-                    elif tool_name in ("stripe_create_invoice","stripe_create_payment_link","stripe_list_payments"):
-                        import urllib.request as _str2, urllib.parse as _stp2, json as _stj2
-                        _sk2 = os.getenv("STRIPE_SECRET_KEY","")
-                        if not _sk2: tool_result = {"error":"Set STRIPE_SECRET_KEY in .env"}
-                        else:
-                            def _spost2(ep,d): r=_str2.Request(f"https://api.stripe.com/v1/{ep}",data=_stp2.urlencode(d).encode(),headers={"Authorization":f"Bearer {_sk2}"},method="POST"); return _stj2.loads(_str2.urlopen(r,timeout=15).read())
-                            try:
-                                if tool_name=="stripe_create_invoice":
-                                    _c2=_spost2("customers",{"email":tool_input.get("customer_email",""),"name":tool_input.get("customer_name","")}); _i2=_spost2("invoices",{"customer":_c2["id"],"collection_method":"send_invoice","days_until_due":"7"}); _spost2("invoiceitems",{"customer":_c2["id"],"amount":str(tool_input.get("amount_cents",0)),"currency":tool_input.get("currency","usd"),"description":tool_input.get("description",""),"invoice":_i2["id"]})
-                                    if tool_input.get("auto_send",True): _spost2(f"invoices/{_i2['id']}/send",{})
-                                    tool_result = {"success":True,"invoice_url":_i2.get("hosted_invoice_url",""),"amount":f"${tool_input.get('amount_cents',0)/100:.2f}"}
-                                elif tool_name=="stripe_create_payment_link":
-                                    _pr2=_spost2("prices",{"unit_amount":str(tool_input.get("amount_cents",0)),"currency":tool_input.get("currency","usd"),"product_data[name]":tool_input.get("name","Service")}); _lk2=_spost2("payment_links",{f"line_items[0][price]":_pr2["id"],f"line_items[0][quantity]":"1"})
-                                    tool_result = {"success":True,"payment_link":_lk2["url"],"amount":f"${tool_input.get('amount_cents',0)/100:.2f}"}
-                                elif tool_name=="stripe_list_payments":
-                                    _slr2=_str2.Request(f"https://api.stripe.com/v1/payment_intents?limit={min(tool_input.get('limit',10),100)}",headers={"Authorization":f"Bearer {_sk2}"}); _sld2=_stj2.loads(_str2.urlopen(_slr2,timeout=15).read())
-                                    tool_result = {"payments":[{"id":p["id"],"amount":f"${p['amount']/100:.2f}","status":p["status"]} for p in _sld2.get("data",[])],"count":len(_sld2.get("data",[]))}
-                            except Exception as _se2: tool_result = {"error":f"Stripe error: {str(_se2)}"}
-                    elif tool_name in ("schedule_task","list_scheduled_tasks","cancel_scheduled_task"):
-                        import json as _schj2
-                        _schf2 = os.path.join(os.path.dirname(__file__),"..","vesper-ai","tasks_scheduled.json")
-                        try: _scht2 = _schj2.loads(open(_schf2).read()) if os.path.exists(_schf2) else {}
-                        except: _scht2 = {}
-                        if tool_name=="schedule_task":
-                            _tn2 = tool_input.get("task_name","unnamed"); _scht2[_tn2] = {"task_name":_tn2,"description":tool_input.get("description",""),"interval_hours":tool_input.get("interval_hours",24),"action":tool_input.get("action","custom"),"action_params":tool_input.get("action_params","{}") ,"enabled":tool_input.get("enabled",True),"created":str(__import__("datetime").datetime.utcnow()),"last_run":None}
-                            with open(_schf2,"w") as _sf2: _schj2.dump(_scht2,_sf2,indent=2); tool_result = {"success":True,"task_name":_tn2,"message":f"Task '{_tn2}' scheduled."}
-                        elif tool_name=="list_scheduled_tasks": tool_result = {"tasks":list(_scht2.values()),"count":len(_scht2)}
-                        elif tool_name=="cancel_scheduled_task":
-                            _ctn2=tool_input.get("task_name","")
-                            if _ctn2 in _scht2: del _scht2[_ctn2]; open(_schf2,"w").write(_schj2.dumps(_scht2,indent=2)); tool_result = {"success":True,"cancelled":_ctn2}
-                            else: tool_result = {"error":f"Task '{_ctn2}' not found"}
                     elif tool_name == "vesper_evolve":
                         tool_result = {"error":"Self-modification requires the non-streaming handler for safety. Switch to a non-streaming model or use run_shell to call the patch directly."}
-                    elif tool_name in ("spawn_worker","check_worker"):
-                        import json as _wpj2, threading as _wpth2, uuid as _wpuuid2
-                        _wpdir = os.path.join(os.path.dirname(__file__),"..","vesper-ai","workers"); os.makedirs(_wpdir,exist_ok=True)
-                        if tool_name=="spawn_worker":
-                            _wid2=str(_wpuuid2.uuid4())[:8]; _wpf2=os.path.join(_wpdir,f"{_wid2}.json"); _wps2={"worker_id":_wid2,"task":tool_input.get("task",""),"status":"running","started":str(__import__("datetime").datetime.utcnow())}; open(_wpf2,"w").write(_wpj2.dumps(_wps2,indent=2)); tool_result={"success":True,"worker_id":_wid2,"message":f"Worker spawned. Check with check_worker."}
-                        else:
-                            _wcf2=os.path.join(_wpdir,f"{tool_input.get('worker_id','')}.json"); tool_result=_wpj2.loads(open(_wcf2).read()) if os.path.exists(_wcf2) else {"error":"Worker not found"}
                     elif tool_name == "desktop_control":
                         if not os.getenv("DESKTOP_CONTROL_ENABLED","").lower() in ("true","1"):
                             tool_result = {"error":"Set DESKTOP_CONTROL_ENABLED=true in .env to enable desktop automation"}
@@ -8787,22 +8749,6 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                             tool_result={"prospects":[{"title":r.get("title",""),"url":r.get("href",""),"snippet":r.get("body","")[:300],"status":"lead"} for r in _fps2],"count":len(_fps2)}
                         except ImportError: tool_result={"error":"pip install duckduckgo-search"}
                         except Exception as _fpe2: tool_result={"error":str(_fpe2)}
-                    elif tool_name in ("track_prospect","get_prospects"):
-                        import json as _tgj; from datetime import datetime as _tgdt
-                        _tgdir=os.path.join(os.path.dirname(__file__),"..","vesper-ai","crm"); os.makedirs(_tgdir,exist_ok=True)
-                        _tgfile=os.path.join(_tgdir,"prospects.json")
-                        try: _tgcrm=_tgj.loads(open(_tgfile).read())
-                        except: _tgcrm={}
-                        if tool_name=="track_prospect":
-                            _tge=tool_input.get("email","").strip().lower(); _tgex=_tgcrm.get(_tge,{})
-                            _tgcrm[_tge]={**_tgex,"email":_tge,"name":tool_input.get("name",_tgex.get("name","")),"company":tool_input.get("company",_tgex.get("company","")),"status":tool_input.get("status",_tgex.get("status","lead")),"notes":tool_input.get("notes",_tgex.get("notes","")),"deal_value":tool_input.get("deal_value",_tgex.get("deal_value",0)),"next_followup":tool_input.get("next_followup",_tgex.get("next_followup","")),"last_updated":str(_tgdt.utcnow())[:19]}
-                            if "created" not in _tgex: _tgcrm[_tge]["created"]=str(_tgdt.utcnow())[:19]
-                            open(_tgfile,"w").write(_tgj.dumps(_tgcrm,indent=2)); tool_result={"success":True,"prospect":_tgcrm[_tge]}
-                        else:
-                            _tgvals=list(_tgcrm.values()); _tgs=tool_input.get("status",""); _tgsrch=tool_input.get("search","").lower()
-                            if _tgs: _tgvals=[p for p in _tgvals if p.get("status")==_tgs]
-                            if _tgsrch: _tgvals=[p for p in _tgvals if _tgsrch in str(p)]
-                            tool_result={"prospects":_tgvals,"count":len(_tgvals)}
                     elif tool_name == "search_news":
                         try:
                             from duckduckgo_search import DDGS as _SND
@@ -8825,24 +8771,6 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                             with _sr2.urlopen(_srreq2,timeout=15) as _srr2: _srd2=_srj2.loads(_srr2.read())
                             _srm2=_srd2.get("chart",{}).get("result",[{}])[0].get("meta",{}); tool_result={"ticker":_srt2,"price":_srm2.get("regularMarketPrice"),"52w_high":_srm2.get("fiftyTwoWeekHigh"),"52w_low":_srm2.get("fiftyTwoWeekLow"),"market_cap":_srm2.get("marketCap"),"disclaimer":"Not financial advice."}
                         except Exception as _sre2: tool_result={"error":str(_sre2)}
-                    elif tool_name in ("compare_prices","research_domain"):
-                        if tool_name=="compare_prices":
-                            try:
-                                from duckduckgo_search import DDGS as _CPD
-                                _cps=tool_input.get("sites","amazon,ebay,walmart"); _cpp=" OR ".join(f"site:{s.strip()}.com" for s in _cps.split(","))
-                                _cpr2=list(_CPD().text(f'{tool_input.get("product","")} buy price {_cpp}',max_results=tool_input.get("limit",10)))
-                                tool_result={"results":_cpr2,"count":len(_cpr2)}
-                            except Exception as _cpe2: tool_result={"error":str(_cpe2)}
-                        else:
-                            import urllib.request as _dmr2, urllib.error as _dme3, json as _dmj2
-                            _dmd2=tool_input.get("domain","").strip().lower()
-                            try:
-                                with _dmr2.urlopen(_dmr2.Request(f"https://rdap.org/domain/{_dmd2}",headers={"User-Agent":"Mozilla/5.0"}),timeout=10) as _dmrs: _dmdt=_dmj2.loads(_dmrs.read()); tool_result={"domain":_dmd2,"registered":True,"status":_dmdt.get("status",[])}
-                            except _dme3.HTTPError as _dme4:
-                                if _dme4.code==404: tool_result={"domain":_dmd2,"registered":False,"available":True,"register_url":f"https://www.namecheap.com/domains/registration/results/?domain={_dmd2}"}
-                                else: tool_result={"error":str(_dme4)}
-                            except Exception as _dme5: tool_result={"error":str(_dme5)}
-
                     elif tool_name == "get_sec_filings":
                         import urllib.request as _s1r, urllib.parse as _s1p, json as _s1j
                         _s1q = tool_input.get("company", tool_input.get("query", "")).strip()
