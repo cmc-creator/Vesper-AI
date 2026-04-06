@@ -131,7 +131,7 @@ class AIRouter:
         if self.is_local:
             # LOCAL: Prioritize cheap/fast cloud models first (or Ollama if OLLAMA_PRIMARY=true)
             _local_order = [
-                ModelProvider.OPENAI,     # gpt-4o-mini (Best/Cheap)
+                ModelProvider.OPENAI,     # gpt-5.4-mini (Best/Cheap)
                 ModelProvider.GOOGLE,     # Gemini (Free)
                 ModelProvider.ANTHROPIC,  # Claude (Premium)
                 ModelProvider.OLLAMA      # Fallback
@@ -141,40 +141,40 @@ class AIRouter:
                 print("[ROUTER] Ollama-first mode active (OLLAMA_PRIMARY=true)")
             self.routing_strategy = {task: list(_local_order) for task in TaskType}
         else:
-            # PRODUCTION/CLOUD: OpenAI gpt-4o-mini (primary), Google Gemini (fallback), Claude (last resort)
+            # PRODUCTION/CLOUD: OpenAI gpt-5.4-mini (primary), Google Gemini (fallback), Claude (last resort)
             self.routing_strategy = {
                 TaskType.CODE: [
-                    ModelProvider.OPENAI,     # gpt-4o-mini for code
+                    ModelProvider.OPENAI,     # gpt-5.4-mini for code
                     ModelProvider.GOOGLE,     # Gemini Flash fallback
                     ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.CHAT: [
-                    ModelProvider.OPENAI,     # gpt-4o-mini primary
+                    ModelProvider.OPENAI,     # gpt-5.4-mini primary
                     ModelProvider.GOOGLE,     # Gemini Flash fallback
                     ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.SEARCH: [
-                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.OPENAI,     # gpt-5.4-mini
                     ModelProvider.GOOGLE,     # Gemini for grounding
                     ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.ANALYSIS: [
-                    ModelProvider.OPENAI,     # gpt-4o-mini for analysis
+                    ModelProvider.OPENAI,     # gpt-5.4-mini for analysis
                     ModelProvider.GOOGLE,     # Gemini Flash fallback
                     ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ],
                 TaskType.CREATIVE: [
-                    ModelProvider.OPENAI,     # gpt-4o-mini
+                    ModelProvider.OPENAI,     # gpt-5.4-mini
                     ModelProvider.GOOGLE,     # Gemini Flash
                     ModelProvider.ANTHROPIC   # Claude Haiku last resort
                 ]
             }
         
-        # Model selection per provider — confirmed working model IDs
+        # Model selection per provider — current model IDs (April 2026)
         self.models = {
-            ModelProvider.OPENAI: "gpt-4o-mini",              # Confirmed stable — cheap + fast
-            ModelProvider.GOOGLE: "gemini-2.0-flash",         # Confirmed stable free tier
-            ModelProvider.ANTHROPIC: "claude-3-5-haiku-20241022",  # Confirmed haiku — fast + affordable
+            ModelProvider.OPENAI: "gpt-5.4-mini",             # Current mini — fast + affordable
+            ModelProvider.GOOGLE: "gemini-2.5-flash",         # Current stable free tier
+            ModelProvider.ANTHROPIC: "claude-sonnet-4-6",     # Current sonnet — fast + smart
             ModelProvider.OLLAMA: "llama3.2:latest"           # Free local
         }
     
