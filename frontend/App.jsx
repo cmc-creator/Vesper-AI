@@ -1612,6 +1612,13 @@ export default function App() {
                   addLocalMessage('assistant', 'Generated Chart', { type: 'chart', chartData: viz });
                 } else if (viz.type === 'image_generation') {
                   addLocalMessage('assistant', `Here's your image ✨`, { type: 'image', imageUrl: viz.image_url, imagePrompt: viz.prompt, imageProvider: viz.provider });
+                  if (viz.set_as_wallpaper && viz.image_url) {
+                    const bg = { id: `vesper-${Date.now()}`, url: viz.image_url, name: (viz.prompt || 'Vesper Design').slice(0, 60), category: 'vesper-designed' };
+                    setCustomBackground(bg);
+                    try { localStorage.setItem('vesper_custom_bg', JSON.stringify(bg)); } catch(e) {}
+                    setBackgroundGallery(prev => [...prev.filter(b => b.id !== bg.id), bg]);
+                    showToast(`✨ Vesper applied wallpaper!`, 'success');
+                  }
                 }
               });
             } else if (data.type === 'vesper_decorate') {
@@ -6343,7 +6350,7 @@ export default function App() {
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, mb: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1 }}>
             {NAV.map(({ id, label, icon: Icon }) => (
               <Box
                 key={id}
@@ -6368,8 +6375,19 @@ export default function App() {
             flexDirection: 'column',
             minHeight: 0,
             borderTop: '1px solid rgba(255,255,255,0.1)',
-            pt: 1.5
+            pt: 1
           }}>
+            {/* Header row: label + new chat button */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75, px: 0.5 }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', letterSpacing: 1.5, fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                Conversations
+              </Typography>
+              <Tooltip title="New Chat" placement="right">
+                <IconButton size="small" onClick={startNewChat} sx={{ color: 'var(--accent)', p: 0.3, '&:hover': { bgcolor: 'rgba(0,255,255,0.12)' } }}>
+                  <AddIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
             {/* Thread List - Gemini Style */}
             <Box sx={{ 
               flex: 1,

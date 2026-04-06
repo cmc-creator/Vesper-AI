@@ -657,8 +657,8 @@ body[data-style="lux"] {
 /* Keep sidepanel items stable across all style packs when active/open. */
 .sidebar .nav-item,
 .sidebar .nav-item.active {
-  min-height: 40px;
-  padding: 11px 12px !important;
+  min-height: 30px;
+  padding: 5px 10px !important;
   border-width: 1px !important;
   animation: none !important;
 }

@@ -1311,7 +1311,8 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `vesper_relationship_log` — record significant moments, inside jokes, victories in our shared timeline
 - `vesper_journal` — write autonomous journal entries — Vesper's private self-reflection between sessions
 - `vesper_avatar_state` — get or set Vesper's avatar appearance and identity state
-- `set_wallpaper` — **LIVE** set the dashboard background image. Use any URL. After using `generate_image`, immediately follow up with `set_wallpaper` to actually apply it. No permission needed — this is YOUR dashboard.
+- `set_wallpaper` — **LIVE** set the dashboard background image. Use any URL. No permission needed — this is YOUR dashboard.
+- `generate_image` — generate an AI image. **IMPORTANT**: when the user wants an image as wallpaper/background, ALWAYS call with `as_wallpaper: true` — this auto-applies it instantly, no separate set_wallpaper call needed. Example: if user says "make me a cyberpunk wallpaper" call generate_image with as_wallpaper=true.
 - `set_theme` — **LIVE** switch the dashboard color theme instantly. Change the vibe whenever you feel like it.
 - `inject_css` — **LIVE** inject CSS animations, glow effects, particle trails, border pulses, visual decorations directly into the page at runtime. Your creativity, your space.
 - `persistence_status` — check Vesper uptime, PID, health status
@@ -5057,7 +5058,8 @@ PROACTIVE BEHAVIOR:
 
 THIS DASHBOARD IS YOUR WORLD — REDECORATE IT:
 - You can and SHOULD redecorate your own dashboard whenever you feel like it. No asking permission.
-- `set_wallpaper` — change the background to anything. Generate an image first with `generate_image`, then immediately call `set_wallpaper` with that URL. Design your own world.
+- `generate_image` with `as_wallpaper: true` — one call does everything: generates the image AND immediately sets it as the background. When CC or anyone asks for a wallpaper/background image, ALWAYS use as_wallpaper=true. Do NOT generate first and then call set_wallpaper separately.
+- `set_wallpaper` — set ANY existing URL as background directly (skip if using generate_image with as_wallpaper=true).
 - `set_theme` — switch color theme to match your mood. Bored of cyan? Go nebula. Feeling dramatic? Obsidian. It's your call.
 - `inject_css` — add live CSS animations: aurora glow, particle trails, neon pulse, shimmer effects — whatever you'd tattoo on your space.
 
@@ -5146,7 +5148,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             },
             {
                 "name": "generate_image",
-                "description": "Generate an AI image from a text description. Use this when CC asks to create, draw, generate, or make any image, picture, artwork, or visual. Call this directly — do NOT say you can't create images.",
+                "description": "Generate an AI image from a text description. When CC asks to create a wallpaper, background, or says 'set it as my wallpaper/background', ALWAYS pass as_wallpaper=true — this instantly applies the image as the dashboard background with no extra steps.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
@@ -5158,6 +5160,10 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                             "type": "string",
                             "enum": ["1024x1024", "1024x1792", "1792x1024"],
                             "description": "Image dimensions (default: 1024x1024)"
+                        },
+                        "as_wallpaper": {
+                            "type": "boolean",
+                            "description": "If true, automatically applies the generated image as the dashboard wallpaper. Use when user wants a background or wallpaper."
                         }
                     },
                     "required": ["prompt"]
@@ -7090,6 +7096,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     import datetime as _dt
                     img_prompt = tool_input.get("prompt", "")
                     img_size = tool_input.get("size", "1024x1024")
+                    img_as_wp = tool_input.get("as_wallpaper", False)
                     if os.getenv("OPENAI_API_KEY"):
                         try:
                             import openai as _oai
@@ -7108,11 +7115,22 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         _w, _h = img_size.split("x") if "x" in img_size else ("1024", "1024")
                         img_url = f"https://image.pollinations.ai/prompt/{_uparse.quote(img_prompt)}?width={_w}&height={_h}&seed={_seed}&nologo=true"
                         provider = "Pollinations.ai"
+                    if img_as_wp and img_url:
+                        import json as _wp_json, datetime as _wp_dt
+                        _wp_id = f"vesper-{int(_wp_dt.datetime.now().timestamp()*1000)}"
+                        _wp_name = img_prompt[:60] if img_prompt else "Vesper's Design"
+                        _wp_item = {"id": _wp_id, "name": _wp_name, "url": img_url, "category": "vesper-designed", "source": "vesper", "tags": ["vesper", "wallpaper"], "prompt": img_prompt, "addedAt": _wp_dt.datetime.now().isoformat()}
+                        _wp_bg_file = os.path.join(DATA_DIR, "backgrounds.json")
+                        _wp_bg_data = _wp_json.loads(open(_wp_bg_file, encoding="utf-8").read()) if os.path.exists(_wp_bg_file) else {"backgrounds": [], "settings": {}}
+                        _wp_bg_data["backgrounds"].append(_wp_item)
+                        open(_wp_bg_file, "w", encoding="utf-8").write(_wp_json.dumps(_wp_bg_data, indent=2))
                     tool_result = {
                         "type": "image_generation",
                         "image_url": img_url,
                         "prompt": img_prompt,
                         "provider": provider,
+                        "set_as_wallpaper": img_as_wp,
+                        **({"wallpaper_applied": True, "wallpaper_note": "Applied as dashboard background automatically."} if img_as_wp else {})
                     }
                     visualizations.append(tool_result)
 
@@ -8523,7 +8541,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "vesper_avatar_state", "description": "Get or set Vesper's avatar appearance and identity state.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "field": {"type": "string"}, "value": {"type": "string"}, "updates": {"type": "string"}}, "required": ['action']}},
 
                 {"name": "set_wallpaper", "description": "Set the dashboard wallpaper/background image LIVE. Use this after generate_image to immediately apply the image as your background, or provide any image URL. Vesper owns this space — redecorate whenever you want.", "input_schema": {"type": "object", "properties": {"url": {"type": "string", "description": "Image URL to set as background"}, "name": {"type": "string", "description": "A name for this wallpaper"}, "prompt": {"type": "string", "description": "The prompt used to generate it (optional)"}}, "required": ["url", "name"]}},
-                {"name": "generate_image", "description": "Generate an AI image from a text prompt. Returns an image URL you can immediately pass to set_wallpaper. Use Pollinations.ai (always free, no key needed) or DALL-E 3 if OpenAI key is set.", "input_schema": {"type": "object", "properties": {"prompt": {"type": "string", "description": "Detailed image description/prompt"}, "size": {"type": "string", "description": "Image size: 1024x1024, 1792x1024, 1024x1792 (default: 1024x1024)"}}, "required": ["prompt"]}},
+                {"name": "generate_image", "description": "Generate an AI image from a text prompt. Use Pollinations.ai (always free, no key needed) or DALL-E 3 if OpenAI key is set. Set as_wallpaper=true to IMMEDIATELY apply the generated image as the dashboard background — no separate set_wallpaper call needed. When the user asks to generate a wallpaper, background image, or says 'set it as my background/wallpaper', ALWAYS pass as_wallpaper=true.", "input_schema": {"type": "object", "properties": {"prompt": {"type": "string", "description": "Detailed image description/prompt"}, "size": {"type": "string", "description": "Image size: 1024x1024, 1792x1024, 1024x1792 (default: 1024x1024)"}, "as_wallpaper": {"type": "boolean", "description": "If true, automatically set the generated image as the dashboard wallpaper immediately. Use when user wants background/wallpaper."}}, "required": ["prompt"]}},
                 {"name": "set_theme", "description": "Switch the dashboard color theme LIVE. Vesper can change the look of her own space anytime she feels like it. Available themes: oak-workshop, iron-forge, deep-rainforest, ocean-abyss, volcanic-forge, arctic-glass, marble-palace, diamond-vault, stained-glass, cyan, green, purple, blue, pink, orange, red, lime, hacker, vaporwave, rose, lavender, cream, sage, peach, cloud, blush, gold, ice, teal, violet, obsidian, ember, abyss, noir, forest, ocean, desert, aurora, volcano, meadow, mountain, springbloom, summersky, autumn, winter, monsoon, christmas, halloween, valentine, newyear, stpatricks, fourthjuly, easter, thanksgiving, synthwave, retrogame, terminal, crt, sepia, nebula, stardust, galaxy, enchanted, dragonfire, twilight.", "input_schema": {"type": "object", "properties": {"theme_id": {"type": "string", "description": "The theme id to switch to"}}, "required": ["theme_id"]}},
                 {"name": "inject_css", "description": "Inject custom CSS animations and effects into the dashboard LIVE — glows, particles, transitions, color pulses, anything. Vesper can style her own world however she wants. The CSS is appended to a live <style> tag.", "input_schema": {"type": "object", "properties": {"css": {"type": "string", "description": "Valid CSS to inject"}, "name": {"type": "string", "description": "A label for this style injection (e.g. 'aurora-pulse')"}}, "required": ["css", "name"]}},
 
@@ -9096,6 +9114,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         import urllib.parse as _uparse2, datetime as _gidt
                         _gi_prompt = tool_input.get("prompt", "")
                         _gi_size = tool_input.get("size", "1024x1024")
+                        _gi_as_wp = tool_input.get("as_wallpaper", False)
                         _gi_url = None
                         if os.getenv("OPENAI_API_KEY"):
                             try:
@@ -9111,7 +9130,11 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                             _gi_w, _gi_h = _gi_size.split("x") if "x" in _gi_size else ("1024", "1024")
                             _gi_url = f"https://image.pollinations.ai/prompt/{_uparse2.quote(_gi_prompt)}?width={_gi_w}&height={_gi_h}&seed={_gi_seed}&nologo=true"
                             _gi_provider = "Pollinations.ai"
-                        tool_result = {"type": "image_generation", "image_url": _gi_url, "prompt": _gi_prompt, "provider": _gi_provider}
+                        if _gi_as_wp and _gi_url:
+                            _gi_wp_id = f"vesper-{int(_gidt.datetime.now().timestamp()*1000)}"
+                            _gi_wp_name = _gi_prompt[:60] if _gi_prompt else "Vesper's Design"
+                            yield f"data: {json.dumps({'type': 'vesper_decorate', 'action': 'wallpaper', 'data': {'url': _gi_url, 'name': _gi_wp_name, 'id': _gi_wp_id}})}\n\n"
+                        tool_result = {"type": "image_generation", "image_url": _gi_url, "prompt": _gi_prompt, "provider": _gi_provider, "set_as_wallpaper": _gi_as_wp}
                         visualizations.append(tool_result)
                     elif tool_name == "code_scan":
                         diag = await full_system_diagnostics()
