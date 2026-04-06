@@ -496,8 +496,11 @@ function App() {
       const migrated = window.localStorage.getItem('vesper_luxury_migrated_v3') === '1';
       if (!migrated) {
         const luxuryDefault = THEMES.find((t) => t.id === 'diamond-vault') || THEMES[0];
-        setActiveTheme(luxuryDefault);
-        window.localStorage.setItem('vesper_theme', luxuryDefault.id);
+        const existingThemeId = window.localStorage.getItem('vesper_theme');
+        const existingTheme = THEMES.find((t) => t.id === existingThemeId);
+        const themeToKeep = existingTheme || luxuryDefault;
+        setActiveTheme(themeToKeep);
+        window.localStorage.setItem('vesper_theme', themeToKeep.id);
         window.localStorage.setItem('vesper_luxury_migrated_v3', '1');
       }
     } catch (error) {

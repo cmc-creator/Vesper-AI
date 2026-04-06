@@ -9772,13 +9772,48 @@ MEDIA_FILE = os.path.join(MEDIA_DIR, 'gallery.json')
 
 def _load_media_gallery():
     """Load the media gallery from disk."""
+    # Prefer durable DB-backed media when available.
+    try:
+        db_items = memory_db.get_media_items(limit=5000)
+        if db_items:
+            return db_items
+    except Exception:
+        pass
+
     os.makedirs(MEDIA_DIR, exist_ok=True)
     if os.path.exists(MEDIA_FILE):
         try:
             with open(MEDIA_FILE, 'r') as f:
-                return json.load(f)
+                file_items = json.load(f)
         except Exception:
-            return []
+            file_items = []
+
+        # Best-effort migration from legacy file into DB.
+        if file_items:
+            try:
+                for it in file_items:
+                    _created_at = None
+                    _created_raw = it.get("created_at")
+                    if isinstance(_created_raw, str):
+                        try:
+                            _created_at = datetime.datetime.fromisoformat(_created_raw.replace("Z", "+00:00"))
+                        except Exception:
+                            _created_at = None
+                    memory_db.add_media_item(
+                        media_id=str(it.get("id") or f"mig-{uuid.uuid4().hex[:12]}"),
+                        media_type=str(it.get("type") or "image"),
+                        url=str(it.get("url") or ""),
+                        prompt=str(it.get("prompt") or ""),
+                        metadata=it.get("metadata") or {},
+                        created_at=_created_at,
+                    )
+                db_items = memory_db.get_media_items(limit=5000)
+                if db_items:
+                    return db_items
+            except Exception:
+                pass
+
+        return file_items
     return []
 
 def _save_media_gallery(items):
@@ -9799,6 +9834,17 @@ def _save_media_item(media_type: str, url: str, prompt: str, metadata: dict = No
         "metadata": metadata or {},
         "created_at": datetime.datetime.now().isoformat(),
     }
+    try:
+        memory_db.add_media_item(
+            media_id=item["id"],
+            media_type=item["type"],
+            url=item["url"],
+            prompt=item["prompt"],
+            metadata=item["metadata"],
+            created_at=datetime.datetime.fromisoformat(item["created_at"]),
+        )
+    except Exception:
+        pass
     items.insert(0, item)  # newest first
     # Keep gallery at reasonable size
     if len(items) > 500:
@@ -9810,20 +9856,31 @@ def _save_media_item(media_type: str, url: str, prompt: str, metadata: dict = No
 @app.get("/api/media")
 async def list_media(media_type: Optional[str] = None, limit: int = 50):
     """List media gallery items. Optional filter by type (image/video)."""
-    items = _load_media_gallery()
-    if media_type:
-        items = [i for i in items if i.get("type") == media_type]
+    try:
+        items = memory_db.get_media_items(media_type=media_type, limit=max(limit, 500))
+    except Exception:
+        items = _load_media_gallery()
+        if media_type:
+            items = [i for i in items if i.get("type") == media_type]
     return {"items": items[:limit], "total": len(items)}
 
 @app.delete("/api/media/{item_id}")
 async def delete_media(item_id: str):
     """Delete a media item from the gallery."""
+    deleted_db = False
+    try:
+        deleted_db = memory_db.delete_media_item(item_id)
+    except Exception:
+        deleted_db = False
+
     items = _load_media_gallery()
     original_len = len(items)
     items = [i for i in items if i.get("id") != item_id]
-    if len(items) == original_len:
+    if len(items) != original_len:
+        _save_media_gallery(items)
+
+    if not deleted_db and len(items) == original_len:
         return JSONResponse(status_code=404, content={"error": "Media item not found"})
-    _save_media_gallery(items)
     return {"status": "deleted", "id": item_id}
 
 # --- Image Generation ---

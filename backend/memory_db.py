@@ -59,6 +59,17 @@ class Task(Base):
     tags = Column(JSON, default=list)
     meta_data = Column(JSON, default=dict)
 
+class MediaItem(Base):
+    """Generated media gallery items"""
+    __tablename__ = "media_items"
+
+    id = Column(String, primary_key=True)
+    type = Column(String, nullable=False, index=True)  # image, video
+    url = Column(Text, nullable=False)
+    prompt = Column(Text, nullable=True)
+    meta_data = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 class ResearchItem(Base):
     """Research data with enhanced citation and source tracking"""
     __tablename__ = "research"
@@ -714,6 +725,61 @@ class PersistentMemoryDB:
             return False
         finally:
             session.close()
+
+    # === MEDIA ===
+
+    def add_media_item(self, media_id: str, media_type: str, url: str, prompt: str = "", metadata: Optional[Dict] = None, created_at: Optional[datetime.datetime] = None) -> Dict:
+        """Add or update a generated media item."""
+        session = self.get_session()
+        try:
+            item = session.query(MediaItem).filter(MediaItem.id == media_id).first()
+            if not item:
+                item = MediaItem(
+                    id=media_id,
+                    type=media_type,
+                    url=url,
+                    prompt=prompt,
+                    meta_data=metadata or {},
+                    created_at=created_at or datetime.datetime.utcnow(),
+                )
+                session.add(item)
+            else:
+                item.type = media_type
+                item.url = url
+                item.prompt = prompt
+                item.meta_data = metadata or {}
+                if created_at:
+                    item.created_at = created_at
+            session.commit()
+            session.refresh(item)
+            return self._media_to_dict(item)
+        finally:
+            session.close()
+
+    def get_media_items(self, media_type: Optional[str] = None, limit: int = 100) -> List[Dict]:
+        """Get media items, newest first."""
+        session = self.get_session()
+        try:
+            query = session.query(MediaItem)
+            if media_type:
+                query = query.filter(MediaItem.type == media_type)
+            items = query.order_by(MediaItem.created_at.desc()).limit(max(1, min(limit, 5000))).all()
+            return [self._media_to_dict(i) for i in items]
+        finally:
+            session.close()
+
+    def delete_media_item(self, media_id: str) -> bool:
+        """Delete media item by id."""
+        session = self.get_session()
+        try:
+            item = session.query(MediaItem).filter(MediaItem.id == media_id).first()
+            if item:
+                session.delete(item)
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
     
     # === PATTERNS ===
     
@@ -1066,6 +1132,17 @@ class PersistentMemoryDB:
             "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
             "tags": doc.tags or [],
             "metadata": doc.meta_data or {}
+        }
+
+    def _media_to_dict(self, media: MediaItem) -> Dict:
+        """Convert MediaItem to dict."""
+        return {
+            "id": media.id,
+            "type": media.type,
+            "url": media.url,
+            "prompt": media.prompt or "",
+            "metadata": media.meta_data or {},
+            "created_at": media.created_at.isoformat() if media.created_at else None,
         }
     
     def _pattern_to_dict(self, pattern: Pattern) -> Dict:
