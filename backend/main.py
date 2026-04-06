@@ -2098,47 +2098,14 @@ async def auto_title_thread(thread_id: str):
             f"Conversation:\n{excerpt}\n\nTitle:"
         )
 
-        new_title = None
-
-        # Try Anthropic first
-        if os.getenv("ANTHROPIC_API_KEY") and not new_title:
-            try:
-                client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-                resp = client.messages.create(
-                    model="claude-sonnet-4-6",
-                    max_tokens=30,
-                    messages=[{"role": "user", "content": prompt}],
-                )
-                new_title = resp.content[0].text.strip().strip('"').strip("'")
-            except Exception as e:
-                print(f"Auto-title Anthropic failed: {e}")
-
-        # Try OpenAI
-        if os.getenv("OPENAI_API_KEY") and not new_title:
-            try:
-                import openai
-                openai.api_key = os.getenv("OPENAI_API_KEY")
-                resp = openai.chat.completions.create(
-                    model="gpt-5.4-mini",
-                    max_tokens=30,
-                    messages=[{"role": "user", "content": prompt}],
-                )
-                new_title = resp.choices[0].message.content.strip().strip('"').strip("'")
-            except Exception as e:
-                print(f"Auto-title OpenAI failed: {e}")
-
-        # Try Google Gemini
-        if os.getenv("GOOGLE_API_KEY") and not new_title:
-            try:
-                from google import genai
-                gemini_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-                resp = gemini_client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt,
-                )
-                new_title = resp.text.strip().strip('"').strip("'")
-            except Exception as e:
-                print(f"Auto-title Gemini failed: {e}")
+        # Use the router so Groq/Gemini/Ollama are tried in order — no hardcoded key checks
+        result = await ai_router.chat(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CHAT,
+            max_tokens=30,
+            temperature=0.3,
+        )
+        new_title = (result.get("content") or "").strip().strip('"').strip("'")
 
         if new_title and len(new_title) > 2:
             # Cap at 80 chars
