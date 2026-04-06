@@ -6044,112 +6044,124 @@ export default function App() {
               </Accordion>
 
               {/* AI Models */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>🤖 AI Model</Typography>
-                <Box sx={{ p: 1.5, border: '1px solid rgba(var(--accent-rgb),0.25)', borderRadius: 2, bgcolor: 'rgba(var(--accent-rgb),0.04)' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.75 }}>Active Model</Typography>
-                  <Select
-                    size="small"
-                    fullWidth
-                    value={selectedModel}
-                    onChange={(e) => {
-                      setSelectedModel(e.target.value);
-                      try { localStorage.setItem('vesper_model', e.target.value); } catch(ex) {}
-                      setToast(`Model set: ${e.target.value === 'auto' ? 'Auto (best available)' : e.target.value}`);
-                    }}
-                    sx={{
-                      color: 'var(--accent)', bgcolor: 'rgba(0,0,0,0.25)',
-                      '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(var(--accent-rgb),0.3)' },
-                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--accent)' },
-                      '.MuiSvgIcon-root': { color: 'var(--accent)' },
-                    }}
-                    MenuProps={{ PaperProps: { sx: { bgcolor: 'rgba(8,8,18,0.97)', backdropFilter: 'blur(20px)', border: '1px solid rgba(0,255,255,0.15)', '& .MuiMenuItem-root': { color: '#fff', fontSize: '0.85rem' }, '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(0,255,255,0.1)' } } } }}
-                  >
-                    <MenuItem value="auto">🔄 Auto (best available)</MenuItem>
-                    {availableModels.map(m => (
-                      <MenuItem key={m.id} value={m.id}>{m.icon} {m.label}{m.badge ? ` · ${m.badge}` : ''}</MenuItem>
-                    ))}
-                    {availableModels.length === 0 && (
-                      <MenuItem value="gpt-4o-mini">☁️ GPT-4o-mini (cloud)</MenuItem>
-                    )}
-                  </Select>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', mt: 0.75, display: 'block' }}>
-                    {availableModels.length > 0 ? `${availableModels.length} models available` : 'Connect to Ollama for local models'}
-                  </Typography>
-                </Box>
-              </Box>
+              <Accordion disableGutters elevation={0} sx={{ bgcolor: 'transparent', '&::before': { display: 'none' }, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px !important' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'var(--accent)' }} />} sx={{ px: 2, py: 0.5, minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>🤖 AI Model</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 2, pb: 2, pt: 0 }}>
+                  <Box sx={{ p: 1.5, border: '1px solid rgba(var(--accent-rgb),0.25)', borderRadius: 2, bgcolor: 'rgba(var(--accent-rgb),0.04)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.75 }}>Active Model</Typography>
+                    <Select
+                      size="small"
+                      fullWidth
+                      value={selectedModel}
+                      onChange={(e) => {
+                        setSelectedModel(e.target.value);
+                        try { localStorage.setItem('vesper_model', e.target.value); } catch(ex) {}
+                        setToast(`Model set: ${e.target.value === 'auto' ? 'Auto (best available)' : e.target.value}`);
+                      }}
+                      sx={{
+                        color: 'var(--accent)', bgcolor: 'rgba(0,0,0,0.25)',
+                        '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(var(--accent-rgb),0.3)' },
+                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--accent)' },
+                        '.MuiSvgIcon-root': { color: 'var(--accent)' },
+                      }}
+                      MenuProps={{ PaperProps: { sx: { bgcolor: 'rgba(8,8,18,0.97)', backdropFilter: 'blur(20px)', border: '1px solid rgba(0,255,255,0.15)', '& .MuiMenuItem-root': { color: '#fff', fontSize: '0.85rem' }, '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(0,255,255,0.1)' } } } }}
+                    >
+                      <MenuItem value="auto">🔄 Auto (best available)</MenuItem>
+                      {availableModels.map(m => (
+                        <MenuItem key={m.id} value={m.id}>{m.icon} {m.label}{m.badge ? ` · ${m.badge}` : ''}</MenuItem>
+                      ))}
+                      {availableModels.length === 0 && (
+                        <MenuItem value="gpt-4o-mini">☁️ GPT-4o-mini (cloud)</MenuItem>
+                      )}
+                    </Select>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', mt: 0.75, display: 'block' }}>
+                      {availableModels.length > 0 ? `${availableModels.length} models available` : 'Connect to Ollama for local models'}
+                    </Typography>
+                  </Box>
+                </AccordionDetails>
+              </Accordion>
 
               {/* System Info */}
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>System Status</Typography>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => setDiagnosticsOpen(true)}
-                    startIcon={<SpeedIcon sx={{ fontSize: '0.85rem !important' }} />}
-                    sx={{ borderColor: 'var(--accent)', color: 'var(--accent)', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem', py: 0.25 }}
-                  >
-                    Run Diagnostics
-                  </Button>
-                </Box>
-                <Stack spacing={1.5}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Backend / Railway</Typography>
-                    <Chip label="Check Status →" size="small" onClick={() => setDiagnosticsOpen(true)}
-                      sx={{ bgcolor: 'rgba(0,255,255,0.12)', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,255,255,0.2)' } }} />
+              <Accordion disableGutters elevation={0} sx={{ bgcolor: 'transparent', '&::before': { display: 'none' }, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px !important' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'var(--accent)' }} />} sx={{ px: 2, py: 0.5, minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>🩺 System Status</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 2, pb: 2, pt: 0 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setDiagnosticsOpen(true)}
+                      startIcon={<SpeedIcon sx={{ fontSize: '0.85rem !important' }} />}
+                      sx={{ borderColor: 'var(--accent)', color: 'var(--accent)', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem', py: 0.25 }}
+                    >
+                      Run Diagnostics
+                    </Button>
                   </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Conversations</Typography>
-                    <Chip label={`${threads.length} saved`} size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)', fontWeight: 600 }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Storage</Typography>
-                    <Chip label="Auto-Save ON" size="small" sx={{ bgcolor: 'rgba(74,222,128,0.2)', color: '#4ade80', fontWeight: 600 }} />
-                  </Box>
-                </Stack>
-              </Box>
+                  <Stack spacing={1.5}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Backend / Railway</Typography>
+                      <Chip label="Check Status →" size="small" onClick={() => setDiagnosticsOpen(true)}
+                        sx={{ bgcolor: 'rgba(0,255,255,0.12)', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,255,255,0.2)' } }} />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Conversations</Typography>
+                      <Chip label={`${threads.length} saved`} size="small" sx={{ bgcolor: 'rgba(0,255,255,0.2)', color: 'var(--accent)', fontWeight: 600 }} />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Storage</Typography>
+                      <Chip label="Auto-Save ON" size="small" sx={{ bgcolor: 'rgba(74,222,128,0.2)', color: '#4ade80', fontWeight: 600 }} />
+                    </Box>
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
 
               {/* Actions */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Data Management</Typography>
-                <Stack spacing={1}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth 
-                    size="small"
-                    onClick={() => {
-                      exportAllData();
-                      playSound('click');
-                    }}
-                    sx={{ 
-                      borderColor: 'var(--accent)', 
-                      color: 'var(--accent)',
-                      textTransform: 'none',
-                      '&:hover': { bgcolor: 'rgba(0,255,255,0.1)', borderColor: 'var(--accent)' }
-                    }}
-                  >
-                    Export All Data
-                  </Button>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth 
-                    size="small"
-                    onClick={() => {
-                      clearHistory();
-                      playSound('click');
-                    }}
-                    sx={{ 
-                      borderColor: 'rgba(255,255,255,0.2)', 
-                      color: '#fff',
-                      textTransform: 'none',
-                      '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.3)' }
-                    }}
-                  >
-                    Clear Current Chat
-                  </Button>
-                </Stack>
-              </Box>
+              <Accordion disableGutters elevation={0} sx={{ bgcolor: 'transparent', '&::before': { display: 'none' }, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px !important' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'var(--accent)' }} />} sx={{ px: 2, py: 0.5, minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>🗄️ Data Management</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 2, pb: 2, pt: 0 }}>
+                  <Stack spacing={1}>
+                    <Button 
+                      variant="outlined" 
+                      fullWidth 
+                      size="small"
+                      onClick={() => {
+                        exportAllData();
+                        playSound('click');
+                      }}
+                      sx={{ 
+                        borderColor: 'var(--accent)', 
+                        color: 'var(--accent)',
+                        textTransform: 'none',
+                        '&:hover': { bgcolor: 'rgba(0,255,255,0.1)', borderColor: 'var(--accent)' }
+                      }}
+                    >
+                      Export All Data
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      fullWidth 
+                      size="small"
+                      onClick={() => {
+                        clearHistory();
+                        playSound('click');
+                      }}
+                      sx={{ 
+                        borderColor: 'rgba(255,255,255,0.2)', 
+                        color: '#fff',
+                        textTransform: 'none',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.3)' }
+                      }}
+                    >
+                      Clear Current Chat
+                    </Button>
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
 
               {/* Advanced Customization */}
               <Accordion disableGutters elevation={0} sx={{ bgcolor: 'transparent', '&::before': { display: 'none' }, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px !important' }}>
@@ -6269,54 +6281,58 @@ export default function App() {
               </Accordion>
 
               {/* Advanced Export */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>📥 Advanced Export</Typography>
-                <Stack spacing={1.5}>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Select what to export:</Typography>
-                  <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }}>
-                    {['memories', 'tasks', 'research', 'documents', 'conversations'].map(item => (
-                      <FormControlLabel
-                        key={item}
-                        control={
-                          <Checkbox
-                            checked={exportSelection[item]}
-                            onChange={(e) => setExportSelection(s => ({ ...s, [item]: e.target.checked }))}
-                            size="small"
-                          />
-                        }
-                        label={<Typography variant="caption" sx={{ textTransform: 'capitalize' }}>{item}</Typography>}
-                        sx={{ m: 0, mr: 1 }}
-                      />
-                    ))}
+              <Accordion disableGutters elevation={0} sx={{ bgcolor: 'transparent', '&::before': { display: 'none' }, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px !important' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'var(--accent)' }} />} sx={{ px: 2, py: 0.5, minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--accent)' }}>📥 Advanced Export</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 2, pb: 2, pt: 0 }}>
+                  <Stack spacing={1.5}>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Select what to export:</Typography>
+                    <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }}>
+                      {['memories', 'tasks', 'research', 'documents', 'conversations'].map(item => (
+                        <FormControlLabel
+                          key={item}
+                          control={
+                            <Checkbox
+                              checked={exportSelection[item]}
+                              onChange={(e) => setExportSelection(s => ({ ...s, [item]: e.target.checked }))}
+                              size="small"
+                            />
+                          }
+                          label={<Typography variant="caption" sx={{ textTransform: 'capitalize' }}>{item}</Typography>}
+                          sx={{ m: 0, mr: 1 }}
+                        />
+                      ))}
+                    </Stack>
+                    <Stack direction="row" spacing={1}>
+                      <Button 
+                        variant="outlined" 
+                        size="small" 
+                        onClick={exportAsMarkdown}
+                        sx={{ flex: 1 }}
+                      >
+                        📄 Markdown
+                      </Button>
+                      <Button 
+                        variant="outlined" 
+                        size="small" 
+                        onClick={exportAsJSON}
+                        sx={{ flex: 1 }}
+                      >
+                        {} JSON
+                      </Button>
+                      <Button 
+                        variant="outlined" 
+                        size="small" 
+                        onClick={exportAsCSV}
+                        sx={{ flex: 1 }}
+                      >
+                        📊 CSV
+                      </Button>
+                    </Stack>
                   </Stack>
-                  <Stack direction="row" spacing={1}>
-                    <Button 
-                      variant="outlined" 
-                      size="small" 
-                      onClick={exportAsMarkdown}
-                      sx={{ flex: 1 }}
-                    >
-                      📄 Markdown
-                    </Button>
-                    <Button 
-                      variant="outlined" 
-                      size="small" 
-                      onClick={exportAsJSON}
-                      sx={{ flex: 1 }}
-                    >
-                      {} JSON
-                    </Button>
-                    <Button 
-                      variant="outlined" 
-                      size="small" 
-                      onClick={exportAsCSV}
-                      sx={{ flex: 1 }}
-                    >
-                      📊 CSV
-                    </Button>
-                  </Stack>
-                </Stack>
-              </Box>
+                </AccordionDetails>
+              </Accordion>
             </Stack>
           </Paper>
           </DraggableBoard>
