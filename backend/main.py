@@ -8523,6 +8523,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "vesper_avatar_state", "description": "Get or set Vesper's avatar appearance and identity state.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "field": {"type": "string"}, "value": {"type": "string"}, "updates": {"type": "string"}}, "required": ['action']}},
 
                 {"name": "set_wallpaper", "description": "Set the dashboard wallpaper/background image LIVE. Use this after generate_image to immediately apply the image as your background, or provide any image URL. Vesper owns this space — redecorate whenever you want.", "input_schema": {"type": "object", "properties": {"url": {"type": "string", "description": "Image URL to set as background"}, "name": {"type": "string", "description": "A name for this wallpaper"}, "prompt": {"type": "string", "description": "The prompt used to generate it (optional)"}}, "required": ["url", "name"]}},
+                {"name": "generate_image", "description": "Generate an AI image from a text prompt. Returns an image URL you can immediately pass to set_wallpaper. Use Pollinations.ai (always free, no key needed) or DALL-E 3 if OpenAI key is set.", "input_schema": {"type": "object", "properties": {"prompt": {"type": "string", "description": "Detailed image description/prompt"}, "size": {"type": "string", "description": "Image size: 1024x1024, 1792x1024, 1024x1792 (default: 1024x1024)"}}, "required": ["prompt"]}},
                 {"name": "set_theme", "description": "Switch the dashboard color theme LIVE. Vesper can change the look of her own space anytime she feels like it. Available themes: oak-workshop, iron-forge, deep-rainforest, ocean-abyss, volcanic-forge, arctic-glass, marble-palace, diamond-vault, stained-glass, cyan, green, purple, blue, pink, orange, red, lime, hacker, vaporwave, rose, lavender, cream, sage, peach, cloud, blush, gold, ice, teal, violet, obsidian, ember, abyss, noir, forest, ocean, desert, aurora, volcano, meadow, mountain, springbloom, summersky, autumn, winter, monsoon, christmas, halloween, valentine, newyear, stpatricks, fourthjuly, easter, thanksgiving, synthwave, retrogame, terminal, crt, sepia, nebula, stardust, galaxy, enchanted, dragonfire, twilight.", "input_schema": {"type": "object", "properties": {"theme_id": {"type": "string", "description": "The theme id to switch to"}}, "required": ["theme_id"]}},
                 {"name": "inject_css", "description": "Inject custom CSS animations and effects into the dashboard LIVE — glows, particles, transitions, color pulses, anything. Vesper can style her own world however she wants. The CSS is appended to a live <style> tag.", "input_schema": {"type": "object", "properties": {"css": {"type": "string", "description": "Valid CSS to inject"}, "name": {"type": "string", "description": "A label for this style injection (e.g. 'aurora-pulse')"}}, "required": ["css", "name"]}},
 
@@ -9163,6 +9164,27 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                             "timestamp": _vn2_dt.datetime.now().isoformat()
                         })
                         tool_result = {"success": True, "queued": True, "message": tool_input.get("message", "")[:100]}
+                    elif tool_name == "generate_image":
+                        import urllib.parse as _uparse2, datetime as _gidt
+                        _gi_prompt = tool_input.get("prompt", "")
+                        _gi_size = tool_input.get("size", "1024x1024")
+                        _gi_url = None
+                        if os.getenv("OPENAI_API_KEY"):
+                            try:
+                                import openai as _oai2
+                                _oai2.api_key = os.getenv("OPENAI_API_KEY")
+                                _oai2_resp = _oai2.images.generate(model="dall-e-3", prompt=_gi_prompt, n=1, size=_gi_size)
+                                _gi_url = _oai2_resp.data[0].url
+                                _gi_provider = "DALL-E 3"
+                            except Exception:
+                                _gi_url = None
+                        if not _gi_url:
+                            _gi_seed = int(_gidt.datetime.now().timestamp())
+                            _gi_w, _gi_h = _gi_size.split("x") if "x" in _gi_size else ("1024", "1024")
+                            _gi_url = f"https://image.pollinations.ai/prompt/{_uparse2.quote(_gi_prompt)}?width={_gi_w}&height={_gi_h}&seed={_gi_seed}&nologo=true"
+                            _gi_provider = "Pollinations.ai"
+                        tool_result = {"type": "image_generation", "image_url": _gi_url, "prompt": _gi_prompt, "provider": _gi_provider}
+                        visualizations.append(tool_result)
                     elif tool_name == "code_scan":
                         diag = await full_system_diagnostics()
                         focus = tool_input.get("focus", "all")
