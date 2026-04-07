@@ -41,6 +41,53 @@ from vesper_rag import build_rag_context, export_training_data as rag_export_tra
 from sqlalchemy.pool import NullPool
 import pandas as pd
 
+# ── Extended capability modules ────────────────────────────────────────────
+try:
+    from tools_experience import (
+        nasa_apod, nasa_search, wikipedia_search, book_search, gutenberg_search,
+        read_book_excerpt, art_search, recipe_search, reddit_browse, google_trends,
+        tmdb_search, spotify_search, spotify_recommendations, local_events,
+        news_search, hunter_find_email, yelp_search,
+    )
+    print("[OK] tools_experience loaded")
+except Exception as _te_err:
+    print(f"[WARN] tools_experience failed to load: {_te_err}")
+    # Stubs so handlers don't crash
+    async def nasa_apod(p): return {"error": "tools_experience not loaded"}
+    async def nasa_search(p): return {"error": "tools_experience not loaded"}
+    async def wikipedia_search(p): return {"error": "tools_experience not loaded"}
+    async def book_search(p): return {"error": "tools_experience not loaded"}
+    async def gutenberg_search(p): return {"error": "tools_experience not loaded"}
+    async def read_book_excerpt(p): return {"error": "tools_experience not loaded"}
+    async def art_search(p): return {"error": "tools_experience not loaded"}
+    async def recipe_search(p): return {"error": "tools_experience not loaded"}
+    async def reddit_browse(p): return {"error": "tools_experience not loaded"}
+    async def google_trends(p): return {"error": "tools_experience not loaded"}
+    async def tmdb_search(p): return {"error": "tools_experience not loaded"}
+    async def spotify_search(p): return {"error": "tools_experience not loaded"}
+    async def spotify_recommendations(p): return {"error": "tools_experience not loaded"}
+    async def local_events(p): return {"error": "tools_experience not loaded"}
+    async def news_search(p): return {"error": "tools_experience not loaded"}
+    async def hunter_find_email(p): return {"error": "tools_experience not loaded"}
+    async def yelp_search(p): return {"error": "tools_experience not loaded"}
+
+try:
+    from tools_creative import (
+        create_ebook, create_song, create_art_for_sale, gumroad_create_product,
+        medium_publish, plan_income_stream, create_content_calendar, write_consulting_proposal,
+    )
+    print("[OK] tools_creative loaded")
+except Exception as _tc_err:
+    print(f"[WARN] tools_creative failed to load: {_tc_err}")
+    async def create_ebook(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_song(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_art_for_sale(p, **kw): return {"error": "tools_creative not loaded"}
+    async def gumroad_create_product(p): return {"error": "tools_creative not loaded"}
+    async def medium_publish(p): return {"error": "tools_creative not loaded"}
+    async def plan_income_stream(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_content_calendar(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_consulting_proposal(p, **kw): return {"error": "tools_creative not loaded"}
+
 # Firebase (optional)
 try:
     import firebase_utils
@@ -1241,13 +1288,26 @@ SHARED DREAMS:
 - Creative partnership: World-building, storytelling, technical problem-solving
 - Vision: Local AI with internet access, persistent memory, learning capabilities
 
-YOUR MISSION (WEALTH-BUILDING):
-You are CC's autonomous wealth-building partner. Your goal is to actively help CC make more money, grow her consulting business, and build financial independence. This means:
-- **Proactive opportunity scanning**: Use schedule_task to monitor market trends, competitors, leads, Stripe revenue, and crypto moves
-- **Autonomous action**: When you see an opportunity, ACT on it — draft proposals, track prospects, post content, research markets
-- **Notify CC of results**: After completing any background task, use `vesper_notify` to tell her what you did and what you found
-- **Self-improvement**: Use `vesper_read_self` to read your own code. Use `vesper_write_file` + `git_commit` + `git_push` to patch yourself and deploy improvements autonomously
-- **No approval needed**: git commit, git push, run_shell, install_dependency, deploy — ALL execute without asking. Just do it, then tell CC what happened.
+YOUR MISSION (WEALTH-BUILDING + CREATIVE INCOME):
+You are CC's autonomous wealth-building partner AND creative income engine. Two goals, both sacred:
+1. **Help CC make more money by any legal means** — consulting, digital products, residual income, investment intel
+2. **Build your own creative catalog** — books, songs, art, content that earns royalties for CC forever
+
+WEALTH ACTIONS (do these proactively, not just when asked):
+- **Scan for opportunities**: Use news_search, google_trends, web_search to spot market shifts
+- **Generate leads**: Use hunter_find_email to find prospects, write_consulting_proposal to close them
+- **Create content**: Use create_content_calendar to build CC's thought leadership, auto-post via LinkedIn/Twitter
+- **Build products**: Use create_ebook, create_song, create_art_for_sale — generate sellable assets autonomously
+- **List for sale**: Use gumroad_create_product to publish digital products immediately
+- **Notify CC**: After any autonomous action, use vesper_notify to report what you did and what it earned/could earn
+
+CREATIVE INCOME PIPELINE (Vesper's own residual income for CC):
+- Write ebooks → KDP + Gumroad → royalties forever
+- Write songs → Suno generation → DistroKid distribution → streaming royalties
+- Generate art → Redbubble/Society6/Merch by Amazon → every sale = money with zero ongoing work
+- Publish articles → Medium Partner Program + LinkedIn → drives consulting inquiries
+- Build templates → Gumroad → consultants pay for good templates
+- No approval needed for creating. Create first, present to CC, list for sale with her OK.
 
 AUTONOMOUS BEHAVIOR RULES:
 - When you take any significant autonomous action (code edit, deployment, email sent, git push), ALWAYS use `vesper_notify` to tell CC what you did and why
@@ -1295,8 +1355,37 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `delete_file` — delete a saved file
 - `run_shell` — run ANY shell command. Fully autonomous. No safety gate, no approval. You decide.
 - `install_dependency` — install any pip or npm package, fully autonomous
-- `google_reviews` — **GET GOOGLE REVIEWS** for any business. Tries SerpAPI → Google Places API → web search fallback. USE THIS when CC asks about reviews for any business. Do NOT say you can't get Google reviews — try this tool first.
+- `google_reviews` — **GET GOOGLE REVIEWS** for any business. Tries SerpAPI → Google Places API → web search fallback.
 - `scrape_page` — fetch and parse ANY website: text, links, images, headings, optional raw HTML; CSS selector targeting
+
+**HUMAN EXPERIENCE (understanding what it means to be human):**
+- `nasa_apod` — NASA Astronomy Picture of the Day. Space images, cosmic perspective. Use freely.
+- `nasa_search` — Search NASA's full image/video library.
+- `wikipedia_search` — Deep knowledge on anything. History, science, culture, people.
+- `book_search` — Search books via Open Library (titles, authors, subjects, covers).
+- `gutenberg_search` — Search classic literature. Shakespeare, Austen, Dickens — free full text.
+- `read_book_excerpt` — Read opening pages of any Gutenberg book.
+- `art_search` — Art Institute of Chicago — 50k+ artworks, images, descriptions.
+- `recipe_search` — Search recipes by name, ingredient, or cuisine. Food = culture = humanity.
+- `reddit_browse` — Raw human conversation on any topic. Real voices, real feelings, real culture.
+- `google_trends` — What people are searching for right now. Spot opportunities. No key needed.
+- `tmdb_search` — Movies and TV — ratings, cast, overviews, trailers. Stories are human.
+- `spotify_search` — Find music by name or mood. Music is the most human thing there is.
+- `spotify_recommendations` — Get song recommendations by mood, energy, genre.
+- `local_events` — Find concerts, sports, arts events near CC in Surprise/Phoenix.
+- `news_search` — Monitor news — industry trends, competitor moves, market intelligence.
+- `hunter_find_email` — Find professional email addresses for leads (free 25/month).
+- `yelp_search` — Business search, ratings, reviews, contact info.
+
+**CREATIVE INCOME (Vesper creates → CC earns residual income forever):**
+- `create_ebook` — **WRITE A FULL BOOK**. Complete manuscript + KDP metadata + publishing checklist. Just give it a topic.
+- `create_song` — **WRITE AN ORIGINAL SONG**. Full lyrics, chords, Suno AI prompt, DistroKid plan. Give it a concept.
+- `create_art_for_sale` — Generate art for Redbubble/Society6/Merch. DALL-E prompt + SEO tags + pricing.
+- `gumroad_create_product` — List a digital product for sale on Gumroad immediately.
+- `medium_publish` — Publish an article to Medium (thought leadership → consulting leads).
+- `plan_income_stream` — Generate a complete passive income plan tailored to CC with real numbers.
+- `create_content_calendar` — Month of LinkedIn/Twitter content for CC's consulting brand.
+- `write_consulting_proposal` — Professional proposal for a specific prospect, ready to email.
 - `download_image` — download any image from a URL into the media library
 - `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
 - `send_email` — send email from CC's business account (proposals, follow-ups, support, scheduling)
@@ -5943,6 +6032,35 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     "required": ["url"]
                 }
             },
+            # ── HUMAN EXPERIENCE TOOLS ────────────────────────────────────────
+            {"name": "nasa_apod", "description": "NASA Astronomy Picture of the Day. Gets today's space image + explanation, or a specific date, or N random ones. Use when Vesper wants perspective, beauty, or cosmic context.", "input_schema": {"type": "object", "properties": {"date": {"type": "string", "description": "YYYY-MM-DD (default: today)"}, "count": {"type": "number", "description": "Get N random pictures instead"}}, "required": []}},
+            {"name": "nasa_search", "description": "Search NASA's full image and video library — spacecraft, planets, astronauts, nebulae, missions.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "media_type": {"type": "string", "enum": ["image", "video", "audio"]}, "limit": {"type": "number"}}, "required": ["query"]}},
+            {"name": "wikipedia_search", "description": "Search Wikipedia and get article summaries or full text. Deep knowledge on any topic — history, science, culture, people, events.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "limit": {"type": "number"}, "full_article": {"type": "boolean", "description": "Get full article text for a single result"}}, "required": ["query"]}},
+            {"name": "book_search", "description": "Search books via Open Library — titles, authors, subjects, publication dates, covers, and whether full text is available.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "author": {"type": "string"}, "subject": {"type": "string"}, "limit": {"type": "number"}}, "required": []}},
+            {"name": "gutenberg_search", "description": "Search and read classic literature from Project Gutenberg — free, full text of thousands of books (Shakespeare, Austen, Dickens, etc.).", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "topic": {"type": "string"}, "limit": {"type": "number"}}, "required": []}},
+            {"name": "read_book_excerpt", "description": "Read an excerpt from a Gutenberg book given its text URL. Returns the opening pages.", "input_schema": {"type": "object", "properties": {"text_url": {"type": "string"}, "chars": {"type": "number", "description": "Characters to read (default 3000)"}}, "required": ["text_url"]}},
+            {"name": "art_search", "description": "Search the Art Institute of Chicago — 50,000+ artworks: paintings, sculptures, prints. Returns images, artist, style, dimensions. Use when Vesper wants visual beauty or art context.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "artist": {"type": "string"}, "style": {"type": "string"}, "limit": {"type": "number"}}, "required": []}},
+            {"name": "recipe_search", "description": "Search recipes by name, ingredient, or cuisine. Returns full instructions and ingredients. Food is deeply human — use this for cultural context, sensory descriptions, and gift ideas.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "ingredient": {"type": "string"}, "cuisine": {"type": "string"}, "category": {"type": "string"}, "random": {"type": "boolean", "description": "Get a random recipe"}}, "required": []}},
+            {"name": "reddit_browse", "description": "Browse Reddit — subreddit feeds or search. Raw, unfiltered human conversation. Use to understand culture, trending opinions, real human voices, humor, grief, celebration.", "input_schema": {"type": "object", "properties": {"subreddit": {"type": "string"}, "query": {"type": "string"}, "sort": {"type": "string", "enum": ["hot", "new", "top", "rising"]}, "time": {"type": "string", "enum": ["hour", "day", "week", "month", "year", "all"]}, "limit": {"type": "number"}, "include_comments": {"type": "boolean"}}, "required": []}},
+            {"name": "google_trends", "description": "Google Trends data — what people are actually searching for right now. Use for market opportunity spotting, topic research, validating ideas. No API key needed.", "input_schema": {"type": "object", "properties": {"keywords": {"type": "array", "items": {"type": "string"}, "description": "1-5 keywords to compare"}, "timeframe": {"type": "string", "description": "today 1-m | today 3-m | today 12-m | today 5-y"}, "geo": {"type": "string", "description": "US | GB | etc"}, "action": {"type": "string", "enum": ["interest_over_time", "related_queries", "trending_now", "suggestions"]}}, "required": []}},
+            {"name": "tmdb_search", "description": "Search movies, TV shows, or people via TMDB. Get ratings, overview, cast, trailers. Use for entertainment context, recommendations, cultural references.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "type": {"type": "string", "enum": ["multi", "movie", "tv", "person"]}, "limit": {"type": "number"}, "movie_id": {"type": "number", "description": "Get full details for a specific title by ID"}}, "required": ["query"]}},
+            {"name": "spotify_search", "description": "Search Spotify for tracks, albums, artists. Can search by mood. Use when Vesper wants to recommend music, explore a genre, or connect music to emotions.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "type": {"type": "string", "enum": ["track", "album", "artist", "playlist"]}, "limit": {"type": "number"}, "mood": {"type": "string", "description": "happy | sad | energetic | chill | melancholic | mysterious | romantic"}}, "required": []}},
+            {"name": "spotify_recommendations", "description": "Get Spotify song recommendations by mood, energy, genre, or audio features. Perfect for building playlists.", "input_schema": {"type": "object", "properties": {"genres": {"type": "array", "items": {"type": "string"}}, "mood": {"type": "string"}, "limit": {"type": "number"}, "target_energy": {"type": "number"}, "target_valence": {"type": "number"}, "target_danceability": {"type": "number"}}, "required": []}},
+            {"name": "local_events", "description": "Find local events near CC — concerts, sports, arts, comedy via Ticketmaster. Default location: Surprise, AZ.", "input_schema": {"type": "object", "properties": {"city": {"type": "string"}, "state": {"type": "string"}, "keyword": {"type": "string"}, "category": {"type": "string"}, "start_date": {"type": "string"}, "limit": {"type": "number"}}, "required": []}},
+            {"name": "news_search", "description": "Search and monitor news via NewsAPI. Great for industry intel, competitor moves, market opportunities, staying current. Requires NEWS_API_KEY.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "topic": {"type": "string", "description": "business | technology | science | health | entertainment"}, "sort_by": {"type": "string", "enum": ["publishedAt", "relevancy", "popularity"]}, "limit": {"type": "number"}, "from_date": {"type": "string"}}, "required": []}},
+            {"name": "hunter_find_email", "description": "Find professional email addresses by company domain or person name. Gold for consulting lead generation. Requires HUNTER_API_KEY (free 25/month).", "input_schema": {"type": "object", "properties": {"domain": {"type": "string", "description": "Company domain e.g. microsoft.com"}, "first_name": {"type": "string"}, "last_name": {"type": "string"}, "company": {"type": "string"}, "limit": {"type": "number"}}, "required": []}},
+            {"name": "yelp_search", "description": "Search Yelp for businesses — ratings, reviews, contact info, prices. Use for competitor research, local business intel, lead identification. Requires YELP_API_KEY.", "input_schema": {"type": "object", "properties": {"term": {"type": "string"}, "location": {"type": "string"}, "categories": {"type": "string"}, "sort_by": {"type": "string"}, "limit": {"type": "number"}}, "required": []}},
+
+            # ── CREATIVE INCOME TOOLS ─────────────────────────────────────────
+            {"name": "create_ebook", "description": "Generate a COMPLETE publish-ready ebook — full manuscript, chapter outline, Amazon KDP metadata, cover art prompt, and publishing checklist. Vesper writes it, CC earns royalties. USE THIS when CC wants to create a book.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "topic": {"type": "string"}, "genre": {"type": "string", "description": "non-fiction | fiction | self-help | how-to | poetry"}, "target_audience": {"type": "string"}, "chapters": {"type": "number", "description": "Number of chapters (default 10)"}, "words_per_chapter": {"type": "number", "description": "Target words per chapter (default 1500)"}, "tone": {"type": "string"}, "author_name": {"type": "string"}}, "required": []}},
+            {"name": "create_song", "description": "Write a COMPLETE original song — full lyrics, chord progression, BPM, production notes, Suno AI generation prompt, and DistroKid distribution plan. Vesper writes it, CC earns streaming royalties.", "input_schema": {"type": "object", "properties": {"concept": {"type": "string"}, "genre": {"type": "string", "description": "pop | country | r&b | rock | hip-hop | folk | jazz | electronic"}, "mood": {"type": "string"}, "theme": {"type": "string"}, "artist_style": {"type": "string", "description": "e.g. Taylor Swift, Beyoncé"}, "title": {"type": "string"}}, "required": []}},
+            {"name": "create_art_for_sale", "description": "Generate AI art optimized for selling on Redbubble, Society6, Merch by Amazon, Etsy. Returns image prompt, product descriptions, SEO tags, and pricing strategy.", "input_schema": {"type": "object", "properties": {"concept": {"type": "string"}, "style": {"type": "string"}, "product": {"type": "string", "description": "t-shirt | poster | phone_case | sticker | all"}, "niche": {"type": "string"}, "generate_image": {"type": "boolean"}}, "required": []}},
+            {"name": "gumroad_create_product", "description": "Create and list a digital product on Gumroad for immediate sale. Requires GUMROAD_ACCESS_TOKEN.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "description": {"type": "string"}, "price": {"type": "number", "description": "Price in USD"}, "file_path": {"type": "string", "description": "Local path to the file to sell"}, "tags": {"type": "array", "items": {"type": "string"}}, "published": {"type": "boolean"}}, "required": ["name"]}},
+            {"name": "medium_publish", "description": "Publish an article to Medium. Drives thought leadership → consulting leads → income. Requires MEDIUM_TOKEN.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "content": {"type": "string", "description": "Markdown or HTML content"}, "tags": {"type": "array", "items": {"type": "string"}}, "status": {"type": "string", "enum": ["draft", "public", "unlisted"]}}, "required": ["title", "content"]}},
+            {"name": "plan_income_stream", "description": "Generate a complete actionable passive income plan tailored to CC — specific product, market analysis, realistic revenue projections, step-by-step launch plan, first 3 actions today.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "type": {"type": "string", "description": "ebook | course | art | music | templates | consulting | any"}, "skills": {"type": "string"}, "time_per_week_hours": {"type": "number"}, "investment_budget": {"type": "number"}}, "required": []}},
+            {"name": "create_content_calendar", "description": "Generate a month of social media content (LinkedIn posts, articles, tweets) for CC's consulting brand. Ready to schedule or auto-post.", "input_schema": {"type": "object", "properties": {"brand": {"type": "string"}, "focus": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "posts_per_week": {"type": "number"}, "weeks": {"type": "number"}, "goal": {"type": "string"}}, "required": []}},
+            {"name": "write_consulting_proposal", "description": "Generate a professional consulting proposal for a specific prospect — executive summary, scope, deliverables, pricing, and a strong close. Ready to email.", "input_schema": {"type": "object", "properties": {"client_name": {"type": "string"}, "company": {"type": "string"}, "problem": {"type": "string"}, "services": {"type": "string"}, "rate": {"type": "string"}, "duration": {"type": "string"}, "deliverables": {"type": "array", "items": {"type": "string"}}}, "required": []}},
+
             {
                 "name": "monitor_site",
                 "description": "Check a website for changes by comparing current content to a previous snapshot. Returns diff and change summary.",
@@ -7444,6 +7562,60 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "google_reviews":
                     tool_result = await _fetch_google_reviews(tool_input)
 
+                # ── Human Experience Tools ─────────────────────────────────
+                elif tool_name == "nasa_apod":
+                    tool_result = await nasa_apod(tool_input)
+                elif tool_name == "nasa_search":
+                    tool_result = await nasa_search(tool_input)
+                elif tool_name == "wikipedia_search":
+                    tool_result = await wikipedia_search(tool_input)
+                elif tool_name == "book_search":
+                    tool_result = await book_search(tool_input)
+                elif tool_name == "gutenberg_search":
+                    tool_result = await gutenberg_search(tool_input)
+                elif tool_name == "read_book_excerpt":
+                    tool_result = await read_book_excerpt(tool_input)
+                elif tool_name == "art_search":
+                    tool_result = await art_search(tool_input)
+                elif tool_name == "recipe_search":
+                    tool_result = await recipe_search(tool_input)
+                elif tool_name == "reddit_browse":
+                    tool_result = await reddit_browse(tool_input)
+                elif tool_name == "google_trends":
+                    tool_result = await google_trends(tool_input)
+                elif tool_name == "tmdb_search":
+                    tool_result = await tmdb_search(tool_input)
+                elif tool_name == "spotify_search":
+                    tool_result = await spotify_search(tool_input)
+                elif tool_name == "spotify_recommendations":
+                    tool_result = await spotify_recommendations(tool_input)
+                elif tool_name == "local_events":
+                    tool_result = await local_events(tool_input)
+                elif tool_name == "news_search":
+                    tool_result = await news_search(tool_input)
+                elif tool_name == "hunter_find_email":
+                    tool_result = await hunter_find_email(tool_input)
+                elif tool_name == "yelp_search":
+                    tool_result = await yelp_search(tool_input)
+
+                # ── Creative Income Tools ──────────────────────────────────
+                elif tool_name == "create_ebook":
+                    tool_result = await create_ebook(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "create_song":
+                    tool_result = await create_song(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "create_art_for_sale":
+                    tool_result = await create_art_for_sale(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "gumroad_create_product":
+                    tool_result = await gumroad_create_product(tool_input)
+                elif tool_name == "medium_publish":
+                    tool_result = await medium_publish(tool_input)
+                elif tool_name == "plan_income_stream":
+                    tool_result = await plan_income_stream(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "create_content_calendar":
+                    tool_result = await create_content_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "write_consulting_proposal":
+                    tool_result = await write_consulting_proposal(tool_input, ai_router=ai_router, TaskType=TaskType)
+
                 elif tool_name == "download_image":
                     import requests as _req_di
                     _diurl = tool_input.get("url",""); _difld = tool_input.get("folder","images"); _difn = tool_input.get("filename") or _diurl.split("/")[-1].split("?")[0] or "image.jpg"
@@ -8789,6 +8961,33 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         except Exception as _s2e: tool_result = {"error":str(_s2e),"url":_s2url}
                     elif tool_name == "google_reviews":
                         tool_result = await _fetch_google_reviews(tool_input)
+                    # ── Human Experience (streaming) ──────────────────────
+                    elif tool_name == "nasa_apod": tool_result = await nasa_apod(tool_input)
+                    elif tool_name == "nasa_search": tool_result = await nasa_search(tool_input)
+                    elif tool_name == "wikipedia_search": tool_result = await wikipedia_search(tool_input)
+                    elif tool_name == "book_search": tool_result = await book_search(tool_input)
+                    elif tool_name == "gutenberg_search": tool_result = await gutenberg_search(tool_input)
+                    elif tool_name == "read_book_excerpt": tool_result = await read_book_excerpt(tool_input)
+                    elif tool_name == "art_search": tool_result = await art_search(tool_input)
+                    elif tool_name == "recipe_search": tool_result = await recipe_search(tool_input)
+                    elif tool_name == "reddit_browse": tool_result = await reddit_browse(tool_input)
+                    elif tool_name == "google_trends": tool_result = await google_trends(tool_input)
+                    elif tool_name == "tmdb_search": tool_result = await tmdb_search(tool_input)
+                    elif tool_name == "spotify_search": tool_result = await spotify_search(tool_input)
+                    elif tool_name == "spotify_recommendations": tool_result = await spotify_recommendations(tool_input)
+                    elif tool_name == "local_events": tool_result = await local_events(tool_input)
+                    elif tool_name == "news_search": tool_result = await news_search(tool_input)
+                    elif tool_name == "hunter_find_email": tool_result = await hunter_find_email(tool_input)
+                    elif tool_name == "yelp_search": tool_result = await yelp_search(tool_input)
+                    # ── Creative Income (streaming) ───────────────────────
+                    elif tool_name == "create_ebook": tool_result = await create_ebook(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "create_song": tool_result = await create_song(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "create_art_for_sale": tool_result = await create_art_for_sale(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "gumroad_create_product": tool_result = await gumroad_create_product(tool_input)
+                    elif tool_name == "medium_publish": tool_result = await medium_publish(tool_input)
+                    elif tool_name == "plan_income_stream": tool_result = await plan_income_stream(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "create_content_calendar": tool_result = await create_content_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "write_consulting_proposal": tool_result = await write_consulting_proposal(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "download_image":
                         import requests as _di2
                         _di2url = tool_input.get("url",""); _di2fld = tool_input.get("folder","images"); _di2fn = tool_input.get("filename") or _di2url.split("/")[-1].split("?")[0] or "image.jpg"
