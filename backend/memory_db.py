@@ -13,6 +13,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, J
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
+from sqlalchemy.orm.attributes import flag_modified
 
 Base = declarative_base()
 
@@ -342,6 +343,9 @@ class PersistentMemoryDB:
             
             messages.append(message)
             thread.messages = messages
+            # flag_modified is REQUIRED for SQLAlchemy to detect JSON column mutations.
+            # Without it, commit() silently skips the write if it thinks the column is clean.
+            flag_modified(thread, "messages")
             thread.updated_at = datetime.datetime.utcnow()
             session.commit()
             session.refresh(thread)
@@ -482,40 +486,43 @@ class PersistentMemoryDB:
             memory = session.query(Memory).filter(Memory.id == memory_id).first()
             if memory:
                 memory.tags = tags
+                flag_modified(memory, "tags")
                 memory.updated_at = datetime.datetime.utcnow()
                 session.commit()
                 return True
             return False
         finally:
             session.close()
-    
+
     def add_tag_to_memory(self, memory_id: int, tag: str) -> bool:
         """Add a tag to memory"""
         session = self.get_session()
         try:
             memory = session.query(Memory).filter(Memory.id == memory_id).first()
             if memory:
-                tags = memory.tags or []
+                tags = list(memory.tags or [])
                 if tag not in tags:
                     tags.append(tag)
                     memory.tags = tags
+                    flag_modified(memory, "tags")
                     memory.updated_at = datetime.datetime.utcnow()
                     session.commit()
                 return True
             return False
         finally:
             session.close()
-    
+
     def remove_tag_from_memory(self, memory_id: int, tag: str) -> bool:
         """Remove a tag from memory"""
         session = self.get_session()
         try:
             memory = session.query(Memory).filter(Memory.id == memory_id).first()
             if memory:
-                tags = memory.tags or []
+                tags = list(memory.tags or [])
                 if tag in tags:
                     tags.remove(tag)
                     memory.tags = tags
+                    flag_modified(memory, "tags")
                     memory.updated_at = datetime.datetime.utcnow()
                     session.commit()
                 return True
@@ -579,10 +586,13 @@ class PersistentMemoryDB:
             for key, value in kwargs.items():
                 if hasattr(task, key):
                     setattr(task, key, value)
-            
+                    # JSON columns need flag_modified so SQLAlchemy detects the mutation
+                    if key in ("tags", "meta_data", "metadata"):
+                        flag_modified(task, key)
+
             if kwargs.get("status") == "done" and not task.completed_at:
                 task.completed_at = datetime.datetime.utcnow()
-            
+
             session.commit()
             session.refresh(task)
             return self._task_to_dict(task)
@@ -797,6 +807,7 @@ class PersistentMemoryDB:
                 item.url = url
                 item.prompt = prompt
                 item.meta_data = metadata or {}
+                flag_modified(item, "meta_data")
                 if created_at:
                     item.created_at = created_at
             session.commit()
@@ -1591,6 +1602,7 @@ class PersistentMemoryDB:
                 existing.content = content
                 existing.file_path = file_path
                 existing.metadata = metadata or {}
+                flag_modified(existing, "metadata")
                 existing.status = status
                 existing.updated_at = datetime.datetime.utcnow()
             else:
