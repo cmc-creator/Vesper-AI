@@ -253,7 +253,8 @@ def root():
 @app.get("/health")
 def health_check():
     """Health check endpoint required by Railway deployment"""
-    return {"status": "healthy", "timestamp": datetime.datetime.now().isoformat()}
+    db_backend = "postgresql" if (memory_db._initialized and not memory_db._use_sqlite) else ("sqlite" if memory_db._initialized else "not_initialized")
+    return {"status": "healthy", "timestamp": datetime.datetime.now().isoformat(), "db_backend": db_backend}
 
 @app.get("/api/vesper/proactive")
 def get_proactive_messages():
