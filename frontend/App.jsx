@@ -2694,32 +2694,30 @@ export default function App() {
       const threadList = Array.isArray(data) ? data : [];
       setThreads(threadList);
 
-      // Auto-restore last open conversation on startup
-      const savedId = safeStorageGet('vesper_last_thread_id', null);
-      if (savedId && threadList.some(t => t.id === savedId)) {
-        // Only restore if no conversation is already active
-        setCurrentThreadId(prev => {
-          if (!prev) {
-            // Load messages for the restored thread
-            fetch(`${apiBase}/api/threads/${savedId}`)
-              .then(r => r.json())
-              .then(threadData => {
-                if (threadData && threadData.messages) {
-                  const formatted = (threadData.messages || []).map((msg, idx) => ({
-                    id: msg.id || `thread-${savedId}-${idx}-${Date.now()}`,
-                    role: msg.role,
-                    content: msg.content,
-                    timestamp: msg.timestamp || Date.now()
-                  }));
-                  setMessages(formatted);
-                  setCurrentThreadTitle(threadData.title || '');
-                }
-              })
-              .catch(() => {});
-            return savedId;
-          }
-          return prev;
-        });
+      // Auto-restore last open conversation on startup only (not on silent/background refreshes).
+      // currentThreadId may already be set from localStorage, but messages are NOT persisted
+      // to localStorage — they live in the backend DB — so we must fetch them here every time.
+      if (!silent) {
+        const savedId = safeStorageGet('vesper_last_thread_id', null);
+        if (savedId && threadList.some(t => t.id === savedId)) {
+          setCurrentThreadId(savedId);
+          fetch(`${apiBase}/api/threads/${savedId}`)
+            .then(r => r.json())
+            .then(threadData => {
+              if (threadData && threadData.messages && threadData.messages.length > 0) {
+                const formatted = (threadData.messages || []).map((msg, idx) => ({
+                  id: msg.id || `thread-${savedId}-${idx}-${Date.now()}`,
+                  role: msg.role,
+                  content: msg.content,
+                  timestamp: msg.timestamp || Date.now()
+                }));
+                // Only populate if messages haven't already been set (e.g. hot-reload race)
+                setMessages(prev => prev.length > 0 ? prev : formatted);
+                setCurrentThreadTitle(threadData.title || '');
+              }
+            })
+            .catch(() => {});
+        }
       }
     } catch (error) {
       console.error('Threads fetch failed:', error);

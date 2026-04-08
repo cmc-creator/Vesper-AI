@@ -177,17 +177,17 @@ import httpx
 #     print(f"[WARN] Tracing setup failed: {e}")
 
 
-def _build_thread_context(thread_msgs: list, max_recent: int = 80):
+def _build_thread_context(thread_msgs: list, max_recent: int = 120):
     """
     Smart thread context builder with summarization for long conversations.
     Returns (summary_block: str | None, recent_msgs: list).
     
-    If thread has <= 120 messages: return all as-is.
-    If > 120: compress older messages into a text summary, keep most recent max_recent.
-    This lets Vesper remember EVERYTHING — older context as a summary block, 
+    If thread has <= 200 messages: return all as-is (full verbatim history).
+    If > 200: compress older messages into a faithful summary, keep most recent max_recent verbatim.
+    This lets Vesper remember EVERYTHING — older context as a detailed summary block,
     recent messages verbatim.
     """
-    if len(thread_msgs) <= 120:
+    if len(thread_msgs) <= 200:
         return None, thread_msgs
 
     old_msgs = thread_msgs[:-max_recent]
@@ -197,14 +197,14 @@ def _build_thread_context(thread_msgs: list, max_recent: int = 80):
     for m in old_msgs:
         role = m.get("role", "")
         content = str(m.get("content", m.get("text", "")))
-        # Keep meaningful content, truncate very long entries
+        # Keep meaningful content — longer snippet for more faithful compression
         if role in ("user", "assistant") and content.strip():
-            snippet = content.strip().replace("\n", " ")[:200]
+            snippet = content.strip().replace("\n", " ")[:400]
             prefix = "CC" if role == "user" else "Vesper"
             lines.append(f"- {prefix}: {snippet}")
 
     # Cap summary to avoid prompt bloat
-    summary_lines = lines[:80]
+    summary_lines = lines[:120]
     summary_block = (
         "**EARLIER CONVERSATION (compressed):**\n"
         + "\n".join(summary_lines)
