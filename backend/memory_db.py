@@ -147,6 +147,15 @@ class Pattern(Base):
     meta_data = Column(JSON, default=dict)
 
 
+class VesperConfig(Base):
+    """Key-value config store — API keys, runtime settings saved through Vesper's UI"""
+    __tablename__ = "vesper_config"
+
+    key = Column(String, primary_key=True)
+    value = Column(Text, nullable=False)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
 class PersistentMemoryDB:
     """Database manager for persistent memory"""
     
@@ -1521,6 +1530,53 @@ class PersistentMemoryDB:
         except Exception as e:
             print(f"Error building graph: {e}")
             return {"nodes": [], "links": []}
+        finally:
+            session.close()
+
+
+    # ── Config / API key store ──────────────────────────────────────────────────
+
+    def save_config(self, key: str, value: str) -> bool:
+        """Upsert a config value (e.g. an API key saved through Vesper's UI)."""
+        session = self.get_session()
+        try:
+            existing = session.query(VesperConfig).filter_by(key=key).first()
+            if existing:
+                existing.value = value
+                existing.updated_at = datetime.datetime.utcnow()
+            else:
+                session.add(VesperConfig(key=key, value=value))
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            print(f"Error saving config {key}: {e}")
+            return False
+        finally:
+            session.close()
+
+    def get_all_config(self) -> dict:
+        """Return all stored config as a plain dict {key: value}."""
+        session = self.get_session()
+        try:
+            rows = session.query(VesperConfig).all()
+            return {row.key: row.value for row in rows}
+        except Exception as e:
+            print(f"Error loading config: {e}")
+            return {}
+        finally:
+            session.close()
+
+    def delete_config(self, key: str) -> bool:
+        """Remove a stored config entry."""
+        session = self.get_session()
+        try:
+            session.query(VesperConfig).filter_by(key=key).delete()
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            return False
         finally:
             session.close()
 

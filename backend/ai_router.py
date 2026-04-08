@@ -159,10 +159,11 @@ class AIRouter:
                 print("[ROUTER] Ollama-first mode active (OLLAMA_PRIMARY=true)")
             self.routing_strategy = {task: list(_local_order) for task in TaskType}
         else:
-            # PRODUCTION: Groq first (free tier), then Gemini (free), then paid as last resort
+            # PRODUCTION: Gemini first — 1M TPM free tier crushes Groq's 6k TPM for large prompts
+            # Groq second as fast fallback (14k req/day), then paid providers last resort
             _prod_order = [
-                ModelProvider.GROQ,       # Groq — FREE (14,400 req/day, Llama 3.3 70B)
-                ModelProvider.GOOGLE,     # Gemini 2.5 Flash — FREE (1500 req/day, 1M tok/day)
+                ModelProvider.GOOGLE,     # Gemini 2.5 Flash — FREE (1M TPM, 1500 req/day) — PRIMARY
+                ModelProvider.GROQ,       # Groq Llama 3.3 70B — FREE fallback (6k TPM, 14k req/day)
                 ModelProvider.OLLAMA,     # Free local (if deployed on a machine with Ollama)
                 ModelProvider.OPENAI,     # Paid fallback
                 ModelProvider.ANTHROPIC,  # Paid last resort
@@ -252,15 +253,32 @@ class AIRouter:
         
         try:
             if provider == ModelProvider.ANTHROPIC:
-                return await self._chat_anthropic(messages, model, tools, max_tokens, temperature)
+                result = await self._chat_anthropic(messages, model, tools, max_tokens, temperature)
             elif provider == ModelProvider.OPENAI:
-                return await self._chat_openai(messages, model, tools, max_tokens, temperature)
+                result = await self._chat_openai(messages, model, tools, max_tokens, temperature)
             elif provider == ModelProvider.GOOGLE:
-                return await self._chat_google(messages, model, tools, max_tokens, temperature)
+                result = await self._chat_google(messages, model, tools, max_tokens, temperature)
             elif provider == ModelProvider.OLLAMA:
-                return await self._chat_ollama(messages, model, max_tokens, temperature)
+                result = await self._chat_ollama(messages, model, max_tokens, temperature)
             elif provider == ModelProvider.GROQ:
-                return await self._chat_groq(messages, model, tools, max_tokens, temperature)
+                result = await self._chat_groq(messages, model, tools, max_tokens, temperature)
+            else:
+                return {"error": f"Unknown provider: {provider}", "provider": None, "model": model}
+
+            # If a provider returns empty content with no tool calls and no error,
+            # treat it as a soft failure and try the next provider automatically.
+            # This catches silent failures (e.g. Groq returning None content unexpectedly).
+            if not result.get("content") and not result.get("tool_calls") and not result.get("error"):
+                error_msg = f"{provider.value}: empty response (no content, no tool calls)"
+                _errors.append(error_msg)
+                print(f"[WARN] {error_msg} — trying next provider")
+                fallback_providers = [p for p in self.routing_strategy[task_type] if p not in _tried_providers and self.is_provider_available(p)]
+                if fallback_providers:
+                    print(f"[FALLBACK] {provider.value} gave empty response → trying {fallback_providers[0].value}")
+                    return await self.chat(messages, task_type, tools, max_tokens, temperature, preferred_provider=fallback_providers[0], _tried_providers=_tried_providers, _errors=_errors)
+                # All providers exhausted — return result as-is (caller has its own fallback message)
+
+            return result
         except Exception as e:
             # Collect error and fallback to next provider (excluding ALL previously tried ones)
             error_msg = f"{provider.value}: {str(e)[:200]}"
@@ -577,6 +595,31 @@ class AIRouter:
             }
         }
     
+    def reconfigure_providers(self):
+        """Re-read env vars and reinitialize provider clients.
+        Call this after injecting new API keys into os.environ at runtime."""
+        if ANTHROPIC_AVAILABLE:
+            anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+            if anthropic_key and not self.anthropic_client:
+                self.anthropic_client = anthropic.Anthropic(api_key=anthropic_key)
+                print("[OK] Anthropic reconfigured")
+        if OPENAI_AVAILABLE:
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if openai_key and not self.openai_client:
+                self.openai_client = AsyncOpenAI(api_key=openai_key)
+                print("[OK] OpenAI reconfigured")
+        if GOOGLE_AVAILABLE:
+            google_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+            if google_key and not self.google_client:
+                self.google_client = genai.Client(api_key=google_key)
+                print("[OK] Google Gemini reconfigured")
+        if GROQ_AVAILABLE:
+            groq_key = os.getenv("GROQ_API_KEY")
+            if groq_key and not self.groq_client:
+                self.groq_client = AsyncGroq(api_key=groq_key)
+                print("[OK] Groq reconfigured")
+        self._setup_routing_strategy()
+
     def get_stats(self) -> Dict[str, Any]:
         """Get router statistics and availability"""
         return {

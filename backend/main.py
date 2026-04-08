@@ -466,6 +466,87 @@ def _build_runtime_capabilities():
 def get_runtime_capabilities():
     return _build_runtime_capabilities()
 
+
+# ── API Key Manager ─────────────────────────────────────────────────────────
+# CC tells Vesper a key, Vesper saves it to DB — no Railway dashboard needed.
+
+_KNOWN_KEYS = {
+    "GROQ_API_KEY":           {"label": "Groq (free AI — primary)",          "url": "https://console.groq.com/keys"},
+    "GOOGLE_API_KEY":         {"label": "Google Gemini (free AI — fallback)", "url": "https://aistudio.google.com/app/apikey"},
+    "OPENAI_API_KEY":         {"label": "OpenAI GPT",                         "url": "https://platform.openai.com/api-keys"},
+    "ANTHROPIC_API_KEY":      {"label": "Anthropic Claude",                   "url": "https://console.anthropic.com/"},
+    "ELEVENLABS_API_KEY":     {"label": "ElevenLabs (voice)",                 "url": "https://elevenlabs.io/"},
+    "ELEVENLABS_VOICE_ID":    {"label": "ElevenLabs voice ID",                "url": None},
+    "TMDB_API_KEY":           {"label": "TMDB (movies/TV)",                   "url": "https://www.themoviedb.org/settings/api"},
+    "SPOTIFY_CLIENT_ID":      {"label": "Spotify client ID",                  "url": "https://developer.spotify.com/dashboard"},
+    "SPOTIFY_CLIENT_SECRET":  {"label": "Spotify client secret",              "url": "https://developer.spotify.com/dashboard"},
+    "TICKETMASTER_KEY":       {"label": "Ticketmaster (events)",              "url": "https://developer.ticketmaster.com/"},
+    "NEWS_API_KEY":           {"label": "NewsAPI",                            "url": "https://newsapi.org/"},
+    "HUNTER_API_KEY":         {"label": "Hunter.io (find emails)",            "url": "https://hunter.io/"},
+    "YELP_API_KEY":           {"label": "Yelp Fusion",                        "url": "https://www.yelp.com/developers/"},
+    "SERPAPI_KEY":            {"label": "SerpAPI (Google reviews)",           "url": "https://serpapi.com/"},
+    "GUMROAD_ACCESS_TOKEN":   {"label": "Gumroad (sell products)",            "url": "https://gumroad.com/settings/advanced"},
+    "MEDIUM_TOKEN":           {"label": "Medium (publish articles)",          "url": "https://medium.com/me/settings"},
+    "RESEND_API_KEY":         {"label": "Resend (send email)",                "url": "https://resend.com/"},
+    "STRIPE_SECRET_KEY":      {"label": "Stripe (payments/invoices)",         "url": "https://dashboard.stripe.com/apikeys"},
+    "GITHUB_TOKEN":           {"label": "GitHub token",                       "url": "https://github.com/settings/tokens"},
+    "LINKEDIN_ACCESS_TOKEN":  {"label": "LinkedIn (post updates)",            "url": None},
+    "TWITTER_API_KEY":        {"label": "Twitter/X API key",                  "url": "https://developer.twitter.com/"},
+}
+
+@app.get("/api/keys/status")
+def get_key_status():
+    """Show which API keys are configured (set in env or saved in DB). Never returns key values."""
+    try:
+        db_config = memory_db.get_all_config()
+    except Exception:
+        db_config = {}
+    status = {}
+    for key, meta in _KNOWN_KEYS.items():
+        in_env = bool(os.environ.get(key))
+        in_db  = bool(db_config.get(key))
+        status[key] = {
+            "label":     meta["label"],
+            "url":       meta.get("url"),
+            "active":    in_env or in_db,
+            "source":    "env" if in_env else ("db" if in_db else None),
+        }
+    return {"keys": status, "total": len(status), "active": sum(1 for v in status.values() if v["active"])}
+
+class KeySetRequest(BaseModel):
+    key: str
+    value: str
+
+@app.post("/api/keys/set")
+async def set_api_key(req: KeySetRequest):
+    """Save an API key to persistent DB storage. Injected into os.environ immediately."""
+    key = req.key.strip().upper()
+    value = req.value.strip()
+    if not key or not value:
+        return JSONResponse(status_code=400, content={"error": "key and value required"})
+    # Immediately inject into running process
+    os.environ[key] = value
+    # Persist to DB for future restarts
+    ok = memory_db.save_config(key, value)
+    if not ok:
+        return JSONResponse(status_code=500, content={"error": "DB save failed"})
+    # Reconfigure AI router in case it's a provider key
+    try:
+        ai_router.reconfigure_providers()
+    except Exception:
+        pass
+    label = _KNOWN_KEYS.get(key, {}).get("label", key)
+    return {"success": True, "key": key, "label": label, "message": f"{label} saved and active immediately"}
+
+@app.delete("/api/keys/{key}")
+async def delete_api_key(key: str):
+    """Remove a DB-stored API key. Does not affect Railway environment variables."""
+    key = key.strip().upper()
+    ok = memory_db.delete_config(key)
+    # Remove from running process env if it came from DB (not if it was from Railway env)
+    # We can't easily tell, so leave os.environ alone — it'll be gone on next restart
+    return {"success": ok, "key": key, "note": "Removed from DB — will be gone after next restart"}
+
 @app.get("/api/elevenlabs/voices")
 async def get_elevenlabs_voices():
     """Fetch available voices from ElevenLabs API"""
@@ -1974,6 +2055,23 @@ def ensure_directories():
 
 # Create directories on startup
 ensure_directories()
+
+# ── Load DB-stored API keys into os.environ so ai_router picks them up ──────
+# CC can tell Vesper "save my TMDB key: xyz" and Vesper stores it in the DB.
+# On next deploy/restart, those keys are injected before any AI call is made.
+try:
+    _db_config = memory_db.get_all_config()
+    _injected = []
+    for _k, _v in _db_config.items():
+        if _v and not os.environ.get(_k):  # never override actual Railway env vars
+            os.environ[_k] = _v
+            _injected.append(_k)
+    if _injected:
+        print(f"[CONFIG] Loaded {len(_injected)} key(s) from DB: {', '.join(_injected)}")
+        # Reconfigure AI router so it picks up any newly injected provider keys
+        ai_router.reconfigure_providers()
+except Exception as _cfg_err:
+    print(f"[CONFIG] Could not load DB config: {_cfg_err}")
 
 # --- Threaded Conversation Model ---
 class ThreadEntry(BaseModel):
@@ -6020,6 +6118,18 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "save_api_key",
+                "description": "Save an API key (or any config value) so CC never has to enter it again. Persists in the DB — survives restarts. Activates immediately. Use when CC tells you a key/token/secret.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "key":   {"type": "string", "description": "Env var name in ALL_CAPS (e.g. TMDB_API_KEY)"},
+                        "value": {"type": "string", "description": "The key value / secret"}
+                    },
+                    "required": ["key", "value"]
+                }
+            },
+            {
                 "name": "download_image",
                 "description": "Download any image from a URL and save it to the media library. Returns the local path.",
                 "input_schema": {
@@ -7562,6 +7672,20 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "google_reviews":
                     tool_result = await _fetch_google_reviews(tool_input)
 
+                elif tool_name == "save_api_key":
+                    _sk_key = tool_input.get("key", "").strip().upper()
+                    _sk_val = tool_input.get("value", "").strip()
+                    if _sk_key and _sk_val:
+                        os.environ[_sk_key] = _sk_val
+                        memory_db.save_config(_sk_key, _sk_val)
+                        try:
+                            ai_router.reconfigure_providers()
+                        except Exception:
+                            pass
+                        tool_result = {"saved": True, "key": _sk_key, "active": True}
+                    else:
+                        tool_result = {"error": "Both key and value are required"}
+
                 # ── Human Experience Tools ─────────────────────────────────
                 elif tool_name == "nasa_apod":
                     tool_result = await nasa_apod(tool_input)
@@ -8525,16 +8649,22 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     })
              
             
-            # Continue conversation
+            # Continue conversation — lock to same provider to keep message format consistent
+            # (mixing providers mid-loop causes format mismatch: Groq tool msgs ≠ Gemini format)
+            try:
+                _loop_prov = ModelProvider(provider) if provider not in ("unknown", None, "") else None
+            except ValueError:
+                _loop_prov = None
             ai_response_obj = await ai_router.chat(
                 messages=messages,
                 task_type=TaskType.CHAT,
                 max_tokens=2000,
                 temperature=0.7,
-                tools=tools
+                tools=tools,
+                preferred_provider=_loop_prov
             )
             provider = ai_response_obj.get("provider", provider)
-            
+
             # Update tool_calls for next iteration
             tool_calls = ai_response_obj.get("tool_calls", [])
         
@@ -8755,6 +8885,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "restart_frontend", "description": "Restart the Vite frontend dev server.", "input_schema": {"type": "object", "properties": {}}},
                 {"name": "rebuild_frontend", "description": "Rebuild the frontend with npm run build.", "input_schema": {"type": "object", "properties": {}}},
                 {"name": "scrape_page", "description": "Fetch and parse any URL - text, links, images, optional HTML.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "extract_links": {"type": "boolean"}, "extract_images": {"type": "boolean"}, "raw_html": {"type": "boolean"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
+                {"name": "save_api_key", "description": "Save an API key or config value so CC never has to enter it again. Persists in DB, activates immediately. Use when CC gives you any key/token/secret.", "input_schema": {"type": "object", "properties": {"key": {"type": "string", "description": "Env var name in ALL_CAPS (e.g. TMDB_API_KEY)"}, "value": {"type": "string", "description": "The key value"}}, "required": ["key", "value"]}},
                 {"name": "download_image", "description": "Download an image from a URL to the media library.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
                 {"name": "monitor_site", "description": "Check a website for changes vs a previous snapshot.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "previous_content": {"type": "string"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 
@@ -8961,6 +9092,19 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         except Exception as _s2e: tool_result = {"error":str(_s2e),"url":_s2url}
                     elif tool_name == "google_reviews":
                         tool_result = await _fetch_google_reviews(tool_input)
+                    elif tool_name == "save_api_key":
+                        _sk2_key = tool_input.get("key", "").strip().upper()
+                        _sk2_val = tool_input.get("value", "").strip()
+                        if _sk2_key and _sk2_val:
+                            os.environ[_sk2_key] = _sk2_val
+                            memory_db.save_config(_sk2_key, _sk2_val)
+                            try:
+                                ai_router.reconfigure_providers()
+                            except Exception:
+                                pass
+                            tool_result = {"saved": True, "key": _sk2_key, "active": True}
+                        else:
+                            tool_result = {"error": "Both key and value are required"}
                     # ── Human Experience (streaming) ──────────────────────
                     elif tool_name == "nasa_apod": tool_result = await nasa_apod(tool_input)
                     elif tool_name == "nasa_search": tool_result = await nasa_search(tool_input)
@@ -9689,9 +9833,14 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                     messages.append({"role": "assistant", "content": content_blocks})
                     messages.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": tool_id, "content": content_str}]})
                 
+                # Lock to same provider — prevents cross-provider message format mismatch
+                try:
+                    _loop_prov2 = ModelProvider(provider) if provider not in ("unknown", None, "") else preferred_provider
+                except ValueError:
+                    _loop_prov2 = preferred_provider
                 ai_response_obj = await ai_router.chat(
                     messages=messages, task_type=TaskType.CHAT, tools=tools,
-                    max_tokens=2000, temperature=0.7, preferred_provider=preferred_provider
+                    max_tokens=2000, temperature=0.7, preferred_provider=_loop_prov2
                 )
                 provider = ai_response_obj.get("provider", provider)
                 tool_calls = ai_response_obj.get("tool_calls", [])
