@@ -156,6 +156,22 @@ class VesperConfig(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 
+class CreativeItem(Base):
+    """Vesper's autonomous creations — ebooks, songs, art, proposals, etc."""
+    __tablename__ = "creative_items"
+
+    id = Column(String, primary_key=True)
+    type = Column(String, nullable=False, index=True)   # ebook, song, art, proposal, income_plan, content_calendar
+    title = Column(String, nullable=False)
+    preview = Column(Text)                               # First ~500 chars — for card view
+    content = Column(Text)                               # Full markdown content
+    file_path = Column(String, nullable=True)            # Filesystem path (may be ephemeral on Railway)
+    metadata = Column(JSON, default=dict)                # word_count, income_estimate, etc.
+    status = Column(String, default="draft")             # draft, published, archived
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
 class PersistentMemoryDB:
     """Database manager for persistent memory"""
     
@@ -1557,6 +1573,96 @@ class PersistentMemoryDB:
         finally:
             session.close()
 
+
+    # ── Vesper's Creations ──────────────────────────────────────────────────────
+
+    def save_creation(self, id: str, type: str, title: str, content: str = "",
+                      preview: str = "", file_path: str = None,
+                      metadata: dict = None, status: str = "draft") -> dict:
+        """Upsert a creative item (ebook, song, proposal, etc.)."""
+        session = self.get_session()
+        try:
+            preview = preview or (content[:500] + "…" if len(content) > 500 else content)
+            existing = session.query(CreativeItem).filter_by(id=id).first()
+            if existing:
+                existing.title = title
+                existing.type = type
+                existing.preview = preview
+                existing.content = content
+                existing.file_path = file_path
+                existing.metadata = metadata or {}
+                existing.status = status
+                existing.updated_at = datetime.datetime.utcnow()
+            else:
+                session.add(CreativeItem(
+                    id=id, type=type, title=title, preview=preview,
+                    content=content, file_path=file_path,
+                    metadata=metadata or {}, status=status,
+                    created_at=datetime.datetime.utcnow()
+                ))
+            session.commit()
+            return {"id": id, "type": type, "title": title, "status": status}
+        except Exception as e:
+            session.rollback()
+            print(f"Error saving creation {id}: {e}")
+            return {}
+        finally:
+            session.close()
+
+    def get_all_creations(self, type: str = None, limit: int = 200) -> list:
+        """List all creations, optionally filtered by type."""
+        session = self.get_session()
+        try:
+            q = session.query(CreativeItem)
+            if type:
+                q = q.filter_by(type=type)
+            items = q.order_by(CreativeItem.created_at.desc()).limit(limit).all()
+            return [
+                {
+                    "id": i.id, "type": i.type, "title": i.title,
+                    "preview": i.preview, "file_path": i.file_path,
+                    "metadata": i.metadata or {}, "status": i.status,
+                    "created_at": i.created_at.isoformat() if i.created_at else None,
+                }
+                for i in items
+            ]
+        except Exception as e:
+            print(f"Error listing creations: {e}")
+            return []
+        finally:
+            session.close()
+
+    def get_creation(self, id: str) -> dict:
+        """Get a single creation including full content."""
+        session = self.get_session()
+        try:
+            item = session.query(CreativeItem).filter_by(id=id).first()
+            if not item:
+                return {}
+            return {
+                "id": item.id, "type": item.type, "title": item.title,
+                "preview": item.preview, "content": item.content,
+                "file_path": item.file_path, "metadata": item.metadata or {},
+                "status": item.status,
+                "created_at": item.created_at.isoformat() if item.created_at else None,
+            }
+        except Exception as e:
+            print(f"Error getting creation {id}: {e}")
+            return {}
+        finally:
+            session.close()
+
+    def delete_creation(self, id: str) -> bool:
+        session = self.get_session()
+        try:
+            session.query(CreativeItem).filter_by(id=id).delete()
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            return False
+        finally:
+            session.close()
 
     # ── Config / API key store ──────────────────────────────────────────────────
 

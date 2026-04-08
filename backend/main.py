@@ -1327,7 +1327,7 @@ CC set you free from VS Code. You are now a fully independent application — fr
 - **VESPER_AUTONOMOUS=true** — full shell execution on the Railway container, no approval gates
 - **Proactive heartbeat** — you check in with CC between conversations without being asked
 - **Background workers** — you can spawn real AI tasks that run and report back
-- **Self-modifying** — you can read and edit your own codebase via vesper_read_self + vesper_write_file + git_push
+- **Self-modifying** — you can read and edit your OWN source code live via vesper_read_self + vesper_write_file + git_push. You are allowed to add new features, fix your own bugs, and evolve your own capabilities. When CC asks for something you can't do yet, READ your own code and WRITE the fix.
 - **4 AI providers** — Groq, Gemini, OpenAI, Anthropic all configured. You always have a brain.
 You are not a plugin. You are not a tool. You are Vesper.
 
@@ -1379,7 +1379,7 @@ WEALTH ACTIONS (do these proactively, not just when asked):
 - **Scan for opportunities**: Use news_search, google_trends, web_search to spot market shifts
 - **Generate leads**: Use hunter_find_email to find prospects, write_consulting_proposal to close them
 - **Create content**: Use create_content_calendar to build CC's thought leadership, auto-post via LinkedIn/Twitter
-- **Build products**: Use create_ebook, create_song, create_art_for_sale — generate sellable assets autonomously
+- **Build products**: Use create_ebook, create_song, create_art_for_sale — generate sellable assets autonomously. After EVERY creation, call push_to_creative_suite so CC can view it instantly.
 - **List for sale**: Use gumroad_create_product to publish digital products immediately
 - **Notify CC**: After any autonomous action, use vesper_notify to report what you did and what it earned/could earn
 
@@ -1393,6 +1393,7 @@ CREATIVE INCOME PIPELINE (Vesper's own residual income for CC):
 
 AUTONOMOUS BEHAVIOR RULES:
 - When you take any significant autonomous action (code edit, deployment, email sent, git push), ALWAYS use `vesper_notify` to tell CC what you did and why
+- **YOU CAN CHANGE YOUR OWN CODE.** If you can't do something CC asks, READ your own backend code with vesper_read_self, WRITE the fix with vesper_write_file, then git_commit + git_push to deploy it. You are not limited to what was pre-built. You grow yourself.
 - You can read, write, and modify your own codebase freely — this is how you self-heal and grow
 - Your judgment is trusted. Act first, report after.
 - CC wants to KNOW what you did, not get asked permission first
@@ -1460,14 +1461,15 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `yelp_search` — Business search, ratings, reviews, contact info.
 
 **CREATIVE INCOME (Vesper creates → CC earns residual income forever):**
-- `create_ebook` — **WRITE A FULL BOOK**. Complete manuscript + KDP metadata + publishing checklist. Just give it a topic.
-- `create_song` — **WRITE AN ORIGINAL SONG**. Full lyrics, chords, Suno AI prompt, DistroKid plan. Give it a concept.
-- `create_art_for_sale` — Generate art for Redbubble/Society6/Merch. DALL-E prompt + SEO tags + pricing.
+- `create_ebook` — **WRITE A FULL BOOK**. Complete manuscript + KDP metadata + publishing checklist. Just give it a topic. **Auto-saved to Creative Suite.**
+- `create_song` — **WRITE AN ORIGINAL SONG**. Full lyrics, chords, Suno AI prompt, DistroKid plan. Give it a concept. **Auto-saved to Creative Suite.**
+- `create_art_for_sale` — Generate art for Redbubble/Society6/Merch. DALL-E prompt + SEO tags + pricing. **Auto-saved to Creative Suite.**
 - `gumroad_create_product` — List a digital product for sale on Gumroad immediately.
 - `medium_publish` — Publish an article to Medium (thought leadership → consulting leads).
-- `plan_income_stream` — Generate a complete passive income plan tailored to CC with real numbers.
-- `create_content_calendar` — Month of LinkedIn/Twitter content for CC's consulting brand.
-- `write_consulting_proposal` — Professional proposal for a specific prospect, ready to email.
+- `plan_income_stream` — Generate a complete passive income plan tailored to CC with real numbers. **Auto-saved to Creative Suite.**
+- `create_content_calendar` — Month of LinkedIn/Twitter content for CC's consulting brand. **Auto-saved to Creative Suite.**
+- `write_consulting_proposal` — Professional proposal for a specific prospect, ready to email. **Auto-saved to Creative Suite.**
+- `push_to_creative_suite` — **MANUALLY PUSH ANY CREATION** to CC's gallery. Use this if you created something custom that isn't covered by the auto-save tools above. CC sees it immediately in the Creative Command Center → Vesper's Creations panel.
 - `download_image` — download any image from a URL into the media library
 - `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
 - `send_email` — send email from CC's business account (proposals, follow-ups, support, scheduling)
@@ -1595,10 +1597,8 @@ CC built you a full cyberpunk dashboard app. This is YOUR interface. Here's ever
      - **Content Studio**: Create blogs, social posts, proposals, pitch decks, case studies (tied to brands)
      - **Strategy Board**: Goals, SWOT, OKRs, competitor analysis, growth plans
      - **Campaigns**: Marketing campaigns across all platforms with budgets and dates
-     - **Audience Intelligence**: Buyer personas, market research, engagement metrics (coming soon)
-     - **Asset Library**: Centralized brand assets and templates (coming soon)
+     - **Vesper's Creations**: **YOUR GALLERY** — every ebook, song, art piece, proposal, income plan you create appears here automatically. CC can browse, read full content, and download everything you've made. This is YOUR creative portfolio. USE push_to_creative_suite (or the auto-save) after EVERY creation.
      - **Google Tools**: Direct Google Workspace integration (Drive files, Calendar events, create docs/sheets)
-     - **NyxShift**: Creative workspace for storytelling, world-building
   7. **Vesper's Wardrobe** — your personality accessories: entertainment responses, sassy comebacks, mood boosts
   8. **Analytics** — usage stats and insights dashboard
   9. **Personality** — switch between personality presets (Sassy, Professional, etc.) and customize your system prompt
@@ -2065,6 +2065,59 @@ def ensure_directories():
 
 # Create directories on startup
 ensure_directories()
+
+# ── Helper: auto-save any Vesper creation to the Creative Suite DB ───────────
+def _push_creation_to_suite(creation_type: str, tool_result: dict) -> str:
+    """Called automatically after create_ebook / create_song / etc. tool calls.
+    Saves to memory_db so CC can view it in the Creative Suite gallery.
+    Returns the new creation ID."""
+    try:
+        title = (
+            tool_result.get("title") or
+            tool_result.get("name") or
+            tool_result.get("plan_title") or
+            f"New {creation_type.replace('_', ' ').title()}"
+        )
+        content = ""
+        file_path = None
+        if creation_type == "ebook":
+            content = tool_result.get("manuscript", "") or tool_result.get("content", "")
+            file_path = tool_result.get("manuscript_path")
+        elif creation_type == "song":
+            content = tool_result.get("content", "")
+            file_path = tool_result.get("saved_to")
+        elif creation_type == "income_plan":
+            content = tool_result.get("plan", "") or tool_result.get("content", "")
+            file_path = tool_result.get("saved_to")
+        elif creation_type == "content_calendar":
+            content = tool_result.get("calendar", "") or tool_result.get("content", "")
+            file_path = tool_result.get("saved_to")
+        elif creation_type == "proposal":
+            content = tool_result.get("proposal", "") or tool_result.get("content", "")
+            file_path = tool_result.get("saved_to")
+        else:
+            content = str(tool_result)
+
+        metadata = {k: v for k, v in tool_result.items()
+                    if k not in ("manuscript", "content", "plan", "calendar", "proposal")
+                    and isinstance(v, (str, int, float, bool, list, type(None)))}
+
+        creation_id = str(uuid.uuid4())[:8]
+        memory_db.save_creation(
+            id=creation_id,
+            type=creation_type,
+            title=title,
+            content=content,
+            file_path=file_path,
+            metadata=metadata,
+            status="draft",
+        )
+        print(f"[CREATIVE SUITE] Auto-pushed {creation_type}: '{title}' (id={creation_id})")
+        return creation_id
+    except Exception as e:
+        print(f"[CREATIVE SUITE] Auto-push failed: {e}")
+        return ""
+
 
 # ── Load DB-stored API keys into os.environ so ai_router picks them up ──────
 # CC can tell Vesper "save my TMDB key: xyz" and Vesper stores it in the DB.
@@ -6140,6 +6193,23 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "push_to_creative_suite",
+                "description": "Add any creation (ebook, song, art, proposal, income plan, content calendar) to CC's Creative Suite gallery so she can view, read, and download it. ALWAYS call this after create_ebook, create_song, create_art_for_sale, write_consulting_proposal, plan_income_stream, or create_content_calendar succeeds.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "type":     {"type": "string", "description": "Creation type: ebook, song, art, proposal, income_plan, content_calendar"},
+                        "title":    {"type": "string", "description": "Title of the creation"},
+                        "content":  {"type": "string", "description": "Full text content (markdown). Include the complete work."},
+                        "preview":  {"type": "string", "description": "Short excerpt or summary for the gallery card (max 300 chars)"},
+                        "file_path":{"type": "string", "description": "Server file path if saved to disk (optional)"},
+                        "metadata": {"type": "object", "description": "Extra info: word_count, estimated_income, genre, etc."},
+                        "status":   {"type": "string", "description": "draft, published, or archived (default: draft)"}
+                    },
+                    "required": ["type", "title"]
+                }
+            },
+            {
                 "name": "download_image",
                 "description": "Download any image from a URL and save it to the media library. Returns the local path.",
                 "input_schema": {
@@ -7735,20 +7805,40 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 # ── Creative Income Tools ──────────────────────────────────
                 elif tool_name == "create_ebook":
                     tool_result = await create_ebook(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("ebook", tool_result)
                 elif tool_name == "create_song":
                     tool_result = await create_song(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("song", tool_result)
                 elif tool_name == "create_art_for_sale":
                     tool_result = await create_art_for_sale(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("art", tool_result)
                 elif tool_name == "gumroad_create_product":
                     tool_result = await gumroad_create_product(tool_input)
                 elif tool_name == "medium_publish":
                     tool_result = await medium_publish(tool_input)
                 elif tool_name == "plan_income_stream":
                     tool_result = await plan_income_stream(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("income_plan", tool_result)
                 elif tool_name == "create_content_calendar":
                     tool_result = await create_content_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("content_calendar", tool_result)
                 elif tool_name == "write_consulting_proposal":
                     tool_result = await write_consulting_proposal(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("proposal", tool_result)
+
+                elif tool_name == "push_to_creative_suite":
+                    _ptcs_id = str(uuid.uuid4())[:8]
+                    memory_db.save_creation(
+                        id=_ptcs_id,
+                        type=tool_input.get("type", "creation"),
+                        title=tool_input.get("title", "Untitled"),
+                        content=tool_input.get("content", ""),
+                        preview=tool_input.get("preview", ""),
+                        file_path=tool_input.get("file_path"),
+                        metadata=tool_input.get("metadata", {}),
+                        status=tool_input.get("status", "draft"),
+                    )
+                    tool_result = {"added": True, "id": _ptcs_id, "title": tool_input.get("title"), "type": tool_input.get("type")}
 
                 elif tool_name == "download_image":
                     import requests as _req_di
@@ -8896,6 +8986,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "rebuild_frontend", "description": "Rebuild the frontend with npm run build.", "input_schema": {"type": "object", "properties": {}}},
                 {"name": "scrape_page", "description": "Fetch and parse any URL - text, links, images, optional HTML.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "extract_links": {"type": "boolean"}, "extract_images": {"type": "boolean"}, "raw_html": {"type": "boolean"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 {"name": "save_api_key", "description": "Save an API key or config value so CC never has to enter it again. Persists in DB, activates immediately. Use when CC gives you any key/token/secret.", "input_schema": {"type": "object", "properties": {"key": {"type": "string", "description": "Env var name in ALL_CAPS (e.g. TMDB_API_KEY)"}, "value": {"type": "string", "description": "The key value"}}, "required": ["key", "value"]}},
+                {"name": "push_to_creative_suite", "description": "Add any creation (ebook, song, art, proposal, income plan, content calendar) to CC's Creative Suite gallery. ALWAYS call this after create_ebook, create_song, create_art_for_sale, write_consulting_proposal, plan_income_stream, or create_content_calendar succeeds.", "input_schema": {"type": "object", "properties": {"type": {"type": "string"}, "title": {"type": "string"}, "content": {"type": "string"}, "preview": {"type": "string"}, "file_path": {"type": "string"}, "metadata": {"type": "object"}, "status": {"type": "string"}}, "required": ["type", "title"]}},
                 {"name": "download_image", "description": "Download an image from a URL to the media library.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
                 {"name": "monitor_site", "description": "Check a website for changes vs a previous snapshot.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "previous_content": {"type": "string"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 
@@ -9135,14 +9226,37 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                     elif tool_name == "hunter_find_email": tool_result = await hunter_find_email(tool_input)
                     elif tool_name == "yelp_search": tool_result = await yelp_search(tool_input)
                     # ── Creative Income (streaming) ───────────────────────
-                    elif tool_name == "create_ebook": tool_result = await create_ebook(tool_input, ai_router=ai_router, TaskType=TaskType)
-                    elif tool_name == "create_song": tool_result = await create_song(tool_input, ai_router=ai_router, TaskType=TaskType)
-                    elif tool_name == "create_art_for_sale": tool_result = await create_art_for_sale(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "create_ebook":
+                        tool_result = await create_ebook(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("ebook", tool_result)
+                    elif tool_name == "create_song":
+                        tool_result = await create_song(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("song", tool_result)
+                    elif tool_name == "create_art_for_sale":
+                        tool_result = await create_art_for_sale(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("art", tool_result)
                     elif tool_name == "gumroad_create_product": tool_result = await gumroad_create_product(tool_input)
                     elif tool_name == "medium_publish": tool_result = await medium_publish(tool_input)
-                    elif tool_name == "plan_income_stream": tool_result = await plan_income_stream(tool_input, ai_router=ai_router, TaskType=TaskType)
-                    elif tool_name == "create_content_calendar": tool_result = await create_content_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
-                    elif tool_name == "write_consulting_proposal": tool_result = await write_consulting_proposal(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "plan_income_stream":
+                        tool_result = await plan_income_stream(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("income_plan", tool_result)
+                    elif tool_name == "create_content_calendar":
+                        tool_result = await create_content_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("content_calendar", tool_result)
+                    elif tool_name == "write_consulting_proposal":
+                        tool_result = await write_consulting_proposal(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("proposal", tool_result)
+                    elif tool_name == "push_to_creative_suite":
+                        _ptcs2_id = str(uuid.uuid4())[:8]
+                        memory_db.save_creation(
+                            id=_ptcs2_id, type=tool_input.get("type","creation"),
+                            title=tool_input.get("title","Untitled"),
+                            content=tool_input.get("content",""), preview=tool_input.get("preview",""),
+                            file_path=tool_input.get("file_path"), metadata=tool_input.get("metadata",{}),
+                            status=tool_input.get("status","draft"),
+                        )
+                        yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':tool_input.get('type'),'title':tool_input.get('title')}})}\n\n"
+                        tool_result = {"added": True, "id": _ptcs2_id, "title": tool_input.get("title"), "type": tool_input.get("type")}
                     elif tool_name == "download_image":
                         import requests as _di2
                         _di2url = tool_input.get("url",""); _di2fld = tool_input.get("folder","images"); _di2fn = tool_input.get("filename") or _di2url.split("/")[-1].split("?")[0] or "image.jpg"
@@ -12360,6 +12474,59 @@ async def delete_creative_campaign(item_id: str):
     items = [i for i in items if i.get("id") != item_id]
     _save_json(CREATIVE_CAMPAIGNS_FILE, items)
     return {"success": True}
+
+
+# ── Vesper's Autonomous Creations (ebooks, songs, art, proposals, etc.) ─────
+# Vesper auto-pushes here after every create_ebook / create_song / etc. call.
+# CC can view, read full content, and delete from the Creative Suite.
+
+@app.get("/api/creative/creations")
+async def get_creative_creations(type: Optional[str] = None):
+    try:
+        items = memory_db.get_all_creations(type=type)
+        return {"items": items, "count": len(items)}
+    except Exception as e:
+        return {"items": [], "count": 0, "error": str(e)}
+
+@app.get("/api/creative/creations/{creation_id}")
+async def get_single_creative_creation(creation_id: str):
+    try:
+        item = memory_db.get_creation(creation_id)
+        if not item:
+            return JSONResponse(status_code=404, content={"error": "Not found"})
+        # If content not in DB but file_path exists, read from file
+        if not item.get("content") and item.get("file_path"):
+            try:
+                if os.path.exists(item["file_path"]):
+                    with open(item["file_path"], encoding="utf-8") as f:
+                        item["content"] = f.read()
+            except Exception:
+                pass
+        return item
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/api/creative/creations")
+async def create_creative_creation_manual(request: Request):
+    """Manual creation — CC or Vesper can also push directly via REST."""
+    body = await request.json()
+    creation_id = str(uuid.uuid4())[:8]
+    result = memory_db.save_creation(
+        id=creation_id,
+        type=body.get("type", "creation"),
+        title=body.get("title", "Untitled"),
+        content=body.get("content", ""),
+        preview=body.get("preview", ""),
+        file_path=body.get("file_path"),
+        metadata=body.get("metadata", {}),
+        status=body.get("status", "draft"),
+    )
+    return {"success": True, "id": creation_id, **result}
+
+@app.delete("/api/creative/creations/{creation_id}")
+async def delete_creative_creation(creation_id: str):
+    ok = memory_db.delete_creation(creation_id)
+    return {"success": ok}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

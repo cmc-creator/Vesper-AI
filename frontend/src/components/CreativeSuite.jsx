@@ -38,6 +38,7 @@ import {
 // Sidebar Navigation
 const SIDEBAR_NAV = [
   { id: 'hub', label: 'Command Hub', icon: LaunchIcon, color: '#00d0ff' },
+  { id: 'creations', label: "Vesper's Creations", icon: AutoAwesomeIcon, color: '#ff00aa' },
   { id: 'brands', label: 'Brand Identities', icon: BusinessIcon, color: '#ff6b35' },
   { id: 'content', label: 'Content Studio', icon: DocIcon, color: '#9d00ff' },
   { id: 'strategy', label: 'Strategy Board', icon: BrainIcon, color: '#00ff88' },
@@ -86,6 +87,13 @@ export default function CreativeSuite({ apiBase, onBack }) {
   const [projectForm, setProjectForm] = useState({ name: '', description: '', color: '#00d0ff', type: 'app', status: 'planning', tech_stack: '', repo_url: '', live_url: '' });
   const [activeProjectId, setActiveProjectId] = useState(null);
 
+  // Vesper's Creations state
+  const [creations, setCreations] = useState([]);
+  const [creationsLoading, setCreationsLoading] = useState(false);
+  const [activeCreation, setActiveCreation] = useState(null);
+  const [creationContent, setCreationContent] = useState('');
+  const [creationContentLoading, setCreationContentLoading] = useState(false);
+
   const [toast, setToast] = useState('');
 
   // Data Loading
@@ -131,11 +139,46 @@ export default function CreativeSuite({ apiBase, onBack }) {
     try { const r = await fetch(`${apiBase}/api/projects`); const d = await r.json(); setProjects(Array.isArray(d) ? d : d.projects || []); } catch { setProjects([]); }
   }, [apiBase]);
 
-  useEffect(() => { loadBrands(); loadContent(); loadStrategies(); loadCampaigns(); loadProjects(); }, [loadBrands, loadContent, loadStrategies, loadCampaigns, loadProjects]);
+  const loadCreations = useCallback(async () => {
+    if (apiBase == null) return;
+    setCreationsLoading(true);
+    try {
+      const r = await fetch(`${apiBase}/api/creative/creations`);
+      const d = await r.json();
+      setCreations(Array.isArray(d) ? d : d.items || []);
+    } catch { setCreations([]); }
+    setCreationsLoading(false);
+  }, [apiBase]);
+
+  const openCreation = async (creation) => {
+    setActiveCreation(creation);
+    setCreationContent('');
+    if (!creation.content) {
+      setCreationContentLoading(true);
+      try {
+        const r = await fetch(`${apiBase}/api/creative/creations/${creation.id}`);
+        const d = await r.json();
+        setCreationContent(d.content || d.preview || '(No content available)');
+      } catch { setCreationContent('(Failed to load content)'); }
+      setCreationContentLoading(false);
+    } else {
+      setCreationContent(creation.content || creation.preview || '');
+    }
+  };
+
+  const deleteCreation = async (id) => {
+    await fetch(`${apiBase}/api/creative/creations/${id}`, { method: 'DELETE' });
+    setCreations(prev => prev.filter(c => c.id !== id));
+    if (activeCreation?.id === id) setActiveCreation(null);
+    showToast('Creation deleted');
+  };
+
+  useEffect(() => { loadBrands(); loadContent(); loadStrategies(); loadCampaigns(); loadProjects(); loadCreations(); }, [loadBrands, loadContent, loadStrategies, loadCampaigns, loadProjects, loadCreations]);
 
   useEffect(() => {
     if (activePanel === 'google') { checkGoogleStatus(); loadDriveFiles(); loadCalendarEvents(); }
-  }, [activePanel, checkGoogleStatus, loadDriveFiles, loadCalendarEvents]);
+    if (activePanel === 'creations') { loadCreations(); }
+  }, [activePanel, checkGoogleStatus, loadDriveFiles, loadCalendarEvents, loadCreations]);
 
   // Brand CRUD
   const saveBrand = async () => {
@@ -262,13 +305,14 @@ export default function CreativeSuite({ apiBase, onBack }) {
       </Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {[
-          { label: 'Brands', value: brands.length, icon: <BusinessIcon />, color: '#ff6b35' },
-          { label: 'Content', value: contentItems.length, icon: <DocIcon />, color: '#9d00ff' },
-          { label: 'Strategies', value: strategies.length, icon: <BrainIcon />, color: '#00ff88' },
-          { label: 'Campaigns', value: campaigns.length, icon: <CampaignIcon />, color: '#ff2d55' },
+          { label: "Vesper's Creations", value: creations.length, icon: <AutoAwesomeIcon />, color: '#ff00aa', panel: 'creations' },
+          { label: 'Brands', value: brands.length, icon: <BusinessIcon />, color: '#ff6b35', panel: 'brands' },
+          { label: 'Content', value: contentItems.length, icon: <DocIcon />, color: '#9d00ff', panel: 'content' },
+          { label: 'Strategies', value: strategies.length, icon: <BrainIcon />, color: '#00ff88', panel: 'strategy' },
+          { label: 'Campaigns', value: campaigns.length, icon: <CampaignIcon />, color: '#ff2d55', panel: 'campaigns' },
         ].map(stat => (
-          <Grid item xs={6} sm={3} key={stat.label}>
-            <Box sx={{ ...glassCard, textAlign: 'center', borderColor: `${stat.color}30` }}>
+          <Grid item xs={6} sm={2.4} key={stat.label}>
+            <Box onClick={() => stat.panel && setActivePanel(stat.panel)} sx={{ ...glassCard, textAlign: 'center', borderColor: `${stat.color}30`, cursor: stat.panel ? 'pointer' : 'default', '&:hover': { borderColor: `${stat.color}60`, bgcolor: 'rgba(255,255,255,0.05)' } }}>
               <Box sx={{ color: stat.color, mb: 1 }}>{stat.icon}</Box>
               <Typography variant="h4" sx={{ color: '#fff', fontWeight: 800 }}>{stat.value}</Typography>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>{stat.label}</Typography>
@@ -699,9 +743,134 @@ export default function CreativeSuite({ apiBase, onBack }) {
     </Box>
   );
 
+  // TYPE COLORS / ICONS for creations gallery
+  const CREATION_META = {
+    ebook:            { label: 'eBook',           color: '#9d00ff', icon: '📖' },
+    song:             { label: 'Song',             color: '#ff2d55', icon: '🎵' },
+    art:              { label: 'Art',              color: '#ff9800', icon: '🎨' },
+    proposal:         { label: 'Proposal',         color: '#00d0ff', icon: '📋' },
+    income_plan:      { label: 'Income Plan',      color: '#00ff88', icon: '💰' },
+    content_calendar: { label: 'Content Calendar', color: '#ffcc00', icon: '📅' },
+    creation:         { label: 'Creation',         color: '#ff00aa', icon: '✨' },
+  };
+
+  const renderCreations = () => (
+    <Box>
+      {sectionHeader(
+        <AutoAwesomeIcon sx={{ color: '#ff00aa' }} />,
+        "Vesper's Creations",
+        creations.length,
+        'Refresh',
+        loadCreations
+      )}
+      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)', mb: 2 }}>
+        Everything Vesper has created — ebooks, songs, proposals, income plans. Auto-saved after every creation.
+      </Typography>
+
+      {/* Detail view */}
+      {activeCreation && (
+        <Box sx={{ ...glassCard, mb: 3, borderColor: 'rgba(255,0,170,0.3)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700 }}>{activeCreation.title}</Typography>
+              <Chip label={(CREATION_META[activeCreation.type] || CREATION_META.creation).label} size="small"
+                sx={{ bgcolor: `${(CREATION_META[activeCreation.type] || CREATION_META.creation).color}22`,
+                      color: (CREATION_META[activeCreation.type] || CREATION_META.creation).color, fontWeight: 700 }} />
+            </Box>
+            <IconButton size="small" onClick={() => setActiveCreation(null)} sx={{ color: 'rgba(255,255,255,0.4)' }}><CloseIcon fontSize="small" /></IconButton>
+          </Box>
+          {creationContentLoading ? (
+            <CircularProgress size={24} sx={{ color: '#ff00aa' }} />
+          ) : (
+            <Box sx={{ maxHeight: 500, overflowY: 'auto', bgcolor: 'rgba(0,0,0,0.3)', borderRadius: 1, p: 2 }}>
+              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.8rem', lineHeight: 1.7 }}>
+                {creationContent || '(loading…)'}
+              </Typography>
+            </Box>
+          )}
+          <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {activeCreation.metadata?.word_count && (
+              <Chip label={`${activeCreation.metadata.word_count.toLocaleString()} words`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }} />
+            )}
+            {activeCreation.metadata?.estimated_monthly_income && (
+              <Chip label={`Est. ${activeCreation.metadata.estimated_monthly_income}/mo`} size="small" sx={{ bgcolor: 'rgba(0,255,136,0.12)', color: '#00ff88' }} />
+            )}
+            {activeCreation.created_at && (
+              <Chip label={new Date(activeCreation.created_at).toLocaleDateString()} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }} />
+            )}
+          </Box>
+        </Box>
+      )}
+
+      {/* Gallery */}
+      {creationsLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}><CircularProgress sx={{ color: '#ff00aa' }} /></Box>
+      ) : creations.length === 0 ? (
+        <Box sx={{ ...glassCard, textAlign: 'center', py: 6 }}>
+          <AutoAwesomeIcon sx={{ fontSize: 56, color: 'rgba(255,0,170,0.3)', mb: 2 }} />
+          <Typography sx={{ color: 'rgba(255,255,255,0.5)', mb: 1 }}>No creations yet</Typography>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)' }}>
+            Ask Vesper to write an ebook, song, proposal, or income plan — it'll appear here automatically.
+          </Typography>
+        </Box>
+      ) : (
+        <Grid container spacing={2}>
+          {creations.map(item => {
+            const meta = CREATION_META[item.type] || CREATION_META.creation;
+            const isActive = activeCreation?.id === item.id;
+            return (
+              <Grid item xs={12} sm={6} md={4} key={item.id}>
+                <Box onClick={() => openCreation(item)} sx={{
+                  ...glassCard, cursor: 'pointer',
+                  borderColor: isActive ? `${meta.color}60` : undefined,
+                  bgcolor: isActive ? `${meta.color}10` : undefined,
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontSize: '1.4rem' }}>{meta.icon}</Typography>
+                      <Box>
+                        <Typography variant="body1" sx={{ color: '#fff', fontWeight: 700, lineHeight: 1.2 }}>{item.title}</Typography>
+                        <Chip label={meta.label} size="small" sx={{ bgcolor: `${meta.color}22`, color: meta.color, fontWeight: 600, fontSize: '0.65rem', height: 18, mt: 0.3 }} />
+                      </Box>
+                    </Box>
+                    <IconButton size="small" onClick={e => { e.stopPropagation(); deleteCreation(item.id); }} sx={{ color: 'rgba(255,255,255,0.2)', '&:hover': { color: '#ff4444' } }}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  {item.preview && (
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', lineHeight: 1.5, mt: 0.5,
+                      overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+                      {item.preview}
+                    </Typography>
+                  )}
+                  <Box sx={{ mt: 1, display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {item.metadata?.word_count && (
+                      <Chip label={`${(item.metadata.word_count / 1000).toFixed(1)}k words`} size="small"
+                        sx={{ bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.4)', fontSize: '0.6rem', height: 17 }} />
+                    )}
+                    {item.metadata?.estimated_monthly_income && (
+                      <Chip label={item.metadata.estimated_monthly_income + '/mo'} size="small"
+                        sx={{ bgcolor: 'rgba(0,255,136,0.1)', color: '#00ff88', fontSize: '0.6rem', height: 17 }} />
+                    )}
+                    {item.created_at && (
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)', ml: 'auto', fontSize: '0.65rem' }}>
+                        {new Date(item.created_at).toLocaleDateString()}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              </Grid>
+            );
+          })}
+        </Grid>
+      )}
+    </Box>
+  );
+
   const renderPanel = () => {
     switch (activePanel) {
       case 'hub': return renderHub();
+      case 'creations': return renderCreations();
       case 'brands': return renderBrands();
       case 'content': return renderContent();
       case 'strategy': return renderStrategy();
