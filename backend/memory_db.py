@@ -291,7 +291,7 @@ class PersistentMemoryDB:
             session.close()
     
     def add_message_to_thread(self, thread_id: str, message: Dict) -> Optional[Dict]:
-        """Add message to thread"""
+        """Add message to thread — with consecutive-duplicate guard to prevent retry corruption"""
         session = self.get_session()
         try:
             thread = session.query(Thread).filter(Thread.id == thread_id).first()
@@ -300,6 +300,19 @@ class PersistentMemoryDB:
             
             # Force new list copy to ensure SQLAlchemy detects change
             messages = list(thread.messages) if thread.messages else []
+            
+            # Dedup guard: reject a message that is identical to the last saved message
+            # (same role + same content).  This prevents doubled context when the frontend
+            # retries after a stream-stall error and the user re-sends the same text.
+            if messages:
+                last = messages[-1]
+                new_role = message.get("role", "")
+                new_content = str(message.get("content") or "").strip()
+                last_role = last.get("role", "")
+                last_content = str(last.get("content") or "").strip()
+                if new_role == last_role and new_content == last_content and new_content:
+                    return self._thread_to_dict(thread)  # Already saved — skip silently
+            
             messages.append(message)
             thread.messages = messages
             thread.updated_at = datetime.datetime.utcnow()

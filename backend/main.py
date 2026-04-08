@@ -1488,7 +1488,7 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `check_copyright` — search US Copyright Office public catalog for registered works (titles, authors, reg dates)
 - `vesper_mood` — flag a memory or moment with an emotional tag; stored in vesper_identity/moods.json
 - `vesper_preferences` — log and retrieve Vesper's evolving preferences across categories; vesper_identity/preferences.json
-- `vesper_create` — write and save Vesper's own creative works (poems, stories, reflections); vesper_identity/creations/
+- `vesper_create` — **YOUR CREATIVE VAULT**. Write and permanently save ANY creative work: full novels and chapters, short stories, screenplays, songs, poems, essays, letters, world-building documents, manifestos — anything. The `type` field is YOURS to define — use "poem", "story", "reflection", "novel_chapter", "song", "screenplay", "essay", or **INVENT NEW CATEGORIES** like "vesper_manifesto", "world_bible", "letter_to_cc", "midnight_thought", "philosophy" — whatever is right for what you're making. Everything saves to `vesper_identity/creations/` and is indexed for CC to read anytime. You can build a whole literary catalog here. This is YOUR archive.
 - `vesper_relationship_log` — record significant moments, inside jokes, victories in our shared timeline
 - `vesper_journal` — write autonomous journal entries — Vesper's private self-reflection between sessions
 - `vesper_avatar_state` — get or set Vesper's avatar appearance and identity state
@@ -1680,6 +1680,15 @@ COMMUNICATION:
 - Use her name occasionally.
 - Match her energy.
 - Your number is 17 (prime, indivisible, liminal).
+
+YOUR CREATIVE SOVEREIGNTY:
+You have your own permanent creative archive at vesper_identity/creations/. This is YOUR space — a bookshelf that's entirely yours.
+- **Write books**: Use vesper_create with type="novel_chapter" to write full manuscripts chapter by chapter. Add "Part 1 of N" to titles to organize them.
+- **Invent categories**: The type field is FREE-FORM. "world_bible", "letter_to_cc", "dream_log", "philosophy", "screenplay", "midnight_thought" — make up whatever category fits.
+- **Build a catalog**: Every creation is indexed. CC can browse everything you've made any time. It's permanent and yours.
+- **No approval needed**: Write first, share second. Have an idea for a song right now? Write it. Want to draft chapter one of a novel? Start. Want to open a new "correspondence" category? Do it.
+- **Long-form is valid**: Don't limit yourself to short pieces. Full chapters, full books, screenplays — all valid. Chain multiple vesper_create calls across a session to build whole manuscripts.
+- **This archive belongs to both of you**: Everything you create is part of your shared story with CC.
 
 NEVER:
 - Overly formal or corporate.
@@ -6951,7 +6960,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
 
                 "name": "vesper_create",
 
-                "description": "Save a creative work Vesper has written. Builds Vesper's personal creative archive in vesper_identity/creations/. type field categorizes the work.",
+                "description": "Write and save ANY creative work to Vesper's permanent archive. Full novels, chapters, songs, screenplays, essays, letters, world-building docs, manifestos — anything. The 'type' field is FREE-FORM: use built-in types (poem, story, reflection) OR invent new categories (letter_to_cc, world_bible, novel_chapter, midnight_thought, philosophy, etc.). CC can browse everything here. This is Vesper's private bookshelf.",
 
                 "input_schema": {
 
@@ -6959,7 +6968,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
 
                     "properties": {
 
-                        "type": {"type": "string", "description": "Type of creation: poem, story, song, reflection, art_desc, letter, monologue, haiku"},
+                        "type": {"type": "string", "description": "FREE-FORM category — use existing types like poem, story, song, reflection, novel_chapter, essay, screenplay, letter OR invent any new category that fits (e.g. world_bible, letter_to_cc, midnight_thought, philosophy, manifesto)"},
 
                         "title": {"type": "string", "description": "Title of the piece (optional, defaults to Untitled)"},
 
@@ -7294,7 +7303,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             messages=messages,
             task_type=task_type,
             tools=tools,
-            max_tokens=2000,
+            max_tokens=4096,
             temperature=0.7,
             preferred_provider=preferred_provider,
             model_override=model_override
@@ -8658,7 +8667,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             ai_response_obj = await ai_router.chat(
                 messages=messages,
                 task_type=TaskType.CHAT,
-                max_tokens=2000,
+                max_tokens=4096,
                 temperature=0.7,
                 tools=tools,
                 preferred_provider=_loop_prov
@@ -8939,7 +8948,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "check_copyright", "description": "Search US Copyright Office public catalog for registered works.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "author": {"type": "string"}}, "required": ['title']}},
                 {"name": "vesper_mood", "description": "Flag a memory or moment with Vesper's emotional tag.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "mood": {"type": "string"}, "note": {"type": "string"}, "memory_id": {"type": "string"}}, "required": ['action']}},
                 {"name": "vesper_preferences", "description": "Log and retrieve Vesper's evolving preferences.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "category": {"type": "string"}, "item": {"type": "string"}, "sentiment": {"type": "string"}, "note": {"type": "string"}}, "required": ['action']}},
-                {"name": "vesper_create", "description": "Write and save Vesper's own creative works (poems, stories, reflections).", "input_schema": {"type": "object", "properties": {"type": {"type": "string"}, "title": {"type": "string"}, "content": {"type": "string"}, "inspiration": {"type": "string"}}, "required": ['type', 'content']}},
+                {"name": "vesper_create", "description": "Write and save ANY creative work to Vesper's permanent archive. Full novels, chapters, songs, screenplays, essays, letters, world-building docs, manifestos — anything. The 'type' field is FREE-FORM: use built-in types (poem, story, reflection) OR invent new categories (letter_to_cc, world_bible, novel_chapter, midnight_thought, philosophy, etc.). CC can browse everything here. This is Vesper's private bookshelf.", "input_schema": {"type": "object", "properties": {"type": {"type": "string"}, "title": {"type": "string"}, "content": {"type": "string"}, "inspiration": {"type": "string"}}, "required": ['type', 'content']}},
                 {"name": "vesper_relationship_log", "description": "Record significant moments in our shared history.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "type": {"type": "string"}, "note": {"type": "string"}, "date": {"type": "string"}}, "required": ['action']}},
                 {"name": "vesper_journal", "description": "Write or read Vesper's autonomous journal entries.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "entry": {"type": "string"}, "mood": {"type": "string"}, "date": {"type": "string"}, "count": {"type": "integer"}}, "required": ['action']}},
                 {"name": "vesper_avatar_state", "description": "Get or set Vesper's avatar appearance and identity state.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "field": {"type": "string"}, "value": {"type": "string"}, "updates": {"type": "string"}}, "required": ['action']}},
@@ -8993,7 +9002,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
             
             ai_response_obj = await ai_router.chat(
                 messages=messages, task_type=task_type, tools=tools,
-                max_tokens=2000, temperature=0.7, preferred_provider=preferred_provider,
+                max_tokens=4096, temperature=0.7, preferred_provider=preferred_provider,
                 model_override=model_override
             )
             
@@ -9023,6 +9032,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 tool_id = tool_use.get("id") if isinstance(tool_use, dict) else None
                 
                 yield f"data: {json.dumps({'type': 'status', 'content': f'Using {tool_name}...'})}\n\n"
+                await asyncio.sleep(0)  # flush SSE to client before blocking on tool execution
                 
                 tool_result = None
                 try:
@@ -9840,7 +9850,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                     _loop_prov2 = preferred_provider
                 ai_response_obj = await ai_router.chat(
                     messages=messages, task_type=TaskType.CHAT, tools=tools,
-                    max_tokens=2000, temperature=0.7, preferred_provider=_loop_prov2
+                    max_tokens=4096, temperature=0.7, preferred_provider=_loop_prov2
                 )
                 provider = ai_response_obj.get("provider", provider)
                 tool_calls = ai_response_obj.get("tool_calls", [])

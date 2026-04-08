@@ -1576,7 +1576,7 @@ export default function App() {
       while (true) {
         const { done, value } = await Promise.race([
           reader.read(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Stream stalled')), 30000)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Stream stalled')), 90000)),
         ]);
         if (done) break;
         
