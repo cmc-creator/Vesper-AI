@@ -1656,6 +1656,10 @@ export default function App() {
                 s.textContent = data.data.css;
                 document.head.appendChild(s);
                 showToast(`✨ Vesper applied: ${data.data.name || 'effect'}`, 'success');
+              } else if (data.action === 'creative_suite_update') {
+                // Signal CreativeSuite to reload its creations list
+                window.dispatchEvent(new CustomEvent('vesper:creative_update', { detail: data.data }));
+                showToast(`✨ Vesper created: ${data.data?.title || 'new creation'}`, 'success');
               }
             } else if (data.type === 'done') {
               currentProvider = data.provider || currentProvider;

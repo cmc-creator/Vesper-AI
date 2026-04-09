@@ -180,6 +180,13 @@ export default function CreativeSuite({ apiBase, onBack }) {
     if (activePanel === 'creations') { loadCreations(); }
   }, [activePanel, checkGoogleStatus, loadDriveFiles, loadCalendarEvents, loadCreations]);
 
+  // Auto-refresh when Vesper fires a creative_suite_update SSE event
+  useEffect(() => {
+    const handler = () => loadCreations();
+    window.addEventListener('vesper:creative_update', handler);
+    return () => window.removeEventListener('vesper:creative_update', handler);
+  }, [loadCreations]);
+
   // Brand CRUD
   const saveBrand = async () => {
     if (!brandForm.name.trim()) return;

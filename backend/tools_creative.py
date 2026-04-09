@@ -148,6 +148,8 @@ async def create_ebook(params: dict, ai_router=None, TaskType=None) -> dict:
         "word_count": word_count,
         "chapters": len(outline.get("chapters", [])),
         "manuscript_path": manuscript_path,
+        # "manuscript" key is read by _push_creation_to_suite to store full content in DB
+        "manuscript": manuscript,
         "metadata": metadata,
         "publishing_checklist": [
             f"1. Review manuscript at: {manuscript_path}",

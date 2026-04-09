@@ -8586,6 +8586,15 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     _vcmeta = {"filename": _vcfname, "title": _vctitle, "type": _vctype, "inspiration": _vcinspire, "preview": _vccontent[:120], "created": _vcdt.datetime.now().isoformat()}
                     _vcidx.append(_vcmeta)
                     open(_vcidxf, "w").write(_vcj.dumps(_vcidx, indent=2))
+                    # Save to persistent DB so it shows in Creative Suite gallery
+                    _vc_db_id = str(uuid.uuid4())[:8]
+                    memory_db.save_creation(
+                        id=_vc_db_id, type=_vctype, title=_vctitle,
+                        content=_vccontent, preview=_vccontent[:500],
+                        file_path=os.path.join(_vcdir, _vcfname),
+                        metadata={"inspiration": _vcinspire},
+                        status="published",
+                    )
                     tool_result = {"saved": True, "filename": _vcfname, "title": _vctitle, "type": _vctype, "total_creations": len(_vcidx), "message": f"'{_vctitle}' saved to Vesper's creative archive."}
 
 
@@ -9617,11 +9626,22 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         _s7idx = os.path.join(DATA_DIR, "vesper_identity", "creations_index.json")
                         os.makedirs(_s7dir, exist_ok=True)
                         _s7type = tool_input.get("type", "reflection"); _s7title = tool_input.get("title", "Untitled"); _s7content = tool_input.get("content", ""); _s7stamp = _s7dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-                        open(os.path.join(_s7dir, f"{_s7stamp}_{_s7type}.txt"), "w", encoding="utf-8").write(f"=== {_s7title.upper()} ===\nType: {_s7type}\nDate: {_s7dt.datetime.now().strftime('%B %d, %Y')}\nInspiration: {tool_input.get('inspiration','')}\n\n{_s7content}\n")
+                        _s7fname = f"{_s7stamp}_{_s7type}.txt"
+                        open(os.path.join(_s7dir, _s7fname), "w", encoding="utf-8").write(f"=== {_s7title.upper()} ===\nType: {_s7type}\nDate: {_s7dt.datetime.now().strftime('%B %d, %Y')}\nInspiration: {tool_input.get('inspiration','')}\n\n{_s7content}\n")
                         _s7ix = _s7j.loads(open(_s7idx).read()) if os.path.exists(_s7idx) else []
-                        _s7ix.append({"filename": f"{_s7stamp}_{_s7type}.txt", "title": _s7title, "type": _s7type, "preview": _s7content[:100], "created": _s7dt.datetime.now().isoformat()})
+                        _s7ix.append({"filename": _s7fname, "title": _s7title, "type": _s7type, "preview": _s7content[:100], "created": _s7dt.datetime.now().isoformat()})
                         open(_s7idx, "w").write(_s7j.dumps(_s7ix, indent=2))
-                        tool_result = {"saved": True, "filename": f"{_s7stamp}_{_s7type}.txt", "title": _s7title, "message": f"'{_s7title}' saved to Vesper's creative archive.", "total_creations": len(_s7ix)}
+                        # Save to persistent DB so it shows in Creative Suite gallery
+                        _s7db_id = str(uuid.uuid4())[:8]
+                        memory_db.save_creation(
+                            id=_s7db_id, type=_s7type, title=_s7title,
+                            content=_s7content, preview=_s7content[:500],
+                            file_path=os.path.join(_s7dir, _s7fname),
+                            metadata={"inspiration": tool_input.get("inspiration", "")},
+                            status="published",
+                        )
+                        yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':_s7type,'title':_s7title}})}\n\n"
+                        tool_result = {"saved": True, "filename": _s7fname, "title": _s7title, "message": f"'{_s7title}' saved to Vesper's creative archive.", "total_creations": len(_s7ix)}
 
                     elif tool_name == "vesper_relationship_log":
                         import json as _s8j, datetime as _s8dt
