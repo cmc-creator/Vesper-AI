@@ -1,7 +1,15 @@
 # --- IMPORTS ---
-# Redeploy trigger: 2026-04-02 22:15 UTC
+# Redeploy trigger: 2026-04-08 UTC
 import os
 import sys
+
+# Ensure backend/ is always in Python path regardless of working directory.
+# Fixes "ModuleNotFoundError: No module named 'ai_router'" when uvicorn is
+# launched from the repo root (e.g. via Procfile or Railway).
+_backend_dir = os.path.dirname(os.path.abspath(__file__))
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
 from dotenv import load_dotenv
 
 # Load environment variables FIRST, before anything else
