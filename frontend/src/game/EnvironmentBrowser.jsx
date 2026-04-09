@@ -340,7 +340,7 @@ export default function EnvironmentBrowser({
         textAlign: 'center',
         flexShrink: 0,
       }}>
-        💡 Download more worlds from <a href="https://sketchfab.com/search?q=diorama&type=models&downloadable=true" target="_blank" rel="noopener" style={{ color: '#00ffff', textDecoration: 'none' }}>Sketchfab</a> or <a href="https://poly.pizza" target="_blank" rel="noopener" style={{ color: '#00ffff', textDecoration: 'none' }}>Poly Pizza</a> — drop GLB files in <code style={{ color: '#00ff88' }}>frontend/public/models/</code> and add to catalog
+        💡 Download more worlds from <a href="https://sketchfab.com/search?q=diorama&type=models&downloadable=true" target="_blank" rel="noreferrer" style={{ color: '#00ffff', textDecoration: 'none' }}>Sketchfab</a> or <a href="https://poly.pizza" target="_blank" rel="noreferrer" style={{ color: '#00ffff', textDecoration: 'none' }}>Poly Pizza</a> — drop GLB files in <code style={{ color: '#00ff88' }}>frontend/public/models/</code> and add to catalog
       </div>
     </div>
   );

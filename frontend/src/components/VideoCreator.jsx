@@ -285,7 +285,7 @@ export default function VideoCreator({ apiBase, onClose }) {
           {error.includes('REPLICATE_API_TOKEN') && (
             <Typography variant="caption" display="block" sx={{ mt: 1, color: 'rgba(255,255,255,0.7)' }}>
               Video generation requires a Replicate API key. <br/>
-              1. Get key from <a href="https://replicate.com/" target="_blank" style={{color:'var(--accent)'}}>replicate.com</a><br/>
+              1. Get key from <a href="https://replicate.com/" target="_blank" rel="noreferrer" style={{color:'var(--accent)'}}>replicate.com</a><br/>
               2. Add to <code>backend/.env</code> as <code>REPLICATE_API_TOKEN=r8_...</code><br/>
               3. Restart backend
             </Typography>

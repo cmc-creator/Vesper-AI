@@ -36,7 +36,7 @@ const ChartComponent = ({ type, title, data, xKey, yKey }) => {
             <Area type="monotone" dataKey={yKey} stroke="#8884d8" fill="#8884d8" />
           </AreaChart>
         );
-      case 'pie':
+      case 'pie': {
         const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
         return (
           <PieChart>
@@ -62,6 +62,7 @@ const ChartComponent = ({ type, title, data, xKey, yKey }) => {
             <Legend />
           </PieChart>
         );
+      }
       case 'line':
       default:
         return (

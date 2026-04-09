@@ -414,6 +414,7 @@ function App() {
   const [userId, setUserId] = useState(null);
   const [thinking, setThinking] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [_metaPersonOpen, setMetaPersonOpen] = useState(false);
   const safeStorageGet = (key, fallback) => {
     if (typeof window === 'undefined') return fallback;
     try {
@@ -1214,7 +1215,7 @@ export default function App() {
   // ── Vesper Autonomy: Fetch daily identity + proactive greeting on load ──
   useEffect(() => {
     const loadVesperIdentity = async () => {
-      let identity = null;
+      let identity;
       let optionsLoaded = false;
 
       // Fetch identity options FIRST so the dialog has data when it opens
@@ -3419,7 +3420,7 @@ export default function App() {
     if (!clean) return;
 
     // Resolve voice: persona context ALWAYS takes priority → user selection → default → Lily
-    let voice = '';
+    let voice;
     const contextVoice = await resolveVoiceForContext(context);
     if (contextVoice) {
       voice = normalizeVoiceId(contextVoice);

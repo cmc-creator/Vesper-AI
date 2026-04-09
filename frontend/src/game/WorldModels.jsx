@@ -137,7 +137,8 @@ export function AnimatedGLBModel({ url, position = [0, 0, 0], scale = 1, rotatio
    ============================================================ */
 export default function WorldModels({ layout, selectedId, onSelectModel }) {
   // Use provided layout (from editor), or load from storage
-  const models = layout || useMemo(() => getWorldLayout(), []);
+  const storedLayout = useMemo(() => getWorldLayout(), []);
+  const models = layout || storedLayout;
 
   const handleClick = useCallback((e, modelId) => {
     if (onSelectModel) {
