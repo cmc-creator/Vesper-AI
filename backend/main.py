@@ -2127,10 +2127,15 @@ Respond in this exact JSON format:
         )
         
         raw = response.get("content", "").strip()
-        
+
+        # Strip markdown code fences (AI sometimes wraps JSON in ```json ... ```)
+        if raw.startswith('```'):
+            raw = re.sub(r'^```\w*\n?', '', raw)
+            raw = re.sub(r'\n?```$', '', raw)
+            raw = raw.strip()
+
         # Parse JSON from response
         try:
-            # Find JSON in response
             json_start = raw.find('{')
             json_end = raw.rfind('}') + 1
             if json_start >= 0 and json_end > json_start:
@@ -2141,12 +2146,12 @@ Respond in this exact JSON format:
                     "mood": mood_energy_state.get("mood", "liminal"),
                     "identity": identity,
                 }
-        except:
-            pass
-        
-        # Fallback
+        except Exception as _e:
+            print(f"[WARN] Initiative JSON parse failed: {_e} | raw={raw[:120]}")
+
+        # Fallback — never expose raw LLM output to the UI
         return {
-            "greeting": raw[:200] if raw else "Hey CC. I've been thinking...",
+            "greeting": "Hey CC. Ready when you are.",
             "initiatives": [],
             "mood": mood_energy_state.get("mood", "liminal"),
             "identity": identity,
