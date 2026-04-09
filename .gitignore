@@ -32,3 +32,6 @@ Thumbs.db
 
 # GLB 3D models (too large for GitHub)
 frontend/public/models/*.glb
+
+# Claude Code local settings
+.claude/settings.local.json
