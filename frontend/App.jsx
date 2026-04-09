@@ -71,6 +71,8 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   ExpandMore as ExpandMoreIcon,
+  TrendingUp as TrendingUpIcon,
+  NightsStay as NightsStayIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -117,6 +119,8 @@ import MediaGallery from './src/components/MediaGallery';
 import AvatarStudio from './src/components/AvatarStudio';
 import VesperAvatar3D from './src/components/VesperAvatar3D';
 import IntegrationsHub from './src/components/IntegrationsHub';
+import IncomeDashboard from './src/components/IncomeDashboard';
+import GapsJournal from './src/components/GapsJournal';
 import BackgroundStudio from './src/components/BackgroundStudio';
 import SetupWizard from './src/components/SetupWizard';
 
@@ -279,6 +283,8 @@ const NAV = [
   { id: 'gallery', label: 'Media Gallery', icon: PhotoLibrary },
   { id: 'sassy', label: 'Vesper\'s Wardrobe', icon: Checkroom },
   { id: 'integrations', label: 'Command Center', icon: BoltRounded },
+  { id: 'income', label: 'Income Dashboard', icon: TrendingUpIcon },
+  { id: 'gaps', label: 'Memory of the Gaps', icon: NightsStayIcon },
   { id: 'analytics', label: 'Analytics', icon: BarChart },
   { id: 'personality', label: 'Personality', icon: Person },
   { id: 'settings', label: 'Settings', icon: SettingsRounded },
@@ -4739,6 +4745,14 @@ export default function App() {
       case 'nyxshift':
         return (
           <CreativeSuite apiBase={apiBase} onBack={() => setActiveSection('chat')} />
+        );
+      case 'income':
+        return (
+          <IncomeDashboard apiBase={apiBase} onBack={() => setActiveSection('chat')} />
+        );
+      case 'gaps':
+        return (
+          <GapsJournal apiBase={apiBase} onBack={() => setActiveSection('chat')} />
         );
       case 'integrations':
         return (

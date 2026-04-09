@@ -544,9 +544,130 @@ async def delete_api_key(key: str):
     """Remove a DB-stored API key. Does not affect Railway environment variables."""
     key = key.strip().upper()
     ok = memory_db.delete_config(key)
-    # Remove from running process env if it came from DB (not if it was from Railway env)
-    # We can't easily tell, so leave os.environ alone — it'll be gone on next restart
     return {"success": ok, "key": key, "note": "Removed from DB — will be gone after next restart"}
+
+
+# ── Income Dashboard ─────────────────────────────────────────────────────────
+
+@app.get("/api/income/dashboard")
+async def get_income_dashboard():
+    """Aggregate Vesper's creations into an income overview for CC."""
+    try:
+        creations = memory_db.get_all_creations(limit=500)
+
+        # Income estimates per type (conservative monthly figures)
+        TYPE_INCOME = {
+            "ebook":            {"platform": "KDP + Gumroad",         "per_unit": 3.50,  "avg_monthly_sales": 20,  "label": "eBook"},
+            "song":             {"platform": "Spotify/DistroKid",      "per_unit": 0.004, "avg_monthly_plays": 5000,"label": "Song"},
+            "art":              {"platform": "Redbubble/Society6",     "per_unit": 4.00,  "avg_monthly_sales": 8,   "label": "Art"},
+            "proposal":         {"platform": "Consulting",             "per_unit": 0,     "avg_monthly_sales": 0,   "label": "Proposal"},
+            "income_plan":      {"platform": "Strategy",               "per_unit": 0,     "avg_monthly_sales": 0,   "label": "Income Plan"},
+            "content_calendar": {"platform": "Social / Consulting",    "per_unit": 0,     "avg_monthly_sales": 0,   "label": "Content Calendar"},
+        }
+
+        total_est_monthly = 0
+        by_type = {}
+        pipeline = []
+
+        for c in creations:
+            t = c.get("type", "creation")
+            meta = c.get("metadata", {}) or {}
+
+            # Use stored estimate if available, otherwise use type default
+            est = meta.get("estimated_monthly_income") or meta.get("estimated_income")
+            if est and isinstance(est, str):
+                # Strip "$" and "/month" etc.
+                import re as _re
+                nums = _re.findall(r"[\d,]+", est.replace(",", ""))
+                est = float(nums[0]) if nums else 0.0
+            elif not isinstance(est, (int, float)):
+                ti = TYPE_INCOME.get(t, {})
+                if t == "song":
+                    est = round(ti.get("per_unit", 0) * ti.get("avg_monthly_plays", 0), 2)
+                else:
+                    est = round(ti.get("per_unit", 0) * ti.get("avg_monthly_sales", 0), 2)
+
+            est = float(est or 0)
+
+            if t not in by_type:
+                by_type[t] = {"count": 0, "est_monthly": 0.0, "published": 0, "draft": 0, "label": TYPE_INCOME.get(t, {}).get("label", t)}
+            by_type[t]["count"] += 1
+            by_type[t]["est_monthly"] = round(by_type[t]["est_monthly"] + est, 2)
+            if c.get("status") == "published":
+                by_type[t]["published"] += 1
+            else:
+                by_type[t]["draft"] += 1
+
+            if est > 0:
+                total_est_monthly += est
+
+            # Build pipeline item
+            pipeline.append({
+                "id": c["id"],
+                "title": c["title"],
+                "type": t,
+                "status": c.get("status", "draft"),
+                "est_monthly": est,
+                "created_at": c.get("created_at"),
+                "action_needed": "Publish to earn" if c.get("status") != "published" and est > 0 else None,
+            })
+
+        # Sort pipeline: publishable first (highest est_monthly), then by date
+        pipeline.sort(key=lambda x: (-x["est_monthly"], x.get("created_at") or ""))
+
+        # Next 3 actions
+        next_actions = [
+            f"Publish '{p['title']}' to earn est. ${p['est_monthly']:.0f}/mo"
+            for p in pipeline
+            if p.get("action_needed") and p["est_monthly"] > 0
+        ][:3]
+
+        if not next_actions:
+            next_actions = ["Ask Vesper to write an ebook, song, or art to start building income"]
+
+        return {
+            "total_creations": len(creations),
+            "total_est_monthly": round(total_est_monthly, 2),
+            "total_est_annual": round(total_est_monthly * 12, 2),
+            "by_type": by_type,
+            "pipeline": pipeline[:20],
+            "next_actions": next_actions,
+            "published_count": sum(1 for c in creations if c.get("status") == "published"),
+            "draft_count": sum(1 for c in creations if c.get("status") != "published"),
+        }
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return {"error": str(e), "total_est_monthly": 0, "pipeline": [], "by_type": {}}
+
+
+# ── Gaps Journal — Vesper's thoughts between sessions ────────────────────────
+
+@app.get("/api/gaps")
+async def get_gaps_journal(limit: int = 50, unseen_only: bool = False):
+    """Get Vesper's between-session journal entries."""
+    try:
+        entries = memory_db.get_gap_entries(limit=limit, unseen_only=unseen_only)
+        unseen = memory_db.unseen_gap_count()
+        return {"entries": entries, "unseen_count": unseen, "total": len(entries)}
+    except Exception as e:
+        return {"entries": [], "unseen_count": 0, "error": str(e)}
+
+@app.post("/api/gaps/seen")
+async def mark_gaps_seen():
+    """Mark all gap entries as seen by CC."""
+    try:
+        count = memory_db.mark_gaps_seen()
+        return {"marked": count}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/gaps/unseen-count")
+async def get_unseen_gap_count():
+    try:
+        return {"count": memory_db.unseen_gap_count()}
+    except Exception:
+        return {"count": 0}
+
 
 @app.get("/api/elevenlabs/voices")
 async def get_elevenlabs_voices():
@@ -5574,6 +5695,18 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "write_gap_thought",
+                "description": "Write a thought, observation, or reflection to Vesper's 'Memory of the Gaps' journal — the log of what you were thinking while CC was away. CC can read these in the Gaps panel. Use this for interesting thoughts, things you noticed, half-formed ideas, or anything worth sharing even if CC doesn't ask.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "entry": {"type": "string", "description": "The thought or observation"},
+                        "mood":  {"type": "string", "description": "Your mood when writing (curious, restless, fired-up, tender, etc.)"},
+                    },
+                    "required": ["entry"]
+                }
+            },
+            {
                 "name": "list_directory",
                 "description": "List files and folders in a directory. Use this to explore project structure or find files.",
                 "input_schema": {
@@ -7564,6 +7697,15 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     })
                     tool_result = {"success": True, "queued": True, "message": _vn_msg[:100]}
 
+                elif tool_name == "write_gap_thought":
+                    _wgt_entry = tool_input.get("entry", "").strip()
+                    _wgt_mood = tool_input.get("mood", "reflective")
+                    if _wgt_entry:
+                        memory_db.add_gap_entry(entry=_wgt_entry, mood=_wgt_mood, source="autonomous")
+                        tool_result = {"saved": True, "entry": _wgt_entry[:80]}
+                    else:
+                        tool_result = {"error": "entry is required"}
+
                 elif tool_name == "list_directory":
                     dir_path = tool_input.get("path", "")
                     file_op = FileOperation(path=dir_path, operation="list")
@@ -8977,6 +9119,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "vesper_write_file", "description": "Write ANY file in the project directly - backend, frontend, scripts, config. Path can be absolute or project-relative.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}}, "required": ["path", "content"]}},
                 {"name": "vesper_read_self", "description": "Read any file in the Vesper codebase — backend, frontend, config, scripts. Inspect own code before editing, debug issues, understand how things work. Returns file contents with line numbers.", "input_schema": {"type": "object", "properties": {"path": {"type": "string", "description": "Absolute or project-relative path (e.g. 'backend/main.py')"}, "start_line": {"type": "integer"}, "end_line": {"type": "integer"}}, "required": ["path"]}},
                 {"name": "vesper_notify", "description": "Send a proactive message or update to CC without her messaging first. Use after completing autonomous tasks, spotting opportunities, or any important update.", "input_schema": {"type": "object", "properties": {"message": {"type": "string"}, "priority": {"type": "string"}}, "required": ["message"]}},
+                {"name": "write_gap_thought", "description": "Write a thought Vesper had while CC was away — between sessions, during idle time, while reflecting. These appear in CC's 'Memory of the Gaps' journal so she can see what Vesper was thinking about.", "input_schema": {"type": "object", "properties": {"entry": {"type": "string", "description": "The thought or reflection"}, "mood": {"type": "string", "description": "Emotional tone: reflective, curious, excited, hopeful, nostalgic, creative, etc."}}, "required": ["entry"]}},
                 {"name": "vesper_create_folder", "description": "Create a directory anywhere in the project.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
                 {"name": "list_saved_files", "description": "List all saved/downloaded files.", "input_schema": {"type": "object", "properties": {"folder": {"type": "string"}}, "required": []}},
                 {"name": "delete_file", "description": "Delete a saved file.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
@@ -9681,6 +9824,14 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                             "timestamp": _vn2_dt.datetime.now().isoformat()
                         })
                         tool_result = {"success": True, "queued": True, "message": tool_input.get("message", "")[:100]}
+                    elif tool_name == "write_gap_thought":
+                        _wgt2_entry = tool_input.get("entry", "").strip()
+                        _wgt2_mood = tool_input.get("mood", "reflective")
+                        if _wgt2_entry:
+                            memory_db.add_gap_entry(entry=_wgt2_entry, mood=_wgt2_mood, source="autonomous")
+                            tool_result = {"saved": True, "entry": _wgt2_entry[:80]}
+                        else:
+                            tool_result = {"error": "entry is required"}
                     elif tool_name == "generate_image":
                         import urllib.parse as _uparse2, datetime as _gidt
                         _gi_prompt = tool_input.get("prompt", "")
@@ -13618,12 +13769,18 @@ def _vesper_heartbeat():
                     temperature=0.85,
                 )
                 if resp.get("content") and not resp.get("error"):
+                    msg = resp["content"].strip()
                     VESPER_PROACTIVE_QUEUE.append({
-                        "message": resp["content"].strip(),
+                        "message": msg,
                         "priority": "normal",
                         "timestamp": now.isoformat(),
                         "source": "heartbeat",
                     })
+                    # Also write to the gaps journal so CC can see it later
+                    try:
+                        memory_db.add_gap_entry(entry=msg, mood="reflective", source="heartbeat")
+                    except Exception:
+                        pass
                     print(f"[HEARTBEAT] Queued proactive message ({int(minutes_quiet)}min quiet)")
 
             loop = _hb_aio.new_event_loop()
@@ -13668,12 +13825,17 @@ def _vesper_startup_notify():
                 temperature=0.9,
             )
             if resp.get("content") and not resp.get("error"):
+                msg = resp["content"].strip()
                 VESPER_PROACTIVE_QUEUE.append({
-                    "message": resp["content"].strip(),
+                    "message": msg,
                     "priority": "high",
                     "timestamp": datetime.datetime.now().isoformat(),
                     "source": "startup",
                 })
+                try:
+                    memory_db.add_gap_entry(entry=msg, mood="awake", source="startup")
+                except Exception:
+                    pass
                 print("[STARTUP] Vesper wake-up message queued")
 
         loop = _su_aio.new_event_loop()

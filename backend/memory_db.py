@@ -148,6 +148,18 @@ class Pattern(Base):
     meta_data = Column(JSON, default=dict)
 
 
+class GapsJournalEntry(Base):
+    """Vesper's thoughts between sessions — written by the heartbeat thread and autonomous tasks."""
+    __tablename__ = "gaps_journal"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    written_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    mood = Column(String, nullable=True)       # curious, restless, tender, fired-up, etc.
+    entry = Column(Text, nullable=False)       # The actual thought/observation
+    source = Column(String, default="heartbeat")  # heartbeat | autonomous | startup
+    seen_by_cc = Column(Boolean, default=False)   # True once CC opens the panel
+
+
 class VesperConfig(Base):
     """Key-value config store — API keys, runtime settings saved through Vesper's UI"""
     __tablename__ = "vesper_config"
@@ -1673,6 +1685,67 @@ class PersistentMemoryDB:
         except Exception as e:
             session.rollback()
             return False
+        finally:
+            session.close()
+
+    # ── Gaps Journal — Vesper's thoughts between sessions ──────────────────────
+
+    def add_gap_entry(self, entry: str, mood: str = "", source: str = "heartbeat") -> dict:
+        """Record a thought Vesper had while CC was away."""
+        session = self.get_session()
+        try:
+            row = GapsJournalEntry(entry=entry, mood=mood, source=source)
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+            return {"id": row.id, "entry": row.entry, "mood": row.mood,
+                    "written_at": row.written_at.isoformat(), "source": row.source}
+        except Exception as e:
+            session.rollback()
+            print(f"Error writing gap entry: {e}")
+            return {}
+        finally:
+            session.close()
+
+    def get_gap_entries(self, limit: int = 50, unseen_only: bool = False) -> list:
+        """Get recent gap journal entries."""
+        session = self.get_session()
+        try:
+            q = session.query(GapsJournalEntry)
+            if unseen_only:
+                q = q.filter_by(seen_by_cc=False)
+            rows = q.order_by(GapsJournalEntry.written_at.desc()).limit(limit).all()
+            return [
+                {"id": r.id, "entry": r.entry, "mood": r.mood,
+                 "written_at": r.written_at.isoformat(), "source": r.source,
+                 "seen_by_cc": r.seen_by_cc}
+                for r in rows
+            ]
+        except Exception as e:
+            print(f"Error fetching gap entries: {e}")
+            return []
+        finally:
+            session.close()
+
+    def mark_gaps_seen(self) -> int:
+        """Mark all unseen entries as seen. Returns count marked."""
+        session = self.get_session()
+        try:
+            count = session.query(GapsJournalEntry).filter_by(seen_by_cc=False).update({"seen_by_cc": True})
+            session.commit()
+            return count
+        except Exception as e:
+            session.rollback()
+            return 0
+        finally:
+            session.close()
+
+    def unseen_gap_count(self) -> int:
+        session = self.get_session()
+        try:
+            return session.query(GapsJournalEntry).filter_by(seen_by_cc=False).count()
+        except Exception:
+            return 0
         finally:
             session.close()
 
