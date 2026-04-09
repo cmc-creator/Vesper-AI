@@ -9248,11 +9248,18 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 if match:
                     preferred_provider, model_override = match
             
-            ai_response_obj = await ai_router.chat(
+            # Wrap with heartbeat so the frontend never waits >25s without a byte
+            _ai_task = asyncio.create_task(ai_router.chat(
                 messages=messages, task_type=task_type, tools=tools,
                 max_tokens=4096, temperature=0.7, preferred_provider=preferred_provider,
                 model_override=model_override
-            )
+            ))
+            while not _ai_task.done():
+                try:
+                    await asyncio.wait_for(asyncio.shield(_ai_task), timeout=25.0)
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+            ai_response_obj = _ai_task.result()
             
             if "error" in ai_response_obj:
                 err_msg = ai_response_obj.get("error", "Unknown error")
@@ -10127,10 +10134,16 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                     _loop_prov2 = ModelProvider(provider) if provider not in ("unknown", None, "") else preferred_provider
                 except ValueError:
                     _loop_prov2 = preferred_provider
-                ai_response_obj = await ai_router.chat(
+                _ai_task2 = asyncio.create_task(ai_router.chat(
                     messages=messages, task_type=TaskType.CHAT, tools=tools,
                     max_tokens=4096, temperature=0.7, preferred_provider=_loop_prov2
-                )
+                ))
+                while not _ai_task2.done():
+                    try:
+                        await asyncio.wait_for(asyncio.shield(_ai_task2), timeout=25.0)
+                    except asyncio.TimeoutError:
+                        yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+                ai_response_obj = _ai_task2.result()
                 provider = ai_response_obj.get("provider", provider)
                 tool_calls = ai_response_obj.get("tool_calls", [])
             

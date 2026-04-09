@@ -1075,12 +1075,12 @@ export default function App() {
       return () => video.removeEventListener('ended', onEnded);
     }
 
-    // Not speaking, not idle — freeze on first frame
+    // Not speaking, not idle — freeze on first visible frame
     video.loop = false;
     video.playbackRate = 1;
     video.pause();
     if (video.readyState >= 2) {
-      try { video.currentTime = 0; } catch (_) {}
+      try { video.currentTime = 0.1; } catch (_) {}
     }
   }, [isSpeaking, idleAnimating, videoAvatarUrl]);
 
@@ -7088,11 +7088,19 @@ export default function App() {
                         if (avatarVideoRef.current) {
                           avatarVideoRef.current.pause();
                           try {
-                            avatarVideoRef.current.currentTime = 0;
+                            avatarVideoRef.current.currentTime = 0.1;
                           } catch (error) {
                             // Ignore seek timing issues while media initializes.
                           }
                         }
+                      }}
+                      onError={() => {
+                        // Video failed — retry loading after 3s
+                        setTimeout(() => {
+                          if (avatarVideoRef.current) {
+                            avatarVideoRef.current.load();
+                          }
+                        }, 3000);
                       }}
                       onEnded={() => {
                         if (!videoShouldAutoplay) return;
