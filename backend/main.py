@@ -579,7 +579,7 @@ async def get_income_dashboard():
 
         for c in creations:
             t = c.get("type", "creation")
-            meta = c.get("metadata", {}) or {}
+            meta = c.get("item_metadata", {}) or {}
 
             # Use stored estimate if available, otherwise use type default
             est = meta.get("estimated_monthly_income") or meta.get("estimated_income")

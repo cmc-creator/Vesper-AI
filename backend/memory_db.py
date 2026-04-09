@@ -179,7 +179,7 @@ class CreativeItem(Base):
     preview = Column(Text)                               # First ~500 chars — for card view
     content = Column(Text)                               # Full markdown content
     file_path = Column(String, nullable=True)            # Filesystem path (may be ephemeral on Railway)
-    metadata = Column(JSON, default=dict)                # word_count, income_estimate, etc.
+    item_metadata = Column(JSON, default=dict)            # word_count, income_estimate, etc.
     status = Column(String, default="draft")             # draft, published, archived
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -1613,15 +1613,15 @@ class PersistentMemoryDB:
                 existing.preview = preview
                 existing.content = content
                 existing.file_path = file_path
-                existing.metadata = metadata or {}
-                flag_modified(existing, "metadata")
+                existing.item_metadata = metadata or {}
+                flag_modified(existing, "item_metadata")
                 existing.status = status
                 existing.updated_at = datetime.datetime.utcnow()
             else:
                 session.add(CreativeItem(
                     id=id, type=type, title=title, preview=preview,
                     content=content, file_path=file_path,
-                    metadata=metadata or {}, status=status,
+                    item_metadata=metadata or {}, status=status,
                     created_at=datetime.datetime.utcnow()
                 ))
             session.commit()
@@ -1645,7 +1645,7 @@ class PersistentMemoryDB:
                 {
                     "id": i.id, "type": i.type, "title": i.title,
                     "preview": i.preview, "file_path": i.file_path,
-                    "metadata": i.metadata or {}, "status": i.status,
+                    "item_metadata": i.item_metadata or {}, "status": i.status,
                     "created_at": i.created_at.isoformat() if i.created_at else None,
                 }
                 for i in items
@@ -1666,7 +1666,7 @@ class PersistentMemoryDB:
             return {
                 "id": item.id, "type": item.type, "title": item.title,
                 "preview": item.preview, "content": item.content,
-                "file_path": item.file_path, "metadata": item.metadata or {},
+                "file_path": item.file_path, "item_metadata": item.item_metadata or {},
                 "status": item.status,
                 "created_at": item.created_at.isoformat() if item.created_at else None,
             }
