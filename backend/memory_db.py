@@ -1129,7 +1129,7 @@ class PersistentMemoryDB:
         }
 
     def ensure_memory_schema(self) -> None:
-        """Apply lightweight schema migrations for SQLite deployments."""
+        """Apply schema migrations — runs on every session to pick up new columns/renames."""
         if not self.SessionLocal:
             return
         session = self.SessionLocal()
@@ -1146,11 +1146,37 @@ class PersistentMemoryDB:
                 if "pinned" not in thr_cols:
                     session.execute(text("ALTER TABLE threads ADD COLUMN pinned BOOLEAN DEFAULT 0"))
                     session.commit()
+
+                # SQLite: rename creative_items.metadata → item_metadata (commit a5ec920a)
+                try:
+                    cre_cols = {row[1] for row in session.execute(text("PRAGMA table_info(creative_items)")).fetchall()}
+                    if "metadata" in cre_cols and "item_metadata" not in cre_cols:
+                        session.execute(text("ALTER TABLE creative_items RENAME COLUMN metadata TO item_metadata"))
+                        session.commit()
+                        print("✅ Migrated creative_items.metadata → item_metadata (SQLite)")
+                except Exception as _e:
+                    session.rollback()
+                    print(f"⚠️  creative_items rename (SQLite) skipped: {_e}")
             else:
                 # PostgreSQL: use ADD COLUMN IF NOT EXISTS
                 session.execute(text("ALTER TABLE memories ADD COLUMN IF NOT EXISTS title VARCHAR"))
                 session.execute(text("ALTER TABLE threads ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT false"))
                 session.commit()
+
+                # PostgreSQL: rename creative_items.metadata → item_metadata (commit a5ec920a)
+                # This migration was missing — ORM uses item_metadata but old DB has metadata column.
+                try:
+                    _old_col = session.execute(text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'creative_items' AND column_name = 'metadata'"
+                    )).fetchone()
+                    if _old_col:
+                        session.execute(text("ALTER TABLE creative_items RENAME COLUMN metadata TO item_metadata"))
+                        session.commit()
+                        print("✅ Migrated creative_items.metadata → item_metadata (PostgreSQL)")
+                except Exception as _e:
+                    session.rollback()
+                    print(f"⚠️  creative_items rename (PostgreSQL) skipped: {_e}")
         except Exception:
             session.rollback()
         finally:

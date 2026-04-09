@@ -9400,24 +9400,36 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                     # ── Creative Income (streaming) ───────────────────────
                     elif tool_name == "create_ebook":
                         tool_result = await create_ebook(tool_input, ai_router=ai_router, TaskType=TaskType)
-                        if tool_result.get("success"): _push_creation_to_suite("ebook", tool_result)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("ebook", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'ebook','title':tool_result.get('title','Untitled')}})}\n\n"
                     elif tool_name == "create_song":
                         tool_result = await create_song(tool_input, ai_router=ai_router, TaskType=TaskType)
-                        if tool_result.get("success"): _push_creation_to_suite("song", tool_result)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("song", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'song','title':tool_result.get('title',tool_result.get('name','Untitled'))}})}\n\n"
                     elif tool_name == "create_art_for_sale":
                         tool_result = await create_art_for_sale(tool_input, ai_router=ai_router, TaskType=TaskType)
-                        if tool_result.get("success"): _push_creation_to_suite("art", tool_result)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("art", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'art','title':tool_result.get('title',tool_result.get('concept','Untitled'))}})}\n\n"
                     elif tool_name == "gumroad_create_product": tool_result = await gumroad_create_product(tool_input)
                     elif tool_name == "medium_publish": tool_result = await medium_publish(tool_input)
                     elif tool_name == "plan_income_stream":
                         tool_result = await plan_income_stream(tool_input, ai_router=ai_router, TaskType=TaskType)
-                        if tool_result.get("success"): _push_creation_to_suite("income_plan", tool_result)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("income_plan", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'income_plan','title':tool_result.get('title','Income Plan')}})}\n\n"
                     elif tool_name == "create_content_calendar":
                         tool_result = await create_content_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
-                        if tool_result.get("success"): _push_creation_to_suite("content_calendar", tool_result)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("content_calendar", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'content_calendar','title':tool_result.get('title','Content Calendar')}})}\n\n"
                     elif tool_name == "write_consulting_proposal":
                         tool_result = await write_consulting_proposal(tool_input, ai_router=ai_router, TaskType=TaskType)
-                        if tool_result.get("success"): _push_creation_to_suite("proposal", tool_result)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("proposal", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'proposal','title':tool_result.get('title','Consulting Proposal')}})}\n\n"
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(
@@ -12676,6 +12688,31 @@ async def delete_creative_campaign(item_id: str):
 # ── Vesper's Autonomous Creations (ebooks, songs, art, proposals, etc.) ─────
 # Vesper auto-pushes here after every create_ebook / create_song / etc. call.
 # CC can view, read full content, and delete from the Creative Suite.
+
+@app.get("/api/debug/creative-db")
+async def debug_creative_db():
+    """Diagnostic endpoint — verify creative_items DB state after column migration."""
+    try:
+        from sqlalchemy import inspect as sa_inspect, text as sa_text
+        insp = sa_inspect(memory_db.engine)
+        session = memory_db.get_session()
+        try:
+            tables = insp.get_table_names()
+            cols = [c["name"] for c in insp.get_columns("creative_items")] if "creative_items" in tables else []
+            count = session.execute(sa_text("SELECT COUNT(*) FROM creative_items")).scalar() if "creative_items" in tables else -1
+            recent = memory_db.get_all_creations(limit=5)
+        finally:
+            session.close()
+        return {
+            "db_backend": "sqlite" if memory_db._use_sqlite else "postgresql",
+            "tables": tables,
+            "creative_items_columns": cols,
+            "row_count": count,
+            "recent_creations": recent,
+        }
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc()}
 
 @app.get("/api/creative/creations")
 async def get_creative_creations(type: Optional[str] = None):
