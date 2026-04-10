@@ -391,6 +391,17 @@
   box-shadow: 0 0 15px #88ffff;
 }
 
+/* Vesper tool execution activity indicator animations */
+@keyframes vesperToolPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(0,255,136,0.12); border-color: rgba(0,255,136,0.35); }
+  50%       { box-shadow: 0 0 18px rgba(0,255,136,0.28); border-color: rgba(0,255,136,0.6); }
+}
+
+@keyframes vesperDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.55; transform: scale(0.75); }
+}
+
 /* AI Avatar Animations */
 @keyframes avatarPulse {
   0%, 100% {

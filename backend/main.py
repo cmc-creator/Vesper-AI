@@ -9369,7 +9369,63 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 tool_input = tool_use.get("input", {}) if isinstance(tool_use, dict) else {}
                 tool_id = tool_use.get("id") if isinstance(tool_use, dict) else None
                 
-                yield f"data: {json.dumps({'type': 'status', 'content': f'Using {tool_name}...'})}\n\n"
+                _TOOL_LABELS = {
+                    "web_search": "🔍 Searching the web",
+                    "get_weather": "🌤️ Checking weather",
+                    "search_memories": "🧠 Searching memories",
+                    "save_memory": "🧠 Saving memory",
+                    "vesper_direct_memory_write": "🧠 Writing memory",
+                    "check_tasks": "📋 Checking tasks",
+                    "create_task": "📋 Creating task",
+                    "update_task": "📋 Updating task",
+                    "python_exec": "🐍 Running Python",
+                    "run_shell": "💻 Running shell command",
+                    "vesper_write_file": "📝 Writing file",
+                    "vesper_read_file": "📖 Reading file",
+                    "vesper_list_files": "📁 Listing files",
+                    "vesper_delete_file": "🗑️ Deleting file",
+                    "git_commit": "📌 Committing code",
+                    "git_push": "🚀 Pushing to GitHub",
+                    "git_status": "🔎 Checking git status",
+                    "git_diff": "🔎 Checking git diff",
+                    "git_log": "📜 Reading git log",
+                    "http_request": "🌐 Making HTTP request",
+                    "generate_image": "🎨 Generating image",
+                    "create_ebook": "📚 Writing ebook",
+                    "write_seo_article": "✍️ Writing SEO article",
+                    "create_course_outline": "🎓 Building course outline",
+                    "create_template_pack": "📦 Creating template pack",
+                    "repurpose_content": "🔄 Repurposing content",
+                    "create_digital_product": "💰 Creating digital product",
+                    "create_email_sequence": "📧 Writing email sequence",
+                    "gumroad_create_product": "🛒 Listing on Gumroad",
+                    "medium_publish": "📰 Publishing to Medium",
+                    "post_to_linkedin": "💼 Posting to LinkedIn",
+                    "post_to_twitter": "🐦 Posting to Twitter",
+                    "stripe_create_invoice": "💳 Creating Stripe invoice",
+                    "send_email_resend": "📨 Sending email",
+                    "send_email_brevo": "📨 Sending email",
+                    "plan_income_stream": "💡 Planning income stream",
+                    "create_content_calendar": "📅 Building content calendar",
+                    "write_consulting_proposal": "📄 Writing proposal",
+                    "create_song": "🎵 Composing song",
+                    "create_art_for_sale": "🖼️ Creating art",
+                    "push_to_creative_suite": "🎨 Saving to Creative Suite",
+                    "download_image": "⬇️ Downloading image",
+                    "monitor_site": "👁️ Monitoring website",
+                    "find_prospects": "🎯 Finding prospects",
+                    "search_news": "📰 Searching news",
+                    "get_crypto_prices": "📈 Checking crypto prices",
+                    "google_drive_search": "📂 Searching Google Drive",
+                    "google_drive_create_folder": "📂 Creating Drive folder",
+                    "create_google_doc": "📄 Creating Google Doc",
+                    "read_google_doc": "📖 Reading Google Doc",
+                    "desktop_control": "🖥️ Controlling desktop",
+                    "domain_lookup": "🌐 Looking up domain",
+                    "vesper_evolve": "⚡ Self-upgrading",
+                }
+                _tool_label = _TOOL_LABELS.get(tool_name, f"⚙️ Running {tool_name}")
+                yield f"data: {json.dumps({'type': 'tool_start', 'tool_name': tool_name, 'tool_label': _tool_label, 'iteration': iteration})}\n\n"
                 await asyncio.sleep(0)  # flush SSE to client before blocking on tool execution
                 
                 tool_result = None
@@ -10240,6 +10296,11 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         tool_result = {"error": f"Unknown tool: {tool_name}"}
                 except Exception as e:
                     tool_result = {"error": f"Tool failed: {str(e)}"}
+                
+                # Emit tool_done so frontend can update the activity indicator
+                _tool_success = isinstance(tool_result, dict) and "error" not in tool_result
+                yield f"data: {json.dumps({'type': 'tool_done', 'tool_name': tool_name, 'tool_label': _tool_label, 'success': _tool_success})}\n\n"
+                await asyncio.sleep(0)
                 
                 # Append tool messages for conversation context
                 assistant_content = ai_response_obj.get("content", "")

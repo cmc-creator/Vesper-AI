@@ -553,6 +553,9 @@ function App() {
   const [streamingMessageId, setStreamingMessageId] = useState(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [thinkingStatus, setThinkingStatus] = useState('');
+  const [activeToolName, setActiveToolName] = useState(null);
+  const [activeToolLabel, setActiveToolLabel] = useState('');
+  const [toolHistory, setToolHistory] = useState([]);
   const previewAudioRef = useRef(null);
 
   // ── Vesper Autonomy: Daily Identity + Proactive Initiative ─────
@@ -1472,6 +1475,9 @@ export default function App() {
     setLoading(true);
     setThinking(true);
     setThinkingStatus('Thinking...');
+    setActiveToolName(null);
+    setActiveToolLabel('');
+    setToolHistory([]);
     bumpStat('messages');
     
     try {
@@ -1598,6 +1604,19 @@ export default function App() {
             
             if (data.type === 'status') {
               setThinkingStatus(data.content || 'Thinking...');
+            } else if (data.type === 'tool_start') {
+              setActiveToolName(data.tool_name);
+              setActiveToolLabel(data.tool_label || `Running ${data.tool_name}...`);
+              setThinkingStatus(data.tool_label || `Using ${data.tool_name}...`);
+              setToolHistory(prev => [...prev, { name: data.tool_name, label: data.tool_label || data.tool_name, status: 'running', ts: Date.now() }]);
+            } else if (data.type === 'tool_done') {
+              setActiveToolName(null);
+              setActiveToolLabel('');
+              setToolHistory(prev => prev.map(t =>
+                t.name === data.tool_name && t.status === 'running'
+                  ? { ...t, status: data.success ? 'done' : 'error' }
+                  : t
+              ));
             } else if (data.type === 'provider') {
               currentProvider = data.provider;
               currentModel = data.model;
@@ -1736,6 +1755,8 @@ export default function App() {
       setLoading(false);
       setThinking(false);
       setThinkingStatus('');
+      setActiveToolName(null);
+      setActiveToolLabel('');
       sendingRef.current = false;
     }
   };
@@ -7169,16 +7190,63 @@ export default function App() {
                 ))}
               </AnimatePresence>
               {loading && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
-                  <Box className="typing-indicator">
-                    <span />
-                    <span />
-                    <span />
-                  </Box>
-                  {thinkingStatus && (
-                    <Typography variant="caption" sx={{ color: 'var(--accent)', opacity: 0.7, fontStyle: 'italic' }}>
-                      {thinkingStatus}
-                    </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, my: 1 }}>
+                  {activeToolName ? (
+                    // ── EXECUTING a tool — bright, urgent, animated ──
+                    <Box sx={{
+                      display: 'flex', alignItems: 'center', gap: 1.5,
+                      px: 2, py: 1, borderRadius: 2,
+                      background: 'linear-gradient(90deg, rgba(0,255,136,0.12), rgba(0,200,255,0.08))',
+                      border: '1px solid rgba(0,255,136,0.35)',
+                      boxShadow: '0 0 12px rgba(0,255,136,0.15)',
+                      animation: 'vesperToolPulse 1.8s ease-in-out infinite',
+                    }}>
+                      <Box sx={{
+                        width: 8, height: 8, borderRadius: '50%', bgcolor: '#00ff88', flexShrink: 0,
+                        boxShadow: '0 0 6px #00ff88',
+                        animation: 'vesperDotPulse 1s ease-in-out infinite',
+                      }} />
+                      <Typography sx={{ fontSize: '0.72rem', fontWeight: 800, color: '#00ff88', fontFamily: 'monospace', letterSpacing: '0.08em', flexShrink: 0 }}>
+                        ⚡ WORKING
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.88)', fontFamily: 'monospace' }}>
+                        {activeToolLabel}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    // ── Just thinking / generating text ──
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box className="typing-indicator">
+                        <span /><span /><span />
+                      </Box>
+                      {thinkingStatus && (
+                        <Typography variant="caption" sx={{ color: 'var(--accent)', opacity: 0.7, fontStyle: 'italic' }}>
+                          {thinkingStatus}
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+                  {/* Tool history pills for this turn */}
+                  {toolHistory.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, pl: 1.5 }}>
+                      {toolHistory.map((t, i) => (
+                        <Box key={i} sx={{
+                          display: 'inline-flex', alignItems: 'center', gap: 0.4,
+                          px: 1, py: 0.25, borderRadius: 10,
+                          fontSize: '0.62rem', fontFamily: 'monospace', letterSpacing: '0.03em',
+                          bgcolor: t.status === 'done'
+                            ? 'rgba(0,255,136,0.08)'
+                            : t.status === 'error'
+                            ? 'rgba(255,80,80,0.1)'
+                            : 'rgba(0,200,255,0.08)',
+                          color: t.status === 'done' ? '#00dd77' : t.status === 'error' ? '#ff6060' : 'var(--accent)',
+                          border: `1px solid ${t.status === 'done' ? 'rgba(0,255,136,0.2)' : t.status === 'error' ? 'rgba(255,80,80,0.2)' : 'rgba(0,200,255,0.18)'}`,
+                        }}>
+                          <span>{t.status === 'done' ? '✓' : t.status === 'error' ? '✗' : '◌'}</span>
+                          <span>{t.label || t.name}</span>
+                        </Box>
+                      ))}
+                    </Box>
                   )}
                 </Box>
               )}
