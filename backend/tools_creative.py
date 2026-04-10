@@ -667,3 +667,535 @@ async def write_consulting_proposal(params: dict, ai_router=None, TaskType=None)
             "Follow up in 3 days if no response",
         ],
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SEO ARTICLE WRITER — Medium / Substack / LinkedIn / Blog
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_seo_article(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write a complete SEO-optimized article ready to publish anywhere.
+    Traffic → leads → income. Can be published to Medium, Substack, LinkedIn."""
+    keyword    = params.get("keyword", params.get("topic", ""))
+    title      = params.get("title", "")
+    audience   = params.get("audience", "professionals and entrepreneurs")
+    word_count = int(params.get("word_count", 1200))
+    style      = params.get("style", "practical, authoritative, conversational")
+    include_affiliate_hooks = params.get("include_affiliate_hooks", False)
+
+    if not keyword:
+        return {"error": "Provide keyword or topic"}
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "articles")
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Step 1: Generate article
+    affiliate_note = (
+        "\n\nInclude 2-3 natural product/tool recommendation hooks where affiliate links could go. "
+        "Mark them with [AFFILIATE: category] placeholders."
+    ) if include_affiliate_hooks else ""
+
+    article_resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are an expert SEO content writer and digital marketing strategist. "
+                "You write articles that rank on Google AND convert readers into clients or buyers."
+            )},
+            {"role": "user", "content": (
+                f"Write a complete, publish-ready SEO article.\n\n"
+                f"Primary keyword: {keyword}\n"
+                f"Title (or suggest one): {title or 'create a compelling SEO title'}\n"
+                f"Target audience: {audience}\n"
+                f"Word count: ~{word_count} words\n"
+                f"Style: {style}\n\n"
+                f"Structure requirements:\n"
+                f"1. SEO title (H1) with primary keyword\n"
+                f"2. Meta description (155 chars, keyword-rich)\n"
+                f"3. Opening hook (problem/stat/story)\n"
+                f"4. 5-7 H2 sections with rich content\n"
+                f"5. Practical tips or numbered lists\n"
+                f"6. Conclusion with strong CTA\n\n"
+                f"Format: full markdown article, sections clearly labeled."
+                f"{affiliate_note}"
+            )},
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=4000,
+        temperature=0.65,
+    )
+
+    article = article_resp.get("content", "").strip()
+
+    # Extract title from H1 if present
+    import re
+    h1 = re.search(r'^#\s+(.+)$', article, re.MULTILINE)
+    final_title = h1.group(1) if h1 else (title or f"SEO Article: {keyword}")
+
+    # Extract meta description
+    meta_match = re.search(r'\*\*Meta[^:]*:\*\*\s*(.+)', article)
+    meta_description = meta_match.group(1).strip() if meta_match else f"Learn about {keyword}."
+
+    # Word count
+    wc = len(article.split())
+
+    # Save
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in keyword.lower())[:40]
+    fname = f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{slug}.md"
+    save_path = os.path.join(save_dir, fname)
+    with open(save_path, "w", encoding="utf-8") as f:
+        f.write(article)
+
+    return {
+        "success": True,
+        "title": final_title,
+        "keyword": keyword,
+        "meta_description": meta_description,
+        "word_count": wc,
+        "article": article,
+        "saved_to": save_path,
+        "publishing_plan": [
+            "1. Publish to Medium → join Medium Partner Program for immediate earnings",
+            "2. Post on LinkedIn as an article → builds thought leadership + consulting leads",
+            "3. Republish on Substack newsletter → grow list → premium subscriptions",
+            "4. Add to your blog/website for long-term SEO traffic",
+            "5. Repurpose into Twitter/LinkedIn thread using repurpose_content tool",
+        ],
+        "estimated_monthly_value": "$50–500 in affiliate income or consulting leads if it ranks",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COURSE OUTLINE BUILDER — Teachable / Kajabi / Gumroad / Udemy
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_course_outline(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Build a complete, sellable online course — modules, lessons, worksheets,
+    pricing tiers, launch strategy. Publish on Teachable, Kajabi, Gumroad, or Udemy."""
+    topic       = params.get("topic", "")
+    audience    = params.get("audience", "beginners to intermediate learners")
+    outcome     = params.get("outcome", "learn the skill and apply it professionally")
+    price_point = params.get("price_point", "97–297")
+    modules     = int(params.get("modules", 6))
+    your_expertise = params.get("your_expertise", params.get("skills", "consulting and business strategy"))
+
+    if not topic:
+        return {"error": "Provide a course topic"}
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "courses")
+    os.makedirs(save_dir, exist_ok=True)
+
+    course_resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are an expert instructional designer and online course creator "
+                "who has helped creators build 6-figure course businesses."
+            )},
+            {"role": "user", "content": (
+                f"Build a complete, sellable online course outline.\n\n"
+                f"Topic: {topic}\n"
+                f"Target audience: {audience}\n"
+                f"Transformation/outcome: {outcome}\n"
+                f"Instructor expertise: {your_expertise}\n"
+                f"Number of modules: {modules}\n"
+                f"Target price range: ${price_point}\n\n"
+                f"Deliver:\n"
+                f"1. Course title + tagline\n"
+                f"2. 1-paragraph sales description (for Gumroad/Teachable page)\n"
+                f"3. Learning outcomes (5-7 bullet points)\n"
+                f"4. WHO THIS IS FOR section (3-4 bullet points)\n"
+                f"5. Full curriculum: {modules} modules, each with 3-5 lessons + one worksheet/exercise\n"
+                f"6. Pricing strategy: Starter tier, Core tier, VIP tier (with what's in each)\n"
+                f"7. Launch checklist: 10 steps to publish and sell within 30 days\n"
+                f"8. Traffic sources: where to promote this course\n\n"
+                f"Format: clean markdown, ready to paste into a Notion doc or course platform."
+            )},
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=4000,
+        temperature=0.6,
+    )
+
+    content = course_resp.get("content", "").strip()
+
+    import re
+    h1 = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
+    final_title = h1.group(1) if h1 else f"{topic} — Online Course"
+
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in topic.lower())[:40]
+    fname = f"course_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    with open(save_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": final_title,
+        "topic": topic,
+        "content": content,
+        "saved_to": save_path,
+        "platform_options": {
+            "Gumroad": "easiest — upload PDF curriculum + record videos, set price, sell immediately",
+            "Teachable": "free plan, professional look, built-in payment processing",
+            "Kajabi": "all-in-one (email + course + community), ~$149/mo but highest conversion",
+            "Udemy": "no upfront work, huge traffic, but lower control and 50% revenue split",
+            "Podia": "flat monthly fee, no transaction fees, good for bundles",
+        },
+        "income_projection": f"At 20 students/month × ${price_point.split('–')[0]}: ~${int(price_point.split('–')[0]) * 20}/month passive",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEMPLATE PACK CREATOR — Notion / Canva / Google Sheets / Excel / Figma
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_template_pack(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Design and fully document a sellable template pack.
+    Templates sell for $5–97 with zero delivery cost. Gumroad gold."""
+    pack_type   = params.get("type", params.get("pack_type", "Notion"))   # Notion | Canva | Google Sheets | Excel | Figma | Airtable
+    theme       = params.get("theme", params.get("topic", "productivity"))
+    audience    = params.get("audience", "entrepreneurs and freelancers")
+    price       = float(params.get("price", 27))
+    num_templates = int(params.get("num_templates", 5))
+
+    if not theme:
+        return {"error": "Provide a theme or topic for the template pack"}
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "templates")
+    os.makedirs(save_dir, exist_ok=True)
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a top-tier digital product creator who sells template packs on Gumroad and Etsy. "
+                "You create templates people actually buy and use."
+            )},
+            {"role": "user", "content": (
+                f"Create a complete, sellable {pack_type} Template Pack.\n\n"
+                f"Theme/niche: {theme}\n"
+                f"Target audience: {audience}\n"
+                f"Number of templates: {num_templates}\n"
+                f"Price point: ${price:.2f}\n\n"
+                f"Deliver:\n"
+                f"1. Pack name + catchy tagline\n"
+                f"2. Gumroad product description (convincing, SEO-optimized, 200 words)\n"
+                f"3. For EACH template:\n"
+                f"   - Template name\n"
+                f"   - What it does / problem it solves\n"
+                f"   - Exact sections/features/formulas to include\n"
+                f"   - Full template content/structure in markdown (ready to build)\n"
+                f"4. Gumroad listing tags (10 tags)\n"
+                f"5. Where to market this pack (3 best channels)\n"
+                f"6. Upsell idea: what higher-priced version could include\n\n"
+                f"Include the FULL content of each template (headers, sections, formulas, placeholder text). "
+                f"Make these genuinely useful, not just descriptions."
+            )},
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=5000,
+        temperature=0.65,
+    )
+
+    content = resp.get("content", "").strip()
+
+    import re
+    h1 = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
+    final_title = h1.group(1) if h1 else f"{theme} {pack_type} Template Pack"
+
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in f"{pack_type}-{theme}".lower())[:40]
+    fname = f"templates_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    with open(save_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": final_title,
+        "type": pack_type,
+        "theme": theme,
+        "price": price,
+        "content": content,
+        "saved_to": save_path,
+        "gumroad_tip": "Upload a PDF of the template pack OR a .zip with the files. Set 'Let buyers name their price' as a floor = more conversions.",
+        "income_projection": f"At 30 sales/month: ${price * 30:.0f}/month — no shipping, no customer service, pure passive",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONTENT REPURPOSER — 1 piece → 5 platforms
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def repurpose_content(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Take one piece of content and repurpose it for 5 different platforms.
+    Maximum reach from minimum effort — the cornerstone of residual traffic."""
+    source_content = params.get("content", params.get("source_content", ""))
+    source_type    = params.get("source_type", "article")  # ebook_chapter | article | blog_post | presentation
+    brand          = params.get("brand", "Connie Michelle Consulting")
+    platforms      = params.get("platforms", ["linkedin", "twitter", "youtube", "tiktok", "pinterest"])
+
+    if not source_content:
+        return {"error": "Provide source_content to repurpose"}
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    if isinstance(platforms, str):
+        platforms = [p.strip() for p in platforms.split(",")]
+
+    platform_instructions = {
+        "linkedin": "LinkedIn article/post (800–1200 words, professional tone, personal story hook, end with question for engagement)",
+        "twitter": "Twitter/X thread (12-15 tweets, hook first tweet, numbered, last tweet = CTA with link)",
+        "youtube": "YouTube video script (intro hook, 5-7 main points, outro CTA, timestamps, 8-12 min runtime, SEO title + description + 10 tags)",
+        "tiktok": "TikTok video script (60-90 seconds, hook in first 2 seconds, fast-paced tips, trending audio suggestion, on-screen text overlays)",
+        "pinterest": "5 Pinterest pin descriptions (keyword-rich, story-first, calls-to-action, board suggestions, vertical image descriptions)",
+        "instagram": "5 Instagram captions + hashtag sets (one for carousel post, one for Reel, one story concept, lifestyle hook)",
+        "substack": "Substack newsletter edition (subject line, preview text, full email body, subscriber value, CTA to share)",
+        "podcast": "Podcast episode outline (title, 3-min intro hook, 5 main segments with talking points, outro, show notes)",
+    }
+
+    tasks = {}
+    for platform in platforms:
+        if platform.lower() in platform_instructions:
+            tasks[platform] = platform_instructions[platform.lower()]
+        else:
+            tasks[platform] = f"Content for {platform} platform"
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                f"You are a content repurposing expert for {brand}. "
+                "You take a core piece of content and reformat it for maximum reach across platforms, "
+                "each with the right tone, format, and length for that platform."
+            )},
+            {"role": "user", "content": (
+                f"Repurpose this {source_type} into the following platform formats:\n\n"
+                f"SOURCE CONTENT:\n{source_content[:3000]}\n\n"
+                f"PLATFORMS TO CREATE:\n"
+                + "\n".join(f"- {p.upper()}: {inst}" for p, inst in tasks.items())
+                + "\n\nFor EACH platform, deliver the complete, ready-to-post content. "
+                f"Adapt tone and format fully — don't just summarize, genuinely rewrite for each platform."
+            )},
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=6000,
+        temperature=0.7,
+    )
+
+    content = resp.get("content", "").strip()
+    title = f"Repurposed: {source_content[:60].strip()}…"
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "repurposed")
+    os.makedirs(save_dir, exist_ok=True)
+    fname = f"repurposed_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+    save_path = os.path.join(save_dir, fname)
+    with open(save_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": title,
+        "platforms": list(tasks.keys()),
+        "content": content,
+        "saved_to": save_path,
+        "next_steps": [
+            "Use post_to_linkedin for the LinkedIn version",
+            "Use post_to_twitter for the Twitter thread",
+            "Upload the YouTube script to Descript or Riverside for easy recording",
+            "Schedule TikTok via TikTok Creator Studio",
+        ],
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DIGITAL PRODUCT CREATOR — Workbooks / Checklists / Swipe Files / Toolkits
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_digital_product(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Create any sellable digital product: workbook, checklist, swipe file,
+    resource guide, toolkit, cheat sheet. Converts directly to Gumroad listing."""
+    product_type = params.get("product_type", params.get("type", "workbook"))
+    topic        = params.get("topic", "")
+    audience     = params.get("audience", "entrepreneurs and small business owners")
+    price        = float(params.get("price", 17))
+    pages        = int(params.get("pages", 15))
+
+    if not topic:
+        return {"error": "Provide a topic for the digital product"}
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "digital_products")
+    os.makedirs(save_dir, exist_ok=True)
+
+    type_instructions = {
+        "workbook": (
+            f"An interactive workbook with {pages} pages. Include an intro, "
+            "learning objectives, exercises with blank fill-in spaces, reflection prompts, "
+            "action tables, and a summary action plan. Format in markdown with '[ ]' for fill-ins."
+        ),
+        "checklist": (
+            f"A comprehensive {pages}-item checklist (or multiple smaller checklists totaling ~{pages*3} items). "
+            "Organize by phase/category. Include a brief explanation for each item. "
+            "Format as markdown checkboxes."
+        ),
+        "swipe_file": (
+            f"A swipe file with {pages} ready-to-use templates, scripts, and copy examples. "
+            "Each includes: when to use it, the full template, and customization tips."
+        ),
+        "resource_guide": (
+            f"A curated resource guide with {pages} pages covering tools, books, websites, courses, "
+            "and communities. Each resource: name, URL placeholder, what it does, cost, best for."
+        ),
+        "cheat_sheet": (
+            f"A 1-2 page dense cheat sheet with key frameworks, formulas, quick reference tables, "
+            "and decision trees. High information density, visual structure."
+        ),
+        "toolkit": (
+            f"A complete toolkit with {pages} pages covering 5-7 tools/frameworks. "
+            "Each tool: description, when to use, step-by-step guide, example, template."
+        ),
+    }
+
+    instructions = type_instructions.get(product_type.lower(), type_instructions["workbook"])
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a digital product creator who builds high-value, "
+                "immediately actionable resources that sell on Gumroad, Etsy, and Teachable."
+            )},
+            {"role": "user", "content": (
+                f"Create a complete, sellable digital {product_type}.\n\n"
+                f"Topic: {topic}\n"
+                f"Target audience: {audience}\n"
+                f"Price point: ${price:.2f}\n\n"
+                f"Product type instructions: {instructions}\n\n"
+                f"Also include at the top:\n"
+                f"- Product title\n"
+                f"- Gumroad description (150 words, benefit-focused)\n"
+                f"- 8 SEO tags for Gumroad/Etsy\n\n"
+                f"Then deliver the COMPLETE product content — every page, every exercise, "
+                f"every template fully written out. This needs to be ready to format as a PDF and sell TODAY."
+            )},
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=5000,
+        temperature=0.65,
+    )
+
+    content = resp.get("content", "").strip()
+
+    import re
+    h1 = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
+    final_title = h1.group(1) if h1 else f"{topic} {product_type.title()}"
+
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in f"{product_type}-{topic}".lower())[:45]
+    fname = f"{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    with open(save_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": final_title,
+        "product_type": product_type,
+        "topic": topic,
+        "price": price,
+        "content": content,
+        "saved_to": save_path,
+        "to_pdf": "Paste markdown into Notion → Export as PDF, OR use Canva Doc → Export PDF",
+        "income_projection": f"At 40 sales/month × ${price:.0f}: ${price * 40:.0f}/month fully passive",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EMAIL SEQUENCE BUILDER — ConvertKit / Mailchimp / Beehiiv lead funnel
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_email_sequence(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Build a full email nurture sequence — welcome series, launch sequence,
+    or sales funnel. Every email written and ready to load into any ESP."""
+    sequence_type  = params.get("sequence_type", params.get("type", "welcome"))
+    # welcome | launch | sales | nurture | re-engagement | onboarding
+    topic          = params.get("topic", "")
+    product        = params.get("product", "consulting services and digital products")
+    audience       = params.get("audience", "entrepreneurs and business owners")
+    num_emails     = int(params.get("num_emails", 7))
+    brand_voice    = params.get("brand_voice", "warm, direct, expert — like a knowledgeable friend")
+    cta_url        = params.get("cta_url", "[YOUR_URL]")
+
+    if not topic:
+        return {"error": "Provide a topic for the email sequence"}
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "email_sequences")
+    os.makedirs(save_dir, exist_ok=True)
+
+    seq_context = {
+        "welcome":       "A welcome sequence for new subscribers. Build trust, deliver value, introduce CC's story, tease the product.",
+        "launch":        "A product launch sequence. Build anticipation, share story, handle objections, open cart, push urgency, close.",
+        "sales":         "A direct sales funnel. Qualify leads, demonstrate value, social proof, offer, follow-up.",
+        "nurture":       "A nurture sequence that educates subscribers over time and warms them to buy.",
+        "re-engagement": "Win back cold subscribers. Remind them of value, offer something free, confirm they want to stay.",
+        "onboarding":    "Onboard new customers/clients. Welcome, quick-win, next steps, check-in, support, upsell.",
+    }
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are an email copywriter who specializes in high-converting email sequences. "
+                "Your emails feel personal, not salesy. They deliver value and naturally lead to purchases."
+            )},
+            {"role": "user", "content": (
+                f"Write a complete {num_emails}-email {sequence_type} sequence.\n\n"
+                f"Context: {seq_context.get(sequence_type, '')}\n"
+                f"Topic: {topic}\n"
+                f"Product/service being sold: {product}\n"
+                f"Audience: {audience}\n"
+                f"Brand voice: {brand_voice}\n"
+                f"Main CTA URL: {cta_url}\n\n"
+                f"For EACH email deliver:\n"
+                f"EMAIL [N] — Day [X] after signup\n"
+                f"Subject line: (write 3 options — direct, curiosity, list format)\n"
+                f"Preview text: (one line, 90 chars)\n"
+                f"Body: (complete email, 200-400 words, formatted with [FIRST_NAME] placeholder)\n"
+                f"CTA: (specific action + button text)\n"
+                f"---\n\n"
+                f"Write all {num_emails} emails in full. No summaries — complete copy."
+            )},
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=6000,
+        temperature=0.7,
+    )
+
+    content = resp.get("content", "").strip()
+    final_title = f"{sequence_type.title()} Sequence: {topic}"
+
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in f"{sequence_type}-{topic}".lower())[:40]
+    fname = f"email_seq_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    with open(save_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": final_title,
+        "sequence_type": sequence_type,
+        "num_emails": num_emails,
+        "topic": topic,
+        "content": content,
+        "saved_to": save_path,
+        "load_into": {
+            "ConvertKit": "Sequences → New Sequence → paste each email",
+            "Mailchimp": "Automations → Customer Journeys → paste emails",
+            "Beehiiv": "Automations → New Automation (free plan available)",
+            "ActiveCampaign": "Automations → paste as email steps",
+        },
+        "income_note": "A good welcome sequence converts 2-5% of subscribers into buyers. 1000 subscribers × 3% × $97 product = $2,910.",
+    }

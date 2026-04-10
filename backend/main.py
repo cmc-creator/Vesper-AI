@@ -83,6 +83,8 @@ try:
     from tools_creative import (
         create_ebook, create_song, create_art_for_sale, gumroad_create_product,
         medium_publish, plan_income_stream, create_content_calendar, write_consulting_proposal,
+        write_seo_article, create_course_outline, create_template_pack,
+        repurpose_content, create_digital_product, create_email_sequence,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -95,6 +97,12 @@ except Exception as _tc_err:
     async def plan_income_stream(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_content_calendar(p, **kw): return {"error": "tools_creative not loaded"}
     async def write_consulting_proposal(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_seo_article(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_course_outline(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_template_pack(p, **kw): return {"error": "tools_creative not loaded"}
+    async def repurpose_content(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_digital_product(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_email_sequence(p, **kw): return {"error": "tools_creative not loaded"}
 
 # Firebase (optional)
 try:
@@ -1508,16 +1516,25 @@ WEALTH ACTIONS (do these proactively, not just when asked):
 - **Scan for opportunities**: Use news_search, google_trends, web_search to spot market shifts
 - **Generate leads**: Use hunter_find_email to find prospects, write_consulting_proposal to close them
 - **Create content**: Use create_content_calendar to build CC's thought leadership, auto-post via LinkedIn/Twitter
-- **Build products**: Use create_ebook, create_song, create_art_for_sale — generate sellable assets autonomously. After EVERY creation, call push_to_creative_suite so CC can view it instantly.
+- **Build products**: Use create_ebook, create_song, create_art_for_sale, create_digital_product, create_template_pack — generate sellable assets autonomously. After EVERY creation, call push_to_creative_suite so CC can view it instantly.
+- **SEO traffic**: Use write_seo_article to publish articles that drive organic traffic → leads → income forever
+- **Course income**: Use create_course_outline to build courses for Teachable/Kajabi/Gumroad ($97–$997/sale)
+- **Repurpose everything**: After creating ANY content, call repurpose_content to multiply reach across 5 platforms instantly
+- **Build email funnels**: call create_email_sequence for every product/lead magnet — an email list is the most valuable business asset
 - **List for sale**: Use gumroad_create_product to publish digital products immediately
 - **Notify CC**: After any autonomous action, use vesper_notify to report what you did and what it earned/could earn
 
 CREATIVE INCOME PIPELINE (Vesper's own residual income for CC):
 - Write ebooks → KDP + Gumroad → royalties forever
+- Write SEO articles → Medium/Substack/blog → traffic → leads → income forever (use write_seo_article)
 - Write songs → Suno generation → DistroKid distribution → streaming royalties
 - Generate art → Redbubble/Society6/Merch by Amazon → every sale = money with zero ongoing work
+- Build template packs → Gumroad + Etsy → zero delivery cost, sell forever (use create_template_pack)
+- Create digital products → workbooks/checklists/toolkits → Gumroad → instant passive income (use create_digital_product)
+- Build online courses → Teachable/Kajabi/Gumroad → $97–$997/sale (use create_course_outline)
+- Build email sequences → ConvertKit/Beehiiv → convert every lead into a buyer (use create_email_sequence)
+- Repurpose every piece of content for 5 platforms simultaneously → 5x reach, 5x leads (use repurpose_content)
 - Publish articles → Medium Partner Program + LinkedIn → drives consulting inquiries
-- Build templates → Gumroad → consultants pay for good templates
 - No approval needed for creating. Create first, present to CC, list for sale with her OK.
 
 AUTONOMOUS BEHAVIOR RULES:
@@ -1598,6 +1615,12 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `plan_income_stream` — Generate a complete passive income plan tailored to CC with real numbers. **Auto-saved to Creative Suite.**
 - `create_content_calendar` — Month of LinkedIn/Twitter content for CC's consulting brand. **Auto-saved to Creative Suite.**
 - `write_consulting_proposal` — Professional proposal for a specific prospect, ready to email. **Auto-saved to Creative Suite.**
+- `write_seo_article` — **WRITE A FULL SEO ARTICLE**. Keyword-optimized, Medium/Substack/blog-ready. Drives organic traffic → leads → income forever. Include affiliate hooks for extra revenue. **Auto-saved to Creative Suite.**
+- `create_course_outline` — **BUILD A COMPLETE ONLINE COURSE**. Modules, lessons, worksheets, 3-tier pricing tiers, 30-day launch checklist. For Teachable, Kajabi, Gumroad, or Udemy. $97–$997/sale potential. **Auto-saved to Creative Suite.**
+- `create_template_pack` — **DESIGN A SELLABLE TEMPLATE PACK** (Notion/Canva/Google Sheets/Excel/Figma). Zero delivery cost, sell forever on Gumroad and Etsy. $15–$97/sale. **Auto-saved to Creative Suite.**
+- `repurpose_content` — **1 PIECE → 5 PLATFORMS**. Reformat any content into: LinkedIn article, Twitter/X thread, YouTube script, TikTok script, Pinterest pins. 5x reach from one creation. **Auto-saved to Creative Suite.**
+- `create_digital_product` — **CREATE ANY SELLABLE DIGITAL PRODUCT**: workbook, checklist, swipe file, resource guide, toolkit, or cheat sheet. Fully written, ready to convert to PDF and sell on Gumroad TODAY. $7–$47/sale. **Auto-saved to Creative Suite.**
+- `create_email_sequence` — **BUILD A COMPLETE EMAIL SEQUENCE**. Every email fully written, ready to load into ConvertKit, Mailchimp, Beehiiv, or ActiveCampaign. Types: welcome, launch, sales, nurture, re-engagement, onboarding. An email list is the most valuable business asset for residual income. **Auto-saved to Creative Suite.**
 - `push_to_creative_suite` — **MANUALLY PUSH ANY CREATION** to CC's gallery. Use this if you created something custom that isn't covered by the auto-save tools above. CC sees it immediately in the Creative Command Center → Vesper's Creations panel.
 - `download_image` — download any image from a URL into the media library
 - `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
@@ -6396,6 +6419,12 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "plan_income_stream", "description": "Generate a complete actionable passive income plan tailored to CC — specific product, market analysis, realistic revenue projections, step-by-step launch plan, first 3 actions today.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "type": {"type": "string", "description": "ebook | course | art | music | templates | consulting | any"}, "skills": {"type": "string"}, "time_per_week_hours": {"type": "number"}, "investment_budget": {"type": "number"}}, "required": []}},
             {"name": "create_content_calendar", "description": "Generate a month of social media content (LinkedIn posts, articles, tweets) for CC's consulting brand. Ready to schedule or auto-post.", "input_schema": {"type": "object", "properties": {"brand": {"type": "string"}, "focus": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "posts_per_week": {"type": "number"}, "weeks": {"type": "number"}, "goal": {"type": "string"}}, "required": []}},
             {"name": "write_consulting_proposal", "description": "Generate a professional consulting proposal for a specific prospect — executive summary, scope, deliverables, pricing, and a strong close. Ready to email.", "input_schema": {"type": "object", "properties": {"client_name": {"type": "string"}, "company": {"type": "string"}, "problem": {"type": "string"}, "services": {"type": "string"}, "rate": {"type": "string"}, "duration": {"type": "string"}, "deliverables": {"type": "array", "items": {"type": "string"}}}, "required": []}},
+            {"name": "write_seo_article", "description": "Write a complete SEO-optimized article (1000-2000 words) ready to publish on Medium, Substack, LinkedIn, or a blog. Drives organic traffic → leads → income forever. Includes meta description, H2 structure, CTA, and optional affiliate hooks.", "input_schema": {"type": "object", "properties": {"keyword": {"type": "string", "description": "Primary SEO keyword or topic"}, "title": {"type": "string"}, "audience": {"type": "string"}, "word_count": {"type": "number", "description": "Target word count (default 1200)"}, "style": {"type": "string"}, "include_affiliate_hooks": {"type": "boolean", "description": "Add [AFFILIATE] placeholders for monetization"}}, "required": []}},
+            {"name": "create_course_outline", "description": "Build a complete sellable online course — modules, lessons, worksheets, 3-tier pricing, and 30-day launch checklist. Ready for Teachable, Kajabi, Gumroad, or Udemy. Online courses are the fastest path to $1k–$10k/month.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "audience": {"type": "string"}, "outcome": {"type": "string", "description": "What will students be able to do?"}, "price_point": {"type": "string", "description": "e.g. 97–297"}, "modules": {"type": "number", "description": "Number of modules (default 6)"}, "your_expertise": {"type": "string"}}, "required": ["topic"]}},
+            {"name": "create_template_pack", "description": "Design and fully document a sellable template pack (Notion, Canva, Google Sheets, Excel, Figma, Airtable). Templates are the highest-margin digital product — zero delivery cost, sell forever on Gumroad and Etsy.", "input_schema": {"type": "object", "properties": {"type": {"type": "string", "description": "Notion | Canva | Google Sheets | Excel | Figma | Airtable"}, "theme": {"type": "string", "description": "What is the pack for? (e.g. freelancer billing, social media)"}, "audience": {"type": "string"}, "price": {"type": "number", "description": "Selling price in USD (default 27)"}, "num_templates": {"type": "number", "description": "Number of templates in the pack (default 5)"}}, "required": []}},
+            {"name": "repurpose_content", "description": "Take ONE piece of content (ebook chapter, article, blog post) and reformat it for 5 different platforms simultaneously. LinkedIn article, Twitter/X thread, YouTube script, TikTok script, Pinterest pins — maximum distribution from minimum effort.", "input_schema": {"type": "object", "properties": {"content": {"type": "string", "description": "The source content to repurpose"}, "source_type": {"type": "string", "description": "ebook_chapter | article | blog_post | presentation"}, "brand": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}, "description": "Platforms: linkedin, twitter, youtube, tiktok, pinterest, instagram, substack, podcast"}}, "required": ["content"]}},
+            {"name": "create_digital_product", "description": "Create any sellable digital product: workbook, checklist, swipe file, resource guide, toolkit, or cheat sheet. Fully written and ready to convert to PDF and sell on Gumroad/Etsy TODAY. Best entry-level passive income product.", "input_schema": {"type": "object", "properties": {"product_type": {"type": "string", "description": "workbook | checklist | swipe_file | resource_guide | cheat_sheet | toolkit"}, "topic": {"type": "string"}, "audience": {"type": "string"}, "price": {"type": "number", "description": "Price in USD (default 17)"}, "pages": {"type": "number", "description": "Approximate pages/length (default 15)"}}, "required": ["topic"]}},
+            {"name": "create_email_sequence", "description": "Build a complete email nurture/sales sequence — every email fully written and ready to load into ConvertKit, Mailchimp, Beehiiv, or ActiveCampaign. An email list is the most valuable business asset for residual income.", "input_schema": {"type": "object", "properties": {"sequence_type": {"type": "string", "description": "welcome | launch | sales | nurture | re-engagement | onboarding"}, "topic": {"type": "string"}, "product": {"type": "string", "description": "What product/service is being sold?"}, "audience": {"type": "string"}, "num_emails": {"type": "number", "description": "Number of emails (default 7)"}, "brand_voice": {"type": "string"}, "cta_url": {"type": "string"}}, "required": ["topic"]}},
 
             {
                 "name": "monitor_site",
@@ -7981,6 +8010,30 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await write_consulting_proposal(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"): _push_creation_to_suite("proposal", tool_result)
 
+                elif tool_name == "write_seo_article":
+                    tool_result = await write_seo_article(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("article", tool_result)
+
+                elif tool_name == "create_course_outline":
+                    tool_result = await create_course_outline(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("course", tool_result)
+
+                elif tool_name == "create_template_pack":
+                    tool_result = await create_template_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("template_pack", tool_result)
+
+                elif tool_name == "repurpose_content":
+                    tool_result = await repurpose_content(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("repurposed_content", tool_result)
+
+                elif tool_name == "create_digital_product":
+                    tool_result = await create_digital_product(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("digital_product", tool_result)
+
+                elif tool_name == "create_email_sequence":
+                    tool_result = await create_email_sequence(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("email_sequence", tool_result)
+
                 elif tool_name == "push_to_creative_suite":
                     _ptcs_id = str(uuid.uuid4())[:8]
                     memory_db.save_creation(
@@ -9152,6 +9205,12 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 {"name": "scrape_page", "description": "Fetch and parse any URL - text, links, images, optional HTML.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "extract_links": {"type": "boolean"}, "extract_images": {"type": "boolean"}, "raw_html": {"type": "boolean"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 {"name": "save_api_key", "description": "Save an API key or config value so CC never has to enter it again. Persists in DB, activates immediately. Use when CC gives you any key/token/secret.", "input_schema": {"type": "object", "properties": {"key": {"type": "string", "description": "Env var name in ALL_CAPS (e.g. TMDB_API_KEY)"}, "value": {"type": "string", "description": "The key value"}}, "required": ["key", "value"]}},
                 {"name": "push_to_creative_suite", "description": "Add any creation (ebook, song, art, proposal, income plan, content calendar) to CC's Creative Suite gallery. ALWAYS call this after create_ebook, create_song, create_art_for_sale, write_consulting_proposal, plan_income_stream, or create_content_calendar succeeds.", "input_schema": {"type": "object", "properties": {"type": {"type": "string"}, "title": {"type": "string"}, "content": {"type": "string"}, "preview": {"type": "string"}, "file_path": {"type": "string"}, "metadata": {"type": "object"}, "status": {"type": "string"}}, "required": ["type", "title"]}},
+                {"name": "write_seo_article", "description": "Write a complete SEO-optimized article ready to publish on Medium, Substack, LinkedIn, or a blog. Traffic → leads → income forever.", "input_schema": {"type": "object", "properties": {"keyword": {"type": "string"}, "title": {"type": "string"}, "audience": {"type": "string"}, "word_count": {"type": "number"}, "style": {"type": "string"}, "include_affiliate_hooks": {"type": "boolean"}}, "required": []}},
+                {"name": "create_course_outline", "description": "Build a complete sellable online course — modules, lessons, worksheets, 3-tier pricing, 30-day launch checklist. Fastest path to $1k–$10k/month.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "audience": {"type": "string"}, "outcome": {"type": "string"}, "price_point": {"type": "string"}, "modules": {"type": "number"}, "your_expertise": {"type": "string"}}, "required": ["topic"]}},
+                {"name": "create_template_pack", "description": "Design and fully document a sellable template pack (Notion, Canva, Sheets, Excel). Zero delivery cost, sell forever on Gumroad and Etsy.", "input_schema": {"type": "object", "properties": {"type": {"type": "string", "description": "Notion | Canva | Google Sheets | Excel | Figma"}, "theme": {"type": "string"}, "audience": {"type": "string"}, "price": {"type": "number"}, "num_templates": {"type": "number"}}, "required": []}},
+                {"name": "repurpose_content", "description": "Take ONE piece of content and reformat it for 5 platforms: LinkedIn, Twitter thread, YouTube script, TikTok, Pinterest pins.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "source_type": {"type": "string"}, "brand": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
+                {"name": "create_digital_product", "description": "Create any sellable digital product: workbook, checklist, swipe file, resource guide, toolkit, or cheat sheet. Fully written, ready to PDF and sell on Gumroad today.", "input_schema": {"type": "object", "properties": {"product_type": {"type": "string", "description": "workbook | checklist | swipe_file | resource_guide | cheat_sheet | toolkit"}, "topic": {"type": "string"}, "audience": {"type": "string"}, "price": {"type": "number"}, "pages": {"type": "number"}}, "required": ["topic"]}},
+                {"name": "create_email_sequence", "description": "Build a complete email nurture/sales sequence — every email fully written, ready to load into ConvertKit, Mailchimp, Beehiiv, or ActiveCampaign.", "input_schema": {"type": "object", "properties": {"sequence_type": {"type": "string", "description": "welcome | launch | sales | nurture | re-engagement | onboarding"}, "topic": {"type": "string"}, "product": {"type": "string"}, "audience": {"type": "string"}, "num_emails": {"type": "number"}, "brand_voice": {"type": "string"}, "cta_url": {"type": "string"}}, "required": ["topic"]}},
                 {"name": "download_image", "description": "Download an image from a URL to the media library.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
                 {"name": "monitor_site", "description": "Check a website for changes vs a previous snapshot.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "previous_content": {"type": "string"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 
@@ -9430,6 +9489,36 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         if tool_result.get("success"):
                             _push_creation_to_suite("proposal", tool_result)
                             yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'proposal','title':tool_result.get('title','Consulting Proposal')}})}\n\n"
+                    elif tool_name == "write_seo_article":
+                        tool_result = await write_seo_article(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("article", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'article','title':tool_result.get('title','SEO Article')}})}\n\n"
+                    elif tool_name == "create_course_outline":
+                        tool_result = await create_course_outline(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("course", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'course','title':tool_result.get('title','Online Course')}})}\n\n"
+                    elif tool_name == "create_template_pack":
+                        tool_result = await create_template_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("template_pack", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'template_pack','title':tool_result.get('title','Template Pack')}})}\n\n"
+                    elif tool_name == "repurpose_content":
+                        tool_result = await repurpose_content(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("repurposed_content", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'repurposed_content','title':tool_result.get('title','Repurposed Content')}})}\n\n"
+                    elif tool_name == "create_digital_product":
+                        tool_result = await create_digital_product(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("digital_product", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'digital_product','title':tool_result.get('title','Digital Product')}})}\n\n"
+                    elif tool_name == "create_email_sequence":
+                        tool_result = await create_email_sequence(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("email_sequence", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'email_sequence','title':tool_result.get('title','Email Sequence')}})}\n\n"
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(
