@@ -5097,9 +5097,9 @@ export default function App() {
         );
       case 'settings':
         return (
-          <DraggableBoard id="settings">
+          <Box sx={{ position: 'fixed', top: '80px', left: '280px', width: 'calc(100vw - 320px)', maxWidth: '1000px', maxHeight: 'calc(100vh - 120px)', overflow: 'auto', zIndex: 10 }}>
             <Paper className="intel-board glass-card">
-              <DragHandleArea className="board-header">
+              <Box className="board-header" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Settings</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', overflow: 'visible' }}>
@@ -5111,7 +5111,7 @@ export default function App() {
                   <ArrowBackIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-            </DragHandleArea>
+            </Box>
             <Stack spacing={2.5}>
               {runtimeCapabilities?.readiness && (
                 <Box sx={{
@@ -6352,7 +6352,7 @@ export default function App() {
               </Accordion>
             </Stack>
           </Paper>
-          </DraggableBoard>
+          </Box>
         );
       default:
         return null;
