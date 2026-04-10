@@ -183,8 +183,13 @@ export default function CreativeSuite({ apiBase, onBack }) {
   // Auto-refresh when Vesper fires a creative_suite_update SSE event
   useEffect(() => {
     const handler = () => loadCreations();
+    const openHandler = () => setActivePanel('creations');
     window.addEventListener('vesper:creative_update', handler);
-    return () => window.removeEventListener('vesper:creative_update', handler);
+    window.addEventListener('vesper:open_creations_panel', openHandler);
+    return () => {
+      window.removeEventListener('vesper:creative_update', handler);
+      window.removeEventListener('vesper:open_creations_panel', openHandler);
+    };
   }, [loadCreations]);
 
   // Brand CRUD

@@ -1678,7 +1678,10 @@ export default function App() {
               } else if (data.action === 'creative_suite_update') {
                 // Signal CreativeSuite to reload its creations list
                 window.dispatchEvent(new CustomEvent('vesper:creative_update', { detail: data.data }));
-                showToast(`✨ Vesper created: ${data.data?.title || 'new creation'}`, 'success');
+                // Auto-navigate to the creations gallery so CC sees it immediately
+                setActiveSection('nyxshift');
+                window.dispatchEvent(new CustomEvent('vesper:open_creations_panel'));
+                showToast(`✨ Vesper created: ${data.data?.title || 'new creation'} — opening your gallery!`, 'success');
               }
             } else if (data.type === 'done') {
               currentProvider = data.provider || currentProvider;

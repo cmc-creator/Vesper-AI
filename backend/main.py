@@ -2267,11 +2267,34 @@ def _push_creation_to_suite(creation_type: str, tool_result: dict) -> str:
         elif creation_type == "proposal":
             content = tool_result.get("proposal", "") or tool_result.get("content", "")
             file_path = tool_result.get("saved_to")
+        elif creation_type == "article":
+            content = tool_result.get("article", "") or tool_result.get("content", "")
+            file_path = tool_result.get("saved_to")
+        elif creation_type == "course":
+            content = tool_result.get("content", "") or tool_result.get("outline", "")
+            file_path = tool_result.get("saved_to")
+        elif creation_type == "template_pack":
+            content = tool_result.get("content", "")
+            file_path = tool_result.get("saved_to")
+        elif creation_type == "repurposed_content":
+            content = tool_result.get("content", "")
+            file_path = tool_result.get("saved_to")
+        elif creation_type == "digital_product":
+            content = tool_result.get("content", "")
+            file_path = tool_result.get("saved_to")
+        elif creation_type == "email_sequence":
+            content = tool_result.get("content", "")
+            file_path = tool_result.get("saved_to")
+        elif creation_type == "art":
+            content = tool_result.get("content", "") or tool_result.get("description", "") or str(tool_result.get("concept", ""))
+            file_path = tool_result.get("saved_to") or tool_result.get("image_path")
         else:
-            content = str(tool_result)
+            # Generic fallback — try content key first, then stringify only known scalar fields
+            content = tool_result.get("content", "") or tool_result.get("text", "") or tool_result.get("body", "")
 
         metadata = {k: v for k, v in tool_result.items()
-                    if k not in ("manuscript", "content", "plan", "calendar", "proposal")
+                    if k not in ("manuscript", "content", "plan", "calendar", "proposal",
+                                 "article", "outline", "text", "body", "description")
                     and isinstance(v, (str, int, float, bool, list, type(None)))}
 
         creation_id = str(uuid.uuid4())[:8]
