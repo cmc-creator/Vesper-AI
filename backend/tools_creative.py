@@ -15,6 +15,17 @@ import datetime
 from typing import Optional
 
 
+def _safe_write(path: str, content: str) -> bool:
+    """Write content to a file. Non-fatal: returns True on success, False on failure."""
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+        return True
+    except Exception as _err:
+        print(f"[WARN] tools_creative file write failed (DB save still proceeds): {_err}")
+        return False
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # EBOOK CREATOR — KDP / GUMROAD READY
 # ─────────────────────────────────────────────────────────────────────────────
@@ -103,8 +114,7 @@ async def create_ebook(params: dict, ai_router=None, TaskType=None) -> dict:
 
     # Save manuscript
     manuscript_path = os.path.join(save_dir, f"{slug}.md")
-    with open(manuscript_path, "w", encoding="utf-8") as f:
-        f.write(manuscript)
+    _safe_write(manuscript_path, manuscript)
 
     # Step 3: Generate KDP / publishing metadata
     meta_resp = await ai_router.chat(
@@ -135,9 +145,8 @@ async def create_ebook(params: dict, ai_router=None, TaskType=None) -> dict:
 
     # Save metadata
     meta_path = os.path.join(save_dir, f"{slug}_metadata.json")
-    with open(meta_path, "w", encoding="utf-8") as f:
-        json.dump({"title": final_title, "outline": outline, "metadata": metadata,
-                   "created": datetime.datetime.now().isoformat()}, f, indent=2)
+    _safe_write(meta_path, json.dumps({"title": final_title, "outline": outline, "metadata": metadata,
+                   "created": datetime.datetime.now().isoformat()}, indent=2))
 
     word_count = len(manuscript.split())
 
@@ -231,8 +240,7 @@ async def create_song(params: dict, ai_router=None, TaskType=None) -> dict:
 
     slug = "".join(c if c.isalnum() or c == "-" else "-" for c in song_title.lower())[:40]
     save_path = os.path.join(save_dir, f"{slug}.md")
-    with open(save_path, "w", encoding="utf-8") as f:
-        f.write(f"# {song_title}\n\n{song_content}\n\n---\nCreated: {datetime.datetime.now().isoformat()}")
+    _safe_write(save_path, f"# {song_title}\n\n{song_content}\n\n---\nCreated: {datetime.datetime.now().isoformat()}")
 
     return {
         "success": True,
@@ -533,8 +541,7 @@ async def plan_income_stream(params: dict, ai_router=None, TaskType=None) -> dic
     os.makedirs(save_dir, exist_ok=True)
     slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (niche or stream_type).lower())[:30]
     save_path = os.path.join(save_dir, f"{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md")
-    with open(save_path, "w", encoding="utf-8") as f:
-        f.write(f"# Income Stream Plan: {niche or stream_type}\n\n{plan}\n\n---\nGenerated: {datetime.datetime.now().isoformat()}")
+    _safe_write(save_path, f"# Income Stream Plan: {niche or stream_type}\n\n{plan}\n\n---\nGenerated: {datetime.datetime.now().isoformat()}")
 
     return {
         "success": True,
@@ -592,8 +599,7 @@ async def create_content_calendar(params: dict, ai_router=None, TaskType=None) -
     save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "content")
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, f"content_calendar_{datetime.datetime.now().strftime('%Y%m')}.md")
-    with open(save_path, "w", encoding="utf-8") as f:
-        f.write(f"# Content Calendar — {brand}\n\n{calendar}")
+    _safe_write(save_path, f"# Content Calendar — {brand}\n\n{calendar}")
 
     return {
         "success": True,
@@ -652,8 +658,7 @@ async def write_consulting_proposal(params: dict, ai_router=None, TaskType=None)
     os.makedirs(save_dir, exist_ok=True)
     slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (company or client_name).lower())[:30]
     save_path = os.path.join(save_dir, f"proposal_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md")
-    with open(save_path, "w", encoding="utf-8") as f:
-        f.write(proposal)
+    _safe_write(save_path, proposal)
 
     return {
         "success": True,
@@ -744,8 +749,7 @@ async def write_seo_article(params: dict, ai_router=None, TaskType=None) -> dict
     slug = "".join(c if c.isalnum() or c == "-" else "-" for c in keyword.lower())[:40]
     fname = f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{slug}.md"
     save_path = os.path.join(save_dir, fname)
-    with open(save_path, "w", encoding="utf-8") as f:
-        f.write(article)
+    _safe_write(save_path, article)
 
     return {
         "success": True,
@@ -828,8 +832,7 @@ async def create_course_outline(params: dict, ai_router=None, TaskType=None) -> 
     slug = "".join(c if c.isalnum() or c == "-" else "-" for c in topic.lower())[:40]
     fname = f"course_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
     save_path = os.path.join(save_dir, fname)
-    with open(save_path, "w", encoding="utf-8") as f:
-        f.write(content)
+    _safe_write(save_path, content)
 
     return {
         "success": True,
@@ -910,8 +913,7 @@ async def create_template_pack(params: dict, ai_router=None, TaskType=None) -> d
     slug = "".join(c if c.isalnum() or c == "-" else "-" for c in f"{pack_type}-{theme}".lower())[:40]
     fname = f"templates_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
     save_path = os.path.join(save_dir, fname)
-    with open(save_path, "w", encoding="utf-8") as f:
-        f.write(content)
+    _safe_write(save_path, content)
 
     return {
         "success": True,
@@ -992,8 +994,7 @@ async def repurpose_content(params: dict, ai_router=None, TaskType=None) -> dict
     os.makedirs(save_dir, exist_ok=True)
     fname = f"repurposed_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
     save_path = os.path.join(save_dir, fname)
-    with open(save_path, "w", encoding="utf-8") as f:
-        f.write(content)
+    _safe_write(save_path, content)
 
     return {
         "success": True,
@@ -1096,8 +1097,7 @@ async def create_digital_product(params: dict, ai_router=None, TaskType=None) ->
     slug = "".join(c if c.isalnum() or c == "-" else "-" for c in f"{product_type}-{topic}".lower())[:45]
     fname = f"{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
     save_path = os.path.join(save_dir, fname)
-    with open(save_path, "w", encoding="utf-8") as f:
-        f.write(content)
+    _safe_write(save_path, content)
 
     return {
         "success": True,
@@ -1180,8 +1180,7 @@ async def create_email_sequence(params: dict, ai_router=None, TaskType=None) -> 
     slug = "".join(c if c.isalnum() or c == "-" else "-" for c in f"{sequence_type}-{topic}".lower())[:40]
     fname = f"email_seq_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
     save_path = os.path.join(save_dir, fname)
-    with open(save_path, "w", encoding="utf-8") as f:
-        f.write(content)
+    _safe_write(save_path, content)
 
     return {
         "success": True,

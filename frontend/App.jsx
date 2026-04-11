@@ -427,6 +427,7 @@ function App() {
 
   const [gameMode, setGameMode] = useState(false);
   const [activeSection, setActiveSection] = useState('chat');
+  const [pendingCreationsPanel, setPendingCreationsPanel] = useState(false);
   const [activeTheme, setActiveTheme] = useState(() => {
     const luxuryDefault = THEMES.find((t) => t.id === 'diamond-vault') || THEMES[0];
     const migrated = safeStorageGet('vesper_luxury_migrated_v3', '0') === '1';
@@ -1678,9 +1679,9 @@ export default function App() {
               } else if (data.action === 'creative_suite_update') {
                 // Signal CreativeSuite to reload its creations list
                 window.dispatchEvent(new CustomEvent('vesper:creative_update', { detail: data.data }));
-                // Auto-navigate to the creations gallery so CC sees it immediately
+                // Use prop-based navigation to avoid timing race with unmounted component
+                setPendingCreationsPanel(true);
                 setActiveSection('nyxshift');
-                window.dispatchEvent(new CustomEvent('vesper:open_creations_panel'));
                 showToast(`✨ Vesper created: ${data.data?.title || 'new creation'} — opening your gallery!`, 'success');
               }
             } else if (data.type === 'done') {
@@ -4773,7 +4774,7 @@ export default function App() {
         );
       case 'nyxshift':
         return (
-          <CreativeSuite apiBase={apiBase} onBack={() => setActiveSection('chat')} />
+          <CreativeSuite apiBase={apiBase} onBack={() => setActiveSection('chat')} openCreationsPanel={pendingCreationsPanel} onCreationsPanelOpened={() => setPendingCreationsPanel(false)} />
         );
       case 'income':
         return (

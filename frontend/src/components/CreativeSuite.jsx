@@ -49,7 +49,7 @@ const SIDEBAR_NAV = [
   { id: 'projects', label: 'Projects', icon: FolderIcon, color: '#ff9800' },
 ];
 
-export default function CreativeSuite({ apiBase, onBack }) {
+export default function CreativeSuite({ apiBase, onBack, openCreationsPanel, onCreationsPanelOpened }) {
   const [activePanel, setActivePanel] = useState('hub');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -191,6 +191,15 @@ export default function CreativeSuite({ apiBase, onBack }) {
       window.removeEventListener('vesper:open_creations_panel', openHandler);
     };
   }, [loadCreations]);
+
+  // Prop-based panel open (reliable: fires after component is mounted)
+  useEffect(() => {
+    if (openCreationsPanel) {
+      setActivePanel('creations');
+      loadCreations();
+      if (onCreationsPanelOpened) onCreationsPanelOpened();
+    }
+  }, [openCreationsPanel, onCreationsPanelOpened, loadCreations]);
 
   // Brand CRUD
   const saveBrand = async () => {
