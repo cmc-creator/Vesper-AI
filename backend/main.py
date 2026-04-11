@@ -5476,10 +5476,15 @@ async def chat_with_vesper(chat: ChatMessage):
         enhanced_system = VESPER_CORE_DNA + "\n\n" + date_context + "\n\n" + memory_summary
         
         # Check Google availability
+        _google_is_sa = False
         try:
             _creds = get_google_credentials()
             _gcred_id = getattr(_creds, "service_account_email", None) or "OAuth"
-            enhanced_system += f"\n\n**GOOGLE WORKSPACE:** CONNECTED ({_gcred_id}). USE your Google tools when CC asks."
+            _google_is_sa = hasattr(_creds, "service_account_email")
+            if _google_is_sa:
+                enhanced_system += f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). CRITICAL: Files/docs/sheets you create with Google tools are owned by this service account, NOT by CC. They will NOT appear in CC's 'My Drive'. The code auto-shares every file with CC's email so it appears in her 'Shared with me'. ALWAYS give CC the webViewLink from the tool result as a clickable link. NEVER say 'I put it in your Google Drive' — say 'Here's your direct link: [webViewLink]' and 'Check Shared with me in Google Drive'."
+            else:
+                enhanced_system += "\n\n**GOOGLE WORKSPACE:** CONNECTED via OAuth (CC's own account). Files you create go directly into CC's Drive. Always give the webViewLink from the tool result."
         except Exception:
             enhanced_system += "\n\n**GOOGLE WORKSPACE:** NOT CONNECTED on this server. Tell CC the service account needs to be configured if she asks about Google."
         
@@ -9206,7 +9211,11 @@ async def chat_stream(chat: ChatMessage):
             try:
                 _creds = get_google_credentials()
                 _gcred_id = getattr(_creds, "service_account_email", None) or "OAuth"
-                google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED and ready ({_gcred_id}). You have full access to Drive, Docs, Sheets, and Calendar tools. USE THEM when CC asks."
+                _is_sa = hasattr(_creds, "service_account_email")
+                if _is_sa:
+                    google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). CRITICAL: Files/docs/sheets you create are owned by this service account and are NOT in CC's 'My Drive'. The code auto-shares every file with CC's email so it appears in her 'Shared with me'. ALWAYS give CC the webViewLink from the tool result as a clickable link in your response. NEVER just say 'I saved it to your Google Drive' — ALWAYS say 'Here is your direct link: [webViewLink]'. If the tool returns an error, tell CC honestly instead of claiming it worked."
+                else:
+                    google_context = "\n\n**GOOGLE WORKSPACE:** CONNECTED via OAuth (CC's own account). Files go directly into CC's Drive. Always give the webViewLink from the tool result."
             except Exception:
                 google_context = "\n\n**GOOGLE WORKSPACE:** NOT CONNECTED on this server. If CC asks about Google tools, tell her the service account credentials need to be configured on this deployment. Don't claim you can't access Google in general — it works when properly configured."
             
@@ -13269,6 +13278,36 @@ def get_google_credentials():
         "GOOGLE_SERVICE_ACCOUNT_JSON env var"
     )
 
+def _google_owner_email() -> str:
+    """Return the email to share Google files with. Tries env vars then falls back to known owner."""
+    return (
+        os.getenv("GOOGLE_DRIVE_SHARE_EMAIL") or
+        os.getenv("GOOGLE_USER_EMAIL") or
+        os.getenv("VESPER_OWNER_EMAIL") or
+        "cmc@conniemichelleconsulting.com"  # CC's permanent email — safe fallback for this personal app
+    )
+
+def _google_auto_share(drive_service, file_id: str) -> str:
+    """Share a Drive file/doc/sheet with CC's email if we're using a service account.
+    Service account files are invisible to CC until shared. Returns the share email or empty string."""
+    try:
+        creds = get_google_credentials()
+        if not hasattr(creds, "service_account_email"):
+            # OAuth creds — file already belongs to CC's own account, no sharing needed
+            return ""
+        email = _google_owner_email()
+        if not email:
+            return ""
+        permission = {"type": "user", "role": "writer", "emailAddress": email}
+        drive_service.permissions().create(
+            fileId=file_id, body=permission, sendNotificationEmail=False
+        ).execute()
+        print(f"[Google] Auto-shared {file_id} with {email}")
+        return email
+    except Exception as _e:
+        print(f"[Google] Auto-share failed (non-fatal): {_e}")
+        return ""
+
 def get_google_service(api, version):
     """Build a Google API service client."""
     from googleapiclient.discovery import build
@@ -13479,29 +13518,11 @@ async def google_drive_upload(req: dict):
         media = MediaInMemoryUpload(content.encode("utf-8"), mimetype=mime_type, resumable=False)
         f = service.files().create(body=metadata, media_body=media, fields="id, name, webViewLink").execute()
 
-        # Auto-share with the user's email so it appears in their Drive.
-        # When using a service account (not OAuth), files land in the service account's
-        # invisible Drive — sharing them puts them in "Shared with me" on the user's Drive.
-        share_email = (
-            os.getenv("GOOGLE_DRIVE_SHARE_EMAIL") or
-            os.getenv("GOOGLE_USER_EMAIL") or
-            os.getenv("VESPER_OWNER_EMAIL", "")
-        )
-        try:
-            _upload_creds = get_google_credentials()
-            _is_service_account = hasattr(_upload_creds, "service_account_email")
-        except Exception:
-            _is_service_account = False
-        if share_email and _is_service_account:
-            try:
-                permission = {"type": "user", "role": "writer", "emailAddress": share_email}
-                service.permissions().create(
-                    fileId=f["id"], body=permission, sendNotificationEmail=False
-                ).execute()
-                f["shared_with"] = share_email
-                print(f"[Google] File '{name}' shared with {share_email}")
-            except Exception as _se:
-                print(f"[Google] Auto-share failed (non-fatal): {_se}")
+        # Auto-share with CC so it appears in her "Shared with me" when using service account
+        shared_with = _google_auto_share(service, f["id"])
+        if shared_with:
+            f["shared_with"] = shared_with
+            f["access_note"] = f"Shared with {shared_with} — check 'Shared with me' in Google Drive"
 
         return {"file": f}
     except Exception as e:
@@ -13550,7 +13571,16 @@ async def google_docs_create(req: dict):
         # Get the web link via Drive
         drive = get_google_service("drive", "v3")
         meta = drive.files().get(fileId=doc_id, fields="webViewLink").execute()
-        return {"documentId": doc_id, "title": title, "webViewLink": meta.get("webViewLink", f"https://docs.google.com/document/d/{doc_id}/edit")}
+        web_link = meta.get("webViewLink", f"https://docs.google.com/document/d/{doc_id}/edit")
+
+        # Auto-share with CC so it appears in her "Shared with me"
+        shared_with = _google_auto_share(drive, doc_id)
+
+        result = {"documentId": doc_id, "title": title, "webViewLink": web_link}
+        if shared_with:
+            result["shared_with"] = shared_with
+            result["access_note"] = f"Shared with {shared_with} — check 'Shared with me' in Google Drive, or use the link above"
+        return result
     except Exception as e:
         return {"error": str(e)[:300]}
 
@@ -13606,7 +13636,17 @@ async def google_sheets_create(req: dict):
                 spreadsheetId=sheet_id, range="A1",
                 valueInputOption="RAW", body={"values": [headers]}
             ).execute()
-        return {"spreadsheetId": sheet_id, "title": title, "webViewLink": f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"}
+
+        # Auto-share with CC so it appears in her "Shared with me"
+        web_link = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
+        drive = get_google_service("drive", "v3")
+        shared_with = _google_auto_share(drive, sheet_id)
+
+        result = {"spreadsheetId": sheet_id, "title": title, "webViewLink": web_link}
+        if shared_with:
+            result["shared_with"] = shared_with
+            result["access_note"] = f"Shared with {shared_with} — check 'Shared with me' in Google Drive, or use the link above"
+        return result
     except Exception as e:
         return {"error": str(e)[:300]}
 
