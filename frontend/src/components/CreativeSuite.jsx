@@ -599,6 +599,22 @@ export default function CreativeSuite({ apiBase, onBack, openCreationsPanel, onC
   );
 
   // GOOGLE TOOLS
+  const connectGoogle = async () => {
+    try {
+      const r = await fetch(`${apiBase}/api/google/oauth/start`);
+      const d = await r.json();
+      if (d.auth_url) {
+        window.open(d.auth_url, '_blank');
+        showToast('Google auth page opened — authorize and then click Refresh', 'info');
+      } else if (d.error) {
+        showToast(`Setup needed: ${d.error}`, 'error');
+        if (d.setup_steps) console.info('[Google Setup]', d.setup_steps.join('\n'));
+      }
+    } catch (e) {
+      showToast('Could not start Google auth: ' + e.message, 'error');
+    }
+  };
+
   const renderGoogle = () => (
     <Box>
       {sectionHeader(<SyncIcon sx={{ color: '#34a853' }} />, 'Google Workspace Tools')}
@@ -609,11 +625,24 @@ export default function CreativeSuite({ apiBase, onBack, openCreationsPanel, onC
             <Box>
               <Typography variant="body1" sx={{ color: '#fff', fontWeight: 600 }}>{googleStatus?.connected ? 'Connected' : 'Not Connected'}</Typography>
               {googleStatus?.service_account && <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>{googleStatus.service_account}</Typography>}
-              {googleStatus?.error && <Typography variant="caption" sx={{ color: '#ff6b6b' }}>{googleStatus.error}</Typography>}
+              {googleStatus?.error && <Typography variant="caption" sx={{ color: '#ff6b6b', display: 'block' }}>{googleStatus.error}</Typography>}
             </Box>
           </Box>
-          <Button size="small" onClick={checkGoogleStatus} disabled={googleLoading} sx={{ color: 'var(--accent)' }}>Refresh</Button>
+          <Stack direction="row" spacing={1}>
+            {!googleStatus?.connected && (
+              <Button size="small" variant="contained" onClick={connectGoogle}
+                sx={{ bgcolor: '#34a853', color: '#fff', fontSize: '0.75rem', '&:hover': { bgcolor: '#2d9249' } }}>
+                Connect Google
+              </Button>
+            )}
+            <Button size="small" onClick={checkGoogleStatus} disabled={googleLoading} sx={{ color: 'var(--accent)' }}>Refresh</Button>
+          </Stack>
         </Box>
+        {!googleStatus?.connected && (
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', display: 'block', mt: 1 }}>
+            Click "Connect Google" to authorize Vesper to access your Drive, Docs, Sheets & Calendar.
+          </Typography>
+        )}
         {googleStatus?.connected && googleStatus?.services && (
           <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
             {googleStatus.services.map(s => <Chip key={s} label={s} size="small" sx={{ bgcolor: 'rgba(52,168,83,0.12)', color: '#34a853', fontSize: '0.7rem' }} />)}

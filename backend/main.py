@@ -2308,6 +2308,28 @@ def _push_creation_to_suite(creation_type: str, tool_result: dict) -> str:
             status="draft",
         )
         print(f"[CREATIVE SUITE] Auto-pushed {creation_type}: '{title}' (id={creation_id})")
+
+        # Auto-save to Google Drive (background thread, non-blocking)
+        if title and content:
+            import threading as _thr
+            def _bg_drive_save():
+                try:
+                    import asyncio as _aio
+                    loop = _aio.new_event_loop()
+                    _aio.set_event_loop(loop)
+                    result = loop.run_until_complete(google_drive_upload({
+                        "name": f"{title[:60]}.md",
+                        "content": content[:200000],
+                        "mime_type": "text/plain",
+                    }))
+                    loop.close()
+                    if result.get("file"):
+                        url = result["file"].get("webViewLink", "")
+                        print(f"[CREATIVE SUITE] Saved to Google Drive: {url}")
+                except Exception as _de:
+                    print(f"[CREATIVE SUITE] Drive auto-save skipped (non-fatal): {_de}")
+            _thr.Thread(target=_bg_drive_save, daemon=True).start()
+
         return creation_id
     except Exception as e:
         print(f"[CREATIVE SUITE] Auto-push failed: {e}")
@@ -6196,6 +6218,20 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "google_drive_save_file",
+                "description": "Save/upload text content as a file in Google Drive. Use this to save articles, ebooks, plans, proposals, or any text content to Drive.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Filename including extension (e.g. 'article.md', 'plan.txt')"},
+                        "content": {"type": "string", "description": "Text content to save"},
+                        "parent_id": {"type": "string", "description": "Optional Drive folder ID"},
+                        "mime_type": {"type": "string", "description": "MIME type — default text/plain"}
+                    },
+                    "required": ["name", "content"]
+                }
+            },
+            {
                 "name": "create_google_doc",
                 "description": "Create a new Google Doc with optional initial content. Use this when CC asks to create a document, write something, draft content, etc.",
                 "input_schema": {
@@ -7925,6 +7961,9 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "google_drive_create_folder":
                     tool_result = await google_drive_create_folder({"name": tool_input.get("name", "New Folder"), "parent_id": tool_input.get("parent_id")})
                 
+                elif tool_name == "google_drive_save_file":
+                    tool_result = await google_drive_upload({"name": tool_input.get("name", "file.txt"), "content": tool_input.get("content", ""), "parent_id": tool_input.get("parent_id"), "mime_type": tool_input.get("mime_type", "text/plain")})
+                
                 elif tool_name == "create_google_doc":
                     tool_result = await google_docs_create({"title": tool_input.get("title", "Untitled"), "content": tool_input.get("content", "")})
                 
@@ -9217,6 +9256,7 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                 # Google Workspace tools
                 {"name": "google_drive_search", "description": "Search Google Drive for files.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "page_size": {"type": "number"}}, "required": []}},
                 {"name": "google_drive_create_folder", "description": "Create a folder in Google Drive.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "parent_id": {"type": "string"}}, "required": ["name"]}},
+                {"name": "google_drive_save_file", "description": "Save/upload text content as a file in Google Drive. Use to save articles, ebooks, plans, or any content to Drive.", "input_schema": {"type": "object", "properties": {"name": {"type": "string", "description": "Filename (e.g. 'article.md')"}, "content": {"type": "string"}, "parent_id": {"type": "string"}, "mime_type": {"type": "string"}}, "required": ["name", "content"]}},
                 {"name": "create_google_doc", "description": "Create a new Google Doc.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "content": {"type": "string"}}, "required": ["title"]}},
                 {"name": "read_google_doc", "description": "Read a Google Doc's contents.", "input_schema": {"type": "object", "properties": {"doc_id": {"type": "string"}}, "required": ["doc_id"]}},
                 {"name": "update_google_doc", "description": "Append text to a Google Doc.", "input_schema": {"type": "object", "properties": {"doc_id": {"type": "string"}, "text": {"type": "string"}}, "required": ["doc_id", "text"]}},
@@ -9483,6 +9523,8 @@ CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TAL
                         tool_result = await google_drive_list(q=tool_input.get("query", ""), page_size=tool_input.get("page_size", 20))
                     elif tool_name == "google_drive_create_folder":
                         tool_result = await google_drive_create_folder({"name": tool_input.get("name", "New Folder"), "parent_id": tool_input.get("parent_id")})
+                    elif tool_name == "google_drive_save_file":
+                        tool_result = await google_drive_upload({"name": tool_input.get("name", "file.txt"), "content": tool_input.get("content", ""), "parent_id": tool_input.get("parent_id"), "mime_type": tool_input.get("mime_type", "text/plain")})
                     elif tool_name == "create_google_doc":
                         tool_result = await google_docs_create({"title": tool_input.get("title", "Untitled"), "content": tool_input.get("content", "")})
                     elif tool_name == "read_google_doc":
@@ -13117,10 +13159,14 @@ async def generate_pdf(request: Request):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_google_credentials():
-    """Load Google service account credentials from file or env var (GOOGLE_SERVICE_ACCOUNT_JSON).
-    Uses domain-wide delegation to impersonate cmc@conniemichelleconsulting.com."""
+    """Load Google credentials — supports OAuth tokens (personal accounts) and service accounts.
+    Priority order:
+      1. OAuth refresh token via env vars (GOOGLE_REFRESH_TOKEN + GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET)
+      2. Stored OAuth token file at vesper-ai/google_token.json (written by /api/google/oauth/callback)
+      3. Service account JSON env var (GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SERVICE_ACCOUNT_KEY)
+      4. Service account file (google-service-account.json or GOOGLE_SERVICE_ACCOUNT_FILE path)
+    """
     import json as _json
-    from google.oauth2 import service_account
     SCOPES = [
         "https://www.googleapis.com/auth/drive",
         "https://www.googleapis.com/auth/documents",
@@ -13128,37 +13174,236 @@ def get_google_credentials():
         "https://www.googleapis.com/auth/calendar",
         "https://www.googleapis.com/auth/presentations",
     ]
-    # The user account to impersonate via domain-wide delegation
-    IMPERSONATE_USER = "cmc@conniemichelleconsulting.com"
 
-    # Priority 1: Full JSON stored in env var (for Railway / cloud deploys)
-    sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+    # ── Priority 1: OAuth refresh token (works for personal Google accounts, no domain admin needed) ──
+    refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN", "")
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    if refresh_token and client_id and client_secret:
+        try:
+            from google.oauth2.credentials import Credentials as _OAuthCreds
+            from google.auth.transport.requests import Request as _GoogleReq
+            creds = _OAuthCreds(
+                token=None, refresh_token=refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=client_id, client_secret=client_secret, scopes=SCOPES,
+            )
+            creds.refresh(_GoogleReq())
+            return creds
+        except Exception as _e:
+            print(f"[Google] OAuth refresh token auth failed: {_e}")
+
+    # ── Priority 2: Stored OAuth token file (written after browser-based OAuth flow) ──
+    token_file = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "google_token.json")
+    if os.path.exists(token_file):
+        try:
+            with open(token_file) as _f:
+                tok = _json.load(_f)
+            _ci = tok.get("client_id") or client_id
+            _cs = tok.get("client_secret") or client_secret
+            _rt = tok.get("refresh_token", "")
+            if _rt and _ci and _cs:
+                from google.oauth2.credentials import Credentials as _OAuthCreds
+                from google.auth.transport.requests import Request as _GoogleReq
+                creds = _OAuthCreds(
+                    token=tok.get("access_token"), refresh_token=_rt,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    client_id=_ci, client_secret=_cs, scopes=SCOPES,
+                )
+                if not creds.valid:
+                    creds.refresh(_GoogleReq())
+                    tok["access_token"] = creds.token
+                    with open(token_file, "w") as _fw:
+                        _json.dump(tok, _fw)
+                return creds
+        except Exception as _e:
+            print(f"[Google] Stored OAuth token file failed: {_e}")
+
+    # ── Priority 3: Service account JSON env var (Railway deploys w/ Workspace domain) ──
+    from google.oauth2 import service_account
+    # Check both env var names (GOOGLE_SERVICE_ACCOUNT_JSON is the code name,
+    # GOOGLE_SERVICE_ACCOUNT_KEY appears in .env.local.example)
+    sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON") or os.getenv("GOOGLE_SERVICE_ACCOUNT_KEY")
     if sa_json:
         try:
             info = _json.loads(sa_json)
             creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
-            creds = creds.with_subject(IMPERSONATE_USER)
+            # Domain-wide delegation ONLY if explicitly set — not needed for most setups
+            impersonate = os.getenv("GOOGLE_IMPERSONATE_USER", "")
+            if impersonate:
+                creds = creds.with_subject(impersonate)
             return creds
-        except Exception as e:
-            print(f"[Google] Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON env var: {e}")
-    # Priority 2: File path (local dev)
+        except Exception as _e:
+            print(f"[Google] Service account JSON env var failed: {_e}")
+
+    # ── Priority 4: Service account file (local dev) ──
     sa_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "google-service-account.json")
     if not os.path.isabs(sa_file):
         sa_file = os.path.join(os.path.dirname(__file__), sa_file)
-    if not os.path.exists(sa_file):
-        raise FileNotFoundError(
-            "Google service account not found. Set GOOGLE_SERVICE_ACCOUNT_JSON env var "
-            f"or place file at: {sa_file}"
-        )
-    creds = service_account.Credentials.from_service_account_file(sa_file, scopes=SCOPES)
-    creds = creds.with_subject(IMPERSONATE_USER)
-    return creds
+    if os.path.exists(sa_file):
+        try:
+            creds = service_account.Credentials.from_service_account_file(sa_file, scopes=SCOPES)
+            impersonate = os.getenv("GOOGLE_IMPERSONATE_USER", "")
+            if impersonate:
+                creds = creds.with_subject(impersonate)
+            return creds
+        except Exception as _e:
+            print(f"[Google] Service account file failed: {_e}")
+
+    raise FileNotFoundError(
+        "Google credentials not found. Connect via: "
+        "GET /api/google/oauth/start (browser flow), OR set "
+        "GOOGLE_REFRESH_TOKEN + GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET, OR "
+        "GOOGLE_SERVICE_ACCOUNT_JSON env var"
+    )
 
 def get_google_service(api, version):
     """Build a Google API service client."""
     from googleapiclient.discovery import build
     creds = get_google_credentials()
     return build(api, version, credentials=creds)
+
+
+# ── Google OAuth Flow ─────────────────────────────────────────────────────────
+
+_GOOGLE_OAUTH_SCOPES = [
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/calendar",
+]
+
+@app.get("/api/google/oauth/start")
+async def google_oauth_start():
+    """Start the Google OAuth 2.0 flow. Returns an auth URL to open in the browser.
+    Prerequisites: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set.
+    Get them from: console.cloud.google.com → APIs & Services → Credentials → OAuth 2.0 Client IDs"""
+    import urllib.parse as _up
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    if not client_id:
+        return {
+            "error": "GOOGLE_CLIENT_ID not set",
+            "setup_steps": [
+                "1. Go to console.cloud.google.com",
+                "2. Select or create a project",
+                "3. Go to APIs & Services → Enable APIs: Drive API, Docs API, Sheets API, Calendar API",
+                "4. Go to APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client ID",
+                "5. Application type: Web application",
+                f"6. Authorized redirect URI: {_get_backend_url()}/api/google/oauth/callback",
+                "7. Copy client_id and client_secret",
+                "8. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Railway environment variables",
+                "9. Call this endpoint again",
+            ]
+        }
+    callback = f"{_get_backend_url()}/api/google/oauth/callback"
+    params = {
+        "client_id": client_id,
+        "redirect_uri": callback,
+        "response_type": "code",
+        "scope": " ".join(_GOOGLE_OAUTH_SCOPES),
+        "access_type": "offline",
+        "prompt": "consent",
+        "state": "vesper_auth",
+    }
+    auth_url = "https://accounts.google.com/o/oauth2/v2/auth?" + _up.urlencode(params)
+    return {
+        "auth_url": auth_url,
+        "redirect_uri": callback,
+        "instructions": [
+            "Open auth_url in your browser",
+            "Sign in with your Google account and grant Vesper access",
+            "You'll be redirected back and the token will be saved automatically",
+            "Then come back and click Refresh in the Google Tools panel",
+        ],
+    }
+
+@app.get("/api/google/oauth/callback")
+async def google_oauth_callback(code: str = "", state: str = "", error: str = ""):
+    """Handle OAuth 2.0 callback from Google. Exchanges code for tokens and saves them."""
+    from fastapi.responses import HTMLResponse
+    import json as _j
+
+    _style = "font-family:system-ui,sans-serif;max-width:560px;margin:60px auto;padding:24px;background:#0a0a0a;color:#fff;border-radius:12px;border:1px solid rgba(255,255,255,0.1)"
+    if error:
+        return HTMLResponse(f'<div style="{_style}"><h2>❌ Auth Failed</h2><p>{error}</p><p>Close this window and try again.</p></div>')
+    if not code:
+        return HTMLResponse(f'<div style="{_style}"><h2>❌ No code received</h2><p>Close this window and try again.</p></div>')
+
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    callback = f"{_get_backend_url()}/api/google/oauth/callback"
+
+    try:
+        import requests as _rq
+        resp = _rq.post("https://oauth2.googleapis.com/token", data={
+            "code": code, "client_id": client_id, "client_secret": client_secret,
+            "redirect_uri": callback, "grant_type": "authorization_code",
+        }, timeout=15)
+        resp.raise_for_status()
+        tokens = resp.json()
+    except Exception as _te:
+        return HTMLResponse(f'<div style="{_style}"><h2>❌ Token exchange failed</h2><p>{_te}</p></div>')
+
+    refresh_token = tokens.get("refresh_token", "")
+    if not refresh_token:
+        return HTMLResponse(f'<div style="{_style}"><h2>⚠️ No refresh token</h2><p>Go to <a href="https://myaccount.google.com/permissions" style="color:#00d0ff">myaccount.google.com/permissions</a>, revoke Vesper\'s access, then try connecting again.</p></div>')
+
+    # Save to file (local dev persistence)
+    tok_file = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "google_token.json")
+    os.makedirs(os.path.dirname(tok_file), exist_ok=True)
+    tok_data = {"client_id": client_id, "client_secret": client_secret,
+                "refresh_token": refresh_token, "access_token": tokens.get("access_token", "")}
+    with open(tok_file, "w") as _tf:
+        _j.dump(tok_data, _tf)
+
+    rt_short = refresh_token[:24] + "…"
+    return HTMLResponse(f"""<div style="{_style}">
+<h2>✅ Google Connected!</h2>
+<p>Vesper now has access to your Google Drive, Docs, Sheets, and Calendar.</p>
+<hr style="border-color:rgba(255,255,255,0.1);margin:16px 0">
+<p><strong>For Railway persistence</strong> (so it survives redeploys), add these env vars in your Railway service:</p>
+<pre style="background:#111;padding:12px;border-radius:8px;font-size:13px;overflow:auto">GOOGLE_REFRESH_TOKEN={refresh_token}
+GOOGLE_CLIENT_ID={client_id}
+GOOGLE_CLIENT_SECRET={client_secret}</pre>
+<p>Get the full refresh token: <a href="{_get_backend_url()}/api/google/oauth/token-info" style="color:#00d0ff">/api/google/oauth/token-info</a></p>
+<p style="margin-top:20px">You can close this window now and click <strong>Refresh</strong> in the Google Tools panel.</p>
+</div>""")
+
+@app.get("/api/google/oauth/token-info")
+async def google_oauth_token_info():
+    """Show stored OAuth token info (for copying GOOGLE_REFRESH_TOKEN to Railway env vars)."""
+    import json as _j
+    tok_file = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "google_token.json")
+    if os.path.exists(tok_file):
+        with open(tok_file) as _f:
+            data = _j.load(_f)
+        return {
+            "refresh_token": data.get("refresh_token"),
+            "client_id": data.get("client_id"),
+            "note": "Copy these three values to Railway env vars: GOOGLE_REFRESH_TOKEN, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET"
+        }
+    rt = os.getenv("GOOGLE_REFRESH_TOKEN", "")
+    if rt:
+        return {"refresh_token": rt, "source": "env var", "note": "Already configured via environment variable"}
+    return {"error": "No Google token stored. Connect via GET /api/google/oauth/start"}
+
+@app.post("/api/google/oauth/revoke")
+async def google_oauth_revoke():
+    """Revoke and remove stored Google OAuth credentials."""
+    import json as _j
+    tok_file = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "google_token.json")
+    if os.path.exists(tok_file):
+        try:
+            with open(tok_file) as _f:
+                data = _j.load(_f)
+            token = data.get("access_token") or data.get("refresh_token", "")
+            if token:
+                import requests as _rq
+                _rq.post(f"https://oauth2.googleapis.com/revoke?token={token}", timeout=5)
+        except Exception:
+            pass
+        os.remove(tok_file)
+    return {"success": True, "message": "Google credentials removed. Reconnect via /api/google/oauth/start"}
 
 
 # ── Google Drive ─────────────────────────────────────────────────────────────
