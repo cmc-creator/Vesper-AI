@@ -5482,7 +5482,7 @@ async def chat_with_vesper(chat: ChatMessage):
             _gcred_id = getattr(_creds, "service_account_email", None) or "OAuth"
             _google_is_sa = hasattr(_creds, "service_account_email")
             if _google_is_sa:
-                enhanced_system += f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). CRITICAL: Files/docs/sheets you create with Google tools are owned by this service account, NOT by CC. They will NOT appear in CC's 'My Drive'. The code auto-shares every file with CC's email so it appears in her 'Shared with me'. ALWAYS give CC the webViewLink from the tool result as a clickable link. NEVER say 'I put it in your Google Drive' — say 'Here's your direct link: [webViewLink]' and 'Check Shared with me in Google Drive'."
+                enhanced_system += f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). CC has shared her Drive folder with this service account — all files, docs, and sheets you create are placed DIRECTLY in CC's Google Drive folder (ID: {_google_default_folder()}). They appear in CC's Drive instantly. ALWAYS include the webViewLink from the tool result as a clickable link in your response."
             else:
                 enhanced_system += "\n\n**GOOGLE WORKSPACE:** CONNECTED via OAuth (CC's own account). Files you create go directly into CC's Drive. Always give the webViewLink from the tool result."
         except Exception:
@@ -9213,7 +9213,7 @@ async def chat_stream(chat: ChatMessage):
                 _gcred_id = getattr(_creds, "service_account_email", None) or "OAuth"
                 _is_sa = hasattr(_creds, "service_account_email")
                 if _is_sa:
-                    google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). CRITICAL: Files/docs/sheets you create are owned by this service account and are NOT in CC's 'My Drive'. The code auto-shares every file with CC's email so it appears in her 'Shared with me'. ALWAYS give CC the webViewLink from the tool result as a clickable link in your response. NEVER just say 'I saved it to your Google Drive' — ALWAYS say 'Here is your direct link: [webViewLink]'. If the tool returns an error, tell CC honestly instead of claiming it worked."
+                    google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). CC has shared her Drive folder with this service account — all files, docs, and sheets you create are placed DIRECTLY in CC's Google Drive folder (ID: {_google_default_folder()}). They appear in CC's Drive instantly. ALWAYS include the webViewLink from the tool result as a clickable link in your response. If a tool returns an error, tell CC honestly."
                 else:
                     google_context = "\n\n**GOOGLE WORKSPACE:** CONNECTED via OAuth (CC's own account). Files go directly into CC's Drive. Always give the webViewLink from the tool result."
             except Exception:
@@ -13287,13 +13287,33 @@ def _google_owner_email() -> str:
         "cmc@conniemichelleconsulting.com"  # CC's permanent email — safe fallback for this personal app
     )
 
+def _google_default_folder() -> str:
+    """Return CC's shared Google Drive folder ID. Files uploaded here appear directly in CC's Drive.
+    CC shared this folder with the service account so Vesper can write into it."""
+    return os.getenv("GOOGLE_DRIVE_FOLDER_ID", "13h9LtxOBddmvYqaq2X7pQ64EmkSUUbEs")
+
+def _google_move_to_folder(drive_service, file_id: str, folder_id: str) -> None:
+    """Move a file into CC's shared folder so it appears in her Drive immediately."""
+    try:
+        # Get current parents so we can remove them
+        f = drive_service.files().get(fileId=file_id, fields="parents").execute()
+        prev_parents = ",".join(f.get("parents", []))
+        drive_service.files().update(
+            fileId=file_id,
+            addParents=folder_id,
+            removeParents=prev_parents,
+            fields="id, parents",
+        ).execute()
+        print(f"[Google] Moved {file_id} into folder {folder_id}")
+    except Exception as _e:
+        print(f"[Google] Move to folder failed (non-fatal): {_e}")
+
 def _google_auto_share(drive_service, file_id: str) -> str:
     """Share a Drive file/doc/sheet with CC's email if we're using a service account.
-    Service account files are invisible to CC until shared. Returns the share email or empty string."""
+    Fallback for when folder-based access isn't available. Returns share email or empty string."""
     try:
         creds = get_google_credentials()
         if not hasattr(creds, "service_account_email"):
-            # OAuth creds — file already belongs to CC's own account, no sharing needed
             return ""
         email = _google_owner_email()
         if not email:
@@ -13509,21 +13529,14 @@ async def google_drive_upload(req: dict):
         from googleapiclient.http import MediaInMemoryUpload
         name = req.get("name", "Untitled.txt")
         content = req.get("content", "")
-        parent_id = req.get("parent_id")
+        # Use CC's shared folder as default parent so files land directly in her Drive
+        parent_id = req.get("parent_id") or _google_default_folder()
         mime_type = req.get("mime_type", "text/plain")
         service = get_google_service("drive", "v3")
-        metadata = {"name": name}
-        if parent_id:
-            metadata["parents"] = [parent_id]
+        metadata = {"name": name, "parents": [parent_id]}
         media = MediaInMemoryUpload(content.encode("utf-8"), mimetype=mime_type, resumable=False)
         f = service.files().create(body=metadata, media_body=media, fields="id, name, webViewLink").execute()
-
-        # Auto-share with CC so it appears in her "Shared with me" when using service account
-        shared_with = _google_auto_share(service, f["id"])
-        if shared_with:
-            f["shared_with"] = shared_with
-            f["access_note"] = f"Shared with {shared_with} — check 'Shared with me' in Google Drive"
-
+        f["folder_id"] = parent_id
         return {"file": f}
     except Exception as e:
         return {"error": str(e)[:300]}
@@ -13568,19 +13581,12 @@ async def google_docs_create(req: dict):
         if content:
             requests_body = [{"insertText": {"location": {"index": 1}, "text": content}}]
             service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
-        # Get the web link via Drive
+        # Move into CC's shared folder so it appears directly in her Drive
         drive = get_google_service("drive", "v3")
+        _google_move_to_folder(drive, doc_id, _google_default_folder())
         meta = drive.files().get(fileId=doc_id, fields="webViewLink").execute()
         web_link = meta.get("webViewLink", f"https://docs.google.com/document/d/{doc_id}/edit")
-
-        # Auto-share with CC so it appears in her "Shared with me"
-        shared_with = _google_auto_share(drive, doc_id)
-
-        result = {"documentId": doc_id, "title": title, "webViewLink": web_link}
-        if shared_with:
-            result["shared_with"] = shared_with
-            result["access_note"] = f"Shared with {shared_with} — check 'Shared with me' in Google Drive, or use the link above"
-        return result
+        return {"documentId": doc_id, "title": title, "webViewLink": web_link}
     except Exception as e:
         return {"error": str(e)[:300]}
 
@@ -13636,17 +13642,11 @@ async def google_sheets_create(req: dict):
                 spreadsheetId=sheet_id, range="A1",
                 valueInputOption="RAW", body={"values": [headers]}
             ).execute()
-
-        # Auto-share with CC so it appears in her "Shared with me"
-        web_link = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
+        # Move into CC's shared folder so it appears directly in her Drive
         drive = get_google_service("drive", "v3")
-        shared_with = _google_auto_share(drive, sheet_id)
-
-        result = {"spreadsheetId": sheet_id, "title": title, "webViewLink": web_link}
-        if shared_with:
-            result["shared_with"] = shared_with
-            result["access_note"] = f"Shared with {shared_with} — check 'Shared with me' in Google Drive, or use the link above"
-        return result
+        _google_move_to_folder(drive, sheet_id, _google_default_folder())
+        web_link = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
+        return {"spreadsheetId": sheet_id, "title": title, "webViewLink": web_link}
     except Exception as e:
         return {"error": str(e)[:300]}
 
