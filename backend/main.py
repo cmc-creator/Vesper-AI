@@ -5469,7 +5469,8 @@ async def chat_with_vesper(chat: ChatMessage):
         # Check Google availability
         try:
             _creds = get_google_credentials()
-            enhanced_system += f"\n\n**GOOGLE WORKSPACE:** CONNECTED. Service account: {_creds.service_account_email}. USE your Google tools when CC asks."
+            _gcred_id = getattr(_creds, "service_account_email", None) or "OAuth"
+            enhanced_system += f"\n\n**GOOGLE WORKSPACE:** CONNECTED ({_gcred_id}). USE your Google tools when CC asks."
         except Exception:
             enhanced_system += "\n\n**GOOGLE WORKSPACE:** NOT CONNECTED on this server. Tell CC the service account needs to be configured if she asks about Google."
         
@@ -9195,7 +9196,8 @@ async def chat_stream(chat: ChatMessage):
             google_context = ""
             try:
                 _creds = get_google_credentials()
-                google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED and ready. Service account: {_creds.service_account_email}. You have full access to Drive, Docs, Sheets, and Calendar tools. USE THEM when CC asks."
+                _gcred_id = getattr(_creds, "service_account_email", None) or "OAuth"
+                google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED and ready ({_gcred_id}). You have full access to Drive, Docs, Sheets, and Calendar tools. USE THEM when CC asks."
             except Exception:
                 google_context = "\n\n**GOOGLE WORKSPACE:** NOT CONNECTED on this server. If CC asks about Google tools, tell her the service account credentials need to be configured on this deployment. Don't claim you can't access Google in general — it works when properly configured."
             
@@ -12713,7 +12715,8 @@ async def test_integration(service: str):
             from googleapiclient.discovery import build
             drive = build("drive", "v3", credentials=creds)
             drive.files().list(pageSize=1, fields="files(id)").execute()
-            return {"connected": True, "note": f"Google Workspace connected as {creds.service_account_email}"}
+            _gid = getattr(creds, "service_account_email", None) or "OAuth"
+            return {"connected": True, "note": f"Google Workspace connected as {_gid}"}
         except FileNotFoundError:
             return {"connected": False, "error": "Service account file not found — set GOOGLE_SERVICE_ACCOUNT_FILE in .env"}
         except Exception as ge:
@@ -13466,6 +13469,31 @@ async def google_drive_upload(req: dict):
             metadata["parents"] = [parent_id]
         media = MediaInMemoryUpload(content.encode("utf-8"), mimetype=mime_type, resumable=False)
         f = service.files().create(body=metadata, media_body=media, fields="id, name, webViewLink").execute()
+
+        # Auto-share with the user's email so it appears in their Drive.
+        # When using a service account (not OAuth), files land in the service account's
+        # invisible Drive — sharing them puts them in "Shared with me" on the user's Drive.
+        share_email = (
+            os.getenv("GOOGLE_DRIVE_SHARE_EMAIL") or
+            os.getenv("GOOGLE_USER_EMAIL") or
+            os.getenv("VESPER_OWNER_EMAIL", "")
+        )
+        try:
+            _upload_creds = get_google_credentials()
+            _is_service_account = hasattr(_upload_creds, "service_account_email")
+        except Exception:
+            _is_service_account = False
+        if share_email and _is_service_account:
+            try:
+                permission = {"type": "user", "role": "writer", "emailAddress": share_email}
+                service.permissions().create(
+                    fileId=f["id"], body=permission, sendNotificationEmail=False
+                ).execute()
+                f["shared_with"] = share_email
+                print(f"[Google] File '{name}' shared with {share_email}")
+            except Exception as _se:
+                print(f"[Google] Auto-share failed (non-fatal): {_se}")
+
         return {"file": f}
     except Exception as e:
         return {"error": str(e)[:300]}
