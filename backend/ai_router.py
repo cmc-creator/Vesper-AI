@@ -162,8 +162,8 @@ class AIRouter:
             # PRODUCTION: Claude first — most reliable tool calling, critical for Google Drive/Docs features
             # Gemini second (huge free tier), Groq third (fast free fallback)
             _prod_order = [
-                ModelProvider.ANTHROPIC,  # Claude — PRIMARY, proven reliable tool calling
-                ModelProvider.GOOGLE,     # Gemini 2.5 Flash — FREE (1M TPM) fallback
+                ModelProvider.GOOGLE,     # Gemini 2.5 Flash — PRIMARY (fast, free, works)
+                ModelProvider.ANTHROPIC,  # Claude — fallback
                 ModelProvider.GROQ,       # Groq Llama 3.3 70B — FREE fast fallback
                 ModelProvider.OLLAMA,     # Free local (if deployed on a machine with Ollama)
                 ModelProvider.OPENAI,     # Paid alternative
