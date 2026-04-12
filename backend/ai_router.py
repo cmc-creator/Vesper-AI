@@ -146,27 +146,27 @@ class AIRouter:
         
         # Prioritize Cloud (Quality/Speed) for everything, Ollama as fallback
         if self.is_local:
-            # LOCAL: Groq first (14k req/day free), then Gemini (1.5M tok/day free), then Ollama, then paid
+            # LOCAL: Claude first (reliable tools), then Groq (free fast), then Gemini, then Ollama
             _local_order = [
+                ModelProvider.ANTHROPIC,  # Claude — most reliable tool calling
                 ModelProvider.GROQ,       # Groq — FREE (14,400 req/day, blazing fast Llama/Gemma)
                 ModelProvider.GOOGLE,     # Gemini 2.5 Flash — FREE tier (1500 req/day, 1M tokens/day)
                 ModelProvider.OLLAMA,     # Fully free local
-                ModelProvider.OPENAI,     # Paid fallback
-                ModelProvider.ANTHROPIC,  # Paid last resort
+                ModelProvider.OPENAI,     # Paid alternative
             ]
             if ollama_first:
                 _local_order = [ModelProvider.OLLAMA] + [p for p in _local_order if p != ModelProvider.OLLAMA]
                 print("[ROUTER] Ollama-first mode active (OLLAMA_PRIMARY=true)")
             self.routing_strategy = {task: list(_local_order) for task in TaskType}
         else:
-            # PRODUCTION: Gemini first — 1M TPM free tier crushes Groq's 6k TPM for large prompts
-            # Groq second as fast fallback (14k req/day), then paid providers last resort
+            # PRODUCTION: Claude first — most reliable tool calling, critical for Google Drive/Docs features
+            # Gemini second (huge free tier), Groq third (fast free fallback)
             _prod_order = [
-                ModelProvider.GOOGLE,     # Gemini 2.5 Flash — FREE (1M TPM, 1500 req/day) — PRIMARY
-                ModelProvider.GROQ,       # Groq Llama 3.3 70B — FREE fallback (6k TPM, 14k req/day)
+                ModelProvider.ANTHROPIC,  # Claude — PRIMARY, proven reliable tool calling
+                ModelProvider.GOOGLE,     # Gemini 2.5 Flash — FREE (1M TPM) fallback
+                ModelProvider.GROQ,       # Groq Llama 3.3 70B — FREE fast fallback
                 ModelProvider.OLLAMA,     # Free local (if deployed on a machine with Ollama)
-                ModelProvider.OPENAI,     # Paid fallback
-                ModelProvider.ANTHROPIC,  # Paid last resort
+                ModelProvider.OPENAI,     # Paid alternative
             ]
             self.routing_strategy = {task: list(_prod_order) for task in TaskType}
         
@@ -446,15 +446,8 @@ class AIRouter:
             else:
                 contents.append({"role": role, "parts": [{"text": str(raw)}]})
 
-        # Build config
-        config = {
-            "max_output_tokens": max_tokens,
-            "temperature": temperature,
-        }
-        if system_msg:
-            config["system_instruction"] = system_msg
-
-        # Add function declarations if tools are provided
+        # Add function declarations if tools are provided (before building config)
+        _google_tool_list = None
         if tools:
             def _sanitize_schema(s):
                 """Recursively ensure every object-type node has a 'properties' key.
@@ -470,11 +463,10 @@ class AIRouter:
                     s["items"] = _sanitize_schema(s["items"])
                 return s
 
-            google_tools_ok = []
-            google_tools_failed = []
             try:
                 from google.genai import types as _gtypes
                 func_decls = []
+                google_tools_failed = []
                 for tool in tools:
                     try:
                         schema = _sanitize_schema(dict(tool.get("input_schema", {})))
@@ -483,16 +475,36 @@ class AIRouter:
                             description=tool.get("description", ""),
                             parameters=schema,
                         ))
-                        google_tools_ok.append(tool["name"])
                     except Exception as _te_single:
                         google_tools_failed.append(f"{tool['name']}: {_te_single}")
                 if google_tools_failed:
                     print(f"[WARN] Google tool decl failed for {len(google_tools_failed)} tool(s): {google_tools_failed[:3]}")
                 if func_decls:
-                    config["tools"] = [_gtypes.Tool(function_declarations=func_decls)]
+                    _google_tool_list = [_gtypes.Tool(function_declarations=func_decls)]
                     print(f"[OK] Google tools loaded: {len(func_decls)} ({len(google_tools_failed)} skipped)")
             except Exception as _te:
                 print(f"[WARN] Google tool setup failed entirely: {_te}")
+
+        # Build typed GenerateContentConfig — raw dict does not reliably serialize Tool objects
+        try:
+            from google.genai import types as _gtypes
+            _config_kwargs = {"max_output_tokens": max_tokens, "temperature": temperature}
+            if system_msg:
+                _config_kwargs["system_instruction"] = system_msg
+            if _google_tool_list:
+                _config_kwargs["tools"] = _google_tool_list
+                _config_kwargs["tool_config"] = _gtypes.ToolConfig(
+                    function_calling_config=_gtypes.FunctionCallingConfig(mode="AUTO")
+                )
+            config = _gtypes.GenerateContentConfig(**_config_kwargs)
+        except Exception as _cfg_err:
+            # Fallback: plain dict (older SDK)
+            print(f"[WARN] GenerateContentConfig failed, falling back to dict: {_cfg_err}")
+            config = {"max_output_tokens": max_tokens, "temperature": temperature}
+            if system_msg:
+                config["system_instruction"] = system_msg
+            if _google_tool_list:
+                config["tools"] = _google_tool_list
 
         response = self.google_client.models.generate_content(
             model=model,
