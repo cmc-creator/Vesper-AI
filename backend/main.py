@@ -13636,18 +13636,21 @@ async def google_docs_create(req: dict):
     try:
         title = req.get("title", "Untitled Document")
         content = req.get("content", "")
-        service = get_google_service("docs", "v1")
-        doc = service.documents().create(body={"title": title}).execute()
-        doc_id = doc["documentId"]
-        # Insert content if provided
-        if content:
-            requests_body = [{"insertText": {"location": {"index": 1}, "text": content}}]
-            service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
-        # Move into CC's shared folder so it appears directly in her Drive
+        # Create via Drive API so parents can be set at creation time (avoids orphaning bug)
         drive = get_google_service("drive", "v3")
-        _google_move_to_folder(drive, doc_id, _google_default_folder())
-        meta = drive.files().get(fileId=doc_id, fields="webViewLink").execute()
-        web_link = meta.get("webViewLink", f"https://docs.google.com/document/d/{doc_id}/edit")
+        file_metadata = {
+            "name": title,
+            "mimeType": "application/vnd.google-apps.document",
+            "parents": [_google_default_folder()],
+        }
+        doc_file = drive.files().create(body=file_metadata, fields="id,webViewLink").execute()
+        doc_id = doc_file["id"]
+        # Insert content via Docs API if provided
+        if content:
+            docs_service = get_google_service("docs", "v1")
+            requests_body = [{"insertText": {"location": {"index": 1}, "text": content}}]
+            docs_service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
+        web_link = doc_file.get("webViewLink", f"https://docs.google.com/document/d/{doc_id}/edit")
         return {"documentId": doc_id, "title": title, "webViewLink": web_link}
     except Exception as e:
         return {"error": str(e)[:300]}
@@ -13695,19 +13698,23 @@ async def google_sheets_create(req: dict):
     try:
         title = req.get("title", "Untitled Spreadsheet")
         headers = req.get("headers", [])
-        service = get_google_service("sheets", "v4")
-        spreadsheet = service.spreadsheets().create(body={"properties": {"title": title}}).execute()
-        sheet_id = spreadsheet["spreadsheetId"]
-        # Add headers if provided
+        # Create via Drive API so parents can be set at creation time (avoids orphaning bug)
+        drive = get_google_service("drive", "v3")
+        file_metadata = {
+            "name": title,
+            "mimeType": "application/vnd.google-apps.spreadsheet",
+            "parents": [_google_default_folder()],
+        }
+        sheet_file = drive.files().create(body=file_metadata, fields="id,webViewLink").execute()
+        sheet_id = sheet_file["id"]
+        # Add headers via Sheets API if provided
         if headers:
-            service.spreadsheets().values().update(
+            sheets_service = get_google_service("sheets", "v4")
+            sheets_service.spreadsheets().values().update(
                 spreadsheetId=sheet_id, range="A1",
                 valueInputOption="RAW", body={"values": [headers]}
             ).execute()
-        # Move into CC's shared folder so it appears directly in her Drive
-        drive = get_google_service("drive", "v3")
-        _google_move_to_folder(drive, sheet_id, _google_default_folder())
-        web_link = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
+        web_link = sheet_file.get("webViewLink", f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit")
         return {"spreadsheetId": sheet_id, "title": title, "webViewLink": web_link}
     except Exception as e:
         return {"error": str(e)[:300]}
