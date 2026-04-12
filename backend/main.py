@@ -7745,16 +7745,15 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         _wp_kws = ("wallpaper", "background", "set it as", "as my bg", "as my background", "set as wallpaper", "make it my wallpaper", "use as wallpaper")
                         if any(w in _last_user_msg for w in _wp_kws):
                             img_as_wp = True
-                    if os.getenv("OPENAI_API_KEY"):
+                    if ai_router.openai_client:
                         try:
-                            import openai as _oai
-                            _oai.api_key = os.getenv("OPENAI_API_KEY")
-                            _resp = _oai.images.generate(model="dall-e-3", prompt=img_prompt, n=1, size=img_size)
+                            _resp = await ai_router.openai_client.images.generate(model="dall-e-3", prompt=img_prompt, n=1, size=img_size)
                             img_url = _resp.data[0].url
                             provider = "DALL-E 3"
                         except Exception as _e:
                             img_url = None
                             provider = "failed"
+                            print(f"[WARN] DALL-E failed: {_e}")
                     else:
                         img_url = None
                         provider = None
@@ -10979,10 +10978,10 @@ async def generate_image(req: ImageGenerationRequest):
                 "note": "Generated via Pollinations.ai (free tier)"
             }
 
-        import openai
-        openai.api_key = os.getenv("OPENAI_API_KEY")
+        from openai import AsyncOpenAI as _AsyncOpenAI
+        _oai_client = _AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-        response = openai.images.generate(
+        response = await _oai_client.images.generate(
             model="dall-e-3",
             prompt=req.prompt,
             size=req.size,
