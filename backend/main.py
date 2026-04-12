@@ -272,6 +272,40 @@ def health_check():
     db_backend = "postgresql" if (memory_db._initialized and not memory_db._use_sqlite) else ("sqlite" if memory_db._initialized else "not_initialized")
     return {"status": "healthy", "timestamp": datetime.datetime.now().isoformat(), "db_backend": db_backend}
 
+@app.get("/api/debug/claude-test")
+async def debug_claude_test():
+    """Test Claude directly — surfaces the real exception instead of silently falling back."""
+    try:
+        result = await ai_router.chat(
+            messages=[{"role": "user", "content": "say: CLAUDE_OK"}],
+            task_type=TaskType.CHAT,
+            tools=None,
+            max_tokens=50,
+            temperature=0,
+            preferred_provider=ModelProvider.ANTHROPIC,
+        )
+        return {"result": result}
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+@app.get("/api/debug/claude-test-with-tools")
+async def debug_claude_test_with_tools():
+    """Test Claude with a minimal tool — surfaces schema errors."""
+    try:
+        result = await ai_router.chat(
+            messages=[{"role": "user", "content": "say: CLAUDE_TOOLS_OK"}],
+            task_type=TaskType.CHAT,
+            tools=[{"name": "test", "description": "test", "input_schema": {"type": "object", "properties": {"x": {"type": "string"}}}}],
+            max_tokens=50,
+            temperature=0,
+            preferred_provider=ModelProvider.ANTHROPIC,
+        )
+        return {"result": result}
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
 @app.get("/api/vesper/proactive")
 def get_proactive_messages():
     """Frontend polls this to receive Vesper's proactive messages."""
