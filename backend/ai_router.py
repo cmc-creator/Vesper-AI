@@ -634,7 +634,7 @@ class AIRouter:
         if ANTHROPIC_AVAILABLE:
             anthropic_key = os.getenv("ANTHROPIC_API_KEY")
             if anthropic_key and not self.anthropic_client:
-                self.anthropic_client = anthropic.Anthropic(api_key=anthropic_key)
+                self.anthropic_client = anthropic.AsyncAnthropic(api_key=anthropic_key)
                 print("[OK] Anthropic reconfigured")
         if OPENAI_AVAILABLE:
             openai_key = os.getenv("OPENAI_API_KEY")
