@@ -82,8 +82,8 @@ class AIRouter:
         if ANTHROPIC_AVAILABLE:
             anthropic_key = os.getenv("ANTHROPIC_API_KEY")
             if anthropic_key:
-                self.anthropic_client = anthropic.Anthropic(api_key=anthropic_key)
-                print("[OK] Anthropic Claude configured")
+                self.anthropic_client = anthropic.AsyncAnthropic(api_key=anthropic_key)
+                print("[OK] Anthropic Claude configured (async client)")
         
         # Configure OpenAI
         if OPENAI_AVAILABLE:
@@ -175,7 +175,7 @@ class AIRouter:
             ModelProvider.GROQ: "llama-3.3-70b-versatile",   # Free tier — 14k req/day, fast + smart
             ModelProvider.OPENAI: "gpt-5.4-mini",             # Current mini — fast + affordable
             ModelProvider.GOOGLE: "gemini-2.5-flash",         # Current stable free tier
-            ModelProvider.ANTHROPIC: "claude-sonnet-4-6",     # Current sonnet — fast + smart
+            ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20241022",  # Stable, excellent tool calling
             ModelProvider.OLLAMA: "llama3.2:latest"           # Free local
         }
     
@@ -339,7 +339,7 @@ class AIRouter:
         if tools:
             kwargs["tools"] = tools
         
-        response = self.anthropic_client.messages.create(**kwargs)
+        response = await self.anthropic_client.messages.create(**kwargs)
         
         # Extract content (join all text blocks)
         content_text = ""
