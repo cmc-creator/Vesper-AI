@@ -7771,15 +7771,23 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         _wp_bg_data = _wp_json.loads(open(_wp_bg_file, encoding="utf-8").read()) if os.path.exists(_wp_bg_file) else {"backgrounds": [], "settings": {}}
                         _wp_bg_data["backgrounds"].append(_wp_item)
                         open(_wp_bg_file, "w", encoding="utf-8").write(_wp_json.dumps(_wp_bg_data, indent=2))
+                    _drive_link = None
                     if img_url:
                         _save_media_item("image", img_url, img_prompt, {"provider": provider, "size": img_size})
+                        try:
+                            _dr = await _save_image_to_drive(img_url, img_prompt, provider)
+                            if _dr:
+                                _drive_link = _dr.get("webViewLink")
+                        except Exception:
+                            pass
                     tool_result = {
                         "type": "image_generation",
                         "image_url": img_url,
                         "prompt": img_prompt,
                         "provider": provider,
                         "set_as_wallpaper": img_as_wp,
-                        **({"wallpaper_applied": True, "wallpaper_note": "Applied as dashboard background automatically."} if img_as_wp else {})
+                        **({"wallpaper_applied": True, "wallpaper_note": "Applied as dashboard background automatically."} if img_as_wp else {}),
+                        **({"drive_link": _drive_link, "drive_note": "Saved to your Google Drive!"} if _drive_link else {})
                     }
                     visualizations.append(tool_result)
 
@@ -10911,6 +10919,31 @@ def _save_media_item(media_type: str, url: str, prompt: str, metadata: dict = No
     print(f"[GALLERY] Saved {media_type}: {url[:60]}...")
     return item
 
+async def _save_image_to_drive(image_url: str, prompt: str, provider: str = ""):
+    """Download an image from a URL and save it to CC's Google Drive folder."""
+    try:
+        import httpx
+        from googleapiclient.http import MediaInMemoryUpload
+        # Download the image bytes
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.get(image_url)
+            r.raise_for_status()
+            image_bytes = r.content
+            content_type = r.headers.get("content-type", "image/png").split(";")[0]
+        ext = "jpg" if "jpeg" in content_type else "png"
+        slug = "".join(c if c.isalnum() or c in "-_ " else "" for c in prompt[:40]).strip().replace(" ", "_")
+        filename = f"Vesper_Art_{slug}_{int(datetime.datetime.now().timestamp())}.{ext}"
+        parent_id = _google_default_folder()
+        service = get_google_service("drive", "v3")
+        metadata = {"name": filename, "parents": [parent_id]}
+        media = MediaInMemoryUpload(image_bytes, mimetype=content_type, resumable=False)
+        f = service.files().create(body=metadata, media_body=media, fields="id, name, webViewLink").execute()
+        print(f"[DRIVE] Saved image to Drive: {filename} → {f.get('webViewLink', '')}")
+        return f
+    except Exception as e:
+        print(f"[WARN] Could not save image to Drive: {e}")
+        return None
+
 @app.get("/api/media")
 async def list_media(media_type: Optional[str] = None, limit: int = 50):
     """List media gallery items. Optional filter by type (image/video)."""
@@ -10972,13 +11005,22 @@ async def generate_image(req: ImageGenerationRequest):
             
             # Save to media gallery
             _save_media_item("image", image_url, req.prompt, {"provider": "Pollinations.ai", "size": f"{width}x{height}"})
-            
+            _drive_result = None
+            try:
+                _drive_result = await _save_image_to_drive(image_url, req.prompt, "Pollinations.ai")
+            except Exception:
+                pass
+
             return {
                 "prompt": req.prompt,
                 "image_url": image_url,
                 "provider": "Pollinations.ai (Free)",
                 "size": f"{width}x{height}",
-                "note": "Generated via Pollinations.ai (free tier)"
+                "note": "Generated via Pollinations.ai (free tier)",
+                **({
+                    "drive_link": _drive_result.get("webViewLink"),
+                    "drive_note": "Saved to your Google Drive!"
+                } if _drive_result else {})
             }
 
         from openai import AsyncOpenAI as _AsyncOpenAI
@@ -10998,9 +11040,14 @@ async def generate_image(req: ImageGenerationRequest):
             image_url = getattr(response.data[0], "url", None)
             image_b64 = getattr(response.data[0], "b64_json", None)
 
-        # Save to media gallery
+        # Save to media gallery + Google Drive
+        _drive_result = None
         if image_url:
             _save_media_item("image", image_url, req.prompt, {"provider": "DALL-E 3", "size": req.size, "style": req.style})
+            try:
+                _drive_result = await _save_image_to_drive(image_url, req.prompt, "DALL-E 3")
+            except Exception:
+                pass
 
         return {
             "prompt": req.prompt,
@@ -11009,7 +11056,11 @@ async def generate_image(req: ImageGenerationRequest):
             "provider": "OpenAI DALL-E 3",
             "size": req.size,
             "style": req.style,
-            "quality": req.quality
+            "quality": req.quality,
+            **({
+                "drive_link": _drive_result.get("webViewLink"),
+                "drive_note": "Saved to your Google Drive!"
+            } if _drive_result else {})
         }
     except Exception as e:
         return {"error": f"Image generation failed: {str(e)}"}
