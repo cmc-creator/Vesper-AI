@@ -13344,6 +13344,49 @@ _GOOGLE_OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/calendar",
 ]
 
+@app.post("/api/google/recover-orphans")
+async def google_recover_orphans():
+    """Find all Drive files owned by CC that have no parents (orphaned) and move them into her shared folder."""
+    try:
+        drive = get_google_service("drive", "v3")
+        folder_id = _google_default_folder()
+        # Search for all files owned by the impersonated user with no parents
+        # 'not parents in root' combined with 'not trashed' finds orphans
+        results = []
+        page_token = None
+        while True:
+            params = {
+                "q": "not trashed and not 'root' in parents",
+                "fields": "nextPageToken, files(id, name, mimeType, parents, owners)",
+                "pageSize": 100,
+                "includeItemsFromAllDrives": False,
+                "supportsAllDrives": False,
+            }
+            if page_token:
+                params["pageToken"] = page_token
+            resp = drive.files().list(**params).execute()
+            files = resp.get("files", [])
+            for f in files:
+                parents = f.get("parents", [])
+                # Orphaned = no parents at all
+                if not parents:
+                    try:
+                        drive.files().update(
+                            fileId=f["id"],
+                            addParents=folder_id,
+                            fields="id, parents",
+                        ).execute()
+                        results.append({"id": f["id"], "name": f["name"], "status": "recovered"})
+                    except Exception as _e:
+                        results.append({"id": f["id"], "name": f["name"], "status": f"failed: {str(_e)[:100]}"})
+            page_token = resp.get("nextPageToken")
+            if not page_token:
+                break
+        return {"recovered": len([r for r in results if r["status"] == "recovered"]), "files": results}
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+
 @app.get("/api/google/debug")
 async def google_debug():
     """Diagnostic endpoint — shows exactly what credential path is being used and tries a real file create."""
