@@ -13344,6 +13344,68 @@ _GOOGLE_OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/calendar",
 ]
 
+@app.get("/api/google/debug")
+async def google_debug():
+    """Diagnostic endpoint — shows exactly what credential path is being used and tries a real file create."""
+    import json as _j
+    result = {}
+
+    # 1. What env vars are present?
+    result["env"] = {
+        "GOOGLE_REFRESH_TOKEN": "SET" if os.getenv("GOOGLE_REFRESH_TOKEN") else "NOT SET",
+        "GOOGLE_CLIENT_ID": "SET" if os.getenv("GOOGLE_CLIENT_ID") else "NOT SET",
+        "GOOGLE_CLIENT_SECRET": "SET" if os.getenv("GOOGLE_CLIENT_SECRET") else "NOT SET",
+        "GOOGLE_SERVICE_ACCOUNT_JSON": "SET" if os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON") else "NOT SET",
+        "GOOGLE_SERVICE_ACCOUNT_KEY": "SET" if os.getenv("GOOGLE_SERVICE_ACCOUNT_KEY") else "NOT SET",
+        "GOOGLE_IMPERSONATE_USER": os.getenv("GOOGLE_IMPERSONATE_USER", "NOT SET"),
+        "GOOGLE_DRIVE_FOLDER_ID": _google_default_folder(),
+    }
+
+    # 2. Can we load credentials?
+    try:
+        creds = get_google_credentials()
+        cred_type = type(creds).__name__
+        is_sa = hasattr(creds, "service_account_email")
+        result["credentials"] = {
+            "loaded": True,
+            "type": cred_type,
+            "is_service_account": is_sa,
+            "service_account_email": getattr(creds, "service_account_email", "N/A"),
+            "impersonating": os.getenv("GOOGLE_IMPERSONATE_USER", "none"),
+        }
+    except Exception as _ce:
+        result["credentials"] = {"loaded": False, "error": str(_ce)}
+        return result
+
+    # 3. Try creating a real test file in the folder
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        service = get_google_service("drive", "v3")
+        folder_id = _google_default_folder()
+        test_content = f"Vesper debug test — {__import__('datetime').datetime.utcnow().isoformat()}"
+        metadata = {"name": "VESPER_DEBUG_TEST.txt", "parents": [folder_id]}
+        media = MediaInMemoryUpload(test_content.encode(), mimetype="text/plain", resumable=False)
+        f = service.files().create(body=metadata, media_body=media, fields="id,name,webViewLink,owners,parents").execute()
+        result["test_file_created"] = {
+            "success": True,
+            "id": f.get("id"),
+            "name": f.get("name"),
+            "webViewLink": f.get("webViewLink"),
+            "owners": f.get("owners", []),
+            "parents": f.get("parents", []),
+        }
+        # Clean up test file
+        try:
+            service.files().delete(fileId=f["id"]).execute()
+            result["test_file_created"]["cleaned_up"] = True
+        except Exception:
+            result["test_file_created"]["cleaned_up"] = False
+    except Exception as _fe:
+        result["test_file_created"] = {"success": False, "error": str(_fe)}
+
+    return result
+
+
 @app.get("/api/google/oauth/start")
 async def google_oauth_start():
     """Start the Google OAuth 2.0 flow. Returns an auth URL to open in the browser.
