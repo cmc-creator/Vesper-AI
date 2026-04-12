@@ -13344,7 +13344,7 @@ _GOOGLE_OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/calendar",
 ]
 
-@app.post("/api/google/recover-orphans")
+@app.get("/api/google/recover-orphans")
 async def google_recover_orphans():
     """Find all Drive files owned by CC that have no parents (orphaned) and move them into her shared folder."""
     try:
