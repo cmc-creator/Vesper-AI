@@ -10873,9 +10873,12 @@ def _load_media_gallery():
 
 def _save_media_gallery(items):
     """Persist the media gallery to disk."""
-    os.makedirs(MEDIA_DIR, exist_ok=True)
-    with open(MEDIA_FILE, 'w') as f:
-        json.dump(items, f, indent=2)
+    try:
+        os.makedirs(MEDIA_DIR, exist_ok=True)
+        with open(MEDIA_FILE, 'w') as f:
+            json.dump(items, f, indent=2)
+    except Exception as _e:
+        print(f"[WARN] Could not save media gallery to disk (DB is primary store): {_e}")
 
 def _save_media_item(media_type: str, url: str, prompt: str, metadata: dict = None):
     """Save a generated media item (image or video) to the gallery."""
