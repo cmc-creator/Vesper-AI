@@ -456,22 +456,43 @@ class AIRouter:
 
         # Add function declarations if tools are provided
         if tools:
+            def _sanitize_schema(s):
+                """Recursively ensure every object-type node has a 'properties' key.
+                Gemini's SDK raises ValueError on any object without properties."""
+                if not isinstance(s, dict):
+                    return s
+                s = dict(s)
+                if s.get("type") == "object" and "properties" not in s:
+                    s["properties"] = {}
+                if "properties" in s:
+                    s["properties"] = {k: _sanitize_schema(v) for k, v in s["properties"].items()}
+                if "items" in s:
+                    s["items"] = _sanitize_schema(s["items"])
+                return s
+
+            google_tools_ok = []
+            google_tools_failed = []
             try:
                 from google.genai import types as _gtypes
                 func_decls = []
                 for tool in tools:
-                    schema = dict(tool.get("input_schema", {}))
-                    # Gemini requires properties to exist even if empty
-                    if "properties" not in schema:
-                        schema["properties"] = {}
-                    func_decls.append(_gtypes.FunctionDeclaration(
-                        name=tool["name"],
-                        description=tool.get("description", ""),
-                        parameters=schema,
-                    ))
-                config["tools"] = [_gtypes.Tool(function_declarations=func_decls)]
+                    try:
+                        schema = _sanitize_schema(dict(tool.get("input_schema", {})))
+                        func_decls.append(_gtypes.FunctionDeclaration(
+                            name=tool["name"],
+                            description=tool.get("description", ""),
+                            parameters=schema,
+                        ))
+                        google_tools_ok.append(tool["name"])
+                    except Exception as _te_single:
+                        google_tools_failed.append(f"{tool['name']}: {_te_single}")
+                if google_tools_failed:
+                    print(f"[WARN] Google tool decl failed for {len(google_tools_failed)} tool(s): {google_tools_failed[:3]}")
+                if func_decls:
+                    config["tools"] = [_gtypes.Tool(function_declarations=func_decls)]
+                    print(f"[OK] Google tools loaded: {len(func_decls)} ({len(google_tools_failed)} skipped)")
             except Exception as _te:
-                print(f"[WARN] Google tool setup failed: {_te}")
+                print(f"[WARN] Google tool setup failed entirely: {_te}")
 
         response = self.google_client.models.generate_content(
             model=model,
