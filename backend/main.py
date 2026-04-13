@@ -8035,20 +8035,26 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await create_ebook(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"):
                         _push_creation_to_suite("ebook", tool_result)
-                        asyncio.create_task(_save_creative_to_drive(
+                        _drive_file = await _save_creative_as_doc(
                             tool_result.get("title", "Ebook"),
                             tool_result.get("manuscript", ""),
                             "ebook",
-                        ))
+                        )
+                        if _drive_file and not _drive_file.get("error"):
+                            tool_result["drive_link"] = _drive_file.get("webViewLink", "")
+                            tool_result["drive_doc_id"] = _drive_file.get("documentId", _drive_file.get("id", ""))
                 elif tool_name == "create_song":
                     tool_result = await create_song(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"):
                         _push_creation_to_suite("song", tool_result)
-                        asyncio.create_task(_save_creative_to_drive(
+                        _drive_file = await _save_creative_as_doc(
                             tool_result.get("title", "Song"),
                             tool_result.get("content", ""),
                             "song",
-                        ))
+                        )
+                        if _drive_file and not _drive_file.get("error"):
+                            tool_result["drive_link"] = _drive_file.get("webViewLink", "")
+                            tool_result["drive_doc_id"] = _drive_file.get("documentId", _drive_file.get("id", ""))
                 elif tool_name == "create_art_for_sale":
                     tool_result = await create_art_for_sale(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"): _push_creation_to_suite("art", tool_result)
@@ -8060,34 +8066,46 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await plan_income_stream(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"):
                         _push_creation_to_suite("income_plan", tool_result)
-                        asyncio.create_task(_save_creative_to_drive(
+                        _drive_file = await _save_creative_as_doc(
                             f"Income Plan - {tool_result.get('niche', '')}",
                             tool_result.get("plan", ""), "income_plan",
-                        ))
+                        )
+                        if _drive_file and not _drive_file.get("error"):
+                            tool_result["drive_link"] = _drive_file.get("webViewLink", "")
+                            tool_result["drive_doc_id"] = _drive_file.get("documentId", _drive_file.get("id", ""))
                 elif tool_name == "create_content_calendar":
                     tool_result = await create_content_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"):
                         _push_creation_to_suite("content_calendar", tool_result)
-                        asyncio.create_task(_save_creative_to_drive(
+                        _drive_file = await _save_creative_as_doc(
                             "Content Calendar", tool_result.get("calendar", ""), "content_calendar",
-                        ))
+                        )
+                        if _drive_file and not _drive_file.get("error"):
+                            tool_result["drive_link"] = _drive_file.get("webViewLink", "")
+                            tool_result["drive_doc_id"] = _drive_file.get("documentId", _drive_file.get("id", ""))
                 elif tool_name == "write_consulting_proposal":
                     tool_result = await write_consulting_proposal(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"):
                         _push_creation_to_suite("proposal", tool_result)
-                        asyncio.create_task(_save_creative_to_drive(
+                        _drive_file = await _save_creative_as_doc(
                             f"Proposal - {tool_result.get('client', '')}",
                             tool_result.get("proposal", ""), "proposal",
-                        ))
+                        )
+                        if _drive_file and not _drive_file.get("error"):
+                            tool_result["drive_link"] = _drive_file.get("webViewLink", "")
+                            tool_result["drive_doc_id"] = _drive_file.get("documentId", _drive_file.get("id", ""))
 
                 elif tool_name == "write_seo_article":
                     tool_result = await write_seo_article(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"):
                         _push_creation_to_suite("article", tool_result)
-                        asyncio.create_task(_save_creative_to_drive(
+                        _drive_file = await _save_creative_as_doc(
                             tool_result.get("title", "SEO Article"),
                             tool_result.get("article", ""), "article",
-                        ))
+                        )
+                        if _drive_file and not _drive_file.get("error"):
+                            tool_result["drive_link"] = _drive_file.get("webViewLink", "")
+                            tool_result["drive_doc_id"] = _drive_file.get("documentId", _drive_file.get("id", ""))
 
                 elif tool_name == "create_course_outline":
                     tool_result = await create_course_outline(tool_input, ai_router=ai_router, TaskType=TaskType)
