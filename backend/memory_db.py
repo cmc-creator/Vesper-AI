@@ -1204,6 +1204,46 @@ class PersistentMemoryDB:
             session.rollback()
         finally:
             session.close()
+
+    def get_schema_status(self) -> Dict[str, Any]:
+        """Return schema/migration status for diagnostics and health checks."""
+        self._ensure_initialized()
+
+        result: Dict[str, Any] = {
+            "ok": True,
+            "backend": "sqlite" if self._use_sqlite else "postgresql",
+            "tasks_columns": {},
+            "migration_checked_at": datetime.datetime.utcnow().isoformat(),
+        }
+
+        if not self.SessionLocal:
+            result["ok"] = False
+            result["error"] = "Session factory not initialized"
+            return result
+
+        session = self.SessionLocal()
+        try:
+            dialect = session.bind.dialect.name if session.bind else ""
+
+            if dialect == "sqlite":
+                task_cols = {row[1] for row in session.execute(text("PRAGMA table_info(tasks)")).fetchall()}
+            else:
+                rows = session.execute(text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'tasks'"
+                )).fetchall()
+                task_cols = {row[0] for row in rows}
+
+            required = ["due_date", "reminder", "completed_at", "tags", "meta_data"]
+            result["tasks_columns"] = {col: (col in task_cols) for col in required}
+            result["missing_task_columns"] = [col for col in required if col not in task_cols]
+            result["ok"] = len(result["missing_task_columns"]) == 0
+            return result
+        except Exception as e:
+            result["ok"] = False
+            result["error"] = str(e)
+            return result
+        finally:
+            session.close()
     
     def _task_to_dict(self, task: Task) -> Dict:
         """Convert Task to dict"""

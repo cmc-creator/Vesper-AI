@@ -278,7 +278,24 @@ def root():
 def health_check():
     """Health check endpoint required by Railway deployment"""
     db_backend = "postgresql" if (memory_db._initialized and not memory_db._use_sqlite) else ("sqlite" if memory_db._initialized else "not_initialized")
-    return {"status": "healthy", "timestamp": datetime.datetime.now().isoformat(), "db_backend": db_backend}
+    schema_status = {
+        "ok": False,
+        "error": "schema status unavailable",
+    }
+    try:
+        schema_status = memory_db.get_schema_status()
+    except Exception as e:
+        schema_status = {
+            "ok": False,
+            "error": str(e),
+        }
+
+    return {
+        "status": "healthy",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "db_backend": db_backend,
+        "db_schema": schema_status,
+    }
 
 @app.get("/api/debug/claude-test")
 async def debug_claude_test():
