@@ -1147,6 +1147,24 @@ class PersistentMemoryDB:
                     session.execute(text("ALTER TABLE threads ADD COLUMN pinned BOOLEAN DEFAULT 0"))
                     session.commit()
 
+                # SQLite: ensure legacy tasks tables have modern columns.
+                task_cols = {row[1] for row in session.execute(text("PRAGMA table_info(tasks)")).fetchall()}
+                if "due_date" not in task_cols:
+                    session.execute(text("ALTER TABLE tasks ADD COLUMN due_date DATETIME"))
+                    session.commit()
+                if "reminder" not in task_cols:
+                    session.execute(text("ALTER TABLE tasks ADD COLUMN reminder BOOLEAN DEFAULT 0"))
+                    session.commit()
+                if "completed_at" not in task_cols:
+                    session.execute(text("ALTER TABLE tasks ADD COLUMN completed_at DATETIME"))
+                    session.commit()
+                if "tags" not in task_cols:
+                    session.execute(text("ALTER TABLE tasks ADD COLUMN tags JSON"))
+                    session.commit()
+                if "meta_data" not in task_cols:
+                    session.execute(text("ALTER TABLE tasks ADD COLUMN meta_data JSON"))
+                    session.commit()
+
                 # SQLite: rename creative_items.metadata → item_metadata (commit a5ec920a)
                 try:
                     cre_cols = {row[1] for row in session.execute(text("PRAGMA table_info(creative_items)")).fetchall()}
@@ -1161,6 +1179,11 @@ class PersistentMemoryDB:
                 # PostgreSQL: use ADD COLUMN IF NOT EXISTS
                 session.execute(text("ALTER TABLE memories ADD COLUMN IF NOT EXISTS title VARCHAR"))
                 session.execute(text("ALTER TABLE threads ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT false"))
+                session.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_date TIMESTAMP"))
+                session.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder BOOLEAN DEFAULT false"))
+                session.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP"))
+                session.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb"))
+                session.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS meta_data JSONB DEFAULT '{}'::jsonb"))
                 session.commit()
 
                 # PostgreSQL: rename creative_items.metadata → item_metadata (commit a5ec920a)
