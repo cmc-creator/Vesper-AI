@@ -46,6 +46,62 @@ def _extract_json(text: str) -> dict:
     return {}
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# WRITING SESSION — persistent state so Vesper always knows what she's writing
+# ─────────────────────────────────────────────────────────────────────────────
+
+_SESSION_FILE = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "writing_session.json")
+
+def _load_writing_session() -> dict:
+    """Load the current writing session from disk. Returns {} if none exists."""
+    try:
+        if os.path.exists(_SESSION_FILE):
+            with open(_SESSION_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+
+def _save_writing_session(data: dict):
+    """Persist the writing session to disk."""
+    try:
+        os.makedirs(os.path.dirname(_SESSION_FILE), exist_ok=True)
+        data["updated_at"] = datetime.datetime.now().isoformat()
+        with open(_SESSION_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[WARN] Could not save writing session: {e}")
+
+
+def clear_writing_session() -> dict:
+    """Clear the active writing session (start fresh)."""
+    try:
+        if os.path.exists(_SESSION_FILE):
+            os.remove(_SESSION_FILE)
+        return {"success": True, "message": "Writing session cleared. Ready for a new project."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def get_writing_session() -> dict:
+    """Return the current writing session so Vesper can report progress to CC."""
+    session = _load_writing_session()
+    if not session:
+        return {"active": False, "message": "No active writing project."}
+    return {
+        "active": True,
+        "book_title": session.get("book_title", ""),
+        "form": session.get("form", ""),
+        "genre": session.get("genre", ""),
+        "chapter_number": session.get("chapter_number", 1),
+        "word_count_total": session.get("word_count_total", 0),
+        "story_so_far": session.get("story_so_far", ""),
+        "last_updated": session.get("updated_at", ""),
+        "chapters_written": session.get("chapters_written", []),
+    }
+
+
 # ─────────────────────────────────────────────────────────────────
 # EBOOK CREATOR — KDP / GUMROAD READY
 # ─────────────────────────────────────────────────────────────────────────────
@@ -316,23 +372,32 @@ async def create_song(params: dict, ai_router=None, TaskType=None) -> dict:
 async def write_creative(params: dict, ai_router=None, TaskType=None) -> dict:
     """
     Vesper's full-power creative writing tool.
-    Handles: poems, short stories, novel chapters, essays, song lyrics,
-    monologues, scripts, love letters, journal entries, manifestos — anything.
-    No structural overhead, just pure creative output at maximum quality.
-    Called when CC wants creative writing that isn't a full ebook production run.
+    Handles poems, short stories, essays, song lyrics, scripts, monologues,
+    love letters, manifestos — anything. Auto-loads session so continuations
+    just work without CC having to paste anything.
     """
-    form = params.get("form", "")          # poem | short_story | chapter | essay | lyrics | script | letter | monologue | etc.
-    title = params.get("title", "")
-    prompt_text = params.get("prompt", params.get("content", params.get("description", "")))
-    genre = params.get("genre", "")        # fiction | fantasy | romance | thriller | literary | etc.
-    style = params.get("style", "")        # e.g. "Toni Morrison", "Pablo Neruda", "Raymond Carver"
-    tone = params.get("tone", "")          # dark | hopeful | playful | raw | lyrical | etc.
-    length = params.get("length", "medium")  # short (~300w) | medium (~800w) | long (~2000w) | epic (~5000w)
-    previous_content = params.get("previous_content", "")  # for continuing an existing piece
-    instructions = params.get("instructions", "")  # any extra author direction
-    author_name = params.get("author_name", "C.M. Cooper")
+    # ── Load session for continuations ───────────────────────────────────
+    session = _load_writing_session()
 
-    if not prompt_text and not title:
+    form = params.get("form", "") or session.get("form", "")
+    title = params.get("title", "") or session.get("book_title", "")
+    prompt_text = params.get("prompt", params.get("content", params.get("description", "")))
+    genre = params.get("genre", "") or session.get("genre", "")
+    style = params.get("style", "") or session.get("style", "")
+    tone = params.get("tone", "") or session.get("tone", "")
+    length = params.get("length", "medium")
+    author_name = params.get("author_name", "") or session.get("author_name", "C.M. Cooper")
+    instructions = params.get("instructions", "")
+
+    # Auto-load previous content from session if not explicitly given
+    # Only apply if this looks like a continuation of the same piece
+    previous_content = params.get("previous_content", "")
+    if not previous_content and session.get("last_tail") and (
+        not title or title.lower() == session.get("book_title", "").lower()
+    ):
+        previous_content = session.get("last_tail", "")
+
+    if not prompt_text and not title and not previous_content:
         return {"error": "Provide a prompt or title to write"}
 
     if not ai_router:
@@ -348,12 +413,11 @@ async def write_creative(params: dict, ai_router=None, TaskType=None) -> dict:
 
     continuation_block = ""
     if previous_content:
-        # Provide the last 600 words as context so Vesper continues seamlessly
         tail = " ".join(previous_content.split()[-600:])
         continuation_block = (
-            f"\n\n--- WHAT'S ALREADY BEEN WRITTEN (continue from here, do NOT repeat) ---\n"
+            "\n\n--- WHAT'S ALREADY BEEN WRITTEN (continue from here, do NOT repeat) ---\n"
             f"…{tail}\n"
-            f"--- END OF EXISTING CONTENT ---\n\n"
+            "--- END OF EXISTING CONTENT ---\n\n"
             "Pick up EXACTLY where that left off. Do not recap, do not repeat.\n"
         )
 
@@ -366,12 +430,12 @@ async def write_creative(params: dict, ai_router=None, TaskType=None) -> dict:
 
     user_msg = (
         f"Write {form_label}{style_note}.\n"
-        f"{'Title: ' + title if title else ''}\n"
-        f"{'Prompt/direction: ' + prompt_text if prompt_text else ''}\n"
-        f"{'Extra instructions: ' + instructions if instructions else ''}\n"
-        f"Target length: ~{length_guide} words.\n"
-        f"{continuation_block}"
-        "Write it now. Complete it fully. Do not stop until it's done."
+        + (f"Title: {title}\n" if title else "")
+        + (f"Prompt/direction: {prompt_text}\n" if prompt_text else "")
+        + (f"Extra instructions: {instructions}\n" if instructions else "")
+        + f"Target length: ~{length_guide} words.\n"
+        + continuation_block
+        + "Write it now. Complete it fully. Do not stop until it's done."
     ).strip()
 
     resp = await ai_router.chat(
@@ -392,7 +456,7 @@ async def write_creative(params: dict, ai_router=None, TaskType=None) -> dict:
     save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations",
                             f"{form or 'creative'}s")
     os.makedirs(save_dir, exist_ok=True)
-    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (title or prompt_text[:40]).lower())
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (title or prompt_text[:40] if prompt_text else "piece").lower())
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     save_path = os.path.join(save_dir, f"{slug}_{ts}.md")
     full_doc = f"# {title or form_label}\n*By {author_name}*\n\n{content}\n\n---\nCreated: {datetime.datetime.now().isoformat()}"
@@ -400,15 +464,35 @@ async def write_creative(params: dict, ai_router=None, TaskType=None) -> dict:
 
     word_count = len(content.split())
 
+    # ── Save/update session ───────────────────────────────────────────────
+    first_80 = " ".join(content.split()[:80])
+    piece_summary = f"'{title or form_label}': {first_80}…"
+    existing_summary = session.get("story_so_far", "")
+    updated_session = {
+        **session,
+        "book_title": title or session.get("book_title", ""),
+        "form": form or session.get("form", "creative"),
+        "genre": genre,
+        "tone": tone,
+        "style": style,
+        "author_name": author_name,
+        "last_tail": " ".join(content.split()[-600:]),
+        "story_so_far": ((existing_summary + "\n") if existing_summary else "") + piece_summary,
+        "word_count_total": session.get("word_count_total", 0) + word_count,
+    }
+    _save_writing_session(updated_session)
+
     return {
         "success": True,
         "form": form_label,
         "title": title or "",
         "content": content,
         "word_count": word_count,
+        "total_word_count": updated_session["word_count_total"],
         "saved_to": save_path,
-        # manuscript key used by _push_creation_to_suite
         "manuscript": full_doc,
+        "session_saved": True,
+        "session_note": "Session saved. Say 'keep writing' or 'continue' and Vesper picks up right here.",
     }
 
 
@@ -419,37 +503,48 @@ async def write_creative(params: dict, ai_router=None, TaskType=None) -> dict:
 async def write_chapter(params: dict, ai_router=None, TaskType=None) -> dict:
     """
     Write a single chapter of an ongoing book.
-    Keeps context from everything written so far so there's zero repetition.
-    Use this when CC and Vesper are building a book collaboratively over time.
+    Auto-loads writing session — Vesper remembers the book, chapter number,
+    story so far, and where she left off without being told.
     """
-    book_title = params.get("book_title", params.get("title", "Untitled"))
-    chapter_number = params.get("chapter_number", params.get("chapter", 1))
+    # ── Load persistent session first ─────────────────────────────────────
+    session = _load_writing_session()
+
+    book_title = params.get("book_title", params.get("title", "")) or session.get("book_title", "Untitled")
+    # Auto-advance chapter number if not explicitly given
+    if params.get("chapter_number") or params.get("chapter"):
+        chapter_number = int(params.get("chapter_number", params.get("chapter", 1)))
+    else:
+        chapter_number = session.get("chapter_number", 1)
+
     chapter_title = params.get("chapter_title", f"Chapter {chapter_number}")
-    direction = params.get("direction", params.get("prompt", ""))  # what should happen
-    genre = params.get("genre", "fiction")
-    tone = params.get("tone", "")
-    words = int(params.get("words", 1500))
-    author_name = params.get("author_name", "C.M. Cooper")
-    story_so_far = params.get("story_so_far", "")    # summary of all prior chapters
-    previous_chapter_text = params.get("previous_chapter_text", "")  # last chapter's actual text
-    characters = params.get("characters", "")        # character descriptions
-    world_notes = params.get("world_notes", "")      # setting/world-building notes
+    direction = params.get("direction", params.get("prompt", ""))
+    genre = params.get("genre", "") or session.get("genre", "fiction")
+    tone = params.get("tone", "") or session.get("tone", "")
+    words = int(params.get("words", session.get("words_per_chapter", 1500)))
+    author_name = params.get("author_name", "") or session.get("author_name", "C.M. Cooper")
+    characters = params.get("characters", "") or session.get("characters", "")
+    world_notes = params.get("world_notes", "") or session.get("world_notes", "")
+
+    # Auto-load story continuity from session if not explicitly supplied
+    story_so_far = params.get("story_so_far", "") or session.get("story_so_far", "")
+    previous_chapter_text = params.get("previous_chapter_text", "") or session.get("last_tail", "")
 
     if not ai_router:
         return {"error": "ai_router not available"}
 
-    # Build rich context block so the chapter isn't written in a vacuum
+    # Build rich context block
     context_parts = []
     if story_so_far:
         context_parts.append(f"STORY SO FAR:\n{story_so_far}")
     if characters:
         context_parts.append(f"CHARACTERS:\n{characters}")
     if world_notes:
-        context_parts.append(f"WORLD/SETTING:\n{world_notes}")
+        context_parts.append(f"WORLD / SETTING:\n{world_notes}")
     if previous_chapter_text:
-        # only last 400 words of prev chapter to stay within token budget
-        tail = " ".join(previous_chapter_text.split()[-400:])
-        context_parts.append(f"END OF PREVIOUS CHAPTER (do NOT repeat):\n…{tail}")
+        tail = " ".join(previous_chapter_text.split()[-500:])
+        context_parts.append(
+            f"END OF PREVIOUS CHAPTER — pick up exactly here, do NOT repeat any of this:\n…{tail}"
+        )
 
     context_block = "\n\n".join(context_parts)
 
@@ -464,9 +559,9 @@ async def write_chapter(params: dict, ai_router=None, TaskType=None) -> dict:
 
     user_msg = (
         f"Write Chapter {chapter_number}: {chapter_title}\n\n"
-        f"{'Direction for this chapter: ' + direction if direction else ''}\n\n"
-        f"{context_block}\n\n"
-        f"Target: ~{words} words. Write the full chapter now."
+        + (f"Direction for this chapter: {direction}\n\n" if direction else "")
+        + f"{context_block}\n\n"
+        f"Target: ~{words} words. Write the full chapter now. Do not stop until it's complete."
     ).strip()
 
     resp = await ai_router.chat(
@@ -483,7 +578,7 @@ async def write_chapter(params: dict, ai_router=None, TaskType=None) -> dict:
     if not content:
         return {"error": "No content generated"}
 
-    # Save as its own chapter file
+    # Save chapter file
     save_dir = os.path.join(
         os.path.dirname(__file__), "..", "vesper-ai", "creations", "books",
         "".join(c if c.isalnum() or c == "-" else "-" for c in book_title.lower())[:40],
@@ -497,16 +592,48 @@ async def write_chapter(params: dict, ai_router=None, TaskType=None) -> dict:
     )
     _safe_write(save_path, full_doc)
 
+    word_count = len(content.split())
+
+    # ── Build chapter summary line for story_so_far ───────────────────────
+    first_120 = " ".join(content.split()[:120])
+    chapter_summary = f"Ch{chapter_number} '{chapter_title}': {first_120}…"
+    updated_story_so_far = ((story_so_far + "\n") if story_so_far else "") + chapter_summary
+
+    # ── Persist updated session ───────────────────────────────────────────
+    updated_session = {
+        **session,
+        "book_title": book_title,
+        "form": "chapter",
+        "genre": genre,
+        "tone": tone,
+        "author_name": author_name,
+        "characters": characters,
+        "world_notes": world_notes,
+        "chapter_number": chapter_number + 1,   # ready for next chapter
+        "story_so_far": updated_story_so_far,
+        "last_tail": " ".join(content.split()[-600:]),  # last ~600 words
+        "word_count_total": session.get("word_count_total", 0) + word_count,
+        "chapters_written": session.get("chapters_written", []) + [
+            {"number": chapter_number, "title": chapter_title, "words": word_count}
+        ],
+        "words_per_chapter": words,
+    }
+    _save_writing_session(updated_session)
+    print(f"[SESSION] Chapter {chapter_number} saved. Next is Ch{chapter_number + 1}. Total: {updated_session['word_count_total']} words.")
+
     return {
         "success": True,
         "book_title": book_title,
         "chapter_number": chapter_number,
         "chapter_title": chapter_title,
-        "word_count": len(content.split()),
+        "word_count": word_count,
+        "total_word_count": updated_session["word_count_total"],
+        "next_chapter": chapter_number + 1,
         "content": content,
         "saved_to": save_path,
         "manuscript": full_doc,
-        "tip": "Pass the 'story_so_far' and 'previous_chapter_text' params next time to keep continuity.",
+        "session_saved": True,
+        "session_note": f"Session saved. Next: Chapter {chapter_number + 1}. Just say 'keep writing' — Vesper remembers everything.",
     }
 
 
