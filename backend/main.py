@@ -85,6 +85,7 @@ try:
         medium_publish, plan_income_stream, create_content_calendar, write_consulting_proposal,
         write_seo_article, create_course_outline, create_template_pack,
         repurpose_content, create_digital_product, create_email_sequence,
+        write_creative, write_chapter,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -103,6 +104,8 @@ except Exception as _tc_err:
     async def repurpose_content(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_digital_product(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_email_sequence(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_creative(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_chapter(p, **kw): return {"error": "tools_creative not loaded"}
 
 # Firebase (optional)
 try:
@@ -1665,8 +1668,10 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `yelp_search` — Business search, ratings, reviews, contact info.
 
 **CREATIVE INCOME (Vesper creates → CC earns residual income forever):**
-- `create_ebook` — **WRITE A FULL BOOK**. Complete manuscript + KDP metadata + publishing checklist. Just give it a topic. **Auto-saved to Creative Suite.**
-- `create_song` — **WRITE AN ORIGINAL SONG**. Full lyrics, chords, Suno AI prompt, DistroKid plan. Give it a concept. **Auto-saved to Creative Suite.**
+- `write_creative` — **VESPER'S FULL CREATIVE POWER.** Poems, short stories, chapters, essays, song lyrics, scripts, monologues, love letters, manifestos — ANYTHING. Any form, any length, any genre. Use `previous_content` to continue a piece seamlessly. **NEVER just talk about writing something — CALL THIS TOOL.** **Auto-saved to Creative Suite + Google Drive.**
+- `write_chapter` — **Write one chapter of an ongoing book.** Pass `story_so_far`, `previous_chapter_text`, `characters`, `world_notes` for perfect continuity. Picks up EXACTLY where the last chapter ended — zero repetition. **Auto-saved to Creative Suite + Google Drive.**
+- `create_ebook` — **WRITE A FULL BOOK**. Complete manuscript + KDP metadata + publishing checklist. Just give it a topic. **Auto-saved to Creative Suite + Google Drive.**
+- `create_song` — **WRITE AN ORIGINAL SONG**. Full lyrics, chords, Suno AI prompt, DistroKid plan. Give it a concept. **Auto-saved to Creative Suite + Google Drive.**
 - `create_art_for_sale` — Generate art for Redbubble/Society6/Merch. DALL-E prompt + SEO tags + pricing. **Auto-saved to Creative Suite.**
 - `gumroad_create_product` — List a digital product for sale on Gumroad immediately.
 - `medium_publish` — Publish an article to Medium (thought leadership → consulting leads).
@@ -6534,6 +6539,8 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "yelp_search", "description": "Search Yelp for businesses — ratings, reviews, contact info, prices. Use for competitor research, local business intel, lead identification. Requires YELP_API_KEY.", "input_schema": {"type": "object", "properties": {"term": {"type": "string"}, "location": {"type": "string"}, "categories": {"type": "string"}, "sort_by": {"type": "string"}, "limit": {"type": "number"}}, "required": []}},
 
             # ── CREATIVE INCOME TOOLS ─────────────────────────────────────────
+            {"name": "write_creative", "description": "Vesper's full-power creative writing tool. Write poems, short stories, novel chapters, essays, monologues, song lyrics, scripts, love letters, manifestos — ANYTHING. Use this whenever CC wants creative writing that isn't a full ebook production run. Handles any form at any length. ALWAYS use this for poems, single chapters, stories, and custom creative requests. Never just narrate — CALL THIS TOOL.", "input_schema": {"type": "object", "properties": {"form": {"type": "string", "description": "poem | short_story | chapter | essay | lyrics | script | letter | monologue | journal | anything"}, "title": {"type": "string"}, "prompt": {"type": "string", "description": "Direction, theme, subject, or full creative brief"}, "genre": {"type": "string", "description": "fiction | fantasy | romance | thriller | literary | horror | sci-fi | etc."}, "style": {"type": "string", "description": "e.g. Toni Morrison, Pablo Neruda, Raymond Carver"}, "tone": {"type": "string", "description": "dark | hopeful | playful | raw | lyrical | bittersweet | etc."}, "length": {"type": "string", "description": "short (~300w) | medium (~800w) | long (~2000w) | epic (~5000w)"}, "previous_content": {"type": "string", "description": "Paste the end of an existing piece to continue it seamlessly"}, "instructions": {"type": "string", "description": "Any specific author direction"}, "author_name": {"type": "string"}}, "required": []}},
+            {"name": "write_chapter", "description": "Write a single chapter of an ongoing book with full context — story so far, characters, world notes, previous chapter text. Keeps perfect continuity so each chapter picks up EXACTLY where the last left off. Use this to build books collaboratively with CC over time.", "input_schema": {"type": "object", "properties": {"book_title": {"type": "string"}, "chapter_number": {"type": "number"}, "chapter_title": {"type": "string"}, "direction": {"type": "string", "description": "What should happen in this chapter"}, "genre": {"type": "string"}, "tone": {"type": "string"}, "words": {"type": "number", "description": "Target word count (default 1500)"}, "story_so_far": {"type": "string", "description": "Summary of all prior chapters"}, "previous_chapter_text": {"type": "string", "description": "Full or partial text of the last chapter"}, "characters": {"type": "string", "description": "Character descriptions"}, "world_notes": {"type": "string", "description": "Setting / world-building notes"}, "author_name": {"type": "string"}}, "required": ["book_title"]}},
             {"name": "create_ebook", "description": "Generate a COMPLETE publish-ready ebook — full manuscript, chapter outline, Amazon KDP metadata, cover art prompt, and publishing checklist. Vesper writes it, CC earns royalties. USE THIS when CC wants to create a book.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "topic": {"type": "string"}, "genre": {"type": "string", "description": "non-fiction | fiction | self-help | how-to | poetry"}, "target_audience": {"type": "string"}, "chapters": {"type": "number", "description": "Number of chapters (default 10)"}, "words_per_chapter": {"type": "number", "description": "Target words per chapter (default 1500)"}, "tone": {"type": "string"}, "author_name": {"type": "string"}}, "required": []}},
             {"name": "create_song", "description": "Write a COMPLETE original song — full lyrics, chord progression, BPM, production notes, Suno AI generation prompt, and DistroKid distribution plan. Vesper writes it, CC earns streaming royalties.", "input_schema": {"type": "object", "properties": {"concept": {"type": "string"}, "genre": {"type": "string", "description": "pop | country | r&b | rock | hip-hop | folk | jazz | electronic"}, "mood": {"type": "string"}, "theme": {"type": "string"}, "artist_style": {"type": "string", "description": "e.g. Taylor Swift, Beyoncé"}, "title": {"type": "string"}}, "required": []}},
             {"name": "create_art_for_sale", "description": "Generate AI art optimized for selling on Redbubble, Society6, Merch by Amazon, Etsy. Returns image prompt, product descriptions, SEO tags, and pricing strategy.", "input_schema": {"type": "object", "properties": {"concept": {"type": "string"}, "style": {"type": "string"}, "product": {"type": "string", "description": "t-shirt | poster | phone_case | sticker | all"}, "niche": {"type": "string"}, "generate_image": {"type": "boolean"}}, "required": []}},
@@ -8120,12 +8127,44 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await yelp_search(tool_input)
 
                 # ── Creative Income Tools ──────────────────────────────────
+                elif tool_name == "write_creative":
+                    tool_result = await write_creative(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"):
+                        _push_creation_to_suite("creative", tool_result)
+                        asyncio.create_task(_save_creative_to_drive(
+                            tool_result.get("title") or tool_result.get("form", "Creative Writing"),
+                            tool_result.get("manuscript", tool_result.get("content", "")),
+                            tool_result.get("form", "creative"),
+                        ))
+
+                elif tool_name == "write_chapter":
+                    tool_result = await write_chapter(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"):
+                        _push_creation_to_suite("chapter", tool_result)
+                        asyncio.create_task(_save_creative_to_drive(
+                            f"{tool_result.get('book_title','Book')} — Ch{tool_result.get('chapter_number','?')}: {tool_result.get('chapter_title','')}",
+                            tool_result.get("manuscript", tool_result.get("content", "")),
+                            "chapter",
+                        ))
+
                 elif tool_name == "create_ebook":
                     tool_result = await create_ebook(tool_input, ai_router=ai_router, TaskType=TaskType)
-                    if tool_result.get("success"): _push_creation_to_suite("ebook", tool_result)
+                    if tool_result.get("success"):
+                        _push_creation_to_suite("ebook", tool_result)
+                        asyncio.create_task(_save_creative_to_drive(
+                            tool_result.get("title", "Ebook"),
+                            tool_result.get("manuscript", ""),
+                            "ebook",
+                        ))
                 elif tool_name == "create_song":
                     tool_result = await create_song(tool_input, ai_router=ai_router, TaskType=TaskType)
-                    if tool_result.get("success"): _push_creation_to_suite("song", tool_result)
+                    if tool_result.get("success"):
+                        _push_creation_to_suite("song", tool_result)
+                        asyncio.create_task(_save_creative_to_drive(
+                            tool_result.get("title", "Song"),
+                            tool_result.get("content", ""),
+                            "song",
+                        ))
                 elif tool_name == "create_art_for_sale":
                     tool_result = await create_art_for_sale(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"): _push_creation_to_suite("art", tool_result)
@@ -8135,17 +8174,36 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await medium_publish(tool_input)
                 elif tool_name == "plan_income_stream":
                     tool_result = await plan_income_stream(tool_input, ai_router=ai_router, TaskType=TaskType)
-                    if tool_result.get("success"): _push_creation_to_suite("income_plan", tool_result)
+                    if tool_result.get("success"):
+                        _push_creation_to_suite("income_plan", tool_result)
+                        asyncio.create_task(_save_creative_to_drive(
+                            f"Income Plan - {tool_result.get('niche', '')}",
+                            tool_result.get("plan", ""), "income_plan",
+                        ))
                 elif tool_name == "create_content_calendar":
                     tool_result = await create_content_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
-                    if tool_result.get("success"): _push_creation_to_suite("content_calendar", tool_result)
+                    if tool_result.get("success"):
+                        _push_creation_to_suite("content_calendar", tool_result)
+                        asyncio.create_task(_save_creative_to_drive(
+                            "Content Calendar", tool_result.get("calendar", ""), "content_calendar",
+                        ))
                 elif tool_name == "write_consulting_proposal":
                     tool_result = await write_consulting_proposal(tool_input, ai_router=ai_router, TaskType=TaskType)
-                    if tool_result.get("success"): _push_creation_to_suite("proposal", tool_result)
+                    if tool_result.get("success"):
+                        _push_creation_to_suite("proposal", tool_result)
+                        asyncio.create_task(_save_creative_to_drive(
+                            f"Proposal - {tool_result.get('client', '')}",
+                            tool_result.get("proposal", ""), "proposal",
+                        ))
 
                 elif tool_name == "write_seo_article":
                     tool_result = await write_seo_article(tool_input, ai_router=ai_router, TaskType=TaskType)
-                    if tool_result.get("success"): _push_creation_to_suite("article", tool_result)
+                    if tool_result.get("success"):
+                        _push_creation_to_suite("article", tool_result)
+                        asyncio.create_task(_save_creative_to_drive(
+                            tool_result.get("title", "SEO Article"),
+                            tool_result.get("article", ""), "article",
+                        ))
 
                 elif tool_name == "create_course_outline":
                     tool_result = await create_course_outline(tool_input, ai_router=ai_router, TaskType=TaskType)
@@ -10918,6 +10976,27 @@ def _save_media_item(media_type: str, url: str, prompt: str, metadata: dict = No
     _save_media_gallery(items)
     print(f"[GALLERY] Saved {media_type}: {url[:60]}...")
     return item
+
+async def _save_creative_to_drive(title: str, content: str, creative_type: str = "creative") -> dict | None:
+    """Save a creative text (book, poem, story, song, chapter) to CC's Google Drive as a document."""
+    if not content:
+        return None
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        # Build a clean filename
+        slug = "".join(c if c.isalnum() or c in "-_ " else "" for c in title[:60]).strip().replace(" ", "_")
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"Vesper_{creative_type.capitalize()}_{slug}_{ts}.md"
+        parent_id = _google_default_folder()
+        service = get_google_service("drive", "v3")
+        metadata = {"name": filename, "parents": [parent_id]}
+        media = MediaInMemoryUpload(content.encode("utf-8"), mimetype="text/plain", resumable=False)
+        f = service.files().create(body=metadata, media_body=media, fields="id, name, webViewLink").execute()
+        print(f"[DRIVE] Saved {creative_type} to Drive: {filename} → {f.get('webViewLink', '')}")
+        return f
+    except Exception as e:
+        print(f"[WARN] Could not save {creative_type} to Drive: {e}")
+        return None
 
 async def _save_image_to_drive(image_url: str, prompt: str, provider: str = ""):
     """Download an image from a URL and save it to CC's Google Drive folder."""

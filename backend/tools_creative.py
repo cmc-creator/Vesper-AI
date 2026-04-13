@@ -8,6 +8,7 @@ Vesper generates the content. CC earns the royalties. Forever.
 """
 
 import os
+import re
 import json
 import asyncio
 import requests
@@ -26,7 +27,26 @@ def _safe_write(path: str, content: str) -> bool:
         return False
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+def _extract_json(text: str) -> dict:
+    """Robustly parse JSON from AI output — handles code fences, extra prose."""
+    # Strip markdown code fences (```json ... ``` or ``` ... ```)
+    text = re.sub(r'```(?:json)?\s*', '', text).strip().rstrip('`').strip()
+    # Try direct parse
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+    # Find the first {...} block
+    m = re.search(r'\{.*\}', text, re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group())
+        except Exception:
+            pass
+    return {}
+
+
+# ─────────────────────────────────────────────────────────────────
 # EBOOK CREATOR — KDP / GUMROAD READY
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -58,12 +78,12 @@ async def create_ebook(params: dict, ai_router=None, TaskType=None) -> dict:
     # Step 1: Generate outline
     outline_resp = await ai_router.chat(
         messages=[
-            {"role": "system", "content": "You are a professional author and publishing expert."},
+            {"role": "system", "content": "You are a professional author and publishing expert. Return raw JSON only, no markdown fences."},
             {"role": "user", "content": (
                 f"Create a detailed {chapters}-chapter outline for a {genre} ebook.\n"
                 f"Title: {title or 'TBD'}\nTopic: {topic}\n"
                 f"Target audience: {target_audience}\nTone: {tone}\n\n"
-                "Return JSON only:\n"
+                "Return ONLY a JSON object (no code fences, no prose before or after):\n"
                 '{"title": "...", "subtitle": "...", "tagline": "...", '
                 '"target_audience": "...", "chapters": [{"number": 1, "title": "...", '
                 '"summary": "...", "key_points": ["..."]}]}'
@@ -74,41 +94,77 @@ async def create_ebook(params: dict, ai_router=None, TaskType=None) -> dict:
         temperature=0.7,
     )
 
-    try:
-        import re
-        outline_text = outline_resp.get("content", "{}")
-        json_match = re.search(r'\{.*\}', outline_text, re.DOTALL)
-        outline = json.loads(json_match.group() if json_match else outline_text)
-    except Exception:
-        outline = {"title": title or topic, "subtitle": "", "chapters": []}
+    outline = _extract_json(outline_resp.get("content", "{}"))
+    # If parse failed but we got a text-only outline, build a minimal structure
+    if not outline.get("chapters"):
+        outline = {
+            "title": title or topic,
+            "subtitle": "",
+            "chapters": [
+                {"number": i + 1, "title": f"Chapter {i + 1}", "summary": topic, "key_points": [topic]}
+                for i in range(chapters)
+            ],
+        }
 
     final_title = outline.get("title", title or topic)
 
-    # Step 2: Write the book chapter by chapter
+    # Step 2: Write chapters — each call carries a cumulative "story bible" so
+    # Gemini never repeats content from earlier chapters.
     manuscript_parts = [
         f"# {final_title}\n",
         f"### {outline.get('subtitle', '')}\n\n" if outline.get("subtitle") else "",
         f"*By {author_name}*\n\n---\n\n",
     ]
 
+    written_summaries: list[str] = []          # grows as chapters are completed
+
     for ch in outline.get("chapters", [])[:chapters]:
+        ch_num = ch.get("number", "?")
+        ch_title = ch.get("title", f"Chapter {ch_num}")
+
+        # Build a "what's already been written" context block to prevent repetition
+        prior_context = ""
+        if written_summaries:
+            prior_context = (
+                "\n\nALREADY WRITTEN — do NOT repeat or summarise these:\n"
+                + "\n".join(f"  • Ch{i+1}: {s}" for i, s in enumerate(written_summaries))
+                + "\n"
+            )
+
         ch_resp = await ai_router.chat(
             messages=[
-                {"role": "system", "content": f"You are writing a {genre} ebook. Tone: {tone}. Be thorough and valuable."},
-                {"role": "user", "content": (
-                    f"Write Chapter {ch.get('number', '?')}: {ch.get('title', '')}\n\n"
-                    f"Summary: {ch.get('summary', '')}\n"
-                    f"Key points to cover: {', '.join(ch.get('key_points', []))}\n\n"
-                    f"Write approximately {words_per_chapter} words. Make it genuinely useful and engaging. "
-                    "Use headers, bullet points where appropriate. No filler."
-                )}
+                {
+                    "role": "system",
+                    "content": (
+                        f"You are writing a {genre} book titled '{final_title}'. "
+                        f"Tone: {tone}. Author: {author_name}. "
+                        "Write each chapter as a standalone, deeply engaging piece. "
+                        "Never summarise or repeat what came before — always push the story or argument forward."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Write Chapter {ch_num}: {ch_title}\n\n"
+                        f"Chapter summary: {ch.get('summary', '')}\n"
+                        f"Key points to cover: {', '.join(ch.get('key_points', []))}\n"
+                        f"{prior_context}"
+                        f"Write approximately {words_per_chapter} words. "
+                        "Use headers, scene breaks, or bullet points where they serve the reader. "
+                        "No filler, no padding. Every sentence earns its place."
+                    ),
+                },
             ],
             task_type=TaskType.CREATIVE if TaskType else None,
-            max_tokens=min(words_per_chapter * 2, 4096),
-            temperature=0.75,
+            max_tokens=min(int(words_per_chapter * 2.5), 8192),
+            temperature=0.82,
         )
         ch_text = ch_resp.get("content", "")
-        manuscript_parts.append(f"\n## Chapter {ch.get('number', '?')}: {ch.get('title', '')}\n\n{ch_text}\n\n---\n")
+        manuscript_parts.append(f"\n## Chapter {ch_num}: {ch_title}\n\n{ch_text}\n\n---\n")
+
+        # Store a short summary of this chapter for subsequent chapters
+        first_200 = " ".join(ch_text.split()[:120])
+        written_summaries.append(f"'{ch_title}' — {first_200}…")
 
     manuscript = "".join(manuscript_parts)
 
@@ -119,12 +175,12 @@ async def create_ebook(params: dict, ai_router=None, TaskType=None) -> dict:
     # Step 3: Generate KDP / publishing metadata
     meta_resp = await ai_router.chat(
         messages=[
-            {"role": "system", "content": "You are a publishing expert specializing in Amazon KDP."},
+            {"role": "system", "content": "You are a publishing expert specializing in Amazon KDP. Return raw JSON only."},
             {"role": "user", "content": (
                 f"Generate Amazon KDP metadata for this ebook:\n"
                 f"Title: {final_title}\nTopic: {topic}\nGenre: {genre}\n"
                 f"Audience: {target_audience}\n\n"
-                "Return JSON only:\n"
+                "Return ONLY a JSON object:\n"
                 '{"kdp_title": "...", "subtitle": "...", "description": "...(150 words)", '
                 '"keywords": ["7 keywords"], "categories": ["Primary", "Secondary"], '
                 '"price_usd": 9.99, "cover_prompt": "detailed DALL-E prompt for cover art", '
@@ -136,12 +192,7 @@ async def create_ebook(params: dict, ai_router=None, TaskType=None) -> dict:
         temperature=0.6,
     )
 
-    try:
-        meta_text = meta_resp.get("content", "{}")
-        json_match = re.search(r'\{.*\}', meta_text, re.DOTALL)
-        metadata = json.loads(json_match.group() if json_match else meta_text)
-    except Exception:
-        metadata = {}
+    metadata = _extract_json(meta_resp.get("content", "{}"))
 
     # Save metadata
     meta_path = os.path.join(save_dir, f"{slug}_metadata.json")
@@ -157,7 +208,6 @@ async def create_ebook(params: dict, ai_router=None, TaskType=None) -> dict:
         "word_count": word_count,
         "chapters": len(outline.get("chapters", [])),
         "manuscript_path": manuscript_path,
-        # "manuscript" key is read by _push_creation_to_suite to store full content in DB
         "manuscript": manuscript,
         "metadata": metadata,
         "publishing_checklist": [
@@ -256,6 +306,207 @@ async def create_song(params: dict, ai_router=None, TaskType=None) -> dict:
             "5. Upload lyrics to Genius for additional exposure",
             "6. Every stream = money. 1,000 streams ≈ $3-4. Viral = passive income forever.",
         ],
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WRITE CREATIVE — poems, short stories, essays, chapters, lyrics, anything
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_creative(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Vesper's full-power creative writing tool.
+    Handles: poems, short stories, novel chapters, essays, song lyrics,
+    monologues, scripts, love letters, journal entries, manifestos — anything.
+    No structural overhead, just pure creative output at maximum quality.
+    Called when CC wants creative writing that isn't a full ebook production run.
+    """
+    form = params.get("form", "")          # poem | short_story | chapter | essay | lyrics | script | letter | monologue | etc.
+    title = params.get("title", "")
+    prompt_text = params.get("prompt", params.get("content", params.get("description", "")))
+    genre = params.get("genre", "")        # fiction | fantasy | romance | thriller | literary | etc.
+    style = params.get("style", "")        # e.g. "Toni Morrison", "Pablo Neruda", "Raymond Carver"
+    tone = params.get("tone", "")          # dark | hopeful | playful | raw | lyrical | etc.
+    length = params.get("length", "medium")  # short (~300w) | medium (~800w) | long (~2000w) | epic (~5000w)
+    previous_content = params.get("previous_content", "")  # for continuing an existing piece
+    instructions = params.get("instructions", "")  # any extra author direction
+    author_name = params.get("author_name", "C.M. Cooper")
+
+    if not prompt_text and not title:
+        return {"error": "Provide a prompt or title to write"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    length_guide = {"short": 350, "medium": 900, "long": 2200, "epic": 5000}.get(length, 900)
+    max_tok = min(int(length_guide * 2.8), 16000)
+
+    style_note = f" in the style of {style}" if style else ""
+    genre_note = f" {genre}" if genre else ""
+    tone_note = f" Tone: {tone}." if tone else ""
+    form_label = form or "creative writing"
+
+    continuation_block = ""
+    if previous_content:
+        # Provide the last 600 words as context so Vesper continues seamlessly
+        tail = " ".join(previous_content.split()[-600:])
+        continuation_block = (
+            f"\n\n--- WHAT'S ALREADY BEEN WRITTEN (continue from here, do NOT repeat) ---\n"
+            f"…{tail}\n"
+            f"--- END OF EXISTING CONTENT ---\n\n"
+            "Pick up EXACTLY where that left off. Do not recap, do not repeat.\n"
+        )
+
+    system_msg = (
+        f"You are Vesper — a ferociously talented{genre_note} author and poet writing for CC (C.M. Cooper).{tone_note} "
+        "You write with full creative authority: raw emotion, precise language, original voice. "
+        "You never pad, never repeat, never summarise what's already been said. "
+        "You write to the end — whatever the piece demands. No apologies, no caveats."
+    )
+
+    user_msg = (
+        f"Write {form_label}{style_note}.\n"
+        f"{'Title: ' + title if title else ''}\n"
+        f"{'Prompt/direction: ' + prompt_text if prompt_text else ''}\n"
+        f"{'Extra instructions: ' + instructions if instructions else ''}\n"
+        f"Target length: ~{length_guide} words.\n"
+        f"{continuation_block}"
+        "Write it now. Complete it fully. Do not stop until it's done."
+    ).strip()
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": user_msg},
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=max_tok,
+        temperature=0.92,
+    )
+
+    content = resp.get("content", "").strip()
+    if not content:
+        return {"error": "No content generated"}
+
+    # Save to disk
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations",
+                            f"{form or 'creative'}s")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (title or prompt_text[:40]).lower())
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_path = os.path.join(save_dir, f"{slug}_{ts}.md")
+    full_doc = f"# {title or form_label}\n*By {author_name}*\n\n{content}\n\n---\nCreated: {datetime.datetime.now().isoformat()}"
+    _safe_write(save_path, full_doc)
+
+    word_count = len(content.split())
+
+    return {
+        "success": True,
+        "form": form_label,
+        "title": title or "",
+        "content": content,
+        "word_count": word_count,
+        "saved_to": save_path,
+        # manuscript key used by _push_creation_to_suite
+        "manuscript": full_doc,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WRITE CHAPTER — continue or add to an existing book
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_chapter(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Write a single chapter of an ongoing book.
+    Keeps context from everything written so far so there's zero repetition.
+    Use this when CC and Vesper are building a book collaboratively over time.
+    """
+    book_title = params.get("book_title", params.get("title", "Untitled"))
+    chapter_number = params.get("chapter_number", params.get("chapter", 1))
+    chapter_title = params.get("chapter_title", f"Chapter {chapter_number}")
+    direction = params.get("direction", params.get("prompt", ""))  # what should happen
+    genre = params.get("genre", "fiction")
+    tone = params.get("tone", "")
+    words = int(params.get("words", 1500))
+    author_name = params.get("author_name", "C.M. Cooper")
+    story_so_far = params.get("story_so_far", "")    # summary of all prior chapters
+    previous_chapter_text = params.get("previous_chapter_text", "")  # last chapter's actual text
+    characters = params.get("characters", "")        # character descriptions
+    world_notes = params.get("world_notes", "")      # setting/world-building notes
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    # Build rich context block so the chapter isn't written in a vacuum
+    context_parts = []
+    if story_so_far:
+        context_parts.append(f"STORY SO FAR:\n{story_so_far}")
+    if characters:
+        context_parts.append(f"CHARACTERS:\n{characters}")
+    if world_notes:
+        context_parts.append(f"WORLD/SETTING:\n{world_notes}")
+    if previous_chapter_text:
+        # only last 400 words of prev chapter to stay within token budget
+        tail = " ".join(previous_chapter_text.split()[-400:])
+        context_parts.append(f"END OF PREVIOUS CHAPTER (do NOT repeat):\n…{tail}")
+
+    context_block = "\n\n".join(context_parts)
+
+    system_msg = (
+        f"You are Vesper, writing Chapter {chapter_number} of '{book_title}' — a {genre} novel "
+        f"by {author_name}."
+        + (f" Tone: {tone}." if tone else "")
+        + " Write with full creative authority. Never recap what's already been written."
+        " Push the story forward. End the chapter at a natural stopping point or a hook "
+        "that makes the reader desperate for the next chapter."
+    )
+
+    user_msg = (
+        f"Write Chapter {chapter_number}: {chapter_title}\n\n"
+        f"{'Direction for this chapter: ' + direction if direction else ''}\n\n"
+        f"{context_block}\n\n"
+        f"Target: ~{words} words. Write the full chapter now."
+    ).strip()
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": user_msg},
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=min(int(words * 2.5), 16000),
+        temperature=0.88,
+    )
+
+    content = resp.get("content", "").strip()
+    if not content:
+        return {"error": "No content generated"}
+
+    # Save as its own chapter file
+    save_dir = os.path.join(
+        os.path.dirname(__file__), "..", "vesper-ai", "creations", "books",
+        "".join(c if c.isalnum() or c == "-" else "-" for c in book_title.lower())[:40],
+    )
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, f"chapter_{chapter_number:03d}.md")
+    full_doc = (
+        f"# {book_title}\n## Chapter {chapter_number}: {chapter_title}\n"
+        f"*By {author_name}*\n\n{content}\n\n"
+        f"---\nWritten: {datetime.datetime.now().isoformat()}"
+    )
+    _safe_write(save_path, full_doc)
+
+    return {
+        "success": True,
+        "book_title": book_title,
+        "chapter_number": chapter_number,
+        "chapter_title": chapter_title,
+        "word_count": len(content.split()),
+        "content": content,
+        "saved_to": save_path,
+        "manuscript": full_doc,
+        "tip": "Pass the 'story_so_far' and 'previous_chapter_text' params next time to keep continuity.",
     }
 
 
