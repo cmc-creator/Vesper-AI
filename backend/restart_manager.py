@@ -12,11 +12,24 @@ def run_server():
     # Use the same python executable as the manager script
     python_executable = sys.executable
     
+    host = os.getenv("VESPER_HOST", os.getenv("HOST", "0.0.0.0"))
+    port = os.getenv("PORT", os.getenv("VESPER_PORT", "8000"))
+
     # Command to run the uvicorn server
     # We use sys.executable to ensure we use the same environment
-    cmd = [python_executable, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    cmd = [
+        python_executable,
+        "-m",
+        "uvicorn",
+        "main:app",
+        "--host",
+        host,
+        "--port",
+        str(port),
+        "--reload",
+    ]
     
-    print(f"🚀 [Manager] Starting Vesper Backend System...")
+    print(f"[Manager] Starting Vesper Backend System on {host}:{port}...")
     
     try:
         # Run the process

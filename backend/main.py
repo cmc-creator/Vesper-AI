@@ -10439,9 +10439,32 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
             # Guard against empty provider output so the client never receives
             # a silent "done" event with no visible assistant message.
             if not str(final_text).strip():
+                try:
+                    try:
+                        _retry_provider = ModelProvider(provider) if provider not in ("unknown", None, "") else preferred_provider
+                    except ValueError:
+                        _retry_provider = preferred_provider
+
+                    retry_obj = await ai_router.chat(
+                        messages=messages,
+                        task_type=TaskType.CHAT,
+                        tools=tools,
+                        max_tokens=4096,
+                        temperature=0.7,
+                        preferred_provider=_retry_provider,
+                    )
+                    retry_text = (retry_obj.get("content", "") or "").strip()
+                    if retry_text:
+                        final_text = retry_text
+                        provider = retry_obj.get("provider", provider)
+                        model = retry_obj.get("model", model)
+                except Exception as retry_err:
+                    print(f"[CHAT STREAM] Empty-output retry failed: {retry_err}")
+
+            if not str(final_text).strip():
                 final_text = (
-                    "I hit a response glitch and came back empty. "
-                    "Please send that again and I will answer it properly."
+                    "I did not receive usable model output this turn. "
+                    "Please send your message once more and I will retry immediately."
                 )
             
             # Send provider info

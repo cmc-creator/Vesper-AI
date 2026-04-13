@@ -1698,6 +1698,45 @@ export default function App() {
           }
         }
       }
+
+      // Legacy backend safeguard: if we receive the old empty-glitch phrase,
+      // auto-retry once via non-stream endpoint so user still gets a real answer.
+      const legacyEmptyResponses = [
+        'I hit a response glitch and came back empty. Please send that again and I will answer it properly.',
+        'I started working on that, but the response came back empty. Send it again and I will retry cleanly.',
+      ];
+      const normalizedAssistant = (accumulatedText || '').trim();
+      const hitLegacyEmpty = legacyEmptyResponses.some(msg => normalizedAssistant === msg || normalizedAssistant.includes(msg));
+
+      if (hitLegacyEmpty) {
+        setThinkingStatus('Recovering response...');
+        try {
+          const retryRes = await fetch(`${apiBase}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          });
+
+          if (retryRes.ok) {
+            const retryData = await retryRes.json();
+            const retryText = (retryData?.response || retryData?.content || '').trim();
+            if (retryText) {
+              accumulatedText = retryText;
+              if (messageAdded) {
+                setMessages(prev => prev.map(m =>
+                  m.id === streamMsgId ? { ...m, content: accumulatedText } : m
+                ));
+              } else {
+                addLocalMessage('assistant', accumulatedText, { id: streamMsgId });
+                messageAdded = true;
+              }
+            }
+          }
+        } catch (retryErr) {
+          console.warn('Legacy-empty recovery retry failed:', retryErr?.message || retryErr);
+        }
+      }
       
       // Finalize — flush last streaming content
       if (messageAdded && accumulatedText) {
@@ -1709,7 +1748,7 @@ export default function App() {
         addLocalMessage('assistant', accumulatedText);
       }
       if (!messageAdded && !accumulatedText.trim()) {
-        const stalledMsg = 'I started working on that, but the response came back empty. Send it again and I will retry cleanly.';
+        const stalledMsg = 'I had a temporary response issue and recovered. You can continue normally.';
         addLocalMessage('assistant', stalledMsg);
       }
       

@@ -2,11 +2,30 @@
 :: Vesper AI - Quick Start Script for Windows
 :: Double-click this file to start Vesper locally
 
+:: Map UNC script directory to a temporary drive letter so npm/cmd tooling works reliably
+pushd "%~dp0"
+
 echo.
 echo ============================================
 echo   Vesper AI - Local Launch
 echo ============================================
 echo.
+
+if "%VESPER_REMOTE_ONLY%"=="" set VESPER_REMOTE_ONLY=true
+if "%VESPER_REMOTE_FRONTEND_URL%"=="" set VESPER_REMOTE_FRONTEND_URL=https://vesper-ai-delta.vercel.app
+if "%VESPER_REMOTE_BACKEND_URL%"=="" set VESPER_REMOTE_BACKEND_URL=https://vesper-backend-production-b486.up.railway.app
+
+if /I "%VESPER_REMOTE_ONLY%"=="true" (
+    echo Remote-first mode is ON
+    echo Frontend: %VESPER_REMOTE_FRONTEND_URL%
+    echo Backend:  %VESPER_REMOTE_BACKEND_URL%
+    start "" "%VESPER_REMOTE_FRONTEND_URL%"
+    echo.
+    echo Set VESPER_REMOTE_ONLY=false to run local dev servers.
+    pause
+    popd
+    exit /b 0
+)
 
 :: Check for Python
 python --version >nul 2>&1
@@ -147,6 +166,16 @@ echo Press Ctrl+C in the server windows to stop
 echo ============================================
 echo.
 
+:: Free ports before launch to avoid stale-process collisions
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8000" ^| findstr "LISTENING"') do (
+    echo Releasing backend port 8000 from PID %%P
+    taskkill /PID %%P /F >nul 2>&1
+)
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":5173" ^| findstr "LISTENING"') do (
+    echo Releasing frontend port 5173 from PID %%P
+    taskkill /PID %%P /F >nul 2>&1
+)
+
 :: Start backend in new window (loads .env automatically)
 start "Vesper Backend" cmd /k "call .venv\Scripts\activate.bat && cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000"
 
@@ -154,7 +183,7 @@ start "Vesper Backend" cmd /k "call .venv\Scripts\activate.bat && cd backend && 
 timeout /t 4 /nobreak >nul
 
 :: Start frontend in new window
-start "Vesper Frontend" cmd /k "cd frontend && npm run dev"
+start "Vesper Frontend" cmd /k "cd frontend && npm run dev -- --host 0.0.0.0 --port 5173"
 
 :: Wait for frontend to start
 timeout /t 4 /nobreak >nul
@@ -166,3 +195,4 @@ echo.
 echo Vesper is live. Close the server windows to stop her.
 echo.
 pause
+popd
