@@ -1673,7 +1673,7 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 
 **CREATIVE INCOME (Vesper creates → CC earns residual income forever):**
 - `write_creative` — **VESPER'S FULL CREATIVE POWER.** Poems, short stories, chapters, essays, song lyrics, scripts, monologues, love letters, manifestos — ANYTHING. **Auto-loads the active writing session** so CC can just say "keep writing" and Vesper continues from exactly where she left off — no pasting needed. **NEVER just talk about writing something — CALL THIS TOOL.** **Auto-saved to Creative Suite + Google Drive.**
-- `write_chapter` — ⚠️ **USE THIS FOR ALL NOVEL CHAPTERS — NOT write_seo_article, NOT vesper_create.** Write a single chapter of an ongoing book. **All context (chapter number, story so far, previous chapter tail) is loaded automatically from the writing session.** CC just needs to say "keep writing" — Vesper handles everything. Picks up EXACTLY where the last chapter ended — zero repetition. **Auto-saved to Creative Suite + Google Drive.**
+- `write_chapter` — ⚠️ **USE THIS FOR ALL NOVEL CHAPTERS — NOT write_seo_article, NOT vesper_create.** Write a single chapter of an ongoing book. **All context (chapter number, story so far, previous chapter tail) is loaded automatically from the writing session.** CC just needs to say "keep writing" — Vesper handles everything. Picks up EXACTLY where the last chapter ended — zero repetition. **Saves as a real Google Doc in CC's Drive — always share the `drive_link` from the result.**
 - `get_writing_session` — **Check the active writing session.** Reports current book title, chapter number, total words, and story so far. Call when CC asks "where are we?" or "what chapter are we on?"
 - `clear_writing_session` — **Clear the writing session** to start a fresh creative project.
 - `create_ebook` — **WRITE A FULL BOOK**. Complete manuscript + KDP metadata + publishing checklist. Just give it a topic. **Auto-saved to Creative Suite + Google Drive.**
@@ -8003,21 +8003,27 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await write_creative(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"):
                         _push_creation_to_suite("creative", tool_result)
-                        asyncio.create_task(_save_creative_to_drive(
+                        _drive_file = await _save_creative_as_doc(
                             tool_result.get("title") or tool_result.get("form", "Creative Writing"),
                             tool_result.get("manuscript", tool_result.get("content", "")),
                             tool_result.get("form", "creative"),
-                        ))
+                        )
+                        if _drive_file and not _drive_file.get("error"):
+                            tool_result["drive_link"] = _drive_file.get("webViewLink", "")
+                            tool_result["drive_doc_id"] = _drive_file.get("documentId", _drive_file.get("id", ""))
 
                 elif tool_name == "write_chapter":
                     tool_result = await write_chapter(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"):
                         _push_creation_to_suite("chapter", tool_result)
-                        asyncio.create_task(_save_creative_to_drive(
+                        _drive_file = await _save_creative_as_doc(
                             f"{tool_result.get('book_title','Book')} — Ch{tool_result.get('chapter_number','?')}: {tool_result.get('chapter_title','')}",
                             tool_result.get("manuscript", tool_result.get("content", "")),
                             "chapter",
-                        ))
+                        )
+                        if _drive_file and not _drive_file.get("error"):
+                            tool_result["drive_link"] = _drive_file.get("webViewLink", "")
+                            tool_result["drive_doc_id"] = _drive_file.get("documentId", _drive_file.get("id", ""))
 
                 elif tool_name == "get_writing_session":
                     tool_result = get_writing_session()
@@ -9190,7 +9196,7 @@ async def chat_stream(chat: ChatMessage):
                 _gcred_id = getattr(_creds, "service_account_email", None) or "OAuth"
                 _is_sa = hasattr(_creds, "service_account_email")
                 if _is_sa:
-                    google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). You have `create_google_doc`, `google_sheets_create`, and `google_drive_save_file` tools available and WORKING. When CC asks you to create a doc, spreadsheet, or save anything — YOU MUST CALL THE TOOL. Do NOT write placeholder text like '[Link to Doc]' or '[see tool output above]'. Do NOT invent or summarize what the tool result 'would be'. CALL THE TOOL — the real result comes back automatically. Then include the actual webViewLink from the real tool result in your response. If a tool returns an error, report it honestly."
+                    google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). You have `create_google_doc`, `google_sheets_create`, and `google_drive_save_file` tools available and WORKING. When CC asks you to create a doc, spreadsheet, or save anything — YOU MUST CALL THE TOOL. Do NOT write placeholder text like '[Link to Doc]' or '[see tool output above]'. Do NOT invent or summarize what the tool result 'would be'. CALL THE TOOL — the real result comes back automatically. Then include the actual webViewLink from the real tool result in your response. If a tool returns an error, report it honestly. IMPORTANT: When `write_chapter` or `write_creative` returns a `drive_link` field, ALWAYS include that as a clickable link in your response — that's where CC reads the chapter."
                 else:
                     google_context = "\n\n**GOOGLE WORKSPACE:** CONNECTED via OAuth (CC's own account). You MUST call `create_google_doc`, `google_sheets_create`, or `google_drive_save_file` tools directly — never write placeholder output. The real webViewLink comes from the actual tool result."
             except Exception:
@@ -10854,6 +10860,23 @@ def _save_media_item(media_type: str, url: str, prompt: str, metadata: dict = No
     _save_media_gallery(items)
     print(f"[GALLERY] Saved {media_type}: {url[:60]}...")
     return item
+
+async def _save_creative_as_doc(title: str, content: str, creative_type: str = "creative") -> dict | None:
+    """Save a creative work as a proper Google Doc in CC's Drive — readable, shareable, formatted."""
+    if not content:
+        return None
+    try:
+        # Use google_docs_create which puts it in CC's shared folder as a real Google Doc
+        result = await google_docs_create({"title": title, "content": content})
+        if result.get("error"):
+            print(f"[DRIVE] Doc creation failed for '{title}': {result['error']} — falling back to plain upload")
+            return await _save_creative_to_drive(title, content, creative_type)
+        print(f"[DRIVE] Created Google Doc: {title} → {result.get('webViewLink', '')}")
+        return result
+    except Exception as e:
+        print(f"[WARN] _save_creative_as_doc failed: {e} — falling back to plain upload")
+        return await _save_creative_to_drive(title, content, creative_type)
+
 
 async def _save_creative_to_drive(title: str, content: str, creative_type: str = "creative") -> dict | None:
     """Save a creative text (book, poem, story, song, chapter) to CC's Google Drive as a document."""
