@@ -448,9 +448,12 @@ async def write_creative(params: dict, ai_router=None, TaskType=None) -> dict:
         temperature=0.92,
     )
 
-    content = resp.get("content", "").strip()
+    if resp.get("error"):
+        print(f"[WRITE_CREATIVE] AI call failed: {resp['error']}")
+        return {"error": f"Creative writing failed — {resp['error']}"}
+    content = (resp.get("content") or "").strip()
     if not content:
-        return {"error": "No content generated"}
+        return {"error": "Creative writing returned empty. The AI provider may be busy — try again."}
 
     # Save to disk
     save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations",
@@ -574,9 +577,12 @@ async def write_chapter(params: dict, ai_router=None, TaskType=None) -> dict:
         temperature=0.88,
     )
 
-    content = resp.get("content", "").strip()
+    if resp.get("error"):
+        print(f"[WRITE_CHAPTER] AI call failed: {resp['error']}")
+        return {"error": f"Chapter generation failed — {resp['error']}"}
+    content = (resp.get("content") or "").strip()
     if not content:
-        return {"error": "No content generated"}
+        return {"error": "Chapter generation returned empty content. The AI provider may be busy — try again."}
 
     # Save chapter file
     save_dir = os.path.join(

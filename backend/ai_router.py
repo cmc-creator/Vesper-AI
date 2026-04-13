@@ -506,7 +506,9 @@ class AIRouter:
             if _google_tool_list:
                 config["tools"] = _google_tool_list
 
-        response = self.google_client.models.generate_content(
+        import asyncio as _asyncio
+        response = await _asyncio.to_thread(
+            self.google_client.models.generate_content,
             model=model,
             contents=contents,
             config=config
