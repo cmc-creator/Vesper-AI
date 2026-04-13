@@ -573,7 +573,7 @@ async def write_chapter(params: dict, ai_router=None, TaskType=None) -> dict:
             {"role": "user", "content": user_msg},
         ],
         task_type=TaskType.CREATIVE if TaskType else None,
-        max_tokens=min(int(words * 2.5), 16000),
+        max_tokens=min(max(int(words * 2.5), 4000), 16000),  # floor 4000 so Gemini never truncates short requests
         temperature=0.88,
     )
 
@@ -583,6 +583,10 @@ async def write_chapter(params: dict, ai_router=None, TaskType=None) -> dict:
     content = (resp.get("content") or "").strip()
     if not content:
         return {"error": "Chapter generation returned empty content. The AI provider may be busy — try again."}
+    # Reject stub responses — if under 400 words the model produced a summary not a chapter
+    word_count_check = len(content.split())
+    if word_count_check < 400:
+        return {"error": f"Chapter generation returned only {word_count_check} words (expected ~{words}). Provider may have summarised instead of writing — try again."}
 
     # Save chapter file
     save_dir = os.path.join(

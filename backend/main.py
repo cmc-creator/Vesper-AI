@@ -13781,22 +13781,24 @@ async def google_docs_create(req: dict):
             "parents": [_google_default_folder()],
         }
         if content:
-            # Convert markdown-ish plain text to HTML so Drive renders headings + paragraphs properly
-            html_lines = [f"<html><body>"]
+            # Convert to safe HTML — MUST escape all text content first to prevent broken HTML
+            # from <, >, & in dialogue/prose stopping Drive mid-chapter
+            import html as _html_mod
+            html_lines = ["<html><body>"]
             for line in content.split("\n"):
                 stripped = line.strip()
                 if stripped.startswith("## "):
-                    html_lines.append(f"<h2>{stripped[3:]}</h2>")
+                    html_lines.append(f"<h2>{_html_mod.escape(stripped[3:])}</h2>")
                 elif stripped.startswith("# "):
-                    html_lines.append(f"<h1>{stripped[2:]}</h1>")
+                    html_lines.append(f"<h1>{_html_mod.escape(stripped[2:])}</h1>")
                 elif stripped.startswith("### "):
-                    html_lines.append(f"<h3>{stripped[4:]}</h3>")
+                    html_lines.append(f"<h3>{_html_mod.escape(stripped[4:])}</h3>")
                 elif stripped.startswith("---"):
                     html_lines.append("<hr/>")
                 elif stripped.startswith("*") and stripped.endswith("*") and len(stripped) > 2:
-                    html_lines.append(f"<p><em>{stripped[1:-1]}</em></p>")
+                    html_lines.append(f"<p><em>{_html_mod.escape(stripped[1:-1])}</em></p>")
                 elif stripped:
-                    html_lines.append(f"<p>{stripped}</p>")
+                    html_lines.append(f"<p>{_html_mod.escape(stripped)}</p>")
                 else:
                     html_lines.append("<br/>")
             html_lines.append("</body></html>")
