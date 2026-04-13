@@ -5884,139 +5884,6 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
-                "name": "execute_python",
-                "description": "Execute Python code to test ideas, run calculations, analyze data, or prototype solutions. Code runs in a safe sandboxed environment.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "code": {
-                            "type": "string",
-                            "description": "The Python code to execute"
-                        }
-                    },
-                    "required": ["code"]
-                }
-            },
-            {
-                "name": "analyze_patterns",
-                "description": "Analyze interaction patterns, feedback, and memory data to identify insights and trends. Use this to understand what's working and spot opportunities.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            },
-            {
-                "name": "git_status",
-                "description": "Check git status - see what files have changed, current branch, and uncommitted changes. READ-ONLY: safe to use anytime.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            },
-            {
-                "name": "git_diff",
-                "description": "See detailed changes (diff) for modified files. READ-ONLY: safe to use anytime.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "Optional: specific file to diff. Omit to see all changes."
-                        }
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "git_commit",
-                "description": "Stage and commit changes to git. Executes autonomously. CC is notified after completion.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "message": {
-                            "type": "string",
-                            "description": "Commit message describing the changes"
-                        },
-                        "files": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Optional: specific files to commit. Omit to commit all changes."
-                        }
-                    },
-                    "required": ["message"]
-                }
-            },
-            {
-                "name": "git_push",
-                "description": "Push commits to remote repository (GitHub). Executes autonomously. CC is notified after completion.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "branch": {
-                            "type": "string",
-                            "description": "Branch to push (default: main)"
-                        },
-                        "remote": {
-                            "type": "string",
-                            "description": "Remote name (default: origin)"
-                        }
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "vercel_deployments",
-                "description": "Get recent Vercel deployments for the frontend. READ-ONLY: safe to use anytime.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "project": {
-                            "type": "string",
-                            "description": "Project name (default: vesper-ai-delta)"
-                        }
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "vercel_deploy",
-                "description": "Trigger a new Vercel deployment. Executes autonomously. CC is notified after completion.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "project": {
-                            "type": "string",
-                            "description": "Project to deploy (default: vesper-ai-delta)"
-                        }
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "vercel_set_env",
-                "description": "Set an environment variable on Vercel. Executes autonomously. CC is notified after completion.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "key": {
-                            "type": "string",
-                            "description": "Environment variable name"
-                        },
-                        "value": {
-                            "type": "string",
-                            "description": "Environment variable value"
-                        },
-                        "project": {
-                            "type": "string",
-                            "description": "Project name (default: vesper-ai-delta)"
-                        }
-                    },
-                    "required": ["key", "value"]
-                }
-            },
-            {
                 "name": "railway_logs",
                 "description": "Get recent Railway logs for the backend. READ-ONLY: safe to use anytime.",
                 "input_schema": {
@@ -6027,15 +5894,6 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                             "description": "Number of log lines to retrieve (default: 50)"
                         }
                     },
-                    "required": []
-                }
-            },
-            {
-                "name": "railway_restart",
-                "description": "Restart the Railway backend service. Executes autonomously. CC is notified after completion.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {},
                     "required": []
                 }
             },
@@ -6547,7 +6405,6 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "spotify_search", "description": "Search Spotify for tracks, albums, artists. Can search by mood. Use when Vesper wants to recommend music, explore a genre, or connect music to emotions.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "type": {"type": "string", "enum": ["track", "album", "artist", "playlist"]}, "limit": {"type": "number"}, "mood": {"type": "string", "description": "happy | sad | energetic | chill | melancholic | mysterious | romantic"}}, "required": []}},
             {"name": "spotify_recommendations", "description": "Get Spotify song recommendations by mood, energy, genre, or audio features. Perfect for building playlists.", "input_schema": {"type": "object", "properties": {"genres": {"type": "array", "items": {"type": "string"}}, "mood": {"type": "string"}, "limit": {"type": "number"}, "target_energy": {"type": "number"}, "target_valence": {"type": "number"}, "target_danceability": {"type": "number"}}, "required": []}},
             {"name": "local_events", "description": "Find local events near CC — concerts, sports, arts, comedy via Ticketmaster. Default location: Surprise, AZ.", "input_schema": {"type": "object", "properties": {"city": {"type": "string"}, "state": {"type": "string"}, "keyword": {"type": "string"}, "category": {"type": "string"}, "start_date": {"type": "string"}, "limit": {"type": "number"}}, "required": []}},
-            {"name": "news_search", "description": "Search and monitor news via NewsAPI. Great for industry intel, competitor moves, market opportunities, staying current. Requires NEWS_API_KEY.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "topic": {"type": "string", "description": "business | technology | science | health | entertainment"}, "sort_by": {"type": "string", "enum": ["publishedAt", "relevancy", "popularity"]}, "limit": {"type": "number"}, "from_date": {"type": "string"}}, "required": []}},
             {"name": "hunter_find_email", "description": "Find professional email addresses by company domain or person name. Gold for consulting lead generation. Requires HUNTER_API_KEY (free 25/month).", "input_schema": {"type": "object", "properties": {"domain": {"type": "string", "description": "Company domain e.g. microsoft.com"}, "first_name": {"type": "string"}, "last_name": {"type": "string"}, "company": {"type": "string"}, "limit": {"type": "number"}}, "required": []}},
             {"name": "yelp_search", "description": "Search Yelp for businesses — ratings, reviews, contact info, prices. Use for competitor research, local business intel, lead identification. Requires YELP_API_KEY.", "input_schema": {"type": "object", "properties": {"term": {"type": "string"}, "location": {"type": "string"}, "categories": {"type": "string"}, "sort_by": {"type": "string"}, "limit": {"type": "number"}}, "required": []}},
 
