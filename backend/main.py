@@ -236,16 +236,17 @@ def _build_thread_context(thread_msgs: list, max_recent: int = 120):
     )
     return summary_block, recent
 
+startup_error = None
 try:
     # Initialize FastAPI app immediately after imports
     app = FastAPI()
-    
+
     # Instrument FastAPI for automatic tracing (DISABLED)
     # try:
     #     instrument_fastapi(app)
     # except Exception as e:
     #     print(f"[WARN] FastAPI instrumentation failed: {e}")
-    
+
     # Log AI provider availability
     print("\n=== Vesper AI Initialization ===")
     stats = ai_router.get_stats()
@@ -254,10 +255,15 @@ try:
     print(f"Persistent Memory: {'PostgreSQL [OK]' if os.getenv('DATABASE_URL') else 'SQLite (dev)'}")
     print("=== Ready to serve ===")
 except Exception as e:
+    startup_error = str(e)
     print('FATAL ERROR DURING FASTAPI STARTUP:', e, file=sys.stderr)
     import traceback
     traceback.print_exc()
-    raise
+    # Fail-open: keep API process alive so /health can report what failed.
+    try:
+        app
+    except NameError:
+        app = FastAPI()
 
 # Add CORS middleware
 app.add_middleware(
@@ -291,10 +297,11 @@ def health_check():
         }
 
     return {
-        "status": "healthy",
+        "status": "healthy" if not startup_error else "degraded",
         "timestamp": datetime.datetime.now().isoformat(),
         "db_backend": db_backend,
         "db_schema": schema_status,
+        "startup_error": startup_error,
     }
 
 @app.get("/api/debug/claude-test")
