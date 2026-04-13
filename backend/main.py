@@ -8822,7 +8822,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
 
 
                 elif tool_name == "vesper_create":
-                    import json as _vcj, datetime as _vcdt
+                    import json as _vcj, datetime as _vcdt, uuid as _vcu
                     _vcdir = os.path.join(DATA_DIR, "vesper_identity", "creations")
                     _vcidxf = os.path.join(DATA_DIR, "vesper_identity", "creations_index.json")
                     os.makedirs(_vcdir, exist_ok=True)
@@ -8844,7 +8844,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     _vcidx.append(_vcmeta)
                     open(_vcidxf, "w").write(_vcj.dumps(_vcidx, indent=2))
                     # Save to persistent DB so it shows in Creative Suite gallery
-                    _vc_db_id = str(uuid.uuid4())[:8]
+                    _vc_db_id = str(_vcu.uuid4())[:8]
                     memory_db.save_creation(
                         id=_vc_db_id, type=_vctype, title=_vctitle,
                         content=_vccontent, preview=_vccontent[:500],
@@ -9991,7 +9991,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         else: tool_result = {"all_preferences": _s6d, "categories": list(_s6d.keys())}
 
                     elif tool_name == "vesper_create":
-                        import json as _s7j, datetime as _s7dt
+                        import json as _s7j, datetime as _s7dt, uuid as _s7uuid
                         _s7dir = os.path.join(DATA_DIR, "vesper_identity", "creations")
                         _s7idx = os.path.join(DATA_DIR, "vesper_identity", "creations_index.json")
                         os.makedirs(_s7dir, exist_ok=True)
@@ -10002,7 +10002,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         _s7ix.append({"filename": _s7fname, "title": _s7title, "type": _s7type, "preview": _s7content[:100], "created": _s7dt.datetime.now().isoformat()})
                         open(_s7idx, "w").write(_s7j.dumps(_s7ix, indent=2))
                         # Save to persistent DB so it shows in Creative Suite gallery
-                        _s7db_id = str(uuid.uuid4())[:8]
+                        _s7db_id = str(_s7uuid.uuid4())[:8]
                         memory_db.save_creation(
                             id=_s7db_id, type=_s7type, title=_s7title,
                             content=_s7content, preview=_s7content[:500],
