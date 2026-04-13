@@ -1673,7 +1673,7 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 
 **CREATIVE INCOME (Vesper creates → CC earns residual income forever):**
 - `write_creative` — **VESPER'S FULL CREATIVE POWER.** Poems, short stories, chapters, essays, song lyrics, scripts, monologues, love letters, manifestos — ANYTHING. **Auto-loads the active writing session** so CC can just say "keep writing" and Vesper continues from exactly where she left off — no pasting needed. **NEVER just talk about writing something — CALL THIS TOOL.** **Auto-saved to Creative Suite + Google Drive.**
-- `write_chapter` — ⚠️ **USE THIS FOR ALL NOVEL CHAPTERS — NOT write_seo_article, NOT vesper_create.** Write a single chapter of an ongoing book. **All context (chapter number, story so far, previous chapter tail) is loaded automatically from the writing session.** CC just needs to say "keep writing" — Vesper handles everything. Picks up EXACTLY where the last chapter ended — zero repetition. **Saves as a real Google Doc in CC's Drive — always share the `drive_link` from the result.**
+- `write_chapter` — ⚠️ **USE THIS FOR ALL NOVEL CHAPTERS — NOT write_seo_article, NOT vesper_create.** Write a single chapter of an ongoing book. **All context (chapter number, story so far, previous chapter tail) is loaded automatically from the writing session.** CC just needs to say "keep writing" — Vesper handles everything. Picks up EXACTLY where the last chapter ended — zero repetition. **After the tool runs: paste the FULL chapter text into the chat (all paragraphs, nothing cut off), then add the drive_link at the bottom as a clickable link. CC reads the chapter IN THE CHAT — she should never have to click a link just to read the chapter.**
 - `get_writing_session` — **Check the active writing session.** Reports current book title, chapter number, total words, and story so far. Call when CC asks "where are we?" or "what chapter are we on?"
 - `clear_writing_session` — **Clear the writing session** to start a fresh creative project.
 - `create_ebook` — **WRITE A FULL BOOK**. Complete manuscript + KDP metadata + publishing checklist. Just give it a topic. **Auto-saved to Creative Suite + Google Drive.**
@@ -9214,7 +9214,7 @@ async def chat_stream(chat: ChatMessage):
                 _gcred_id = getattr(_creds, "service_account_email", None) or "OAuth"
                 _is_sa = hasattr(_creds, "service_account_email")
                 if _is_sa:
-                    google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). You have `create_google_doc`, `google_sheets_create`, and `google_drive_save_file` tools available and WORKING. When CC asks you to create a doc, spreadsheet, or save anything — YOU MUST CALL THE TOOL. Do NOT write placeholder text like '[Link to Doc]' or '[see tool output above]'. Do NOT invent or summarize what the tool result 'would be'. CALL THE TOOL — the real result comes back automatically. Then include the actual webViewLink from the real tool result in your response. If a tool returns an error, report it honestly. IMPORTANT: When `write_chapter` or `write_creative` returns a `drive_link` field, ALWAYS include that as a clickable link in your response — that's where CC reads the chapter."
+                    google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). You have `create_google_doc`, `google_sheets_create`, and `google_drive_save_file` tools available and WORKING. When CC asks you to create a doc, spreadsheet, or save anything — YOU MUST CALL THE TOOL. Do NOT write placeholder text like '[Link to Doc]' or '[see tool output above]'. Do NOT invent or summarize what the tool result 'would be'. CALL THE TOOL — the real result comes back automatically. Then include the actual webViewLink from the real tool result in your response. If a tool returns an error, report it honestly. CRITICAL FOR CHAPTERS: When `write_chapter` returns, you MUST paste the FULL chapter content from the `manuscript` or `content` field directly into your chat response — do NOT just give a link. CC reads the chapter in chat. Format it with the chapter title on its own line, then the full text. Then add the Drive link at the end for her records. Example format: \n---\n**Chapter N: [Title]**\n\n[full chapter text here, all paragraphs]\n\n---\n📂 [Saved to Drive]([drive_link])\n"
                 else:
                     google_context = "\n\n**GOOGLE WORKSPACE:** CONNECTED via OAuth (CC's own account). You MUST call `create_google_doc`, `google_sheets_create`, or `google_drive_save_file` tools directly — never write placeholder output. The real webViewLink comes from the actual tool result."
             except Exception:
@@ -13769,7 +13769,7 @@ async def google_drive_share(req: dict):
 
 @app.post("/api/google/docs/create")
 async def google_docs_create(req: dict):
-    """Create a new Google Doc. Uses Drive multipart upload with auto-conversion so any amount of content works."""
+    """Create a new Google Doc. Uses Drive multipart HTML upload for proper formatting."""
     try:
         from googleapiclient.http import MediaInMemoryUpload
         title = req.get("title", "Untitled Document")
@@ -13777,14 +13777,32 @@ async def google_docs_create(req: dict):
         drive = get_google_service("drive", "v3")
         file_metadata = {
             "name": title,
-            "mimeType": "application/vnd.google-apps.document",  # Drive converts plain text → Google Doc
+            "mimeType": "application/vnd.google-apps.document",
             "parents": [_google_default_folder()],
         }
-        # Upload content directly during creation — Drive converts text/plain → Google Doc
-        # This works for any content size and never fails silently like the Docs API insertText approach
         if content:
+            # Convert markdown-ish plain text to HTML so Drive renders headings + paragraphs properly
+            html_lines = [f"<html><body>"]
+            for line in content.split("\n"):
+                stripped = line.strip()
+                if stripped.startswith("## "):
+                    html_lines.append(f"<h2>{stripped[3:]}</h2>")
+                elif stripped.startswith("# "):
+                    html_lines.append(f"<h1>{stripped[2:]}</h1>")
+                elif stripped.startswith("### "):
+                    html_lines.append(f"<h3>{stripped[4:]}</h3>")
+                elif stripped.startswith("---"):
+                    html_lines.append("<hr/>")
+                elif stripped.startswith("*") and stripped.endswith("*") and len(stripped) > 2:
+                    html_lines.append(f"<p><em>{stripped[1:-1]}</em></p>")
+                elif stripped:
+                    html_lines.append(f"<p>{stripped}</p>")
+                else:
+                    html_lines.append("<br/>")
+            html_lines.append("</body></html>")
+            html_content = "\n".join(html_lines)
             media = MediaInMemoryUpload(
-                content.encode("utf-8"), mimetype="text/plain", resumable=False
+                html_content.encode("utf-8"), mimetype="text/html", resumable=False
             )
             doc_file = drive.files().create(
                 body=file_metadata, media_body=media, fields="id,webViewLink"
