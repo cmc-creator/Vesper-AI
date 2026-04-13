@@ -588,18 +588,66 @@ async def write_chapter(params: dict, ai_router=None, TaskType=None) -> dict:
     if word_count_check < 400:
         return {"error": f"Chapter generation returned only {word_count_check} words (expected ~{words}). Provider may have summarised instead of writing — try again."}
 
-    # Save chapter file
+    # Save chapter file with professional book formatting
     save_dir = os.path.join(
         os.path.dirname(__file__), "..", "vesper-ai", "creations", "books",
         "".join(c if c.isalnum() or c == "-" else "-" for c in book_title.lower())[:40],
     )
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, f"chapter_{chapter_number:03d}.md")
-    full_doc = (
-        f"# {book_title}\n## Chapter {chapter_number}: {chapter_title}\n"
-        f"*By {author_name}*\n\n{content}\n\n"
-        f"---\nWritten: {datetime.datetime.now().isoformat()}"
+    
+    # Build professional book chapter with YAML frontmatter and formatting guidance
+    timestamp = datetime.datetime.now().isoformat()
+    frontmatter = (
+        f"---\n"
+        f"title: {book_title}\n"
+        f"chapter_number: {chapter_number}\n"
+        f"chapter_title: {chapter_title}\n"
+        f"author: {author_name}\n"
+        f"genre: {genre}\n"
+        f"word_count: {word_count_check}\n"
+        f"date_written: {timestamp}\n"
+        f"status: draft\n"
+        f"---\n\n"
     )
+    
+    # Professional chapter header with hierarchy
+    chapter_header = (
+        f"# {book_title}\n\n"
+        f"## Chapter {chapter_number} — {chapter_title}\n\n"
+        f"**By {author_name}**  \n"
+        f"*{genre.capitalize()} • {word_count_check} words*\n\n"
+        f"---\n\n"
+    )
+    
+    # Main chapter content with proper paragraph breaks
+    formatted_content = content.strip()
+    # Ensure proper paragraph separation for ebook export
+    formatted_content = re.sub(r'\n(?!\n)', '\n\n', formatted_content)
+    
+    # Formatting checklist and publishing guidance
+    publishing_note = (
+        f"\n\n---\n\n"
+        f"## Publishing Checklist\n\n"
+        f"- [ ] **Proofread** — check for typos, grammar, consistency\n"
+        f"- [ ] **Format** — ensure consistent styling throughout\n"
+        f"- [ ] **Structure** — verify chapter flows logically\n"
+        f"- [ ] **KDP Ready** — proper markdown for Amazon KDP\n"
+        f"- [ ] **Images** — add if needed (save as separate .png files)\n"
+        f"- [ ] **Metadata** — update genre, keywords for discovery\n\n"
+        f"**Next Steps:**\n"
+        f"1. Keep writing with Vesper (say 'write next chapter')\n"
+        f"2. Combine all chapters into complete manuscript\n"
+        f"3. Upload to KDP at: https://kdp.amazon.com\n"
+        f"4. Set price ($2.99–$9.99 typically earns best royalties)\n"
+        f"5. Include cover (use create_art_for_sale for cover design)\n\n"
+        f"**Current Progress:**\n"
+        f"- Total manuscript: {session.get('word_count_total', 0) + word_count_check} words\n"
+        f"- Chapters completed: {chapter_number}\n"
+        f"- Session updated: {timestamp}\n"
+    )
+    
+    full_doc = frontmatter + chapter_header + formatted_content + publishing_note
     _safe_write(save_path, full_doc)
 
     word_count = len(content.split())
@@ -643,7 +691,185 @@ async def write_chapter(params: dict, ai_router=None, TaskType=None) -> dict:
         "saved_to": save_path,
         "manuscript": full_doc,
         "session_saved": True,
+        "publishing_note": (
+            f"✍️ Chapter {chapter_number} complete. "
+            f"Total manuscript: {updated_session['word_count_total']} words across {chapter_number} chapters. "
+            f"Just say 'write next chapter' or 'compile book' when ready."
+        ),
         "session_note": f"Session saved. Next: Chapter {chapter_number + 1}. Just say 'keep writing' — Vesper remembers everything.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMPILE MANUSCRIPT — Assemble all chapters into a publishable book
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def compile_manuscript(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Compile all written chapters into a complete, KDP-ready manuscript.
+    
+    Output includes:
+    - Complete manuscript with frontmatter, TOC, all chapters
+    - Print-ready PDF instructions
+    - KDP submission checklist
+    - Marketing copy template for book description
+    """
+    session = _load_writing_session()
+    
+    if not session or not session.get("book_title"):
+        return {"error": "No active writing project. Start with 'write_chapter' first."}
+    
+    book_title = session.get("book_title", "Untitled")
+    author_name = session.get("author_name", "C.M. Cooper")
+    genre = session.get("genre", "fiction")
+    chapters_written = session.get("chapters_written", [])
+    word_count_total = session.get("word_count_total", 0)
+    
+    if not chapters_written:
+        return {"error": "No chapters written yet. Try 'write_chapter' first."}
+    
+    # Load all chapter files in order
+    book_dir = os.path.join(
+        os.path.dirname(__file__), "..", "vesper-ai", "creations", "books",
+        "".join(c if c.isalnum() or c == "-" else "-" for c in book_title.lower())[:40],
+    )
+    
+    if not os.path.exists(book_dir):
+        return {"error": f"Book directory not found: {book_dir}"}
+    
+    # Collect chapter content in order
+    chapter_contents = []
+    chapter_toc = []
+    total_words = 0
+    
+    for ch_meta in sorted(chapters_written, key=lambda x: x.get("number", 0)):
+        ch_num = ch_meta.get("number", 0)
+        ch_title = ch_meta.get("title", f"Chapter {ch_num}")
+        ch_file = os.path.join(book_dir, f"chapter_{ch_num:03d}.md")
+        
+        chapter_toc.append(f"- Chapter {ch_num}: {ch_title}")
+        
+        if os.path.exists(ch_file):
+            try:
+                with open(ch_file, "r", encoding="utf-8") as f:
+                    full_content = f.read()
+                    # Extract just the body (remove frontmatter and publishing notes)
+                    if "---" in full_content:
+                        parts = full_content.split("---")
+                        if len(parts) >= 3:
+                            body = parts[2]  # Content between second and third ---
+                        else:
+                            body = full_content
+                    else:
+                        body = full_content
+                    
+                    # Remove publishing checklist section if present
+                    if "## Publishing Checklist" in body:
+                        body = body.split("## Publishing Checklist")[0]
+                    
+                    chapter_contents.append(body.strip())
+                    total_words += len(body.split())
+            except Exception as e:
+                print(f"[COMPILE] Error reading chapter {ch_num}: {e}")
+    
+    # Build complete manuscript with professional structure
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    word_count = sum(ch.get("words", 0) for ch in chapters_written)
+    
+    manuscript = (
+        f"---\n"
+        f"title: {book_title}\n"
+        f"author: {author_name}\n"
+        f"genre: {genre}\n"
+        f"word_count: {total_words}\n"
+        f"chapters: {len(chapters_written)}\n"
+        f"compiled_date: {timestamp}\n"
+        f"status: ready_for_kdp\n"
+        f"---\n\n"
+    )
+    
+    # Title page
+    manuscript += (
+        f"# {book_title}\n\n"
+        f"**By {author_name}**\n\n"
+        f"{genre.capitalize()} • {total_words:,} words\n\n"
+        f"---\n\n"
+    )
+    
+    # Table of Contents
+    manuscript += "## Table of Contents\n\n" + "\n".join(chapter_toc) + "\n\n---\n\n"
+    
+    # All chapter content
+    manuscript += "\n\n".join(chapter_contents)
+    
+    # Add publication metadata and instructions
+    manuscript += (
+        f"\n\n---\n\n"
+        f"## Publishing Guide\n\n"
+        f"### Ready for KDP (Amazon Kindle Direct Publishing)\n\n"
+        f"**File Format:** This manuscript is in Markdown format, compatible with:\n"
+        f"- Amazon KDP Kindle (convert with tools like Pandoc or upload .docx)\n"
+        f"- IngramSpark for print-on-demand paperback\n"
+        f"- Smashwords for multi-platform ebook distribution\n\n"
+        f"**Word Count:** {total_words:,} words ({len(chapters_written)} chapters)\n\n"
+        f"**Next Steps to Publish:**\n\n"
+        f"1. **Review & Proofread**\n"
+        f"   - Read through for grammar, consistency, flow\n"
+        f"   - Check chapter transitions and continuity\n\n"
+        f"2. **Format for KDP**\n"
+        f"   - Save as Word (.docx) file with proper formatting\n"
+        f"   - Set margins: 0.5\" on all sides\n"
+        f"   - Font: 12pt serif (Times New Roman)\n"
+        f"   - Line spacing: 1.5 or double\n\n"
+        f"3. **Create Cover**\n"
+        f"   - Use service like Canva (free) or Fiverr\n"
+        f"   - Dimensions: 6\" x 9\" for standard paperback\n"
+        f"   - Include title, author name, cover image\n"
+        f"   - See: create_art_for_sale for AI cover design\n\n"
+        f"4. **Upload to KDP**\n"
+        f"   - Go to: https://kdp.amazon.com\n"
+        f"   - Create new title, upload manuscript and cover\n"
+        f"   - Set retail price: $2.99–$9.99 (best margin)\n"
+        f"   - Enable KDP Select for exclusive distribution\n\n"
+        f"5. **Distribute to Other Platforms** (optional)\n"
+        f"   - Smashwords: reaches Apple Books, Google Play, Kobo\n"
+        f"   - Draft2Digital: automatic formatting, multiple stores\n"
+        f"   - IngramSpark: paper + hardcover + POD distribution\n\n"
+        f"**Estimated Timeline:**\n"
+        f"- Format & proofread: 1–2 days\n"
+        f"- Design cover: 3–5 days\n"
+        f"- Upload & review on KDP: 1 day\n"
+        f"- Live on Amazon: 24–48 hours after approval\n\n"
+        f"**Estimated Royalties (at $4.99 price point):**\n"
+        f"- Kindle: ~$1.75 per sale (35% royalty)\n"
+        f"- Paperback (via IngramSpark): ~$2.00 per sale\n"
+        f"- Monthly passive income potential: $100–$5,000+ depending on sales\n\n"
+    )
+    
+    # Save complete manuscript
+    manuscript_dir = os.path.dirname(book_dir)
+    os.makedirs(manuscript_dir, exist_ok=True)
+    manuscript_path = os.path.join(manuscript_dir, f"{book_title}_MANUSCRIPT.md")
+    _safe_write(manuscript_path, manuscript)
+    
+    return {
+        "success": True,
+        "book_title": book_title,
+        "author": author_name,
+        "genre": genre,
+        "total_word_count": total_words,
+        "chapter_count": len(chapters_written),
+        "manuscript_saved_to": manuscript_path,
+        "manuscript_content": manuscript,
+        "next_steps": [
+            "1. Download manuscript and proofread in Word/Google Docs",
+            "2. Create book cover (use create_art_for_sale or canva.com)",
+            "3. Upload to KDP: https://kdp.amazon.com",
+            "4. Set price $4.99–$6.99 for best royalties",
+            "5. Enable KDP Select for Amazon Kindle exclusivity"
+        ],
+        "status": "ready_for_kdp",
+        "publishing_note": f"✅ Manuscript compiled! {total_words:,} words across {len(chapters_written)} chapters. Ready to format and publish on KDP for passive income."
     }
 
 

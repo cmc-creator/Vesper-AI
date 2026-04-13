@@ -86,7 +86,7 @@ try:
         medium_publish, plan_income_stream, create_content_calendar, write_consulting_proposal,
         write_seo_article, create_course_outline, create_template_pack,
         repurpose_content, create_digital_product, create_email_sequence,
-        write_creative, write_chapter,
+        write_creative, write_chapter, compile_manuscript,
         get_writing_session, clear_writing_session,
     )
     print("[OK] tools_creative loaded")
@@ -108,6 +108,7 @@ except Exception as _tc_err:
     async def create_email_sequence(p, **kw): return {"error": "tools_creative not loaded"}
     async def write_creative(p, **kw): return {"error": "tools_creative not loaded"}
     async def write_chapter(p, **kw): return {"error": "tools_creative not loaded"}
+    async def compile_manuscript(p, **kw): return {"error": "tools_creative not loaded"}
     def get_writing_session(): return {"active": False, "error": "tools_creative not loaded"}
     def clear_writing_session(): return {"success": False, "error": "tools_creative not loaded"}
 
@@ -6413,6 +6414,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "write_chapter", "description": "Write a single chapter of an ongoing book. ALL context is loaded automatically from the writing session — just say 'keep writing' and Vesper picks up exactly where she left off. Provide direction for what should happen in this chapter if you have something specific in mind.", "input_schema": {"type": "object", "properties": {"book_title": {"type": "string", "description": "Optional — auto-loaded from session"}, "chapter_number": {"type": "number", "description": "Optional — auto-advances from session"}, "chapter_title": {"type": "string"}, "direction": {"type": "string", "description": "What should happen in this chapter (optional)"}, "genre": {"type": "string"}, "tone": {"type": "string"}, "words": {"type": "number", "description": "Target word count (default 1500)"}, "story_so_far": {"type": "string", "description": "Optional — auto-loaded from session"}, "previous_chapter_text": {"type": "string", "description": "Optional — auto-loaded from session"}, "characters": {"type": "string", "description": "Optional — auto-loaded from session"}, "world_notes": {"type": "string", "description": "Optional — auto-loaded from session"}, "author_name": {"type": "string"}}, "required": []}},
             {"name": "get_writing_session", "description": "Check what book or story Vesper is currently writing — title, current chapter number, total words written, and the story so far. Call this when CC asks 'where are we?', 'what chapter are we on?', 'how much have we written?', or 'remind me of the story so far'.", "input_schema": {"type": "object", "properties": {}, "required": []}},
             {"name": "clear_writing_session", "description": "Clear the active writing session to start a completely fresh creative project. Call this when CC wants to begin a brand-new book or creative piece and leave the current one behind.", "input_schema": {"type": "object", "properties": {}, "required": []}},
+            {"name": "compile_manuscript", "description": "Compile all written chapters into a complete, KDP-ready manuscript with table of contents, frontmatter, publishing checklist, and step-by-step KDP submission guide. Call this when CC has finished writing chapters and wants to prepare for publishing.", "input_schema": {"type": "object", "properties": {}, "required": []}},
             {"name": "create_ebook", "description": "Generate a COMPLETE publish-ready ebook — full manuscript, chapter outline, Amazon KDP metadata, cover art prompt, and publishing checklist. Vesper writes it, CC earns royalties. USE THIS when CC wants to create a book.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "topic": {"type": "string"}, "genre": {"type": "string", "description": "non-fiction | fiction | self-help | how-to | poetry"}, "target_audience": {"type": "string"}, "chapters": {"type": "number", "description": "Number of chapters (default 10)"}, "words_per_chapter": {"type": "number", "description": "Target words per chapter (default 1500)"}, "tone": {"type": "string"}, "author_name": {"type": "string"}}, "required": []}},
             {"name": "create_song", "description": "Write a COMPLETE original song — full lyrics, chord progression, BPM, production notes, Suno AI generation prompt, and DistroKid distribution plan. Vesper writes it, CC earns streaming royalties.", "input_schema": {"type": "object", "properties": {"concept": {"type": "string"}, "genre": {"type": "string", "description": "pop | country | r&b | rock | hip-hop | folk | jazz | electronic"}, "mood": {"type": "string"}, "theme": {"type": "string"}, "artist_style": {"type": "string", "description": "e.g. Taylor Swift, Beyoncé"}, "title": {"type": "string"}}, "required": []}},
             {"name": "create_art_for_sale", "description": "Generate AI art optimized for selling on Redbubble, Society6, Merch by Amazon, Etsy. Returns image prompt, product descriptions, SEO tags, and pricing strategy.", "input_schema": {"type": "object", "properties": {"concept": {"type": "string"}, "style": {"type": "string"}, "product": {"type": "string", "description": "t-shirt | poster | phone_case | sticker | all"}, "niche": {"type": "string"}, "generate_image": {"type": "boolean"}}, "required": []}},
@@ -8030,6 +8032,19 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
 
                 elif tool_name == "clear_writing_session":
                     tool_result = clear_writing_session()
+
+                elif tool_name == "compile_manuscript":
+                    tool_result = await compile_manuscript(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"):
+                        _push_creation_to_suite("manuscript", tool_result)
+                        _drive_file = await _save_creative_as_doc(
+                            f"{tool_result.get('book_title','Book')} — Complete Manuscript",
+                            tool_result.get("manuscript_content", ""),
+                            "manuscript",
+                        )
+                        if _drive_file and not _drive_file.get("error"):
+                            tool_result["drive_link"] = _drive_file.get("webViewLink", "")
+                            tool_result["drive_doc_id"] = _drive_file.get("documentId", _drive_file.get("id", ""))
 
                 elif tool_name == "create_ebook":
                     tool_result = await create_ebook(tool_input, ai_router=ai_router, TaskType=TaskType)
