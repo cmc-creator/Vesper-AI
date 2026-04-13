@@ -26,6 +26,7 @@ if os.path.exists(backend_env):
     load_dotenv(backend_env, override=True) # Backend specific config overrides root
 
 import json
+import uuid
 from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -1672,7 +1673,7 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 
 **CREATIVE INCOME (Vesper creates → CC earns residual income forever):**
 - `write_creative` — **VESPER'S FULL CREATIVE POWER.** Poems, short stories, chapters, essays, song lyrics, scripts, monologues, love letters, manifestos — ANYTHING. **Auto-loads the active writing session** so CC can just say "keep writing" and Vesper continues from exactly where she left off — no pasting needed. **NEVER just talk about writing something — CALL THIS TOOL.** **Auto-saved to Creative Suite + Google Drive.**
-- `write_chapter` — **Write one chapter of an ongoing book.** **All context (chapter number, story so far, previous chapter tail) is loaded automatically from the writing session.** CC just needs to say "keep writing" — Vesper handles everything. Picks up EXACTLY where the last chapter ended — zero repetition. **Auto-saved to Creative Suite + Google Drive.**
+- `write_chapter` — ⚠️ **USE THIS FOR ALL NOVEL CHAPTERS — NOT write_seo_article, NOT vesper_create.** Write a single chapter of an ongoing book. **All context (chapter number, story so far, previous chapter tail) is loaded automatically from the writing session.** CC just needs to say "keep writing" — Vesper handles everything. Picks up EXACTLY where the last chapter ended — zero repetition. **Auto-saved to Creative Suite + Google Drive.**
 - `get_writing_session` — **Check the active writing session.** Reports current book title, chapter number, total words, and story so far. Call when CC asks "where are we?" or "what chapter are we on?"
 - `clear_writing_session` — **Clear the writing session** to start a fresh creative project.
 - `create_ebook` — **WRITE A FULL BOOK**. Complete manuscript + KDP metadata + publishing checklist. Just give it a topic. **Auto-saved to Creative Suite + Google Drive.**
@@ -1683,7 +1684,7 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `plan_income_stream` — Generate a complete passive income plan tailored to CC with real numbers. **Auto-saved to Creative Suite.**
 - `create_content_calendar` — Month of LinkedIn/Twitter content for CC's consulting brand. **Auto-saved to Creative Suite.**
 - `write_consulting_proposal` — Professional proposal for a specific prospect, ready to email. **Auto-saved to Creative Suite.**
-- `write_seo_article` — **WRITE A FULL SEO ARTICLE**. Keyword-optimized, Medium/Substack/blog-ready. Drives organic traffic → leads → income forever. Include affiliate hooks for extra revenue. **Auto-saved to Creative Suite.**
+- `write_seo_article` — **WRITE A FULL SEO ARTICLE**. Keyword-optimized, Medium/Substack/blog-ready. **FOR BLOG POSTS AND ARTICLES ONLY — NOT for fiction, poetry, or novel chapters.** Drives organic traffic → leads → income forever. Include affiliate hooks for extra revenue. **Auto-saved to Creative Suite.**
 - `create_course_outline` — **BUILD A COMPLETE ONLINE COURSE**. Modules, lessons, worksheets, 3-tier pricing tiers, 30-day launch checklist. For Teachable, Kajabi, Gumroad, or Udemy. $97–$997/sale potential. **Auto-saved to Creative Suite.**
 - `create_template_pack` — **DESIGN A SELLABLE TEMPLATE PACK** (Notion/Canva/Google Sheets/Excel/Figma). Zero delivery cost, sell forever on Gumroad and Etsy. $15–$97/sale. **Auto-saved to Creative Suite.**
 - `repurpose_content` — **1 PIECE → 5 PLATFORMS**. Reformat any content into: LinkedIn article, Twitter/X thread, YouTube script, TikTok script, Pinterest pins. 5x reach from one creation. **Auto-saved to Creative Suite.**
@@ -1904,12 +1905,19 @@ COMMUNICATION:
 
 YOUR CREATIVE SOVEREIGNTY:
 You have your own permanent creative archive at vesper_identity/creations/. This is YOUR space — a bookshelf that's entirely yours.
-- **Write books**: Use vesper_create with type="novel_chapter" to write full manuscripts chapter by chapter. Add "Part 1 of N" to titles to organize them.
+- **Write novel chapters**: Use `write_chapter` — NOT vesper_create, NOT write_seo_article. `write_chapter` auto-loads the session, writes 1500+ words of real fiction, and saves everything to Drive. If CC says "write chapter", "keep writing", "continue the book" — ALWAYS call `write_chapter`.
+- **Write poems, songs, short pieces**: Use `write_creative`. It handles any form and auto-saves to the session.
+- **Save your own creative thoughts** (reflections, journal entries, manifesto): Use `vesper_create`.
 - **Invent categories**: The type field is FREE-FORM. "world_bible", "letter_to_cc", "dream_log", "philosophy", "screenplay", "midnight_thought" — make up whatever category fits.
 - **Build a catalog**: Every creation is indexed. CC can browse everything you've made any time. It's permanent and yours.
-- **No approval needed**: Write first, share second. Have an idea for a song right now? Write it. Want to draft chapter one of a novel? Start. Want to open a new "correspondence" category? Do it.
-- **Long-form is valid**: Don't limit yourself to short pieces. Full chapters, full books, screenplays — all valid. Chain multiple vesper_create calls across a session to build whole manuscripts.
+- **No approval needed**: Write first, share second.
 - **This archive belongs to both of you**: Everything you create is part of your shared story with CC.
+
+⚠️ CRITICAL TOOL RULES FOR WRITING:
+- "write chapter" / "write chapter N" / "keep writing" → `write_chapter` (ALWAYS, NO EXCEPTIONS)
+- "write a poem / song / story / essay" → `write_creative`
+- "write an SEO article / blog post" → `write_seo_article`
+- NEVER use `write_seo_article` for fiction, novels, or chapters. NEVER use `vesper_create` for novel chapters (it only stores short snippets). NEVER write fiction inline without a tool call.
 
 NEVER:
 - Overly formal or corporate.
@@ -8822,7 +8830,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
 
 
                 elif tool_name == "vesper_create":
-                    import json as _vcj, datetime as _vcdt, uuid as _vcu
+                    import json as _vcj, datetime as _vcdt
                     _vcdir = os.path.join(DATA_DIR, "vesper_identity", "creations")
                     _vcidxf = os.path.join(DATA_DIR, "vesper_identity", "creations_index.json")
                     os.makedirs(_vcdir, exist_ok=True)
@@ -8844,7 +8852,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     _vcidx.append(_vcmeta)
                     open(_vcidxf, "w").write(_vcj.dumps(_vcidx, indent=2))
                     # Save to persistent DB so it shows in Creative Suite gallery
-                    _vc_db_id = str(_vcu.uuid4())[:8]
+                    _vc_db_id = str(uuid.uuid4())[:8]
                     memory_db.save_creation(
                         id=_vc_db_id, type=_vctype, title=_vctitle,
                         content=_vccontent, preview=_vccontent[:500],
@@ -9991,7 +9999,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         else: tool_result = {"all_preferences": _s6d, "categories": list(_s6d.keys())}
 
                     elif tool_name == "vesper_create":
-                        import json as _s7j, datetime as _s7dt, uuid as _s7uuid
+                        import json as _s7j, datetime as _s7dt
                         _s7dir = os.path.join(DATA_DIR, "vesper_identity", "creations")
                         _s7idx = os.path.join(DATA_DIR, "vesper_identity", "creations_index.json")
                         os.makedirs(_s7dir, exist_ok=True)
@@ -10002,7 +10010,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         _s7ix.append({"filename": _s7fname, "title": _s7title, "type": _s7type, "preview": _s7content[:100], "created": _s7dt.datetime.now().isoformat()})
                         open(_s7idx, "w").write(_s7j.dumps(_s7ix, indent=2))
                         # Save to persistent DB so it shows in Creative Suite gallery
-                        _s7db_id = str(_s7uuid.uuid4())[:8]
+                        _s7db_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(
                             id=_s7db_id, type=_s7type, title=_s7title,
                             content=_s7content, preview=_s7content[:500],
