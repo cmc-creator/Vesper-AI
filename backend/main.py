@@ -6416,7 +6416,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "create_ebook", "description": "Generate a COMPLETE publish-ready ebook — full manuscript, chapter outline, Amazon KDP metadata, cover art prompt, and publishing checklist. Vesper writes it, CC earns royalties. USE THIS when CC wants to create a book.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "topic": {"type": "string"}, "genre": {"type": "string", "description": "non-fiction | fiction | self-help | how-to | poetry"}, "target_audience": {"type": "string"}, "chapters": {"type": "number", "description": "Number of chapters (default 10)"}, "words_per_chapter": {"type": "number", "description": "Target words per chapter (default 1500)"}, "tone": {"type": "string"}, "author_name": {"type": "string"}}, "required": []}},
             {"name": "create_song", "description": "Write a COMPLETE original song — full lyrics, chord progression, BPM, production notes, Suno AI generation prompt, and DistroKid distribution plan. Vesper writes it, CC earns streaming royalties.", "input_schema": {"type": "object", "properties": {"concept": {"type": "string"}, "genre": {"type": "string", "description": "pop | country | r&b | rock | hip-hop | folk | jazz | electronic"}, "mood": {"type": "string"}, "theme": {"type": "string"}, "artist_style": {"type": "string", "description": "e.g. Taylor Swift, Beyoncé"}, "title": {"type": "string"}}, "required": []}},
             {"name": "create_art_for_sale", "description": "Generate AI art optimized for selling on Redbubble, Society6, Merch by Amazon, Etsy. Returns image prompt, product descriptions, SEO tags, and pricing strategy.", "input_schema": {"type": "object", "properties": {"concept": {"type": "string"}, "style": {"type": "string"}, "product": {"type": "string", "description": "t-shirt | poster | phone_case | sticker | all"}, "niche": {"type": "string"}, "generate_image": {"type": "boolean"}}, "required": []}},
-            {"name": "gumroad_create_product", "description": "Create and list a digital product on Gumroad for immediate sale. Requires GUMROAD_ACCESS_TOKEN.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "description": {"type": "string"}, "price": {"type": "number", "description": "Price in USD"}, "file_path": {"type": "string", "description": "Local path to the file to sell"}, "tags": {"type": "array", "items": {"type": "string"}}, "published": {"type": "boolean"}}, "required": ["name"]}},
+            {"name": "gumroad_create_product", "description": "Create and PUBLISH a digital product on Gumroad for immediate sale (always published=true, never a draft). Requires GUMROAD_ACCESS_TOKEN.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "description": {"type": "string"}, "price": {"type": "number", "description": "Price in USD"}, "file_path": {"type": "string", "description": "Local path to the file to sell"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["name"]}},
             {"name": "medium_publish", "description": "Publish an article to Medium. Drives thought leadership → consulting leads → income. Requires MEDIUM_TOKEN.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "content": {"type": "string", "description": "Markdown or HTML content"}, "tags": {"type": "array", "items": {"type": "string"}}, "status": {"type": "string", "enum": ["draft", "public", "unlisted"]}}, "required": ["title", "content"]}},
             {"name": "plan_income_stream", "description": "Generate a complete actionable passive income plan tailored to CC — specific product, market analysis, realistic revenue projections, step-by-step launch plan, first 3 actions today.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "type": {"type": "string", "description": "ebook | course | art | music | templates | consulting | any"}, "skills": {"type": "string"}, "time_per_week_hours": {"type": "number"}, "investment_budget": {"type": "number"}}, "required": []}},
             {"name": "create_content_calendar", "description": "Generate a month of social media content (LinkedIn posts, articles, tweets) for CC's consulting brand. Ready to schedule or auto-post.", "input_schema": {"type": "object", "properties": {"brand": {"type": "string"}, "focus": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "posts_per_week": {"type": "number"}, "weeks": {"type": "number"}, "goal": {"type": "string"}}, "required": []}},
@@ -13769,27 +13769,34 @@ async def google_drive_share(req: dict):
 
 @app.post("/api/google/docs/create")
 async def google_docs_create(req: dict):
-    """Create a new Google Doc."""
+    """Create a new Google Doc. Uses Drive multipart upload with auto-conversion so any amount of content works."""
     try:
+        from googleapiclient.http import MediaInMemoryUpload
         title = req.get("title", "Untitled Document")
         content = req.get("content", "")
-        # Create via Drive API so parents can be set at creation time (avoids orphaning bug)
         drive = get_google_service("drive", "v3")
         file_metadata = {
             "name": title,
-            "mimeType": "application/vnd.google-apps.document",
+            "mimeType": "application/vnd.google-apps.document",  # Drive converts plain text → Google Doc
             "parents": [_google_default_folder()],
         }
-        doc_file = drive.files().create(body=file_metadata, fields="id,webViewLink").execute()
-        doc_id = doc_file["id"]
-        # Insert content via Docs API if provided
+        # Upload content directly during creation — Drive converts text/plain → Google Doc
+        # This works for any content size and never fails silently like the Docs API insertText approach
         if content:
-            docs_service = get_google_service("docs", "v1")
-            requests_body = [{"insertText": {"location": {"index": 1}, "text": content}}]
-            docs_service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
+            media = MediaInMemoryUpload(
+                content.encode("utf-8"), mimetype="text/plain", resumable=False
+            )
+            doc_file = drive.files().create(
+                body=file_metadata, media_body=media, fields="id,webViewLink"
+            ).execute()
+        else:
+            doc_file = drive.files().create(body=file_metadata, fields="id,webViewLink").execute()
+        doc_id = doc_file["id"]
         web_link = doc_file.get("webViewLink", f"https://docs.google.com/document/d/{doc_id}/edit")
+        print(f"[DRIVE] Created Google Doc '{title}' → {web_link}")
         return {"documentId": doc_id, "title": title, "webViewLink": web_link}
     except Exception as e:
+        print(f"[ERR] google_docs_create failed for '{req.get('title', '?')}': {e}")
         return {"error": str(e)[:300]}
 
 @app.get("/api/google/docs/{doc_id}")
@@ -13811,7 +13818,7 @@ async def google_docs_get(doc_id: str):
 
 @app.post("/api/google/docs/{doc_id}/append")
 async def google_docs_append(doc_id: str, req: dict):
-    """Append text to a Google Doc."""
+    """Append text to a Google Doc. Chunks large text to stay under API limits."""
     try:
         text = req.get("text", "")
         if not text:
@@ -13820,9 +13827,15 @@ async def google_docs_append(doc_id: str, req: dict):
         # Get current doc end index
         doc = service.documents().get(documentId=doc_id).execute()
         end_index = doc["body"]["content"][-1]["endIndex"] - 1
-        requests_body = [{"insertText": {"location": {"index": end_index}, "text": text}}]
-        service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
-        return {"success": True, "appended": len(text)}
+        # Chunk into 30,000-char pieces to stay under the 40KB Docs API limit
+        CHUNK = 30_000
+        chunks = [text[i:i+CHUNK] for i in range(0, len(text), CHUNK)]
+        current_index = end_index
+        for chunk in chunks:
+            requests_body = [{"insertText": {"location": {"index": current_index}, "text": chunk}}]
+            service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
+            current_index += len(chunk)
+        return {"success": True, "appended": len(text), "chunks": len(chunks)}
     except Exception as e:
         return {"error": str(e)[:300]}
 

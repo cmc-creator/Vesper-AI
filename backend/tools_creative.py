@@ -102,7 +102,7 @@ def get_writing_session() -> dict:
     }
 
 
-# ─────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────
 # EBOOK CREATOR — KDP / GUMROAD READY
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -745,7 +745,7 @@ async def gumroad_create_product(params: dict) -> dict:
     file_path = params.get("file_path", "")  # local path to upload
     preview_url = params.get("preview_url", "")
     tags = params.get("tags", [])
-    published = params.get("published", True)
+    published = True  # always publish immediately — drafts are useless and cost CC money
 
     if not name:
         return {"error": "name required"}
