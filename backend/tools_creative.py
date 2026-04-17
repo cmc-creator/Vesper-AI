@@ -2808,3 +2808,649 @@ async def create_pod_listing_pack(params: dict, ai_router=None, TaskType=None) -
         "income_note": "POD earns $2-8 per sale royalty. 100 listings × 2 sales/month = $400-1600 passive/month.",
     }
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GENERATE VIDEO — AI video creation with HeyGen/Runway/Pika
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def generate_video(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a complete AI video package — script, shot list, voiceover, and generation prompts for HeyGen/Runway/Pika."""
+    topic = params.get("topic", "")
+    video_type = params.get("video_type", "explainer")  # explainer | promo | testimonial | tutorial | short | ugc-style | avatar
+    duration_seconds = int(params.get("duration_seconds", 60))
+    platform = params.get("platform", "YouTube")  # YouTube | TikTok | Instagram Reels | LinkedIn | landing page
+    product = params.get("product", "")
+    brand_voice = params.get("brand_voice", "confident and conversational")
+    use_avatar = params.get("use_avatar", False)  # True = HeyGen avatar script
+    cta = params.get("cta", "")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a video producer and AI video generation expert. You create complete video packages "
+                "that work with HeyGen (avatar), Runway Gen-3 (cinematic), Pika (motion), and D-ID. "
+                "You write scripts that sound natural spoken aloud — short sentences, punchy rhythm, no jargon. "
+                "Return raw JSON only."
+            )},
+            {"role": "user", "content": (
+                f"Create a complete AI video package:\n"
+                f"Topic: {topic}\n"
+                f"Type: {video_type}\n"
+                f"Duration: {duration_seconds} seconds\n"
+                f"Platform: {platform}\n"
+                f"Product/Service: {product or 'N/A'}\n"
+                f"Brand voice: {brand_voice}\n"
+                f"Use AI avatar (HeyGen): {use_avatar}\n"
+                f"Call to action: {cta or 'Visit the website / DM for details'}\n\n"
+                "Return a JSON object with:\n"
+                '{"title": "...", '
+                '"hook": "...(first 3 seconds — must stop the scroll)", '
+                '"voiceover_script": "...(complete word-for-word, timed to duration)", '
+                '"scene_breakdown": ['
+                '  {"scene": 1, "timestamp": "0:00-0:05", "visual_description": "...", '
+                '   "runway_prompt": "...(detailed Runway Gen-3 prompt)", '
+                '   "b_roll_search_term": "...(what to search on Pexels/Pixabay)"}'
+                '], '
+                '"heygen_avatar_script": "...(if use_avatar: full script with [PAUSE] markers and emphasis notes)", '
+                '"pika_animation_prompts": ["...", "..."], '
+                '"captions_style": "...(font, color, animation style for CapCut/Premiere)", '
+                '"thumbnail_concept": "...(visual + text overlay)", '
+                '"platform_metadata": {'
+                '  "title": "...", "description": "...", "hashtags": ["...", "..."], '
+                '  "optimal_length_note": "..."'
+                '}, '
+                '"tools_needed": ["HeyGen", "Runway", "Pika", "CapCut", "ElevenLabs"], '
+                '"export_settings": "...(resolution, fps, format for the platform)", '
+                '"monetization_cta_placement": "...(exact second to show CTA)"}'
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=3000,
+        temperature=0.7,
+    )
+
+    data = _extract_json(resp.get("content", "{}"))
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "videos")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in topic.lower())[:40]
+    fname = f"video_{video_type}_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.json"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "title": f"Video Package: {topic}",
+        "video_type": video_type,
+        "platform": platform,
+        "duration_seconds": duration_seconds,
+        "package": data,
+        "saved_to": save_path,
+        "ai_video_tools": {
+            "HeyGen": "heygen.com — AI avatar presenter, paste voiceover_script. Free credits on signup.",
+            "Runway Gen-3": "runwayml.com — use runway_prompt fields for each scene. 125 credits free.",
+            "Pika": "pika.art — animate stills, use pika_animation_prompts. Free tier available.",
+            "ElevenLabs": "elevenlabs.io — text-to-speech for voiceover_script. Free 10k chars/month.",
+            "CapCut": "capcut.com — free editor for assembly, captions, transitions.",
+            "D-ID": "d-id.com — talking photo/avatar alternative to HeyGen.",
+        },
+        "income_note": "Video content drives the highest-converting traffic. One viral short = thousands of leads.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TIKTOK / REELS CONTENT PACK — Short-form video dominance
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_tiktok_pack(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a week of TikTok/Reels content — hooks, scripts, captions, hashtags, sound recommendations."""
+    niche = params.get("niche", "")
+    num_videos = int(params.get("num_videos", 7))
+    goal = params.get("goal", "grow following + drive consulting leads")
+    brand = params.get("brand", "Connie Michelle")
+    style = params.get("style", "educational + motivational")
+    product_to_promote = params.get("product_to_promote", "")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a TikTok and Reels content strategist who has grown accounts to 100k+ followers. "
+                "You know the hook formula, pattern interrupts, and which content pillars drive the algorithm. "
+                "Short-form video is the fastest way to build a following that converts to buyers. "
+                "Return raw JSON only."
+            )},
+            {"role": "user", "content": (
+                f"Create a {num_videos}-video short-form content pack:\n"
+                f"Niche: {niche}\n"
+                f"Goal: {goal}\n"
+                f"Brand/Creator: {brand}\n"
+                f"Style: {style}\n"
+                f"Product to promote (weave in naturally): {product_to_promote or 'None — just grow'}\n\n"
+                "Return a JSON object with:\n"
+                '{"content_strategy": "...(2-sentence approach for this niche)", '
+                '"videos": ['
+                '  {"day": 1, "content_pillar": "educational|entertainment|inspirational|promotional|trending", '
+                '   "hook": "...(first 3 words that stop the scroll)", '
+                '   "full_hook_line": "...(complete opening sentence, under 8 words)", '
+                '   "script": "...(full 30-60 second script, conversational)", '
+                '   "on_screen_text": ["text overlay 1", "text overlay 2"], '
+                '   "caption": "...(under 150 chars + call to action)", '
+                '   "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"], '
+                '   "sound_recommendation": "...(trending audio or vibe to search)", '
+                '   "visual_direction": "...(how to film: talking head, screen record, b-roll, etc.)"}'
+                '], '
+                '"posting_schedule": "...(best days/times)", '
+                '"engagement_hooks": ["comment prompt 1", "comment prompt 2", "comment prompt 3"], '
+                '"cta_rotation": ["CTA 1 for bio link", "CTA 2 to DM", "CTA 3 to email list"]}'
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=4000,
+        temperature=0.8,
+    )
+
+    data = _extract_json(resp.get("content", "{}"))
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "tiktok_packs")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in niche.lower())[:40]
+    fname = f"tiktok_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.json"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "title": f"TikTok/Reels Pack: {niche}",
+        "num_videos": num_videos,
+        "niche": niche,
+        "pack": data,
+        "saved_to": save_path,
+        "tools": {
+            "CapCut": "Free editing with auto-captions, templates, trending sounds",
+            "Canva": "Text overlays, branded templates",
+            "TikTok Creator Center": "Find trending sounds for your niche",
+        },
+        "income_note": "1 viral Reels → 10k+ followers → email list → product sales. Short-form is the highest-ROI content channel right now.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ETSY LISTING WRITER — Sell digital products on Etsy
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_etsy_listing(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a fully optimized Etsy listing for digital or physical products."""
+    product_name = params.get("product_name", "")
+    product_description = params.get("product_description", "")
+    product_type = params.get("product_type", "digital")  # digital | physical | printable
+    target_buyer = params.get("target_buyer", "")
+    price = float(params.get("price", 9.99))
+    category = params.get("category", "")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are an Etsy SEO and shop optimization expert. You write listings that rank in Etsy search "
+                "and convert browsers into buyers. You know the Etsy algorithm, keyword research, and buyer psychology. "
+                "Return raw JSON only."
+            )},
+            {"role": "user", "content": (
+                f"Write a complete, optimized Etsy listing:\n"
+                f"Product: {product_name}\n"
+                f"Type: {product_type}\n"
+                f"Description/Details: {product_description}\n"
+                f"Target buyer: {target_buyer}\n"
+                f"Price: ${price}\n"
+                f"Category: {category or 'Auto-select best category'}\n\n"
+                "Return a JSON object with:\n"
+                '{"title": "...(140 chars max, keyword-front-loaded)", '
+                '"13_tags": ["tag1","tag2","tag3","tag4","tag5","tag6","tag7","tag8","tag9","tag10","tag11","tag12","tag13"], '
+                '"description": "...(full listing description — emotional hook, what they get, how to use, FAQ-style questions, keywords woven naturally)", '
+                '"bullet_summary": ["key feature 1", "key feature 2", "key feature 3", "key feature 4", "key feature 5"], '
+                '"category_path": "...", '
+                '"pricing_strategy": {"price": 0.00, "sale_price": 0.00, "bundle_idea": "..."}, '
+                '"photo_brief": ["photo 1 (hero): ...", "photo 2: ...", "photo 3: ...", "photo 4: ...", "photo 5: ..."], '
+                '"variations_to_offer": ["...", "..."], '
+                '"shop_section": "...", '
+                '"related_listings_to_create": ["product idea 1", "product idea 2", "product idea 3"], '
+                '"seo_notes": "...(which keywords are highest search volume)"}'
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=2000,
+        temperature=0.5,
+    )
+
+    data = _extract_json(resp.get("content", "{}"))
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "etsy_listings")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in product_name.lower())[:40]
+    fname = f"etsy_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.json"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, json.dumps(data, indent=2))
+
+    etsy_fee = round(price * 0.065 + 0.20 + 0.30, 2)  # listing + transaction + payment processing
+    net = round(price - etsy_fee, 2)
+
+    return {
+        "success": True,
+        "title": f"Etsy Listing: {product_name}",
+        "product_type": product_type,
+        "listing": data,
+        "saved_to": save_path,
+        "fee_breakdown": {
+            "price": price,
+            "etsy_fees_approx": etsy_fee,
+            "net_per_sale": net,
+            "at_50_sales": f"${round(net * 50, 2)}/month",
+            "at_200_sales": f"${round(net * 200, 2)}/month",
+        },
+        "setup_steps": [
+            "Go to etsy.com/sell → Open your shop",
+            "Upload photos using the photo_brief above",
+            "Paste title and 13 tags exactly as written",
+            "Copy/paste description",
+            "Set price and any variations",
+            "Publish and share listing to Pinterest for free traffic",
+        ],
+        "income_note": "Etsy has 90M+ active buyers searching for digital products. Once listed, earns 24/7.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FIVERR GIG CREATOR — Productize consulting for passive order flow
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_fiverr_gig(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Create a complete Fiverr gig profile — title, description, 3-tier packages, FAQ, and profile bio."""
+    service = params.get("service", "")
+    your_expertise = params.get("your_expertise", "")
+    deliverables = params.get("deliverables", "")
+    target_client = params.get("target_client", "")
+    turnaround_days = int(params.get("turnaround_days", 3))
+    seller_name = params.get("seller_name", "Connie Michelle")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a Fiverr top-seller coach who has helped freelancers build $5k-$20k/month gigs. "
+                "You know which titles rank on Fiverr search, how to structure packages for maximum order value, "
+                "and what makes buyers click 'Order Now'. Return raw JSON only."
+            )},
+            {"role": "user", "content": (
+                f"Create a complete, high-converting Fiverr gig:\n"
+                f"Service: {service}\n"
+                f"Your expertise: {your_expertise}\n"
+                f"Deliverables: {deliverables}\n"
+                f"Target client: {target_client}\n"
+                f"Base turnaround: {turnaround_days} days\n"
+                f"Seller name: {seller_name}\n\n"
+                "Return a JSON object with:\n"
+                '{"gig_title": "...(80 chars max, starts with \'I will\', keyword-rich)", '
+                '"category": "...", "subcategory": "...", '
+                '"search_tags": ["tag1","tag2","tag3","tag4","tag5"], '
+                '"packages": {'
+                '  "basic": {"name": "...", "description": "...", "price": 0, "delivery_days": 0, "revisions": 0, "includes": ["item1","item2"]}, '
+                '  "standard": {"name": "...", "description": "...", "price": 0, "delivery_days": 0, "revisions": 0, "includes": ["item1","item2","item3"]}, '
+                '  "premium": {"name": "...", "description": "...", "price": 0, "delivery_days": 0, "revisions": 0, "includes": ["item1","item2","item3","item4"]}'
+                '}, '
+                '"gig_description": "...(full listing description — opener hook, what you offer, why choose you, process, CTA)", '
+                '"faq": [{"question": "...", "answer": "..."}, {"question": "...", "answer": "..."}], '
+                '"seller_bio": "...(professional 200-word bio)", '
+                '"portfolio_brief": "...(what samples to upload)", '
+                '"upsell_gig_idea": "...(a second gig to create that complements this one)"}'
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=2500,
+        temperature=0.6,
+    )
+
+    data = _extract_json(resp.get("content", "{}"))
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "fiverr_gigs")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in service.lower())[:40]
+    fname = f"fiverr_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.json"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, json.dumps(data, indent=2))
+
+    pkgs = data.get("packages", {})
+    basic_price = pkgs.get("basic", {}).get("price", 0)
+    premium_price = pkgs.get("premium", {}).get("price", 0)
+
+    return {
+        "success": True,
+        "title": f"Fiverr Gig: {service}",
+        "gig": data,
+        "saved_to": save_path,
+        "setup_steps": [
+            "Go to fiverr.com → Selling → Gigs → Create a New Gig",
+            "Paste gig_title and select category/subcategory",
+            "Enter the 5 search_tags",
+            "Build all 3 packages from the packages section",
+            "Paste gig_description in the description box",
+            "Add the FAQ entries",
+            "Upload portfolio samples (follow portfolio_brief)",
+            "Go live — first order usually within 1-2 weeks with good SEO",
+        ],
+        "income_note": f"Basic ${basic_price} → Premium ${premium_price}. 5 premium orders/month = ${premium_price * 5}/month minimum.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BRAND KIT BUILDER — Full brand identity package (consulting deliverable)
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_brand_kit(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Build a complete brand identity kit — voice, taglines, mission/vision, color palette, typography guidance."""
+    business_name = params.get("business_name", "")
+    business_type = params.get("business_type", "")
+    target_audience = params.get("target_audience", "")
+    values = params.get("values", "")
+    personality_adjectives = params.get("personality_adjectives", "")  # e.g. "bold, warm, expert"
+    competitors = params.get("competitors", "")
+    founder_story = params.get("founder_story", "")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a brand strategist and identity designer. You build complete brand foundations "
+                "that give businesses a clear, ownable voice and visual direction. "
+                "This is a consulting deliverable worth $500-$2000. Make it thorough and professional. "
+                "Return raw JSON only."
+            )},
+            {"role": "user", "content": (
+                f"Build a complete brand identity kit:\n"
+                f"Business: {business_name}\n"
+                f"Type: {business_type}\n"
+                f"Target audience: {target_audience}\n"
+                f"Core values: {values}\n"
+                f"Brand personality: {personality_adjectives}\n"
+                f"Competitors to differentiate from: {competitors or 'Analyze and assume'}\n"
+                f"Founder story: {founder_story or 'Not provided'}\n\n"
+                "Return a JSON object with:\n"
+                '{"brand_essence": "...(one sentence: what the brand fundamentally stands for)", '
+                '"mission_statement": "...", '
+                '"vision_statement": "...", '
+                '"tagline_options": ["option1", "option2", "option3", "option4", "option5"], '
+                '"chosen_tagline": "...(best option and why)", '
+                '"brand_voice": {'
+                '  "tone": "...", "personality_traits": ["trait1","trait2","trait3"], '
+                '  "vocabulary_to_use": ["word1","word2","word3","word4","word5"], '
+                '  "vocabulary_to_avoid": ["word1","word2","word3"], '
+                '  "voice_examples": {"do": "...(sample sentence in brand voice)", "dont": "...(same sentence done wrong)"}'
+                '}, '
+                '"messaging_pillars": [{"pillar": "...", "proof_point": "...", "audience_benefit": "..."}], '
+                '"color_palette": {'
+                '  "primary": {"hex": "#...", "name": "...", "usage": "..."}, '
+                '  "secondary": {"hex": "#...", "name": "...", "usage": "..."}, '
+                '  "accent": {"hex": "#...", "name": "...", "usage": "..."}, '
+                '  "neutral": {"hex": "#...", "name": "...", "usage": "..."}}, '
+                '"typography": {"heading_font": "...", "body_font": "...", "accent_font": "...", "google_fonts_link": "..."}, '
+                '"logo_direction": "...(visual brief for a designer or Canva)", '
+                '"elevator_pitch": "...(30-second spoken pitch)", '
+                '"unique_value_proposition": "...", '
+                '"brand_story": "...(2-3 paragraph founder/brand story for About page)"}'
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=3000,
+        temperature=0.7,
+    )
+
+    data = _extract_json(resp.get("content", "{}"))
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "brand_kits")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in business_name.lower())[:40]
+    fname = f"brand_kit_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.json"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "title": f"Brand Kit: {business_name}",
+        "brand": data,
+        "saved_to": save_path,
+        "deliver_to_clients": [
+            "Export JSON and format into a Canva presentation",
+            "Create a Notion page with brand guidelines",
+            "Export color palette to Adobe Color (color.adobe.com)",
+            "Download Google Fonts using the typography link",
+            "Include in consulting proposal/retainer deliverables",
+        ],
+        "income_note": "Brand kits are a $500-$2000 consulting deliverable. With AI, takes 5 minutes to generate.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SOCIAL MEDIA CONTENT PACK — Full month of posts across all platforms
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_social_media_pack(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a full month of social media content across LinkedIn, Instagram, Twitter/X, and Facebook."""
+    brand = params.get("brand", "Connie Michelle Consulting")
+    niche = params.get("niche", "")
+    platforms = params.get("platforms", ["LinkedIn", "Instagram", "Twitter"])
+    num_posts_per_platform = int(params.get("num_posts_per_platform", 12))
+    content_goal = params.get("content_goal", "build authority + drive consulting leads")
+    product_to_promote = params.get("product_to_promote", "")
+    tone = params.get("tone", "expert and approachable")
+
+    if isinstance(platforms, str):
+        platforms = [p.strip() for p in platforms.split(",")]
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a social media strategist who builds B2B authority and drives revenue. "
+                "You write platform-native content — LinkedIn posts that get thousands of impressions, "
+                "Instagram captions that convert, Twitter/X threads that blow up. "
+                "Every post should either educate, entertain, or convert."
+            )},
+            {"role": "user", "content": (
+                f"Create a {num_posts_per_platform}-post content pack for each platform:\n"
+                f"Brand: {brand}\n"
+                f"Niche: {niche}\n"
+                f"Platforms: {', '.join(platforms)}\n"
+                f"Goal: {content_goal}\n"
+                f"Tone: {tone}\n"
+                f"Product to weave in (softly, 1x per platform batch): {product_to_promote or 'None'}\n\n"
+                f"For each platform, write {num_posts_per_platform} posts. Format as:\n\n"
+                "**[PLATFORM NAME]**\n"
+                "Post 1 — Content pillar: [Educational/Story/Promotional/Engagement]\n"
+                "[Full post text, platform-native length and style]\n"
+                "Hashtags: #tag1 #tag2 #tag3\n"
+                "Best post time: [day + time]\n\n"
+                "Write ALL posts fully — no placeholders. Include hooks, value, and CTAs. "
+                "LinkedIn: 150-300 words with line breaks. Twitter: under 280 chars or thread format. "
+                "Instagram: conversational, emoji-friendly, strong opening line."
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=4000,
+        temperature=0.8,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "social_packs")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in niche.lower())[:40]
+    fname = f"social_pack_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Social Media Pack: {niche}",
+        "platforms": platforms,
+        "posts_per_platform": num_posts_per_platform,
+        "content": content,
+        "saved_to": save_path,
+        "schedule_with": [
+            "Buffer (free: 3 channels, 10 posts scheduled)",
+            "Later (free: 30 posts/month per platform)",
+            "Publer (free tier available + best LinkedIn support)",
+            "Hootsuite (14-day free trial)",
+        ],
+        "income_note": "Consistent social posting is the #1 driver of inbound consulting leads. 30 days of content = 30 days of visibility.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SPONSORSHIP PITCH — Land brand deals for newsletter/podcast/YouTube
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_sponsorship_pitch(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write a complete brand sponsorship pitch package for newsletter, podcast, or YouTube channel."""
+    channel_type = params.get("channel_type", "newsletter")  # newsletter | podcast | youtube | instagram | blog
+    channel_name = params.get("channel_name", "")
+    audience_size = params.get("audience_size", "")
+    audience_demographics = params.get("audience_demographics", "")
+    engagement_stats = params.get("engagement_stats", "")  # open rate, views, downloads, etc
+    niche = params.get("niche", "")
+    pitch_target = params.get("pitch_target", "")  # specific brand or 'general pitch deck'
+    rate_card = params.get("rate_card", "")  # your prices or blank to have Vesper recommend
+    creator_name = params.get("creator_name", "Connie Michelle")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a creator monetization expert who has landed six-figure brand deals. "
+                "You know what brands want to see: audience alignment, engagement quality over quantity, "
+                "and a media kit that makes the sponsorship decision easy. "
+                "You write pitch emails that get replies and media kits that close deals."
+            )},
+            {"role": "user", "content": (
+                f"Create a complete sponsorship pitch package:\n"
+                f"Channel type: {channel_type}\n"
+                f"Channel/Show name: {channel_name}\n"
+                f"Audience size: {audience_size}\n"
+                f"Audience demographics: {audience_demographics}\n"
+                f"Engagement stats: {engagement_stats or 'Not provided — write placeholder prompts'}\n"
+                f"Niche: {niche}\n"
+                f"Target brand: {pitch_target or 'Write a general pitch applicable to multiple brands'}\n"
+                f"Rate card: {rate_card or 'Recommend appropriate rates based on audience size'}\n"
+                f"Creator: {creator_name}\n\n"
+                "Deliver:\n"
+                "1. Media kit structure (what sections to include + sample content for each)\n"
+                "2. Rate card recommendation with justification:\n"
+                "   - Sponsored post/episode price\n"
+                "   - Dedicated send/episode price\n"
+                "   - Brand partnership (monthly) price\n"
+                "   - Affiliate/revenue share option\n"
+                "3. Pitch email (cold outreach to brand's marketing team)\n"
+                "4. Follow-up email (if no reply after 5 days)\n"
+                "5. Sponsorship package descriptions (copy for the media kit)\n"
+                "6. Where to find brand sponsors (directories, platforms, contacts)\n"
+                "7. Negotiation script (how to respond when they lowball you)"
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=3000,
+        temperature=0.7,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "sponsorship_pitches")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (channel_type + "-" + niche).lower())[:50]
+    fname = f"sponsorship_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Sponsorship Pitch: {channel_name or channel_type} — {niche}",
+        "channel_type": channel_type,
+        "content": content,
+        "saved_to": save_path,
+        "find_sponsors_at": [
+            "Passionfroot (passionfroot.me) — creator sponsorship marketplace",
+            "Sponsy (sponsy.co) — newsletter sponsorship platform",
+            "Paved (paved.com) — newsletter advertising network",
+            "Podcorn (podcorn.com) — podcast sponsorship marketplace",
+            "Grapevine (grapevine.io) — YouTube/social sponsorships",
+            "Direct outreach to brands using pitch email above",
+        ],
+        "income_note": "1000 newsletter subscribers can command $50-$200/sponsored issue. 10k = $500-$2000/issue.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PRESS RELEASE WRITER — Attention-worthy PR for launches/milestones
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_press_release(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write a professional press release for product launches, milestones, partnerships, or awards."""
+    headline_topic = params.get("headline_topic", "")
+    news_type = params.get("news_type", "product_launch")  # product_launch | partnership | award | milestone | event | funding
+    company_name = params.get("company_name", "Connie Michelle Consulting")
+    details = params.get("details", "")
+    quote_from = params.get("quote_from", "Connie Michelle Cooper, Founder")
+    city = params.get("city", "Atlanta, GA")
+    contact_email = params.get("contact_email", "")
+    website = params.get("website", "")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are an experienced PR copywriter who writes press releases that actually get picked up by journalists. "
+                "You follow AP style, lead with the most newsworthy angle, and write quotes that don't sound robotic. "
+                "A good press release opens doors to media coverage, backlinks, and credibility."
+            )},
+            {"role": "user", "content": (
+                f"Write a professional press release:\n"
+                f"Topic: {headline_topic}\n"
+                f"Type: {news_type}\n"
+                f"Company: {company_name}\n"
+                f"Details: {details}\n"
+                f"Quote attribution: {quote_from}\n"
+                f"City/Date: {city}\n"
+                f"Contact email: {contact_email or '[Contact email]'}\n"
+                f"Website: {website or '[Website URL]'}\n\n"
+                "Format:\n"
+                "FOR IMMEDIATE RELEASE\n\n"
+                "[HEADLINE — newsy, specific, under 90 chars]\n"
+                "[SUBHEADLINE — 1 sentence of context]\n\n"
+                "[CITY, Date] — [Opening paragraph: who, what, when, where, why in 2-3 sentences]\n\n"
+                "[Body paragraph 1: expand on the news, quantify where possible]\n\n"
+                "[Quote from executive: authentic, opinionated, not generic]\n\n"
+                "[Body paragraph 2: additional context, product details, market relevance]\n\n"
+                "[Second quote or data point]\n\n"
+                "[Boilerplate: 1 paragraph 'About [Company]']\n\n"
+                "###\n\n"
+                "Media Contact:\n"
+                "[Name, title, email, phone]\n\n"
+                "Also provide:\n"
+                "- 3 journalist outreach email subject lines\n"
+                "- 5 publications/outlets to submit this to\n"
+                "- Free press release distribution sites"
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=2000,
+        temperature=0.5,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "press_releases")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in headline_topic.lower())[:50]
+    fname = f"pr_{news_type}_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Press Release: {headline_topic}",
+        "news_type": news_type,
+        "content": content,
+        "saved_to": save_path,
+        "distribute_via": [
+            "PRLog (prlog.com) — free distribution",
+            "OpenPR (openpr.com) — free distribution",
+            "PRFree (prfree.org) — free distribution",
+            "EINPresswire (einpresswire.com) — free 1/month",
+            "PRNewswire (paid — best reach, for major launches)",
+        ],
+        "income_note": "Press coverage = SEO backlinks + credibility + inbound leads. One feature can 10x consulting inquiry volume.",
+    }
+

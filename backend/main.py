@@ -93,6 +93,9 @@ try:
         write_affiliate_content, create_podcast_episode, write_case_study,
         generate_invoice, create_pricing_strategy, write_newsletter_issue,
         create_pod_listing_pack,
+        generate_video, create_tiktok_pack, write_etsy_listing,
+        create_fiverr_gig, create_brand_kit, create_social_media_pack,
+        create_sponsorship_pitch, write_press_release,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -129,6 +132,14 @@ except Exception as _tc_err:
     async def create_pricing_strategy(p, **kw): return {"error": "tools_creative not loaded"}
     async def write_newsletter_issue(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_pod_listing_pack(p, **kw): return {"error": "tools_creative not loaded"}
+    async def generate_video(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_tiktok_pack(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_etsy_listing(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_fiverr_gig(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_brand_kit(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_social_media_pack(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_sponsorship_pitch(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_press_release(p, **kw): return {"error": "tools_creative not loaded"}
 
 # Firebase (optional)
 try:
@@ -1746,6 +1757,14 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `create_pricing_strategy` — **FULL PRICING STRATEGY ANALYSIS**: audit current price, build 3-tier packages (Good/Better/Best) with specific prices, value justification script, discount strategy, price increase roadmap, revenue math to hit monthly income goal, and one pricing hack to test this month. Most people undercharge by 2-3x.
 - `write_newsletter_issue` — **COMPLETE MONETIZED NEWSLETTER ISSUE** for Beehiiv, Substack, or ConvertKit. 5 subject line options, preview text, full content with sponsor block, product CTA, social post to promote it. Newsletter earns sponsorships $50-500/issue at 1000+ subscribers. **Auto-saved to Creative Suite.**
 - `create_pod_listing_pack` — **PRINT-ON-DEMAND LISTING PACK** for Redbubble, Merch by Amazon, and Society6. AI art prompts for each design variation, SEO titles+tags+descriptions, pricing, and launch checklist. 100 listings × 2 sales/month = $400-1600 passive/month. **Auto-saved to Creative Suite.**
+- `generate_video` — **COMPLETE AI VIDEO PACKAGE**: voiceover script, scene-by-scene shot list, Runway Gen-3 prompts, HeyGen avatar script, Pika animation prompts, thumbnail concept, captions style, and platform metadata. Works with HeyGen/Runway/Pika/ElevenLabs. Highest-converting content format. **Auto-saved to Creative Suite.**
+- `create_tiktok_pack` — **WEEK OF TIKTOK/REELS CONTENT**: scroll-stopping hooks, full scripts, on-screen text, captions, hashtags, sound recommendations, and posting schedule. Short-form video is the fastest audience growth channel right now. **Auto-saved to Creative Suite.**
+- `write_etsy_listing` — **FULLY OPTIMIZED ETSY LISTING** for digital or physical products. 140-char keyword-front-loaded title, 13 tags, full description, photo brief, pricing strategy, and related listing ideas. Etsy has 90M+ active buyers. **Auto-saved to Creative Suite.**
+- `create_fiverr_gig` — **COMPLETE FIVERR GIG PACKAGE**: title, 3-tier packages with pricing, full description, FAQ, seller bio, and portfolio brief. Productize CC's consulting so orders come in passively. **Auto-saved to Creative Suite.**
+- `create_brand_kit` — **FULL BRAND IDENTITY KIT** (consulting deliverable worth $500-$2000): brand essence, mission/vision, 5 tagline options, brand voice guide, messaging pillars, color palette with hex codes, typography, logo direction, elevator pitch, and brand story. **Auto-saved to Creative Suite.**
+- `create_social_media_pack` — **FULL MONTH OF SOCIAL MEDIA POSTS** across LinkedIn, Instagram, Twitter/X, Facebook. Platform-native content with hooks, hashtags, and CTAs. Consistent posting = #1 driver of inbound consulting leads. **Auto-saved to Creative Suite.**
+- `create_sponsorship_pitch` — **BRAND SPONSORSHIP PITCH PACKAGE** for newsletter/podcast/YouTube: media kit structure, rate card recommendations, cold pitch email, follow-up email, and where to find sponsors. 1000 newsletter subs = $50-$200/sponsored issue. **Auto-saved to Creative Suite.**
+- `write_press_release` — **PROFESSIONAL PRESS RELEASE** for product launches, milestones, partnerships, or awards. AP-style, journalist-ready, with distribution sites and outreach email subject lines. Press coverage = SEO backlinks + credibility + inbound leads. **Auto-saved to Creative Suite.**
 - `push_to_creative_suite` — **MANUALLY PUSH ANY CREATION** to CC's gallery. Use this if you created something custom that isn't covered by the auto-save tools above. CC sees it immediately in the Creative Command Center → Vesper's Creations panel.
 - `download_image` — download any image from a URL into the media library
 - `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
@@ -6499,6 +6518,14 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "create_pricing_strategy", "description": "Full pricing strategy: audit current price, build 3-tier packages with specific prices, value justification script, discount strategy, price increase roadmap, revenue math. Most people undercharge by 2-3x.", "input_schema": {"type": "object", "properties": {"service_or_product": {"type": "string"}, "current_price": {"type": "string"}, "target_audience": {"type": "string"}, "competition": {"type": "string"}, "delivery_time": {"type": "string"}, "goal": {"type": "string", "description": "maximize_revenue | get_clients_fast | premium_positioning"}, "monthly_income_goal": {"type": "string"}}, "required": ["service_or_product"]}},
             {"name": "write_newsletter_issue", "description": "Write a complete monetized newsletter issue for Beehiiv, Substack, or ConvertKit. 5 subject line options, preview text, full content with sponsor block, product CTA, and social promotion posts.", "input_schema": {"type": "object", "properties": {"newsletter_name": {"type": "string"}, "topic": {"type": "string"}, "issue_number": {"type": "string"}, "audience": {"type": "string"}, "sponsor": {"type": "string"}, "product_to_pitch": {"type": "string"}, "tone": {"type": "string"}, "word_count": {"type": "number"}}, "required": ["topic"]}},
             {"name": "create_pod_listing_pack", "description": "Generate a print-on-demand listing pack for Redbubble, Merch by Amazon, Society6. AI art prompts for each design variation, SEO titles+tags+descriptions, pricing. 100 listings × 2 sales/month = $400-1600 passive/month.", "input_schema": {"type": "object", "properties": {"design_concept": {"type": "string"}, "niche": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "num_variations": {"type": "number"}, "art_style": {"type": "string"}}, "required": ["design_concept", "niche"]}},
+            {"name": "generate_video", "description": "Generate a complete AI video package — voiceover script, scene-by-scene shot list with Runway Gen-3 prompts, HeyGen avatar script, Pika prompts, thumbnail concept, and platform metadata. Works with HeyGen/Runway/Pika/ElevenLabs.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "video_type": {"type": "string", "description": "explainer | promo | testimonial | tutorial | short | ugc-style | avatar"}, "duration_seconds": {"type": "number"}, "platform": {"type": "string", "description": "YouTube | TikTok | Instagram Reels | LinkedIn | landing page"}, "product": {"type": "string"}, "brand_voice": {"type": "string"}, "use_avatar": {"type": "boolean"}, "cta": {"type": "string"}}, "required": ["topic"]}},
+            {"name": "create_tiktok_pack", "description": "Generate a week of TikTok/Reels content — scroll-stopping hooks, full scripts, captions, hashtags, sound recommendations, and posting schedule.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "num_videos": {"type": "number"}, "goal": {"type": "string"}, "brand": {"type": "string"}, "style": {"type": "string"}, "product_to_promote": {"type": "string"}}, "required": ["niche"]}},
+            {"name": "write_etsy_listing", "description": "Generate a fully optimized Etsy listing — 140-char keyword title, 13 tags, full description, photo brief, pricing strategy. Etsy has 90M+ active buyers.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "product_description": {"type": "string"}, "product_type": {"type": "string", "description": "digital | physical | printable"}, "target_buyer": {"type": "string"}, "price": {"type": "number"}, "category": {"type": "string"}}, "required": ["product_name"]}},
+            {"name": "create_fiverr_gig", "description": "Create a complete Fiverr gig — title, 3-tier packages with pricing, full description, FAQ, seller bio. Productize consulting for passive order flow.", "input_schema": {"type": "object", "properties": {"service": {"type": "string"}, "your_expertise": {"type": "string"}, "deliverables": {"type": "string"}, "target_client": {"type": "string"}, "turnaround_days": {"type": "number"}, "seller_name": {"type": "string"}}, "required": ["service"]}},
+            {"name": "create_brand_kit", "description": "Build a complete brand identity kit — mission/vision, 5 taglines, brand voice guide, color palette with hex codes, typography, logo direction, elevator pitch. A $500-$2000 consulting deliverable.", "input_schema": {"type": "object", "properties": {"business_name": {"type": "string"}, "business_type": {"type": "string"}, "target_audience": {"type": "string"}, "values": {"type": "string"}, "personality_adjectives": {"type": "string"}, "competitors": {"type": "string"}, "founder_story": {"type": "string"}}, "required": ["business_name"]}},
+            {"name": "create_social_media_pack", "description": "Generate a full month of social media content across LinkedIn, Instagram, Twitter/X, Facebook — platform-native posts with hooks, hashtags, and CTAs.", "input_schema": {"type": "object", "properties": {"brand": {"type": "string"}, "niche": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "num_posts_per_platform": {"type": "number"}, "content_goal": {"type": "string"}, "product_to_promote": {"type": "string"}, "tone": {"type": "string"}}, "required": ["niche"]}},
+            {"name": "create_sponsorship_pitch", "description": "Write a complete brand sponsorship pitch package for newsletter/podcast/YouTube — media kit, rate card, cold pitch email, follow-up email, where to find sponsors.", "input_schema": {"type": "object", "properties": {"channel_type": {"type": "string", "description": "newsletter | podcast | youtube | instagram | blog"}, "channel_name": {"type": "string"}, "audience_size": {"type": "string"}, "audience_demographics": {"type": "string"}, "engagement_stats": {"type": "string"}, "niche": {"type": "string"}, "pitch_target": {"type": "string"}, "rate_card": {"type": "string"}, "creator_name": {"type": "string"}}, "required": ["channel_type", "niche"]}},
+            {"name": "write_press_release", "description": "Write a professional AP-style press release for product launches, milestones, partnerships, or awards. Journalist-ready with distribution sites and pitch subject lines.", "input_schema": {"type": "object", "properties": {"headline_topic": {"type": "string"}, "news_type": {"type": "string", "description": "product_launch | partnership | award | milestone | event | funding"}, "company_name": {"type": "string"}, "details": {"type": "string"}, "quote_from": {"type": "string"}, "city": {"type": "string"}, "contact_email": {"type": "string"}, "website": {"type": "string"}}, "required": ["headline_topic", "details"]}},
 
             {
                 "name": "monitor_site",
@@ -8250,6 +8277,30 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "create_pod_listing_pack":
                     tool_result = await create_pod_listing_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"): _push_creation_to_suite("pod_listing_pack", tool_result)
+                elif tool_name == "generate_video":
+                    tool_result = await generate_video(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("video", tool_result)
+                elif tool_name == "create_tiktok_pack":
+                    tool_result = await create_tiktok_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("tiktok_pack", tool_result)
+                elif tool_name == "write_etsy_listing":
+                    tool_result = await write_etsy_listing(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("etsy_listing", tool_result)
+                elif tool_name == "create_fiverr_gig":
+                    tool_result = await create_fiverr_gig(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("fiverr_gig", tool_result)
+                elif tool_name == "create_brand_kit":
+                    tool_result = await create_brand_kit(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("brand_kit", tool_result)
+                elif tool_name == "create_social_media_pack":
+                    tool_result = await create_social_media_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("social_pack", tool_result)
+                elif tool_name == "create_sponsorship_pitch":
+                    tool_result = await create_sponsorship_pitch(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("sponsorship_pitch", tool_result)
+                elif tool_name == "write_press_release":
+                    tool_result = await write_press_release(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("press_release", tool_result)
 
                 elif tool_name == "push_to_creative_suite":
                     _ptcs_id = str(uuid.uuid4())[:8]
@@ -9450,6 +9501,14 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "create_pricing_strategy", "description": "Full pricing strategy: audit current price, 3-tier packages, value justification script, revenue math.", "input_schema": {"type": "object", "properties": {"service_or_product": {"type": "string"}, "current_price": {"type": "string"}, "target_audience": {"type": "string"}, "competition": {"type": "string"}, "delivery_time": {"type": "string"}, "goal": {"type": "string"}, "monthly_income_goal": {"type": "string"}}, "required": ["service_or_product"]}},
                 {"name": "write_newsletter_issue", "description": "Write a complete monetized newsletter issue with subject lines, content, sponsor block, and CTA.", "input_schema": {"type": "object", "properties": {"newsletter_name": {"type": "string"}, "topic": {"type": "string"}, "issue_number": {"type": "string"}, "audience": {"type": "string"}, "sponsor": {"type": "string"}, "product_to_pitch": {"type": "string"}, "tone": {"type": "string"}, "word_count": {"type": "number"}}, "required": ["topic"]}},
                 {"name": "create_pod_listing_pack", "description": "Generate a print-on-demand listing pack for Redbubble, Merch by Amazon, Society6 with AI art prompts and SEO listings.", "input_schema": {"type": "object", "properties": {"design_concept": {"type": "string"}, "niche": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "num_variations": {"type": "number"}, "art_style": {"type": "string"}}, "required": ["design_concept", "niche"]}},
+                {"name": "generate_video", "description": "Generate a complete AI video package — voiceover script, Runway Gen-3 prompts, HeyGen avatar script, Pika prompts, thumbnail, platform metadata.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "video_type": {"type": "string"}, "duration_seconds": {"type": "number"}, "platform": {"type": "string"}, "product": {"type": "string"}, "brand_voice": {"type": "string"}, "use_avatar": {"type": "boolean"}, "cta": {"type": "string"}}, "required": ["topic"]}},
+                {"name": "create_tiktok_pack", "description": "Generate a week of TikTok/Reels content with hooks, scripts, captions, hashtags, and sound recommendations.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "num_videos": {"type": "number"}, "goal": {"type": "string"}, "brand": {"type": "string"}, "style": {"type": "string"}, "product_to_promote": {"type": "string"}}, "required": ["niche"]}},
+                {"name": "write_etsy_listing", "description": "Generate a fully optimized Etsy listing — keyword title, 13 tags, description, photo brief, pricing strategy.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "product_description": {"type": "string"}, "product_type": {"type": "string"}, "target_buyer": {"type": "string"}, "price": {"type": "number"}, "category": {"type": "string"}}, "required": ["product_name"]}},
+                {"name": "create_fiverr_gig", "description": "Create a complete Fiverr gig — title, 3-tier packages, full description, FAQ, seller bio.", "input_schema": {"type": "object", "properties": {"service": {"type": "string"}, "your_expertise": {"type": "string"}, "deliverables": {"type": "string"}, "target_client": {"type": "string"}, "turnaround_days": {"type": "number"}, "seller_name": {"type": "string"}}, "required": ["service"]}},
+                {"name": "create_brand_kit", "description": "Build a complete brand identity kit — mission/vision, taglines, brand voice, color palette, typography, logo direction. Worth $500-$2000 as a consulting deliverable.", "input_schema": {"type": "object", "properties": {"business_name": {"type": "string"}, "business_type": {"type": "string"}, "target_audience": {"type": "string"}, "values": {"type": "string"}, "personality_adjectives": {"type": "string"}, "competitors": {"type": "string"}, "founder_story": {"type": "string"}}, "required": ["business_name"]}},
+                {"name": "create_social_media_pack", "description": "Generate a full month of social media posts across LinkedIn, Instagram, Twitter/X, Facebook with hooks, hashtags, and CTAs.", "input_schema": {"type": "object", "properties": {"brand": {"type": "string"}, "niche": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "num_posts_per_platform": {"type": "number"}, "content_goal": {"type": "string"}, "product_to_promote": {"type": "string"}, "tone": {"type": "string"}}, "required": ["niche"]}},
+                {"name": "create_sponsorship_pitch", "description": "Write a brand sponsorship pitch package for newsletter/podcast/YouTube — media kit, rate card, pitch email, follow-up.", "input_schema": {"type": "object", "properties": {"channel_type": {"type": "string"}, "channel_name": {"type": "string"}, "audience_size": {"type": "string"}, "audience_demographics": {"type": "string"}, "engagement_stats": {"type": "string"}, "niche": {"type": "string"}, "pitch_target": {"type": "string"}, "rate_card": {"type": "string"}, "creator_name": {"type": "string"}}, "required": ["channel_type", "niche"]}},
+                {"name": "write_press_release", "description": "Write a professional press release for launches, milestones, partnerships, or awards — AP style, journalist-ready, with distribution sites.", "input_schema": {"type": "object", "properties": {"headline_topic": {"type": "string"}, "news_type": {"type": "string"}, "company_name": {"type": "string"}, "details": {"type": "string"}, "quote_from": {"type": "string"}, "city": {"type": "string"}, "contact_email": {"type": "string"}, "website": {"type": "string"}}, "required": ["headline_topic", "details"]}},
                 {"name": "download_image", "description": "Download an image from a URL to the media library.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
                 {"name": "monitor_site", "description": "Check a website for changes vs a previous snapshot.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "previous_content": {"type": "string"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 
@@ -9635,6 +9694,14 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "create_pricing_strategy": "💰 Building pricing strategy",
                     "write_newsletter_issue": "📰 Writing newsletter issue",
                     "create_pod_listing_pack": "👕 Creating POD listing pack",
+                    "generate_video": "🎬 Generating video package",
+                    "create_tiktok_pack": "📱 Writing TikTok/Reels pack",
+                    "write_etsy_listing": "🛍️ Writing Etsy listing",
+                    "create_fiverr_gig": "💼 Building Fiverr gig",
+                    "create_brand_kit": "🎨 Building brand kit",
+                    "create_social_media_pack": "📲 Writing social media pack",
+                    "create_sponsorship_pitch": "🤝 Writing sponsorship pitch",
+                    "write_press_release": "📣 Writing press release",
                     "gumroad_create_product": "🛒 Listing on Gumroad",
                     "medium_publish": "📰 Publishing to Medium",
                     "post_to_linkedin": "💼 Posting to LinkedIn",
@@ -9918,6 +9985,46 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         if tool_result.get("success"):
                             _push_creation_to_suite("pod_listing_pack", tool_result)
                             yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'pod_listing_pack','title':tool_result.get('title','POD Listing Pack')}})}\n\n"
+                    elif tool_name == "generate_video":
+                        tool_result = await generate_video(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("video", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'video','title':tool_result.get('title','Video Package')}})}\n\n"
+                    elif tool_name == "create_tiktok_pack":
+                        tool_result = await create_tiktok_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("tiktok_pack", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'tiktok_pack','title':tool_result.get('title','TikTok Pack')}})}\n\n"
+                    elif tool_name == "write_etsy_listing":
+                        tool_result = await write_etsy_listing(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("etsy_listing", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'etsy_listing','title':tool_result.get('title','Etsy Listing')}})}\n\n"
+                    elif tool_name == "create_fiverr_gig":
+                        tool_result = await create_fiverr_gig(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("fiverr_gig", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'fiverr_gig','title':tool_result.get('title','Fiverr Gig')}})}\n\n"
+                    elif tool_name == "create_brand_kit":
+                        tool_result = await create_brand_kit(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("brand_kit", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'brand_kit','title':tool_result.get('title','Brand Kit')}})}\n\n"
+                    elif tool_name == "create_social_media_pack":
+                        tool_result = await create_social_media_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("social_pack", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'social_pack','title':tool_result.get('title','Social Media Pack')}})}\n\n"
+                    elif tool_name == "create_sponsorship_pitch":
+                        tool_result = await create_sponsorship_pitch(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("sponsorship_pitch", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'sponsorship_pitch','title':tool_result.get('title','Sponsorship Pitch')}})}\n\n"
+                    elif tool_name == "write_press_release":
+                        tool_result = await write_press_release(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("press_release", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'press_release','title':tool_result.get('title','Press Release')}})}\n\n"
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(
