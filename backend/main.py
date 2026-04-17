@@ -3393,8 +3393,9 @@ async def full_system_diagnostics():
         ("/api/tasks", "GET"),
         ("/api/research", "GET"),
     ]
+    _self_port = os.environ.get("PORT", "8000")
     try:
-        async with httpx.AsyncClient(base_url="http://127.0.0.1:8000", timeout=5) as client:
+        async with httpx.AsyncClient(base_url=f"http://127.0.0.1:{_self_port}", timeout=5) as client:
             for path, method in critical_endpoints:
                 try:
                     resp = await client.request(method, path)
