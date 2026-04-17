@@ -210,7 +210,8 @@ class AIRouter:
         preferred_provider: Optional[ModelProvider] = None,
         model_override: Optional[str] = None,
         _tried_providers: Optional[set] = None,
-        _errors: Optional[list] = None
+        _errors: Optional[list] = None,
+        _warnings: Optional[list] = None
     ) -> Dict[str, Any]:
         """
         Route chat request to best available provider
@@ -234,6 +235,8 @@ class AIRouter:
             _tried_providers = set(_tried_providers)  # guard: convert list → set if corrupted
         if _errors is None:
             _errors = []
+        if _warnings is None:
+            _warnings = []
         
         # Get provider
         provider = preferred_provider if preferred_provider else self.get_available_provider(task_type)
@@ -275,8 +278,14 @@ class AIRouter:
                 fallback_providers = [p for p in self.routing_strategy[task_type] if p not in _tried_providers and self.is_provider_available(p)]
                 if fallback_providers:
                     print(f"[FALLBACK] {provider.value} gave empty response → trying {fallback_providers[0].value}")
-                    return await self.chat(messages, task_type, tools, max_tokens, temperature, preferred_provider=fallback_providers[0], _tried_providers=_tried_providers, _errors=_errors)
+                    return await self.chat(messages, task_type, tools, max_tokens, temperature, preferred_provider=fallback_providers[0], _tried_providers=_tried_providers, _errors=_errors, _warnings=_warnings)
                 # All providers exhausted — return result as-is (caller has its own fallback message)
+
+            # Append any billing/credit warnings to the response content so user sees them
+            if _warnings and result.get("content") and not result.get("error"):
+                warning_block = "\n\n---\n" + "\n".join(f"⚠️ {w}" for w in _warnings)
+                result["content"] = result["content"] + warning_block
+                result["provider_warnings"] = _warnings
 
             return result
         except Exception as e:
@@ -284,10 +293,33 @@ class AIRouter:
             error_msg = f"{provider.value}: {str(e)[:200]}"
             _errors.append(error_msg)
             print(f"[ERR] {error_msg}")
+
+            # Detect billing/credit errors and queue a user-visible warning
+            err_lower = str(e).lower()
+            BILLING_KEYWORDS = (
+                "credit", "billing", "payment", "quota", "insufficient_quota",
+                "credit_balance", "overloaded", "rate_limit", "too_many_requests"
+            )
+            if any(kw in err_lower for kw in BILLING_KEYWORDS):
+                provider_names = {
+                    "anthropic": "Anthropic (Claude)",
+                    "openai": "OpenAI",
+                    "google": "Google (Gemini)",
+                    "groq": "Groq",
+                    "ollama": "Ollama",
+                }
+                friendly = provider_names.get(provider.value, provider.value)
+                if "credit" in err_lower or "billing" in err_lower or "payment" in err_lower or "insufficient" in err_lower:
+                    _warnings.append(f"{friendly} is out of credits — switched providers. Add credits at your provider dashboard to restore it.")
+                elif "overloaded" in err_lower:
+                    _warnings.append(f"{friendly} is currently overloaded — switched providers temporarily.")
+                elif "rate_limit" in err_lower or "too_many" in err_lower:
+                    _warnings.append(f"{friendly} hit its rate limit — switched providers temporarily.")
+
             fallback_providers = [p for p in self.routing_strategy[task_type] if p not in _tried_providers and self.is_provider_available(p)]
             if fallback_providers:
                 print(f"[FALLBACK] Falling back to {fallback_providers[0].value}")
-                return await self.chat(messages, task_type, tools, max_tokens, temperature, preferred_provider=fallback_providers[0], _tried_providers=_tried_providers, _errors=_errors)
+                return await self.chat(messages, task_type, tools, max_tokens, temperature, preferred_provider=fallback_providers[0], _tried_providers=_tried_providers, _errors=_errors, _warnings=_warnings)
             error_summary = " | ".join(_errors)
             return {"error": f"All providers failed: {error_summary}", "provider": provider.value, "model": model}
     
