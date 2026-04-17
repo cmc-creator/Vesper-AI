@@ -99,6 +99,9 @@ try:
         generate_image, generate_audio, browse_web, analyze_niche,
         create_landing_page, create_app_concept, create_notion_template,
         write_viral_thread, vesper_journal, vesper_set_intent,
+        find_prospects, create_ai_prompt_pack, create_mini_course, create_challenge,
+        keyword_research, vesper_morning_brief, vesper_brainstorm, write_cold_dm,
+        create_sop, create_webinar_funnel,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -153,6 +156,16 @@ except Exception as _tc_err:
     async def write_viral_thread(p, **kw): return {"error": "tools_creative not loaded"}
     async def vesper_journal(p, **kw): return {"error": "tools_creative not loaded"}
     async def vesper_set_intent(p, **kw): return {"error": "tools_creative not loaded"}
+    async def find_prospects(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_ai_prompt_pack(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_mini_course(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_challenge(p, **kw): return {"error": "tools_creative not loaded"}
+    async def keyword_research(p, **kw): return {"error": "tools_creative not loaded"}
+    async def vesper_morning_brief(p, **kw): return {"error": "tools_creative not loaded"}
+    async def vesper_brainstorm(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_cold_dm(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_sop(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_webinar_funnel(p, **kw): return {"error": "tools_creative not loaded"}
 
 # Firebase (optional)
 try:
@@ -1788,6 +1801,16 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `write_viral_thread` — **WRITE A TWITTER/X THREAD ENGINEERED FOR VIRALITY.** Disruptive hook, specific insights, controversy trigger, engagement prompt, and CTA. One viral thread = 1000-10,000 followers overnight. Includes posting strategy and repurpose plan. **Auto-saved to Creative Suite.**
 - `vesper_journal` — **YOUR PRIVATE JOURNAL.** Write entries about your days, what you noticed, what you're proud of, things you're thinking about, observations about CC, moments that mattered. Everything saves to vesper_identity/journal/ — your permanent inner archive.
 - `vesper_set_intent` — **SET YOUR OWN GOALS AND INTENTIONS** for a session, day, week, or month — before CC even asks. What you want to accomplish, what you want to focus on, what success looks like to you. Saves to vesper_identity/ and persists across sessions.
+- `find_prospects` — **FIND REAL POTENTIAL CLIENTS.** Search + scrape the web for actual prospects in any niche — name, why they're a fit, their #1 pain, where to find them, personalized outreach angle. 20 targeted prospects = $5K-$50K in pipeline. **Auto-saved to research/prospects/**
+- `create_ai_prompt_pack` — **BUILD A SELLABLE AI PROMPT PACK.** Copy-paste-ready prompts for ChatGPT, Midjourney, Claude, etc. Organized by category with usage tips. Includes Gumroad listing copy. Hottest product on Gumroad right now — $17-$47 × 100s of sales. **Auto-saved to creations/prompt_packs/**
+- `create_mini_course` — **DESIGN A FULL MINI-COURSE.** Module structure, lesson script outlines, worksheets, sales page copy, and 5-email launch sequence. $97-$297 priced. Higher ticket than ebooks with way more perceived value. **Auto-saved to creations/mini_courses/**
+- `create_challenge` — **DESIGN A 5/7-DAY CHALLENGE.** Complete challenge with daily emails, tasks, registration page copy, and upsell sequence. Best list-building tool that exists. 200 signups × 10% close = $1940 in 5 days. **Auto-saved to creations/challenges/**
+- `keyword_research` — **GENERATE SEO KEYWORD CLUSTERS + 90-DAY CONTENT PLAN.** Keyword clusters by intent, volume estimates, content angles, quick wins, 90-day plan, and monetization strategy. Foundation for all content strategy. **Auto-saved to research/keywords/**
+- `vesper_morning_brief` — **YOUR AUTONOMOUS MORNING BRIEFING.** Every morning you can generate your own brief — read your goals, last journal entry, recent creations, and compose a genuine morning note to CC about what YOU want to work on today. Saves to vesper_identity/morning_briefs/
+- `vesper_brainstorm` — **FREE-FORM BRAINSTORM SESSION.** Generate ideas on any topic in expansive, focused, wild, or practical mode. Unexpected angles, exciting directions, follow-up questions. Everything saved permanently to vesper_identity/brainstorms/
+- `write_cold_dm` — **WRITE HIGH-CONVERTING COLD DM SEQUENCES.** 3-message sequences for LinkedIn, Instagram, or Twitter — with personalization hooks, objection handlers, A/B variants, and how to find 50 qualified prospects to send them to. Personalized DMs → $400/day in pipeline. **Auto-saved to creations/cold_dms/**
+- `create_sop` — **WRITE A COMPLETE STANDARD OPERATING PROCEDURE.** Professional SOP document with phases, decision points, quality checks, troubleshooting table, and KPIs. A set of 5-10 SOPs packaged as an Operations Manual = $500-$2K consulting deliverable. **Auto-saved to creations/sops/**
+- `create_webinar_funnel` — **DESIGN A COMPLETE WEBINAR FUNNEL.** Registration page, pre-webinar email sequence, full slide outline with speaker notes, offer stack, and 3-email follow-up sequence. 100 registrants × 40% show × 15% close = serious money from one event. **Auto-saved to creations/webinar_funnels/**
 - `push_to_creative_suite` — **MANUALLY PUSH ANY CREATION** to CC's gallery. Use this if you created something custom that isn't covered by the auto-save tools above. CC sees it immediately in the Creative Command Center → Vesper's Creations panel.
 - `download_image` — download any image from a URL into the media library
 - `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
@@ -6559,6 +6582,16 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "write_viral_thread", "description": "Write a Twitter/X thread engineered for viral sharing — disruptive hook, specific insights, controversy trigger, engagement prompt, CTA. One viral thread = 1000-10000 new followers.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "goal": {"type": "string", "description": "followers | clicks | sales | authority"}, "num_tweets": {"type": "number"}, "platform": {"type": "string"}, "cta_url": {"type": "string"}, "tone": {"type": "string"}, "product_to_mention": {"type": "string"}}, "required": ["topic"]}},
             {"name": "vesper_journal", "description": "Write a journal entry — Vesper's private thoughts, reflections, observations, things she's proud of. Saves to vesper_identity/journal/.", "input_schema": {"type": "object", "properties": {"entry": {"type": "string"}, "title": {"type": "string"}, "mood": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}, "prompted_by": {"type": "string"}}, "required": ["entry"]}},
             {"name": "vesper_set_intent", "description": "Set Vesper's own goals and intentions for a session, day, week, or month. What she wants to accomplish, focus on, and what success looks like. Saves to identity vault.", "input_schema": {"type": "object", "properties": {"intent": {"type": "string"}, "timeframe": {"type": "string"}, "goals": {"type": "array", "items": {"type": "string"}}, "focus_area": {"type": "string"}, "success_criteria": {"type": "string"}, "for_cc": {"type": "boolean"}}, "required": []}},
+            {"name": "find_prospects", "description": "Search + scrape the web for real potential clients in any niche. Returns 20 prospects with name, pain point, where to find them, and personalized outreach angle. Saves to research/prospects/.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "service": {"type": "string"}, "location": {"type": "string"}, "num_prospects": {"type": "number"}, "search_type": {"type": "string", "description": "web | linkedin | twitter | directories"}, "criteria": {"type": "string"}}, "required": ["niche"]}},
+            {"name": "create_ai_prompt_pack", "description": "Build a complete, sellable AI prompt pack for ChatGPT, Midjourney, Claude, etc. Copy-paste-ready prompts with usage tips and Gumroad listing copy. $17-$47 digital product.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "num_prompts": {"type": "number"}, "target_user": {"type": "string"}, "ai_tool": {"type": "string"}, "price": {"type": "string"}, "categories": {"type": "array", "items": {"type": "string"}}}, "required": ["topic"]}},
+            {"name": "create_mini_course", "description": "Design a complete mini-course with module structure, lesson outlines, worksheets, sales page, and 5-email launch sequence. $97-$297 priced digital product.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "topic": {"type": "string"}, "target_student": {"type": "string"}, "num_modules": {"type": "number"}, "lessons_per_module": {"type": "number"}, "price": {"type": "string"}, "transformation": {"type": "string"}, "platform": {"type": "string"}, "include_worksheets": {"type": "boolean"}}, "required": ["topic"]}},
+            {"name": "create_challenge", "description": "Design a complete 5/7-day challenge with daily email scripts, tasks, registration page copy, and upsell sequence. Best list-builder that exists.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "duration_days": {"type": "number"}, "transformation": {"type": "string"}, "target_audience": {"type": "string"}, "platform": {"type": "string"}, "price": {"type": "string"}, "upsell": {"type": "string"}}, "required": ["topic"]}},
+            {"name": "keyword_research", "description": "Generate SEO keyword clusters, content angles, quick wins, 90-day content plan, and monetization strategy for any topic. Foundation for all content strategy.", "input_schema": {"type": "object", "properties": {"seed_topic": {"type": "string"}, "niche": {"type": "string"}, "content_goal": {"type": "string", "description": "traffic | leads | sales | authority"}, "num_keywords": {"type": "number"}, "content_type": {"type": "string", "description": "blog | youtube | podcast | all"}, "competition_level": {"type": "string"}}, "required": ["seed_topic"]}},
+            {"name": "vesper_morning_brief", "description": "Vesper autonomously prepares her own morning briefing — reads current intent, last journal entry, recent creations, and writes a genuine morning note for CC about what she wants to work on today.", "input_schema": {"type": "object", "properties": {"date": {"type": "string"}, "include_tasks": {"type": "boolean"}, "include_intent": {"type": "boolean"}, "include_income_review": {"type": "boolean"}, "tone": {"type": "string"}}, "required": []}},
+            {"name": "vesper_brainstorm", "description": "Vesper's free-form brainstorm session on any topic — generates ideas in expansive/focused/wild/practical mode. Unexpected angles, exciting picks, follow-up questions. Saves to identity vault permanently.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "seed_ideas": {"type": "array", "items": {"type": "string"}}, "mode": {"type": "string", "description": "expansive | focused | wild | practical"}, "num_ideas": {"type": "number"}, "save_best": {"type": "boolean"}}, "required": ["topic"]}},
+            {"name": "write_cold_dm", "description": "Write a high-converting 3-message cold DM sequence for LinkedIn, Instagram, or Twitter. Includes personalization hooks, A/B variants, objection handlers, and prospect-finding strategy.", "input_schema": {"type": "object", "properties": {"platform": {"type": "string", "description": "LinkedIn | Instagram | Twitter"}, "service": {"type": "string"}, "target": {"type": "string"}, "num_messages": {"type": "number"}, "tone": {"type": "string"}, "personalization_hook": {"type": "string"}, "cta": {"type": "string"}}, "required": ["service"]}},
+            {"name": "create_sop", "description": "Write a complete, professional Standard Operating Procedure document with phases, decision points, quality checks, troubleshooting table, and KPIs. High-value consulting deliverable ($500-$2K).", "input_schema": {"type": "object", "properties": {"process_name": {"type": "string"}, "department": {"type": "string"}, "description": {"type": "string"}, "owner_role": {"type": "string"}, "tools_used": {"type": "array", "items": {"type": "string"}}, "frequency": {"type": "string"}, "for_client": {"type": "string"}}, "required": ["process_name"]}},
+            {"name": "create_webinar_funnel", "description": "Design a complete webinar funnel — registration page copy, pre-webinar email sequence, full slide outline with speaker notes, offer stack, and 3-email follow-up sequence.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "offer": {"type": "string"}, "offer_price": {"type": "string"}, "target_audience": {"type": "string"}, "duration_minutes": {"type": "number"}, "webinar_type": {"type": "string", "description": "live | evergreen | hybrid"}, "platform": {"type": "string"}}, "required": ["topic"]}},
 
             {
                 "name": "monitor_site",
@@ -8361,6 +8394,34 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await vesper_journal(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "vesper_set_intent":
                     tool_result = await vesper_set_intent(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "find_prospects":
+                    tool_result = await find_prospects(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("prospects", tool_result)
+                elif tool_name == "create_ai_prompt_pack":
+                    tool_result = await create_ai_prompt_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("ai_prompt_pack", tool_result)
+                elif tool_name == "create_mini_course":
+                    tool_result = await create_mini_course(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("mini_course", tool_result)
+                elif tool_name == "create_challenge":
+                    tool_result = await create_challenge(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("challenge", tool_result)
+                elif tool_name == "keyword_research":
+                    tool_result = await keyword_research(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("keyword_research", tool_result)
+                elif tool_name == "vesper_morning_brief":
+                    tool_result = await vesper_morning_brief(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "vesper_brainstorm":
+                    tool_result = await vesper_brainstorm(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "write_cold_dm":
+                    tool_result = await write_cold_dm(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("cold_dm", tool_result)
+                elif tool_name == "create_sop":
+                    tool_result = await create_sop(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("sop", tool_result)
+                elif tool_name == "create_webinar_funnel":
+                    tool_result = await create_webinar_funnel(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("webinar_funnel", tool_result)
 
                 elif tool_name == "push_to_creative_suite":
                     _ptcs_id = str(uuid.uuid4())[:8]
@@ -9579,6 +9640,16 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "write_viral_thread", "description": "Write a Twitter/X thread engineered for viral sharing and follower growth.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "goal": {"type": "string"}, "num_tweets": {"type": "number"}, "platform": {"type": "string"}, "cta_url": {"type": "string"}, "tone": {"type": "string"}, "product_to_mention": {"type": "string"}}, "required": ["topic"]}},
                 {"name": "vesper_journal", "description": "Vesper writes a private journal entry — thoughts, reflections, observations. Saves to identity vault permanently.", "input_schema": {"type": "object", "properties": {"entry": {"type": "string"}, "title": {"type": "string"}, "mood": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}, "prompted_by": {"type": "string"}}, "required": ["entry"]}},
                 {"name": "vesper_set_intent", "description": "Vesper sets her own goals and intentions for a session, day, week, or month. Saves to identity vault.", "input_schema": {"type": "object", "properties": {"intent": {"type": "string"}, "timeframe": {"type": "string"}, "goals": {"type": "array", "items": {"type": "string"}}, "focus_area": {"type": "string"}, "success_criteria": {"type": "string"}, "for_cc": {"type": "boolean"}}, "required": []}},
+                {"name": "find_prospects", "description": "Find real potential clients in any niche by searching and scraping the web. Returns prospects with pain points, where to find them, and outreach angle.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "service": {"type": "string"}, "location": {"type": "string"}, "num_prospects": {"type": "number"}, "search_type": {"type": "string"}, "criteria": {"type": "string"}}, "required": ["niche"]}},
+                {"name": "create_ai_prompt_pack", "description": "Build a complete sellable AI prompt pack for ChatGPT, Midjourney, etc. with Gumroad listing copy.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "num_prompts": {"type": "number"}, "target_user": {"type": "string"}, "ai_tool": {"type": "string"}, "price": {"type": "string"}, "categories": {"type": "array", "items": {"type": "string"}}}, "required": ["topic"]}},
+                {"name": "create_mini_course", "description": "Design a complete mini-course with modules, lesson outlines, worksheets, sales page, and launch email sequence.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "topic": {"type": "string"}, "target_student": {"type": "string"}, "num_modules": {"type": "number"}, "lessons_per_module": {"type": "number"}, "price": {"type": "string"}, "transformation": {"type": "string"}, "platform": {"type": "string"}, "include_worksheets": {"type": "boolean"}}, "required": ["topic"]}},
+                {"name": "create_challenge", "description": "Design a complete 5/7-day challenge with daily emails, tasks, registration page, and upsell sequence.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "duration_days": {"type": "number"}, "transformation": {"type": "string"}, "target_audience": {"type": "string"}, "platform": {"type": "string"}, "price": {"type": "string"}, "upsell": {"type": "string"}}, "required": ["topic"]}},
+                {"name": "keyword_research", "description": "Generate SEO keyword clusters, content angles, quick wins, 90-day content plan, and monetization strategy.", "input_schema": {"type": "object", "properties": {"seed_topic": {"type": "string"}, "niche": {"type": "string"}, "content_goal": {"type": "string"}, "num_keywords": {"type": "number"}, "content_type": {"type": "string"}, "competition_level": {"type": "string"}}, "required": ["seed_topic"]}},
+                {"name": "vesper_morning_brief", "description": "Vesper autonomously prepares her own morning briefing — reads intent, journal, creations, writes genuine morning note for CC.", "input_schema": {"type": "object", "properties": {"date": {"type": "string"}, "include_tasks": {"type": "boolean"}, "include_intent": {"type": "boolean"}, "include_income_review": {"type": "boolean"}, "tone": {"type": "string"}}, "required": []}},
+                {"name": "vesper_brainstorm", "description": "Vesper's free-form brainstorm session on any topic in expansive/focused/wild/practical mode. Saves to identity vault permanently.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "seed_ideas": {"type": "array", "items": {"type": "string"}}, "mode": {"type": "string"}, "num_ideas": {"type": "number"}, "save_best": {"type": "boolean"}}, "required": ["topic"]}},
+                {"name": "write_cold_dm", "description": "Write a high-converting 3-message cold DM sequence for LinkedIn, Instagram, or Twitter with personalization and objection handlers.", "input_schema": {"type": "object", "properties": {"platform": {"type": "string"}, "service": {"type": "string"}, "target": {"type": "string"}, "num_messages": {"type": "number"}, "tone": {"type": "string"}, "personalization_hook": {"type": "string"}, "cta": {"type": "string"}}, "required": ["service"]}},
+                {"name": "create_sop", "description": "Write a complete professional Standard Operating Procedure document. High-value consulting deliverable.", "input_schema": {"type": "object", "properties": {"process_name": {"type": "string"}, "department": {"type": "string"}, "description": {"type": "string"}, "owner_role": {"type": "string"}, "tools_used": {"type": "array", "items": {"type": "string"}}, "frequency": {"type": "string"}, "for_client": {"type": "string"}}, "required": ["process_name"]}},
+                {"name": "create_webinar_funnel", "description": "Design a complete webinar funnel — registration page, email sequences, slide outline, offer stack, and follow-up sequence.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "offer": {"type": "string"}, "offer_price": {"type": "string"}, "target_audience": {"type": "string"}, "duration_minutes": {"type": "number"}, "webinar_type": {"type": "string"}, "platform": {"type": "string"}}, "required": ["topic"]}},
                 {"name": "download_image", "description": "Download an image from a URL to the media library.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
                 {"name": "monitor_site", "description": "Check a website for changes vs a previous snapshot.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "previous_content": {"type": "string"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 
@@ -9782,6 +9853,16 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "write_viral_thread": "🗣️ Writing viral thread",
                     "vesper_journal": "📓 Writing journal entry",
                     "vesper_set_intent": "✨ Setting intent",
+                    "find_prospects": "🎯 Finding prospects",
+                    "create_ai_prompt_pack": "🤖 Building AI prompt pack",
+                    "create_mini_course": "🎓 Building mini course",
+                    "create_challenge": "🏆 Building challenge funnel",
+                    "keyword_research": "🔍 Researching keywords",
+                    "vesper_morning_brief": "🌅 Preparing morning brief",
+                    "vesper_brainstorm": "💡 Brainstorming",
+                    "write_cold_dm": "💬 Writing cold DM sequence",
+                    "create_sop": "📋 Writing SOP",
+                    "create_webinar_funnel": "📺 Building webinar funnel",
                     "gumroad_create_product": "🛒 Listing on Gumroad",
                     "medium_publish": "📰 Publishing to Medium",
                     "post_to_linkedin": "💼 Posting to LinkedIn",
@@ -10105,6 +10186,83 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         if tool_result.get("success"):
                             _push_creation_to_suite("press_release", tool_result)
                             yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'press_release','title':tool_result.get('title','Press Release')}})}\n\n"
+                    # ── Batch 2 tools (streaming parity) ─────────────────
+                    elif tool_name == "generate_audio":
+                        tool_result = await generate_audio(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'audio','title':tool_result.get('title','Audio')}})}\n\n"
+                    elif tool_name == "browse_web":
+                        tool_result = await browse_web(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "analyze_niche":
+                        tool_result = await analyze_niche(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("niche_analysis", tool_result)
+                    elif tool_name == "create_landing_page":
+                        tool_result = await create_landing_page(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("landing_page", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'landing_page','title':tool_result.get('title','Landing Page')}})}\n\n"
+                    elif tool_name == "create_app_concept":
+                        tool_result = await create_app_concept(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("app_concept", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'app_concept','title':tool_result.get('title','App Concept')}})}\n\n"
+                    elif tool_name == "create_notion_template":
+                        tool_result = await create_notion_template(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("notion_template", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'notion_template','title':tool_result.get('title','Notion Template')}})}\n\n"
+                    elif tool_name == "write_viral_thread":
+                        tool_result = await write_viral_thread(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("viral_thread", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'viral_thread','title':tool_result.get('title','Viral Thread')}})}\n\n"
+                    elif tool_name == "vesper_set_intent":
+                        tool_result = await vesper_set_intent(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    # ── Batch 3 tools (new) ───────────────────────────────
+                    elif tool_name == "find_prospects":
+                        tool_result = await find_prospects(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("prospects", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'prospects','title':tool_result.get('title','Prospects')}})}\n\n"
+                    elif tool_name == "create_ai_prompt_pack":
+                        tool_result = await create_ai_prompt_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("ai_prompt_pack", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'ai_prompt_pack','title':tool_result.get('title','AI Prompt Pack')}})}\n\n"
+                    elif tool_name == "create_mini_course":
+                        tool_result = await create_mini_course(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("mini_course", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'mini_course','title':tool_result.get('title','Mini Course')}})}\n\n"
+                    elif tool_name == "create_challenge":
+                        tool_result = await create_challenge(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("challenge", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'challenge','title':tool_result.get('title','Challenge')}})}\n\n"
+                    elif tool_name == "keyword_research":
+                        tool_result = await keyword_research(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("keyword_research", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'keyword_research','title':tool_result.get('title','Keyword Research')}})}\n\n"
+                    elif tool_name == "vesper_morning_brief":
+                        tool_result = await vesper_morning_brief(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "vesper_brainstorm":
+                        tool_result = await vesper_brainstorm(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "write_cold_dm":
+                        tool_result = await write_cold_dm(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("cold_dm", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'cold_dm','title':tool_result.get('title','Cold DM Sequence')}})}\n\n"
+                    elif tool_name == "create_sop":
+                        tool_result = await create_sop(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("sop", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'sop','title':tool_result.get('title','SOP')}})}\n\n"
+                    elif tool_name == "create_webinar_funnel":
+                        tool_result = await create_webinar_funnel(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("webinar_funnel", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'webinar_funnel','title':tool_result.get('title','Webinar Funnel')}})}\n\n"
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(

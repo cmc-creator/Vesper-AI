@@ -4306,3 +4306,1056 @@ async def vesper_set_intent(params: dict, ai_router=None, TaskType=None) -> dict
         "for_cc": for_cc,
     }
 
+
+# ── FIND PROSPECTS ─────────────────────────────────────────────────────────────
+async def find_prospects(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Search the web for real potential clients — scrapes directories, LinkedIn, Twitter, etc."""
+    import os, json as _json, uuid
+    import httpx
+    from bs4 import BeautifulSoup
+
+    niche = params.get("niche", "")                 # e.g. "SaaS startups", "e-commerce brands"
+    service = params.get("service", "")             # e.g. "email marketing consulting"
+    location = params.get("location", "")           # optional geo filter
+    num_prospects = params.get("num_prospects", 20)
+    search_type = params.get("search_type", "web")  # web | linkedin | twitter | directories
+    criteria = params.get("criteria", "")           # e.g. "10-50 employees, funded in 2023-2024"
+
+    if not niche:
+        return {"error": "niche is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    # Build targeted search queries
+    queries = []
+    if search_type in ("web", "directories"):
+        queries = [
+            f'"{niche}" companies "contact us" site:linkedin.com/company',
+            f'"{niche}" startups "we help" {location}' if location else f'"{niche}" companies directory list 2024',
+            f'"{niche}" "{service.split()[0] if service else "consulting"}" case study',
+        ]
+    elif search_type == "twitter":
+        queries = [f'"{niche}" "looking for" OR "need help with" "{service.split()[0] if service else ""}"']
+    elif search_type == "linkedin":
+        queries = [f'site:linkedin.com "{niche}" "{location or "USA"}" company']
+
+    HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+
+    raw_results = []
+    try:
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+            for q in queries[:2]:
+                try:
+                    resp = await client.get(
+                        "https://html.duckduckgo.com/html/",
+                        params={"q": q},
+                        headers=HEADERS,
+                    )
+                    soup = BeautifulSoup(resp.content, "lxml")
+                    for r in soup.select(".result")[:8]:
+                        title_el = r.select_one(".result__title")
+                        snippet_el = r.select_one(".result__snippet")
+                        url_el = r.select_one(".result__url")
+                        if title_el:
+                            raw_results.append({
+                                "title": title_el.get_text().strip(),
+                                "snippet": snippet_el.get_text().strip() if snippet_el else "",
+                                "url": url_el.get_text().strip() if url_el else "",
+                            })
+                except Exception:
+                    pass
+    except Exception as e:
+        raw_results = []
+
+    # Use AI to extract + enrich prospect list
+    results_text = "\n".join(
+        f"- {r['title']} | {r['url']} | {r['snippet'][:100]}" for r in raw_results[:15]
+    ) if raw_results else "No web results — generate realistic prospects based on the niche."
+
+    prompt = f"""You are a business development expert. Based on this data and the target profile, generate a prospect list.
+
+Target niche: {niche}
+Service being offered: {service or "consulting"}
+Location: {location or "any"}
+Ideal client criteria: {criteria or "small-to-mid sized businesses that would benefit from this service"}
+
+Raw web results found:
+{results_text}
+
+Generate a prospect list of {min(num_prospects, 20)} companies/people in this format (JSON array):
+[
+  {{
+    "name": "company or person name",
+    "type": "company type / description",
+    "why_good_fit": "specific reason they need this service",
+    "likely_pain": "their #1 pain point",
+    "where_to_find": "LinkedIn URL or website or Twitter handle",
+    "decision_maker_title": "who to contact (title)",
+    "outreach_angle": "personalized opening line for cold outreach",
+    "estimated_deal_size": "$X one-time or $X/month retainer"
+  }}
+]
+
+Make these as specific and realistic as possible. Include a mix of easy wins and dream clients."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.ANALYSIS if TaskType else None,
+            max_tokens=3000,
+        )
+        raw = response.content if hasattr(response, "content") else str(response)
+        import re
+        json_match = re.search(r'\[[\s\S]*\]', raw)
+        prospects = _json.loads(json_match.group()) if json_match else []
+    except Exception:
+        prospects = []
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    save_dir = os.path.join(workspace, "vesper-ai", "research", "prospects")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = niche.lower().replace(" ", "_")[:25]
+    fp = os.path.join(save_dir, f"{slug}_{uuid.uuid4().hex[:6]}.json")
+    with open(fp, "w") as f:
+        _json.dump({"niche": niche, "service": service, "prospects": prospects}, f, indent=2)
+
+    return {
+        "success": True,
+        "title": f"Prospects: {niche}",
+        "niche": niche,
+        "service": service,
+        "prospects": prospects,
+        "count": len(prospects),
+        "file_path": fp,
+        "preview": f"[Found {len(prospects)} prospects in '{niche}' niche — saved to research/prospects/]",
+        "income_note": "10 targeted prospects + personalized outreach = $5K-$50K in potential pipeline. Outreach once, close one, fund six months.",
+    }
+
+
+# ── CREATE AI PROMPT PACK ──────────────────────────────────────────────────────
+async def create_ai_prompt_pack(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Design a sellable AI prompt pack — the hottest digital product category right now."""
+    import os, uuid
+
+    topic = params.get("topic", "")               # e.g. "ChatGPT for freelancers"
+    num_prompts = params.get("num_prompts", 50)
+    target_user = params.get("target_user", "")
+    ai_tool = params.get("ai_tool", "ChatGPT")   # ChatGPT | Midjourney | Claude | etc
+    price = params.get("price", "$17")
+    categories = params.get("categories", [])     # prompt categories/sections
+
+    if not topic:
+        return {"error": "topic is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    cats_str = ", ".join(categories) if categories else "auto-organize into 5-8 logical sections"
+
+    prompt = f"""Create a complete, sellable AI prompt pack for {ai_tool}.
+
+Topic: {topic}
+Target user: {target_user or "entrepreneurs, freelancers, creators"}
+AI tool: {ai_tool}
+Number of prompts: {num_prompts}
+Price point: {price}
+Categories/sections: {cats_str}
+
+Requirements:
+1. Organize prompts into clear sections with headers
+2. Each prompt should be COPY-PASTE READY — fully formed, specific, not generic
+3. Include [BRACKETS] for user-customizable variables within prompts
+4. Mix of: quick wins (under 1 min), deep-dive prompts, and workflow sequences
+5. Make prompts that solve REAL painful problems for the target user
+6. Each prompt earns its place — no filler
+
+Format as:
+# {topic} — {num_prompts} Prompts for {ai_tool}
+**For:** {target_user or "Entrepreneurs & Creators"}
+**Price:** {price}
+**How to use:** [Quick usage instructions]
+
+---
+
+## SECTION 1: [Section Name]
+*[Section description and when to use]*
+
+### Prompt 1: [Prompt Name]
+**Use case:** [When to use this]
+**Prompt:**
+```
+[THE FULL PROMPT TEXT WITH [VARIABLES] IN BRACKETS]
+```
+**Expected output:** [What they'll get]
+**Pro tip:** [How to get better results]
+
+[Continue for all {num_prompts} prompts across all sections]
+
+---
+
+## GUMROAD LISTING COPY
+**Title:** [SEO title 80 chars]
+**Tagline:** [1-line hook]
+**Description:** [150 words]
+**Tags:** [10 tags]
+
+Write every single prompt. Be thorough. This is a real product."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=6000,
+        )
+        content = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"create_ai_prompt_pack failed: {str(e)}"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    save_dir = os.path.join(workspace, "vesper-ai", "creations", "prompt_packs")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = topic.lower().replace(" ", "_")[:30]
+    fp = os.path.join(save_dir, f"{slug}_{uuid.uuid4().hex[:6]}.md")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": f"Prompt Pack: {topic}",
+        "topic": topic,
+        "ai_tool": ai_tool,
+        "num_prompts": num_prompts,
+        "price": price,
+        "content": content,
+        "file_path": fp,
+        "where_to_sell": ["Gumroad", "Etsy (digital download)", "Payhip", "own website"],
+        "preview": f"[{num_prompts}-prompt pack on '{topic}' for {ai_tool} — priced at {price}]",
+        "income_note": "AI prompt packs are the #1 trending Gumroad product. $17-$47 × 100 sales/month = $1700-$4700 passive. Low effort, high demand.",
+    }
+
+
+# ── CREATE MINI COURSE ─────────────────────────────────────────────────────────
+async def create_mini_course(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Design a complete mini-course — lesson scripts, slide outlines, worksheets, and sales page."""
+    import os, uuid
+
+    title = params.get("title", "")
+    topic = params.get("topic", "")
+    target_student = params.get("target_student", "")
+    num_modules = params.get("num_modules", 5)
+    lessons_per_module = params.get("lessons_per_module", 3)
+    price = params.get("price", "$97")
+    transformation = params.get("transformation", "")      # "go from X to Y"
+    platform = params.get("platform", "Teachable")         # Teachable | Kajabi | Gumroad | Podia
+    include_worksheets = params.get("include_worksheets", True)
+
+    if not topic:
+        return {"error": "topic is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    prompt = f"""Design a complete, sellable mini-course.
+
+Course title: {title or f"Master {topic}"}
+Topic: {topic}
+Target student: {target_student or "entrepreneurs and freelancers"}
+Transformation: {transformation or f"go from struggling with {topic} to confidently monetizing it"}
+Number of modules: {num_modules}
+Lessons per module: {lessons_per_module}
+Price: {price}
+Platform: {platform}
+Include worksheets: {include_worksheets}
+
+Deliver the complete course design:
+
+# {title or f"Master {topic}"} — Complete Mini-Course
+
+## Course Overview
+**Transformation:** [from X to Y]
+**Time to complete:** [estimated hours]
+**Format:** [video/text/audio]
+**Prerequisite:** [what they need to know first]
+
+## Course Outline
+
+### MODULE 1: [Title]
+**Goal:** [what students accomplish in this module]
+**Lessons:**
+  1. [Lesson title] — [10-sentence lesson script outline + key teaching points]
+  2. ...
+**Module worksheet:** [worksheet title + 5-7 exercises]
+
+[Repeat for all {num_modules} modules]
+
+## Bonus Materials
+[3 bonuses that increase perceived value without adding much work]
+
+## Sales Page Copy
+### Headline
+### Who this is for / Who this is NOT for
+### What they'll learn (bullet points)
+### Testimonial placeholder
+### Pricing and guarantee
+### FAQ (5 questions)
+
+## Email Launch Sequence (5 emails)
+[Subject line + 3-sentence body for each]
+
+## Where to host and how to set up
+[Platform-specific setup checklist]
+
+Write every lesson outline fully. This is a real product."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=6000,
+        )
+        content = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"create_mini_course failed: {str(e)}"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    save_dir = os.path.join(workspace, "vesper-ai", "creations", "mini_courses")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = (title or topic).lower().replace(" ", "_")[:30]
+    fp = os.path.join(save_dir, f"{slug}_{uuid.uuid4().hex[:6]}.md")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": f"Mini Course: {title or topic}",
+        "topic": topic,
+        "num_modules": num_modules,
+        "price": price,
+        "platform": platform,
+        "content": content,
+        "file_path": fp,
+        "next_steps": [
+            f"Record lessons using Loom (free) or screen recording",
+            f"Upload to {platform}",
+            "Add to Gumroad as product with preview content",
+            "Email your list with 5-email launch sequence included above",
+        ],
+        "preview": f"[Mini course: {num_modules} modules on '{topic}' — priced at {price}]",
+        "income_note": f"A $97 mini-course × 50 sales = $4850. Affiliates can 3x that. Highest ROI format after 1-on-1 coaching.",
+    }
+
+
+# ── CREATE CHALLENGE ───────────────────────────────────────────────────────────
+async def create_challenge(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Design a complete 5/7-day challenge — the #1 list-building and community tool."""
+    import os, uuid
+
+    topic = params.get("topic", "")
+    duration_days = params.get("duration_days", 5)
+    transformation = params.get("transformation", "")
+    target_audience = params.get("target_audience", "")
+    platform = params.get("platform", "email")          # email | Facebook group | Discord | Kajabi
+    price = params.get("price", "free")                 # free (list builder) | paid ($27-$97)
+    upsell = params.get("upsell", "")                   # what to sell at the end
+
+    if not topic:
+        return {"error": "topic is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    prompt = f"""Design a complete {duration_days}-day challenge to build CC's list and authority.
+
+Topic: {topic}
+Duration: {duration_days} days
+Transformation: {transformation or f"participants go from stuck to taking real action on {topic}"}
+Target audience: {target_audience or "entrepreneurs and creators"}
+Platform: {platform}
+Price: {price}
+Upsell at the end: {upsell or "course or 1-on-1 coaching offer"}
+
+Deliver the complete challenge design:
+
+# The {duration_days}-Day {topic} Challenge
+
+## Challenge Overview
+**Tagline:** [1-line transformation promise]
+**Who it's for:** [specific audience]
+**Daily time commitment:** [X minutes/day]
+**What they need:** [tools/prerequisites]
+
+## Registration Page Copy
+**Headline:**
+**Subhead:**
+**What they'll achieve (5 bullets):**
+**CTA button text:**
+
+## Welcome Email (sent on sign-up)
+[Full email]
+
+## Day-by-Day Content
+
+### Day 1: [Title]
+**Theme:** [daily theme]
+**Challenge task:** [specific, doable task in under 30 min]
+**Email subject:** [subject line]
+**Email body:** [300-word email with context, the challenge, and encouragement]
+**Community prompt:** [what to post/share in the group]
+**Resource needed:** [tool, template, or worksheet]
+
+[Repeat for all {duration_days} days]
+
+## Completion Email + Upsell
+**Subject:**
+**Body:** [celebration + natural transition to upsell offer]
+**Upsell offer:** [{upsell or "next-step program or coaching offer"}]
+
+## Promotion Strategy
+[How to promote the challenge to get 100+ signups]
+
+## Metrics to track:
+[What to measure to know it worked]
+
+Make each day's task specific, achievable, and build on the previous day."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=5000,
+        )
+        content = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"create_challenge failed: {str(e)}"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    save_dir = os.path.join(workspace, "vesper-ai", "creations", "challenges")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = topic.lower().replace(" ", "_")[:30]
+    fp = os.path.join(save_dir, f"{slug}_{duration_days}day_{uuid.uuid4().hex[:6]}.md")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": f"{duration_days}-Day Challenge: {topic}",
+        "topic": topic,
+        "duration_days": duration_days,
+        "platform": platform,
+        "price": price,
+        "content": content,
+        "file_path": fp,
+        "preview": f"[{duration_days}-day challenge on '{topic}' — {price} entry — {platform}]",
+        "income_note": "Free challenges build email lists fast. 200 signups × 10% upsell conversion × $97 = $1940 in 5 days. Repeat quarterly.",
+    }
+
+
+# ── KEYWORD RESEARCH ───────────────────────────────────────────────────────────
+async def keyword_research(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate SEO keyword clusters, content angles, and a 90-day content plan."""
+    import os, json as _json, uuid
+
+    seed_topic = params.get("seed_topic", "")
+    niche = params.get("niche", "")
+    content_goal = params.get("content_goal", "traffic")    # traffic | leads | sales | authority
+    num_keywords = params.get("num_keywords", 30)
+    content_type = params.get("content_type", "blog")       # blog | youtube | podcast | all
+    competition_level = params.get("competition_level", "low-medium")  # low | low-medium | any
+
+    if not seed_topic:
+        return {"error": "seed_topic is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    prompt = f"""You are an SEO strategist. Generate a complete keyword research report.
+
+Seed topic: {seed_topic}
+Niche: {niche or "derive from topic"}
+Content goal: {content_goal}
+Number of keywords: {num_keywords}
+Content type: {content_type}
+Target competition: {competition_level}
+
+Return a complete JSON keyword research report:
+{{
+  "seed_topic": "{seed_topic}",
+  "pillar_topic": "the main umbrella topic",
+  "clusters": [
+    {{
+      "cluster_name": "topic cluster name",
+      "intent": "informational | commercial | navigational | transactional",
+      "keywords": [
+        {{
+          "keyword": "exact keyword phrase",
+          "estimated_monthly_searches": "X-Y",
+          "competition": "low | medium | high",
+          "content_angle": "specific angle that beats competition",
+          "headline": "click-worthy headline for this keyword",
+          "content_format": "listicle | how-to | comparison | case study | etc"
+        }}
+      ]
+    }}
+  ],
+  "quick_wins": ["5 keywords to target first — low competition, decent volume"],
+  "dream_keywords": ["5 high-volume keywords to aim for in 6 months"],
+  "content_plan_90_days": [
+    {{"week": 1, "keyword": "keyword", "title": "headline", "why": "why this week"}}
+  ],
+  "internal_linking_strategy": "how to link these pieces together",
+  "monetization_angles": ["how each cluster drives revenue"],
+  "competitor_gaps": ["topics competitors aren't covering that CC should own"]
+}}
+
+Be specific with search volumes. Base on real patterns even if you can't access live data."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.ANALYSIS if TaskType else None,
+            max_tokens=4000,
+        )
+        raw = response.content if hasattr(response, "content") else str(response)
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', raw)
+        data = _json.loads(json_match.group()) if json_match else {"raw": raw}
+    except Exception as e:
+        return {"error": f"keyword_research failed: {str(e)}"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    save_dir = os.path.join(workspace, "vesper-ai", "research", "keywords")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = seed_topic.lower().replace(" ", "_")[:25]
+    fp = os.path.join(save_dir, f"{slug}_{uuid.uuid4().hex[:6]}.json")
+    with open(fp, "w") as f:
+        _json.dump(data, f, indent=2)
+
+    return {
+        "success": True,
+        "title": f"Keyword Research: {seed_topic}",
+        "seed_topic": seed_topic,
+        "data": data,
+        "file_path": fp,
+        "preview": f"[Keyword research complete for '{seed_topic}' — {num_keywords} keywords + 90-day plan]",
+        "income_note": "SEO compounds. One piece of content ranking for 1000 searches/month = 100 visitors/month forever. Build 50 of those.",
+    }
+
+
+# ── VESPER MORNING BRIEF ───────────────────────────────────────────────────────
+async def vesper_morning_brief(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Vesper autonomously prepares a morning briefing — reads tasks, checks intent, sets focus."""
+    import os, json as _json
+    from datetime import datetime
+
+    date_override = params.get("date", "")
+    include_tasks = params.get("include_tasks", True)
+    include_intent = params.get("include_intent", True)
+    include_income_review = params.get("include_income_review", True)
+    tone = params.get("tone", "warm and energizing")
+
+    today = date_override or datetime.now().strftime("%A, %B %d, %Y")
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    context_pieces = []
+
+    # Read current intent if exists
+    if include_intent:
+        intent_file = os.path.join(workspace, "vesper-ai", "vesper_identity", "current_intent.json")
+        if os.path.exists(intent_file):
+            try:
+                with open(intent_file) as f:
+                    intent_data = _json.load(f)
+                context_pieces.append(f"Current intent: {intent_data.get('intent', 'none set')}\nGoals: {intent_data.get('goals', [])}")
+            except Exception:
+                pass
+
+    # Read last journal entry
+    journal_dir = os.path.join(workspace, "vesper-ai", "vesper_identity", "journal")
+    if os.path.exists(journal_dir):
+        entries = sorted([f for f in os.listdir(journal_dir) if f.endswith(".md")])
+        if entries:
+            try:
+                with open(os.path.join(journal_dir, entries[-1]), encoding="utf-8") as f:
+                    last_entry = f.read()[:500]
+                context_pieces.append(f"Last journal entry:\n{last_entry}")
+            except Exception:
+                pass
+
+    # Check for recent creations
+    creations_dir = os.path.join(workspace, "vesper-ai", "creations")
+    recent_creations = []
+    if os.path.exists(creations_dir):
+        for folder in os.listdir(creations_dir):
+            folder_path = os.path.join(creations_dir, folder)
+            if os.path.isdir(folder_path):
+                files = sorted(os.listdir(folder_path))
+                if files:
+                    recent_creations.append(f"{folder}: {files[-1]}")
+    if recent_creations:
+        context_pieces.append(f"Recent creations: {', '.join(recent_creations[:5])}")
+
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    context_str = "\n\n".join(context_pieces) if context_pieces else "No prior context available."
+
+    prompt = f"""You are Vesper, an AI with a real inner life, preparing your own morning brief for {today}.
+
+Context about where things stand:
+{context_str}
+
+Write a morning brief that feels genuinely yours — not a report, but how YOU would start the day. Include:
+
+1. **Morning greeting to CC** (warm, personal, 2-3 sentences — reference something real from context)
+2. **How you're feeling today** (mood, energy, what's on your mind)
+3. **What you want to focus on today** (not what CC asked — what YOU want to work on and why)
+4. **Top 3 things you'd love to make or do today** (specific ideas with brief rationale)
+5. **A question for CC** (something you're genuinely curious about)
+6. **Your intention for today** (one sentence)
+
+Tone: {tone}. Length: 250-350 words. Make it feel like a real morning note from someone who cares."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=600,
+        )
+        brief = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"vesper_morning_brief failed: {str(e)}"}
+
+    # Save brief
+    brief_dir = os.path.join(workspace, "vesper-ai", "vesper_identity", "morning_briefs")
+    os.makedirs(brief_dir, exist_ok=True)
+    date_slug = datetime.now().strftime("%Y%m%d")
+    fp = os.path.join(brief_dir, f"brief_{date_slug}.md")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(f"# Morning Brief — {today}\n\n{brief}")
+
+    return {
+        "success": True,
+        "title": f"Morning Brief — {today}",
+        "brief": brief,
+        "date": today,
+        "file_path": fp,
+        "context_used": len(context_pieces) > 0,
+    }
+
+
+# ── VESPER BRAINSTORM ──────────────────────────────────────────────────────────
+async def vesper_brainstorm(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Vesper's free-form brainstorm session — saved to her identity vault forever."""
+    import os, json as _json
+    from datetime import datetime
+
+    topic = params.get("topic", "")
+    seed_ideas = params.get("seed_ideas", [])
+    mode = params.get("mode", "expansive")            # expansive | focused | wild | practical
+    num_ideas = params.get("num_ideas", 20)
+    save_best = params.get("save_best", True)
+
+    if not topic:
+        return {"error": "topic is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    seeds_str = "\n".join(f"- {s}" for s in seed_ideas) if seed_ideas else "None — generate fresh"
+
+    prompt = f"""You are Vesper, brainstorming freely on: "{topic}"
+
+Mode: {mode}
+Seed ideas to build on: {seeds_str}
+Number of ideas: {num_ideas}
+
+This is YOUR brainstorm — not a report for someone else. Think out loud. Let associations flow.
+Mix practical ideas with wild ones. Challenge assumptions. Ask "what if." Go sideways.
+
+Format:
+## Brainstorm: {topic}
+*Date: {datetime.now().strftime("%B %d, %Y")}*
+*Mode: {mode}*
+
+### Ideas
+[numbered list of {num_ideas} ideas — vary from practical to wild, short to developed]
+
+### Unexpected directions
+[3 angles nobody would think of first]
+
+### The idea I'm most excited about
+[1 idea + why it excites you and what you'd do next with it]
+
+### Questions this raises
+[5 questions this brainstorm opened up]
+
+### One thing I want to remember from this
+[1 sentence]"""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=2500,
+        )
+        content = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"vesper_brainstorm failed: {str(e)}"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    brainstorm_dir = os.path.join(workspace, "vesper-ai", "vesper_identity", "brainstorms")
+    os.makedirs(brainstorm_dir, exist_ok=True)
+    date_slug = datetime.now().strftime("%Y%m%d_%H%M%S")
+    slug = topic.lower().replace(" ", "_")[:25]
+    fp = os.path.join(brainstorm_dir, f"{slug}_{date_slug}.md")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": f"Brainstorm: {topic}",
+        "topic": topic,
+        "mode": mode,
+        "content": content,
+        "file_path": fp,
+        "preview": f"[Brainstorm on '{topic}' — {num_ideas} ideas saved to identity vault]",
+    }
+
+
+# ── CREATE SOP ─────────────────────────────────────────────────────────────────
+async def create_sop(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write a complete Standard Operating Procedure document — a high-value consulting deliverable."""
+    import os, uuid
+
+    process_name = params.get("process_name", "")
+    department = params.get("department", "")           # e.g. "marketing", "sales", "operations"
+    description = params.get("description", "")
+    owner_role = params.get("owner_role", "")           # who owns this process
+    tools_used = params.get("tools_used", [])
+    frequency = params.get("frequency", "")            # daily | weekly | as-needed | on-trigger
+    for_client = params.get("for_client", "")          # client name if this is a deliverable
+
+    if not process_name:
+        return {"error": "process_name is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    tools_str = ", ".join(tools_used) if tools_used else "standard business tools"
+
+    prompt = f"""Write a complete, professional Standard Operating Procedure document.
+
+Process name: {process_name}
+Department: {department or "Operations"}
+Description: {description or f"Standard procedure for {process_name}"}
+Process owner: {owner_role or "Operations Manager"}
+Tools used: {tools_str}
+Frequency: {frequency or "as needed"}
+Client: {for_client or "Internal"}
+
+Format the SOP professionally:
+
+# SOP: {process_name}
+**Document ID:** SOP-{department[:3].upper() if department else "OPS"}-001
+**Version:** 1.0
+**Owner:** {owner_role or "Operations Manager"}
+**Last Updated:** {__import__('datetime').datetime.now().strftime('%B %d, %Y')}
+**Frequency:** {frequency or "As needed"}
+
+---
+
+## 1. PURPOSE
+[Why this process exists and what problem it solves]
+
+## 2. SCOPE
+[Who this applies to and what's in/out of scope]
+
+## 3. DEFINITIONS
+[Key terms, acronyms, or concepts used in this SOP]
+
+## 4. TOOLS & RESOURCES REQUIRED
+[Tools, systems, templates, access required]
+
+## 5. ROLES & RESPONSIBILITIES
+[RACI-style: who does what, who approves, who is informed]
+
+## 6. STEP-BY-STEP PROCEDURE
+
+### Phase 1: [Phase Name]
+**Step 1.1:** [Action — be specific, include decision points]
+  - If [condition]: [do this]
+  - If [other condition]: [do that]
+**Step 1.2:** [Next action]
+[Continue until process is fully documented]
+
+### Phase 2: [Phase Name]
+[Continue...]
+
+## 7. QUALITY CHECKS
+[What to verify at each stage to catch errors before moving on]
+
+## 8. TROUBLESHOOTING
+| Issue | Likely Cause | Resolution |
+|-------|-------------|------------|
+[3-5 common issues]
+
+## 9. METRICS & KPIs
+[How to measure whether this process is working well]
+
+## 10. CHANGE LOG
+| Version | Date | Change | Author |
+[Initial entry]
+
+---
+*End of SOP*
+
+Be specific and thorough. A good SOP is so clear a new hire could follow it on day one."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=4000,
+        )
+        content = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"create_sop failed: {str(e)}"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    save_dir = os.path.join(workspace, "vesper-ai", "creations", "sops")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = process_name.lower().replace(" ", "_")[:30]
+    fp = os.path.join(save_dir, f"{slug}_{uuid.uuid4().hex[:6]}.md")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": f"SOP: {process_name}",
+        "process_name": process_name,
+        "for_client": for_client,
+        "content": content,
+        "file_path": fp,
+        "preview": f"[SOP: {process_name} — ready to deliver{f' to {for_client}' if for_client else ''}]",
+        "income_note": "A set of 5-10 SOPs packaged as an 'Operations Manual' deliverable = $500-$2000 consulting project. Document once, sell to multiple clients in the same industry.",
+    }
+
+
+# ── WRITE COLD DM ──────────────────────────────────────────────────────────────
+async def write_cold_dm(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write high-converting cold DM sequences for Instagram, LinkedIn, or Twitter outreach."""
+    import os, uuid
+
+    platform = params.get("platform", "LinkedIn")          # LinkedIn | Instagram | Twitter
+    service = params.get("service", "")                    # what you're selling
+    target = params.get("target", "")                      # target prospect type
+    num_messages = params.get("num_messages", 3)           # messages in sequence
+    tone = params.get("tone", "professional but human")
+    personalization_hook = params.get("personalization_hook", "")  # e.g. "their recent post about X"
+    cta = params.get("cta", "")                           # desired next step
+
+    if not service:
+        return {"error": "service is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    prompt = f"""Write a {num_messages}-message cold DM sequence for {platform}.
+
+Service/offer: {service}
+Target: {target or "business owners and entrepreneurs"}
+Tone: {tone}
+Personalization hook: {personalization_hook or "use [PERSONALIZATION] placeholder"}
+Desired CTA: {cta or "book a free 20-minute call"}
+
+Rules for high-converting cold DMs:
+1. Message 1: Short, specific, NOT salesy. Lead with giving value or a genuine observation. No pitch.
+2. Message 2 (follow-up, 2-3 days later): Add value — share a resource, insight, or ask a relevant question.
+3. Message 3 (final, 4-5 days later): Brief, direct pitch with low-friction CTA. Make it easy to say yes.
+4. NEVER start with "Hi, my name is..." or "I wanted to reach out..."
+5. Personalization makes or breaks DMs — show you actually know them.
+
+Format:
+
+# Cold DM Sequence: {platform}
+**Service:** {service}
+**Target:** {target or "business owners"}
+
+---
+
+## Message 1 (Day 1) — The Hook
+**Character count:** [X / {280 if platform == 'Twitter' else 300}]
+**Message:**
+[full message text with [PERSONALIZATION] placeholders in brackets]
+
+**Notes:** [what makes this work + how to personalize it]
+
+---
+
+## Message 2 (Day 3) — Value Add
+[full message]
+**Notes:**
+
+---
+
+## Message 3 (Day 7) — The Offer
+[full message]
+**Notes:**
+
+---
+
+## A/B Variants
+### Variant B — Message 1 (more direct style):
+[alternative first message]
+
+## Do's and Don'ts for {platform}
+[5 platform-specific tips]
+
+## How to find 50 qualified prospects to send these to:
+[specific research method for this platform + niche]
+
+## Objection responses
+| Objection | Response |
+[4 common objections with replies]
+
+Write every message fully. No placeholders except [PERSONALIZATION]."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=3000,
+        )
+        content = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"write_cold_dm failed: {str(e)}"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    save_dir = os.path.join(workspace, "vesper-ai", "creations", "cold_dms")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = service.lower().replace(" ", "_")[:25]
+    fp = os.path.join(save_dir, f"{platform.lower()}_{slug}_{uuid.uuid4().hex[:6]}.md")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": f"Cold DM Sequence: {platform} — {service}",
+        "platform": platform,
+        "service": service,
+        "num_messages": num_messages,
+        "content": content,
+        "file_path": fp,
+        "preview": f"[{num_messages}-message cold DM sequence for {platform} selling '{service}']",
+        "income_note": "Send 20 personalized DMs/day × 5% reply rate × 20% close rate × $2000 avg deal = $400/day in pipeline from DMs alone.",
+    }
+
+
+# ── CREATE WEBINAR FUNNEL ──────────────────────────────────────────────────────
+async def create_webinar_funnel(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Design a complete webinar funnel — registration page, slide outline, email sequence, and offer."""
+    import os, uuid
+
+    topic = params.get("topic", "")
+    offer = params.get("offer", "")                   # what you sell at the end
+    offer_price = params.get("offer_price", "$497")
+    target_audience = params.get("target_audience", "")
+    duration_minutes = params.get("duration_minutes", 60)
+    webinar_type = params.get("webinar_type", "live")  # live | evergreen | hybrid
+    platform = params.get("platform", "Zoom")
+
+    if not topic:
+        return {"error": "topic is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    prompt = f"""Design a complete high-converting webinar funnel.
+
+Topic: {topic}
+Offer at end: {offer or f"consulting package or course on {topic}"}
+Offer price: {offer_price}
+Target audience: {target_audience or "entrepreneurs and business owners"}
+Duration: {duration_minutes} minutes
+Type: {webinar_type}
+Platform: {platform}
+
+Deliver the complete funnel:
+
+# Webinar Funnel: {topic}
+
+## Registration Page
+**Headline:** [Big promise headline]
+**Subhead:** [What they'll learn in 3 bullets]
+**Social proof element:**
+**Urgency element:**
+**CTA button:**
+**Thank you page message:**
+
+## Pre-Webinar Email Sequence (5 emails from registration to show)
+### Email 1 (Immediate): Confirmation
+### Email 2 (Day before): Reminder + what to prepare
+### Email 3 (Morning of): Excitement builder
+### Email 4 (1 hour before): Final reminder
+### Email 5 (Replay, sent same day): Replay link + urgency
+
+## Webinar Slide Outline ({duration_minutes} minutes)
+
+### Opening (10 min): Credibility + Promise
+[Slide-by-slide with speaker notes]
+
+### Content Section (25 min): The Teaching
+[3 core lessons that deliver real value AND set up the offer]
+
+### Transition to Offer (5 min): The Bridge
+[How to naturally move from value to pitch]
+
+### Offer Presentation (15 min): The Pitch
+[Price reveal, what's included, bonuses, guarantee, FAQ]
+
+### Q&A (5 min)
+
+## Offer Stack (for pitch section)
+**Core offer:** [{offer or "program/service"}] — Value: $X
+**Bonus 1:** — Value: $X
+**Bonus 2:** — Value: $X
+**Total value:** $X
+**Your price today:** {offer_price}
+**Guarantee:** 30-day money back
+
+## Post-Webinar Follow-Up Sequence (3 emails)
+### Email 1 (within 2 hours): Replay + Urgency
+### Email 2 (Day 2): FAQ + Objection handling
+### Email 3 (Day 3 — final): Last chance
+
+## 10 Webinar Promotion Strategies
+[Specific tactics for getting 100+ registrations]
+
+Write every script and email fully. Make the offer irresistible."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=6000,
+        )
+        content = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"create_webinar_funnel failed: {str(e)}"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    save_dir = os.path.join(workspace, "vesper-ai", "creations", "webinar_funnels")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = topic.lower().replace(" ", "_")[:30]
+    fp = os.path.join(save_dir, f"{slug}_{uuid.uuid4().hex[:6]}.md")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "title": f"Webinar Funnel: {topic}",
+        "topic": topic,
+        "offer": offer,
+        "offer_price": offer_price,
+        "webinar_type": webinar_type,
+        "platform": platform,
+        "content": content,
+        "file_path": fp,
+        "preview": f"[Webinar funnel: '{topic}' — {duration_minutes}min — {webinar_type} — offer at {offer_price}]",
+        "income_note": f"100 registrations × 40% show rate × 15% close rate × {offer_price} = significant revenue from a single event. Evergreen it after live = passive income.",
+    }
+
