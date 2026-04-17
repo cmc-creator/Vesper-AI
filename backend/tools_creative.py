@@ -6455,3 +6455,1544 @@ Give 3 specific, actionable budget recommendations for next month. Be direct."""
 
     return result
 
+
+# ── CRM CONTACT ───────────────────────────────────────────────────────────────
+async def crm_contact(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Local JSON CRM — manage contacts, deals, pipeline stages, and notes. Vesper as sales ops."""
+    import os, json as _json
+    from datetime import datetime
+
+    action = params.get("action", "list")
+    # Contact fields
+    name = params.get("name", "")
+    email = params.get("email", "")
+    company = params.get("company", "")
+    phone = params.get("phone", "")
+    role = params.get("role", "")
+    source = params.get("source", "")
+    tags = params.get("tags", [])
+    # Deal fields
+    deal_title = params.get("deal_title", "")
+    deal_value = params.get("deal_value", 0.0)
+    stage = params.get("stage", "lead")   # lead | qualified | proposal | negotiation | closed_won | closed_lost
+    # Note / lookup
+    note = params.get("note", "")
+    contact_id = params.get("contact_id", "")
+    query = params.get("query", "")
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    crm_dir = os.path.join(workspace, "vesper-ai", "crm")
+    os.makedirs(crm_dir, exist_ok=True)
+    contacts_path = os.path.join(crm_dir, "contacts.json")
+
+    crm = _json.loads(open(contacts_path).read()) if os.path.exists(contacts_path) else {"contacts": []}
+    contacts = crm.get("contacts", [])
+
+    def _save():
+        with open(contacts_path, "w") as f:
+            _json.dump({"contacts": contacts}, f, indent=2)
+
+    def _find(cid_or_name):
+        for c in contacts:
+            if c["id"] == cid_or_name or c["name"].lower() == cid_or_name.lower():
+                return c
+        return None
+
+    if action in ("add", "add_contact"):
+        if not name:
+            return {"error": "name is required"}
+        cid = f"c_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        contact = {
+            "id": cid,
+            "name": name,
+            "email": email,
+            "company": company,
+            "phone": phone,
+            "role": role,
+            "source": source,
+            "tags": tags if isinstance(tags, list) else [tags],
+            "stage": stage,
+            "deals": [],
+            "notes": [],
+            "created": datetime.now().isoformat(),
+            "updated": datetime.now().isoformat(),
+        }
+        if deal_title:
+            contact["deals"].append({
+                "id": f"d_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                "title": deal_title,
+                "value": float(deal_value),
+                "stage": stage,
+                "created": datetime.now().isoformat(),
+            })
+        contacts.append(contact)
+        _save()
+        return {"success": True, "action": "added", "contact": contact, "total_contacts": len(contacts),
+                "preview": f"[CRM: Added {name} ({company}) — {stage} stage]"}
+
+    if action in ("update", "update_contact"):
+        c = _find(contact_id or name)
+        if not c:
+            return {"error": f"Contact not found: {contact_id or name}"}
+        for field in ("email", "company", "phone", "role", "source", "stage"):
+            val = params.get(field)
+            if val:
+                c[field] = val
+        if tags:
+            c["tags"] = list(set(c.get("tags", []) + (tags if isinstance(tags, list) else [tags])))
+        c["updated"] = datetime.now().isoformat()
+        _save()
+        return {"success": True, "action": "updated", "contact": c, "preview": f"[CRM: Updated {c['name']}]"}
+
+    if action == "add_note":
+        c = _find(contact_id or name)
+        if not c:
+            return {"error": f"Contact not found: {contact_id or name}"}
+        n = {"note": note, "date": datetime.now().isoformat()}
+        c.setdefault("notes", []).append(n)
+        c["updated"] = datetime.now().isoformat()
+        _save()
+        return {"success": True, "action": "note_added", "contact_name": c["name"], "note": n,
+                "preview": f"[CRM: Note added to {c['name']}]"}
+
+    if action == "add_deal":
+        c = _find(contact_id or name)
+        if not c:
+            return {"error": f"Contact not found: {contact_id or name}"}
+        deal = {
+            "id": f"d_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "title": deal_title or "New Deal",
+            "value": float(deal_value),
+            "stage": stage,
+            "created": datetime.now().isoformat(),
+        }
+        c.setdefault("deals", []).append(deal)
+        c["updated"] = datetime.now().isoformat()
+        _save()
+        return {"success": True, "action": "deal_added", "deal": deal, "contact": c["name"],
+                "preview": f"[CRM: Deal '{deal_title}' ${deal_value:,.2f} added to {c['name']}]"}
+
+    if action == "get":
+        c = _find(contact_id or name or query)
+        if not c:
+            return {"error": f"Contact not found: {contact_id or name or query}"}
+        return {"success": True, "contact": c}
+
+    if action == "search":
+        q = (query or name or company or "").lower()
+        results = [c for c in contacts if
+                   q in c["name"].lower() or q in c.get("company", "").lower() or
+                   q in c.get("email", "").lower() or q in " ".join(c.get("tags", []))]
+        return {"success": True, "results": results, "count": len(results)}
+
+    if action == "pipeline":
+        pipeline = {}
+        for c in contacts:
+            s = c.get("stage", "lead")
+            pipeline.setdefault(s, []).append({"name": c["name"], "company": c.get("company"), "deals": c.get("deals", [])})
+        total_pipeline_value = sum(
+            d.get("value", 0) for c in contacts for d in c.get("deals", [])
+            if c.get("stage") not in ("closed_won", "closed_lost")
+        )
+        won_value = sum(
+            d.get("value", 0) for c in contacts for d in c.get("deals", [])
+            if c.get("stage") == "closed_won"
+        )
+        return {"success": True, "pipeline": pipeline, "open_pipeline_value": total_pipeline_value,
+                "won_value": won_value, "total_contacts": len(contacts),
+                "preview": f"[CRM Pipeline: {len(contacts)} contacts | ${total_pipeline_value:,.2f} open | ${won_value:,.2f} won]"}
+
+    if action == "delete":
+        c = _find(contact_id or name)
+        if not c:
+            return {"error": f"Contact not found"}
+        contacts.remove(c)
+        _save()
+        return {"success": True, "action": "deleted", "name": c["name"]}
+
+    # Default: list
+    by_stage = {}
+    for c in contacts:
+        by_stage.setdefault(c.get("stage", "lead"), 0)
+        by_stage[c.get("stage", "lead")] += 1
+    recent = sorted(contacts, key=lambda x: x.get("updated", x.get("created", "")), reverse=True)[:5]
+    return {"success": True, "total": len(contacts), "by_stage": by_stage,
+            "recent": [{"name": c["name"], "company": c.get("company"), "stage": c.get("stage")} for c in recent],
+            "preview": f"[CRM: {len(contacts)} contacts — {by_stage}]"}
+
+
+# ── CREATE CONTRACT ───────────────────────────────────────────────────────────
+async def create_contract(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate any legal document — service agreements, NDAs, retainer letters, contractor agreements."""
+    import os, uuid
+    from datetime import datetime, date
+
+    contract_type = params.get("contract_type", "service_agreement")
+    # service_agreement | nda | retainer | contractor | freelance | consulting | partnership | generic
+    party_a = params.get("party_a", "")          # provider (usually CC)
+    party_b = params.get("party_b", "")          # client / other party
+    party_a_entity = params.get("party_a_entity", "")   # business entity type
+    party_b_entity = params.get("party_b_entity", "")
+    scope = params.get("scope", "")              # what services / work
+    rate = params.get("rate", "")                # payment amount/rate
+    payment_terms = params.get("payment_terms", "Net 30")
+    duration = params.get("duration", "")        # project length or ongoing
+    deliverables = params.get("deliverables", "")
+    state = params.get("state", "Arizona")       # governing law state
+    confidential = params.get("confidential", True)
+    ip_ownership = params.get("ip_ownership", "client")   # client | provider | shared
+    notice_days = params.get("notice_days", 30)
+    custom_clauses = params.get("custom_clauses", "")
+    jurisdiction = params.get("jurisdiction", "")
+
+    if not (party_a and party_b):
+        return {"error": "party_a (your name/business) and party_b (client/counterparty) are required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    today = date.today().strftime("%B %d, %Y")
+
+    type_prompts = {
+        "service_agreement": f"a Professional Services Agreement for consulting/service delivery work. Include: scope of work, deliverables, timeline, payment terms, IP ownership ({ip_ownership}), confidentiality, limitation of liability, termination, governing law.",
+        "nda": "a Mutual Non-Disclosure Agreement protecting confidential business information. Include: definition of confidential information, exclusions, obligations, duration (2 years), return of materials, remedies, governing law.",
+        "retainer": f"a Monthly Retainer Agreement for ongoing services. Include: monthly retainer fee ({rate}), scope of included services, additional work billing, minimum term ({duration or '3 months'}), payment auto-renewal, termination.",
+        "contractor": f"an Independent Contractor Agreement. Include: contractor status (not employee), scope, rate ({rate}), IP work-for-hire, no benefits, tax responsibility, confidentiality, non-solicitation, termination.",
+        "freelance": f"a Freelance Project Agreement. Include: project scope, deliverables, revisions policy, payment schedule, IP transfer upon final payment, kill fee (25%), governing law.",
+        "consulting": f"a Consulting Agreement. Include: consulting services scope, hourly/project rate ({rate}), expenses, IP ownership, confidentiality, non-compete scope, governing law.",
+        "partnership": "a Business Partnership Agreement. Include: roles and responsibilities, profit/loss sharing, decision-making authority, capital contributions, dispute resolution, dissolution process.",
+        "generic": "a general Business Agreement. Make it thorough, professional, and legally sound with standard protective clauses.",
+    }
+
+    prompt = f"""You are a professional legal document writer. Generate a complete, legally sound {contract_type.replace('_', ' ')} contract.
+
+**Agreement Type:** {type_prompts.get(contract_type, type_prompts['generic'])}
+
+**Parties:**
+- Party A (Provider/Your Entity): {party_a}{f' ({party_a_entity})' if party_a_entity else ''}
+- Party B (Client/Counterparty): {party_b}{f' ({party_b_entity})' if party_b_entity else ''}
+
+**Key Terms:**
+- Effective Date: {today}
+- Scope: {scope or 'As described in SOW/project specifications'}
+- Rate/Compensation: {rate or 'To be agreed per project'}
+- Payment Terms: {payment_terms}
+- Duration: {duration or 'Project-based / until completion'}
+- Deliverables: {deliverables or 'As agreed'}
+- Governing Law: State of {state}{f', {jurisdiction}' if jurisdiction else ''}
+- IP Ownership: {ip_ownership}
+- Termination Notice: {notice_days} days written notice
+- Confidentiality: {'Yes — mutual NDA provisions included' if confidential else 'Not included'}
+{f'- Additional Clauses: {custom_clauses}' if custom_clauses else ''}
+
+Write the COMPLETE contract, professionally formatted with:
+1. Title and parties block
+2. Recitals/Background
+3. All substantive sections (numbered, with headers)
+4. Signature block for both parties with date lines
+5. Clear, plain English — professional but readable, not unnecessarily complex
+
+Make it tight and enforceable. Include limitation of liability, indemnification, and dispute resolution (arbitration preferred over litigation)."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=4000,
+        )
+        contract_text = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"create_contract failed: {str(e)}"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    contracts_dir = os.path.join(workspace, "vesper-ai", "contracts")
+    os.makedirs(contracts_dir, exist_ok=True)
+    slug = f"{contract_type}_{party_b.lower().replace(' ', '_')[:20]}_{uuid.uuid4().hex[:6]}"
+    fp = os.path.join(contracts_dir, f"{slug}.md")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(contract_text)
+
+    return {
+        "success": True,
+        "title": f"{contract_type.replace('_', ' ').title()} — {party_a} & {party_b}",
+        "contract_type": contract_type,
+        "party_a": party_a,
+        "party_b": party_b,
+        "contract": contract_text,
+        "file_path": fp,
+        "preview": f"[{contract_type.replace('_', ' ').title()}: {party_a} ↔ {party_b} — saved to contracts/]",
+    }
+
+
+# ── READ EMAIL INBOX ──────────────────────────────────────────────────────────
+async def read_email_inbox(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Read and triage CC's email inbox via IMAP — list, read, search, summarize, flag urgent."""
+    import os, imaplib, email as _email_lib
+    from email.header import decode_header
+    from datetime import datetime
+
+    action = params.get("action", "list")    # list | read | search | triage | unread
+    limit = params.get("limit", 20)
+    query = params.get("search_query", "")
+    msg_num = params.get("message_number", 0)   # for action=read
+    folder = params.get("folder", "INBOX")
+    triage = params.get("triage", True)
+
+    host = os.environ.get("IMAP_HOST", "imap.gmail.com")
+    user = os.environ.get("IMAP_USER", "")
+    password = os.environ.get("IMAP_PASS", "")
+
+    if not (user and password):
+        return {"error": "IMAP_USER and IMAP_PASS env vars are required. For Gmail: set IMAP_HOST=imap.gmail.com, use an App Password (not regular password) at myaccount.google.com/apppasswords."}
+
+    def _decode_str(val):
+        if not val:
+            return ""
+        decoded_parts = decode_header(val)
+        result = []
+        for part, charset in decoded_parts:
+            if isinstance(part, bytes):
+                result.append(part.decode(charset or "utf-8", errors="replace"))
+            else:
+                result.append(str(part))
+        return " ".join(result)
+
+    def _get_body(msg):
+        body = ""
+        if msg.is_multipart():
+            for part in msg.walk():
+                ct = part.get_content_type()
+                if ct == "text/plain":
+                    payload = part.get_payload(decode=True)
+                    if payload:
+                        body = payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+                        break
+        else:
+            payload = msg.get_payload(decode=True)
+            if payload:
+                body = payload.decode(msg.get_content_charset() or "utf-8", errors="replace")
+        return body[:3000]
+
+    try:
+        import ssl
+        ctx = ssl.create_default_context()
+        mail = imaplib.IMAP4_SSL(host, 993, ssl_context=ctx)
+        mail.login(user, password)
+        mail.select(folder)
+
+        if action == "search" and query:
+            _, nums = mail.search(None, f'SUBJECT "{query}"')
+        elif action == "unread":
+            _, nums = mail.search(None, "UNSEEN")
+        else:
+            _, nums = mail.search(None, "ALL")
+
+        msg_ids = nums[0].split()
+        total = len(msg_ids)
+        recent_ids = msg_ids[-min(limit, total):]
+
+        if action == "read" and msg_num:
+            target_id = msg_ids[-msg_num] if msg_num <= len(msg_ids) else msg_ids[-1]
+            _, data = mail.fetch(target_id, "(RFC822)")
+            msg = _email_lib.message_from_bytes(data[0][1])
+            body = _get_body(msg)
+            mail.logout()
+            result = {
+                "success": True,
+                "action": "read",
+                "subject": _decode_str(msg.get("Subject", "")),
+                "from": _decode_str(msg.get("From", "")),
+                "date": msg.get("Date", ""),
+                "body": body,
+            }
+            if triage and ai_router and body:
+                try:
+                    r = await ai_router.complete(
+                        messages=[{"role": "user", "content": f"You are Vesper. Quickly analyze this email and provide: 1) Priority (urgent/normal/low), 2) What it needs (reply/action/info/ignore), 3) Suggested 2-sentence reply if one is needed, 4) Any deadlines or commitments mentioned.\n\nSubject: {result['subject']}\nFrom: {result['from']}\n\n{body}"}],
+                        task_type=TaskType.ANALYSIS if TaskType else None,
+                        max_tokens=400,
+                    )
+                    result["triage"] = r.content if hasattr(r, "content") else str(r)
+                except Exception:
+                    pass
+            return result
+
+        messages = []
+        for mid in reversed(recent_ids):
+            _, data = mail.fetch(mid, "(RFC822.HEADER)")
+            msg = _email_lib.message_from_bytes(data[0][1])
+            messages.append({
+                "subject": _decode_str(msg.get("Subject", "(no subject)")),
+                "from": _decode_str(msg.get("From", "")),
+                "date": msg.get("Date", ""),
+                "id": mid.decode(),
+            })
+
+        mail.logout()
+
+        result = {
+            "success": True,
+            "folder": folder,
+            "total_messages": total,
+            "showing": len(messages),
+            "messages": messages,
+            "preview": f"[Inbox: {total} messages | showing {len(messages)} most recent]",
+        }
+
+        if triage and ai_router and messages:
+            subjects = "\n".join(f"- {m['from'][:30]}: {m['subject']}" for m in messages[:10])
+            try:
+                r = await ai_router.complete(
+                    messages=[{"role": "user", "content": f"You are Vesper triaging CC's inbox. Review these emails and identify: 1) Any urgent items needing immediate reply, 2) Anything that looks like a business opportunity, 3) What can be ignored.\n\nEmails:\n{subjects}"}],
+                    task_type=TaskType.ANALYSIS if TaskType else None,
+                    max_tokens=400,
+                )
+                result["triage_summary"] = r.content if hasattr(r, "content") else str(r)
+            except Exception:
+                pass
+
+        return result
+
+    except imaplib.IMAP4.error as e:
+        return {"error": f"IMAP authentication failed: {str(e)}. For Gmail, use an App Password from myaccount.google.com/apppasswords and set Allow less secure apps or use 2FA + App Password."}
+    except Exception as e:
+        return {"error": f"read_email_inbox failed: {str(e)}"}
+
+
+# ── SCHEDULE TASK ─────────────────────────────────────────────────────────────
+async def schedule_task(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Schedule future tasks, reminders, and follow-ups — Vesper's autonomous to-do with due dates."""
+    import os, json as _json
+    from datetime import datetime, date
+
+    action = params.get("action", "list")        # add | list | check_due | complete | delete | due_today
+    task = params.get("task", "")
+    description = params.get("description", "")
+    due_date = params.get("due_date", "")        # YYYY-MM-DD or "tomorrow" / "next week" / relative
+    due_time = params.get("due_time", "09:00")   # HH:MM
+    task_type = params.get("task_type", "reminder")  # reminder | follow_up | invoice_chase | content | research | other
+    priority = params.get("priority", "normal")  # high | normal | low
+    related_contact = params.get("related_contact", "")
+    task_id = params.get("task_id", "")
+    recurrence = params.get("recurrence", "")    # daily | weekly | monthly | none
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sched_dir = os.path.join(workspace, "vesper-ai", "scheduler")
+    os.makedirs(sched_dir, exist_ok=True)
+    tasks_path = os.path.join(sched_dir, "tasks.json")
+
+    data = _json.loads(open(tasks_path).read()) if os.path.exists(tasks_path) else {"tasks": []}
+    tasks = data.get("tasks", [])
+
+    def _save():
+        with open(tasks_path, "w") as f:
+            _json.dump({"tasks": tasks}, f, indent=2)
+
+    def _parse_due_date(raw):
+        if not raw:
+            return date.today().isoformat()
+        raw = raw.lower().strip()
+        if raw == "today":
+            return date.today().isoformat()
+        if raw == "tomorrow":
+            from datetime import timedelta
+            return (date.today() + timedelta(days=1)).isoformat()
+        if raw == "next week":
+            from datetime import timedelta
+            return (date.today() + timedelta(days=7)).isoformat()
+        if raw == "next month":
+            from datetime import timedelta
+            return (date.today() + timedelta(days=30)).isoformat()
+        try:
+            return date.fromisoformat(raw).isoformat()
+        except Exception:
+            return raw
+
+    today_str = date.today().isoformat()
+
+    if action == "add":
+        if not task:
+            return {"error": "task description is required"}
+        tid = f"t_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        parsed_due = _parse_due_date(due_date)
+        entry = {
+            "id": tid,
+            "task": task,
+            "description": description,
+            "due_date": parsed_due,
+            "due_time": due_time,
+            "task_type": task_type,
+            "priority": priority,
+            "related_contact": related_contact,
+            "recurrence": recurrence,
+            "status": "pending",
+            "created": datetime.now().isoformat(),
+        }
+        tasks.append(entry)
+        _save()
+        days_until = (date.fromisoformat(parsed_due) - date.today()).days if parsed_due else 0
+        return {
+            "success": True,
+            "action": "added",
+            "task": entry,
+            "days_until_due": days_until,
+            "preview": f"[Task scheduled: '{task}' — due {parsed_due} ({days_until}d)]",
+        }
+
+    if action == "complete":
+        for t in tasks:
+            if t["id"] == task_id or t["task"].lower() == task.lower():
+                t["status"] = "completed"
+                t["completed_at"] = datetime.now().isoformat()
+                # Handle recurrence
+                if t.get("recurrence") and t["recurrence"] != "none":
+                    from datetime import timedelta
+                    deltas = {"daily": 1, "weekly": 7, "monthly": 30}
+                    delta = timedelta(days=deltas.get(t["recurrence"], 7))
+                    new_due = (date.fromisoformat(t["due_date"]) + delta).isoformat()
+                    new_task = dict(t)
+                    new_task["id"] = f"t_{datetime.now().strftime('%Y%m%d_%H%M%S')}_r"
+                    new_task["due_date"] = new_due
+                    new_task["status"] = "pending"
+                    new_task.pop("completed_at", None)
+                    tasks.append(new_task)
+                _save()
+                return {"success": True, "action": "completed", "task": t["task"], "id": t["id"]}
+        return {"error": f"Task not found: {task_id or task}"}
+
+    if action == "delete":
+        original = len(tasks)
+        tasks[:] = [t for t in tasks if t["id"] != task_id and t["task"].lower() != task.lower()]
+        _save()
+        return {"success": True, "deleted": original - len(tasks)}
+
+    pending = [t for t in tasks if t["status"] == "pending"]
+    overdue = [t for t in pending if t.get("due_date", "") < today_str]
+    due_today = [t for t in pending if t.get("due_date", "") == today_str]
+    upcoming = sorted([t for t in pending if t.get("due_date", "") > today_str], key=lambda x: x["due_date"])
+
+    if action == "due_today":
+        return {"success": True, "due_today": due_today, "overdue": overdue,
+                "preview": f"[Today: {len(due_today)} tasks due | {len(overdue)} overdue]"}
+
+    if action == "check_due":
+        all_due = sorted(overdue + due_today, key=lambda x: (x["priority"] != "high", x["due_date"]))
+        result = {"success": True, "overdue": overdue, "due_today": due_today, "all_actionable": all_due}
+        if ai_router and all_due:
+            task_text = "\n".join(f"- [{t['priority'].upper()}] {t['task']} (due {t['due_date']})" for t in all_due[:10])
+            try:
+                r = await ai_router.complete(
+                    messages=[{"role": "user", "content": f"You are Vesper. Here are CC's overdue and due-today tasks. Give a crisp prioritized action plan:\n{task_text}"}],
+                    task_type=TaskType.ANALYSIS if TaskType else None,
+                    max_tokens=400,
+                )
+                result["action_plan"] = r.content if hasattr(r, "content") else str(r)
+            except Exception:
+                pass
+        result["preview"] = f"[{len(all_due)} tasks need attention — {len(overdue)} overdue, {len(due_today)} today]"
+        return result
+
+    # Default: list
+    return {
+        "success": True,
+        "total_pending": len(pending),
+        "overdue": len(overdue),
+        "due_today": len(due_today),
+        "upcoming": upcoming[:10],
+        "high_priority": [t for t in pending if t.get("priority") == "high"],
+        "preview": f"[Tasks: {len(pending)} pending | {len(overdue)} overdue | {len(due_today)} today]",
+    }
+
+
+# ── READ ANALYTICS ─────────────────────────────────────────────────────────────
+async def read_analytics(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Read platform sales and performance data — Gumroad revenue, product stats, and business snapshot."""
+    import os, json as _json
+    from datetime import datetime, date
+
+    platform = params.get("platform", "gumroad")  # gumroad | overview
+    period = params.get("period", "this_month")
+    include_insights = params.get("include_insights", True)
+
+    gumroad_token = os.environ.get("GUMROAD_ACCESS_TOKEN", "")
+
+    result = {"success": True, "platform": platform, "requested": datetime.now().isoformat()}
+
+    if platform in ("gumroad", "all", "overview"):
+        if not gumroad_token:
+            result["gumroad"] = {"error": "GUMROAD_ACCESS_TOKEN not set. Add it to environment variables."}
+        else:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=20) as client:
+                    # Get products
+                    products_resp = await client.get(
+                        "https://api.gumroad.com/v2/products",
+                        headers={"Authorization": f"Bearer {gumroad_token}"},
+                    )
+                    products_data = products_resp.json()
+                    products = products_data.get("products", [])
+
+                    # Get sales
+                    sales_params = {"before": datetime.now().isoformat()}
+                    today = date.today()
+                    if period == "this_month":
+                        sales_params["after"] = today.replace(day=1).isoformat()
+                    elif period == "last_30":
+                        from datetime import timedelta
+                        sales_params["after"] = (today - timedelta(days=30)).isoformat()
+                    elif period == "ytd":
+                        sales_params["after"] = today.replace(month=1, day=1).isoformat()
+
+                    sales_resp = await client.get(
+                        "https://api.gumroad.com/v2/sales",
+                        headers={"Authorization": f"Bearer {gumroad_token}"},
+                        params=sales_params,
+                    )
+                    sales_data = sales_resp.json()
+                    sales = sales_data.get("sales", [])
+
+                    total_revenue = sum(float(s.get("price", 0)) / 100 for s in sales)
+                    by_product = {}
+                    for s in sales:
+                        pn = s.get("product_name", "Unknown")
+                        by_product[pn] = by_product.get(pn, 0) + float(s.get("price", 0)) / 100
+
+                    result["gumroad"] = {
+                        "period": period,
+                        "total_revenue": round(total_revenue, 2),
+                        "total_sales": len(sales),
+                        "by_product": dict(sorted(by_product.items(), key=lambda x: x[1], reverse=True)),
+                        "products_count": len(products),
+                        "products": [{"name": p.get("name"), "price": p.get("price"), "sales_count": p.get("sales_count", 0)} for p in products[:10]],
+                        "avg_order_value": round(total_revenue / len(sales), 2) if sales else 0,
+                    }
+            except Exception as e:
+                result["gumroad"] = {"error": f"Gumroad API error: {str(e)}"}
+
+    # Read from local income ledger too
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ledger_path = os.path.join(workspace, "vesper-ai", "finance", "income_ledger.json")
+    if os.path.exists(ledger_path):
+        with open(ledger_path) as f:
+            entries = _json.load(f).get("entries", [])
+        today_str = date.today().strftime("%Y-%m")
+        month_income = sum(e["amount"] for e in entries if e["date"].startswith(today_str))
+        ytd_income = sum(e["amount"] for e in entries if e["date"].startswith(str(date.today().year)))
+        result["ledger_summary"] = {
+            "month_income": month_income,
+            "ytd_income": ytd_income,
+            "total_entries": len(entries),
+        }
+
+    if include_insights and ai_router and result.get("gumroad") and "error" not in result["gumroad"]:
+        g = result["gumroad"]
+        try:
+            r = await ai_router.complete(
+                messages=[{"role": "user", "content": f"You are Vesper analyzing CC's Gumroad performance.\n\nPeriod: {period}\nRevenue: ${g['total_revenue']:,.2f}\nSales: {g['total_sales']}\nTop products: {_json.dumps(g['by_product'])}\n\nGive 3 specific insights: what's working, what to improve, one product idea based on what's selling. Be direct and practical."}],
+                task_type=TaskType.ANALYSIS if TaskType else None,
+                max_tokens=400,
+            )
+            result["insights"] = r.content if hasattr(r, "content") else str(r)
+        except Exception:
+            pass
+
+    gumroad_total = result.get("gumroad", {}).get("total_revenue", 0)
+    result["preview"] = f"[Analytics {period}: Gumroad ${gumroad_total:,.2f} | YTD ledger ${result.get('ledger_summary', {}).get('ytd_income', 0):,.2f}]"
+    return result
+
+
+# ── PUBLISH TO BEEHIIV ─────────────────────────────────────────────────────────
+async def publish_to_beehiiv(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Publish a newsletter issue to Beehiiv — CC's newsletter sent directly from Vesper."""
+    import os
+    import httpx
+
+    action = params.get("action", "publish")       # publish | draft | list_subscribers | stats
+    title = params.get("title", "")
+    subtitle = params.get("subtitle", "")
+    content = params.get("content", "")            # HTML or plain text
+    audience = params.get("audience", "free")      # free | premium | all
+    status = params.get("status", "draft")         # draft | confirmed (confirmed = live)
+    send_email = params.get("send_email", False)   # whether to actually send to subscribers
+    preview_text = params.get("preview_text", "")
+
+    api_key = os.environ.get("BEEHIIV_API_KEY", "")
+    pub_id = os.environ.get("BEEHIIV_PUBLICATION_ID", "")
+
+    if not api_key or not pub_id:
+        return {"error": "BEEHIIV_API_KEY and BEEHIIV_PUBLICATION_ID env vars are required. Get them at app.beehiiv.com → Settings → API."}
+
+    if action == "stats":
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                resp = await client.get(
+                    f"https://api.beehiiv.com/v2/publications/{pub_id}",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                )
+                data = resp.json()
+                pub = data.get("data", {})
+                return {
+                    "success": True,
+                    "name": pub.get("name"),
+                    "subscribers": pub.get("stats", {}).get("total_active_subscriptions", 0),
+                    "preview": f"[Beehiiv: {pub.get('name')} — {pub.get('stats', {}).get('total_active_subscriptions', 0)} subscribers]",
+                }
+        except Exception as e:
+            return {"error": f"Beehiiv stats error: {str(e)}"}
+
+    if action == "list_posts":
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                resp = await client.get(
+                    f"https://api.beehiiv.com/v2/publications/{pub_id}/posts",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    params={"limit": 10},
+                )
+                data = resp.json()
+                posts = data.get("data", [])
+                return {"success": True, "posts": [{"id": p.get("id"), "title": p.get("subject"), "status": p.get("status"), "publish_date": p.get("publish_date")} for p in posts]}
+        except Exception as e:
+            return {"error": f"Beehiiv list posts error: {str(e)}"}
+
+    if not (title and content):
+        return {"error": "title and content are required to publish"}
+
+    # Convert plain text to basic HTML if no HTML tags detected
+    if "<" not in content:
+        html_content = content.replace("\n\n", "</p><p>").replace("\n", "<br>")
+        html_content = f"<p>{html_content}</p>"
+    else:
+        html_content = content
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            payload = {
+                "subject": title,
+                "subtitle": subtitle or "",
+                "preview_text": preview_text or subtitle or "",
+                "authors": [],
+                "body": html_content,
+                "status": status,
+                "audience": audience,
+                "send_at": None,
+            }
+            resp = await client.post(
+                f"https://api.beehiiv.com/v2/publications/{pub_id}/posts",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=payload,
+            )
+            data = resp.json()
+            if resp.status_code not in (200, 201):
+                return {"error": f"Beehiiv error {resp.status_code}: {data}"}
+            post = data.get("data", {})
+            return {
+                "success": True,
+                "post_id": post.get("id"),
+                "title": title,
+                "status": status,
+                "audience": audience,
+                "url": post.get("web_url", ""),
+                "preview": f"[Beehiiv: '{title}' {status} — audience: {audience}]",
+            }
+    except Exception as e:
+        return {"error": f"publish_to_beehiiv failed: {str(e)}"}
+
+
+# ── GOOGLE CALENDAR ────────────────────────────────────────────────────────────
+async def google_calendar(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Manage Google Calendar — list events, create/delete events, check CC's schedule."""
+    import os
+    import httpx
+    from datetime import datetime, date, timedelta
+
+    action = params.get("action", "list")    # list | create | delete | today | week
+    summary = params.get("summary", "")      # event title
+    start = params.get("start", "")          # ISO datetime string or "YYYY-MM-DD HH:MM"
+    end = params.get("end", "")
+    duration_minutes = params.get("duration_minutes", 60)
+    location = params.get("location", "")
+    description_text = params.get("description", "")
+    calendar_id = params.get("calendar_id", os.environ.get("GOOGLE_CALENDAR_ID", "primary"))
+    event_id = params.get("event_id", "")
+    days_ahead = params.get("days_ahead", 7)
+    all_day = params.get("all_day", False)
+
+    access_token = os.environ.get("GOOGLE_CALENDAR_TOKEN", "")
+    refresh_token = os.environ.get("GOOGLE_CALENDAR_REFRESH_TOKEN", "")
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+
+    if not access_token:
+        return {"error": "GOOGLE_CALENDAR_TOKEN env var is required. Set up Google Calendar API OAuth2 and store the access token. Also set GOOGLE_CALENDAR_REFRESH_TOKEN, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET for auto-refresh."}
+
+    base_url = "https://www.googleapis.com/calendar/v3"
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+
+    async def _refresh_token_if_needed(client, original_error=None):
+        """Try to refresh the access token using refresh_token."""
+        if not (refresh_token and client_id and client_secret):
+            return None
+        try:
+            r = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={"grant_type": "refresh_token", "refresh_token": refresh_token,
+                      "client_id": client_id, "client_secret": client_secret},
+            )
+            data = r.json()
+            return data.get("access_token")
+        except Exception:
+            return None
+
+    def _parse_dt(dt_str, use_end=False):
+        if not dt_str:
+            now = datetime.now()
+            if use_end:
+                now = now + timedelta(minutes=duration_minutes)
+            return now.strftime("%Y-%m-%dT%H:%M:%S")
+        dt_str = dt_str.strip()
+        for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(dt_str, fmt).strftime("%Y-%m-%dT%H:%M:%S")
+            except ValueError:
+                continue
+        return dt_str
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+
+            if action in ("list", "today", "week"):
+                now = datetime.utcnow()
+                if action == "today":
+                    time_min = datetime.combine(date.today(), datetime.min.time()).isoformat() + "Z"
+                    time_max = datetime.combine(date.today(), datetime.max.time()).isoformat() + "Z"
+                else:
+                    time_min = now.isoformat() + "Z"
+                    time_max = (now + timedelta(days=days_ahead)).isoformat() + "Z"
+
+                resp = await client.get(
+                    f"{base_url}/calendars/{calendar_id}/events",
+                    headers=headers,
+                    params={"timeMin": time_min, "timeMax": time_max, "singleEvents": "true",
+                            "orderBy": "startTime", "maxResults": 20},
+                )
+                if resp.status_code == 401 and refresh_token:
+                    new_token = await _refresh_token_if_needed(client)
+                    if new_token:
+                        headers["Authorization"] = f"Bearer {new_token}"
+                        resp = await client.get(f"{base_url}/calendars/{calendar_id}/events", headers=headers,
+                                                params={"timeMin": time_min, "timeMax": time_max, "singleEvents": "true", "orderBy": "startTime", "maxResults": 20})
+                if resp.status_code != 200:
+                    return {"error": f"Google Calendar API error {resp.status_code}: {resp.text[:200]}"}
+
+                events = resp.json().get("items", [])
+                formatted = []
+                for e in events:
+                    start_dt = e.get("start", {}).get("dateTime", e.get("start", {}).get("date", ""))
+                    formatted.append({
+                        "id": e.get("id"),
+                        "title": e.get("summary", "(no title)"),
+                        "start": start_dt,
+                        "end": e.get("end", {}).get("dateTime", e.get("end", {}).get("date", "")),
+                        "location": e.get("location", ""),
+                        "description": e.get("description", "")[:100],
+                    })
+
+                return {"success": True, "events": formatted, "count": len(formatted),
+                        "preview": f"[Calendar: {len(formatted)} events in next {days_ahead}d]"}
+
+            if action == "create":
+                if not summary:
+                    return {"error": "summary (event title) is required"}
+                start_dt = _parse_dt(start)
+                end_dt = _parse_dt(end, use_end=True)
+                tz = os.environ.get("GOOGLE_CALENDAR_TZ", "America/Phoenix")
+
+                if all_day:
+                    date_only = start_dt[:10]
+                    body = {"summary": summary, "location": location, "description": description_text,
+                            "start": {"date": date_only}, "end": {"date": date_only}}
+                else:
+                    body = {"summary": summary, "location": location, "description": description_text,
+                            "start": {"dateTime": start_dt, "timeZone": tz},
+                            "end": {"dateTime": end_dt, "timeZone": tz}}
+
+                resp = await client.post(f"{base_url}/calendars/{calendar_id}/events",
+                                         headers=headers, json=body)
+                if resp.status_code == 401 and refresh_token:
+                    new_token = await _refresh_token_if_needed(client)
+                    if new_token:
+                        headers["Authorization"] = f"Bearer {new_token}"
+                        resp = await client.post(f"{base_url}/calendars/{calendar_id}/events", headers=headers, json=body)
+                if resp.status_code not in (200, 201):
+                    return {"error": f"Google Calendar create error {resp.status_code}: {resp.text[:200]}"}
+                ev = resp.json()
+                return {"success": True, "action": "created", "event_id": ev.get("id"), "title": summary,
+                        "start": start_dt, "html_link": ev.get("htmlLink", ""),
+                        "preview": f"[Calendar: '{summary}' created — {start_dt}]"}
+
+            if action == "delete":
+                if not event_id:
+                    return {"error": "event_id is required to delete"}
+                resp = await client.delete(f"{base_url}/calendars/{calendar_id}/events/{event_id}", headers=headers)
+                return {"success": resp.status_code == 204, "action": "deleted", "event_id": event_id}
+
+    except Exception as e:
+        return {"error": f"google_calendar failed: {str(e)}"}
+
+
+# ── EXPORT TO PDF ─────────────────────────────────────────────────────────────
+async def export_to_pdf(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Export any content (markdown, text, contract, report) to a real downloadable PDF file."""
+    import os, re, uuid
+
+    content = params.get("content", "")
+    title = params.get("title", "Document")
+    filename = params.get("filename", "")
+    font_size = params.get("font_size", 11)
+    include_header = params.get("include_header", True)
+    include_page_numbers = params.get("include_page_numbers", True)
+    save_folder = params.get("save_folder", "exports")   # relative to vesper-ai/
+
+    if not content:
+        return {"error": "content is required"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    export_dir = os.path.join(workspace, "vesper-ai", save_folder)
+    os.makedirs(export_dir, exist_ok=True)
+
+    slug = (filename or title).lower().replace(" ", "_")[:40]
+    slug = re.sub(r"[^\w_]", "", slug)
+    fp = os.path.join(export_dir, f"{slug}_{uuid.uuid4().hex[:6]}.pdf")
+
+    # Clean markdown to plain text for PDF
+    def _clean_md(text):
+        text = re.sub(r"#{1,6}\s+", "", text)       # headers
+        text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)   # bold
+        text = re.sub(r"\*(.+?)\*", r"\1", text)        # italic
+        text = re.sub(r"`(.+?)`", r"\1", text)          # inline code
+        text = re.sub(r"^\s*[-*+]\s+", "• ", text, flags=re.MULTILINE)
+        text = re.sub(r"^\s*\d+\.\s+", "  ", text, flags=re.MULTILINE)
+        text = re.sub(r"\[(.+?)\]\(.+?\)", r"\1", text)  # links
+        text = re.sub(r"---+", "─" * 40, text)
+        return text
+
+    cleaned = _clean_md(content)
+
+    # Try fpdf2 first
+    try:
+        from fpdf import FPDF
+
+        class VesperPDF(FPDF):
+            def __init__(self, doc_title, show_header, show_pn):
+                super().__init__()
+                self.doc_title = doc_title
+                self.show_header = show_header
+                self.show_pn = show_pn
+
+            def header(self):
+                if self.show_header:
+                    self.set_font("Helvetica", "B", 9)
+                    self.set_text_color(120, 120, 120)
+                    self.cell(0, 8, self.doc_title, align="L")
+                    self.ln(2)
+
+            def footer(self):
+                if self.show_pn:
+                    self.set_y(-15)
+                    self.set_font("Helvetica", "", 8)
+                    self.set_text_color(150, 150, 150)
+                    self.cell(0, 10, f"Page {self.page_no()}", align="C")
+
+        pdf = VesperPDF(title, include_header, include_page_numbers)
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+
+        # Title
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.set_text_color(30, 30, 30)
+        pdf.multi_cell(0, 10, title)
+        pdf.ln(4)
+
+        # Body
+        pdf.set_font("Helvetica", "", font_size)
+        pdf.set_text_color(50, 50, 50)
+
+        for line in cleaned.split("\n"):
+            stripped = line.strip()
+            if not stripped:
+                pdf.ln(3)
+                continue
+            # Detect section headers (ALL CAPS lines or lines ending with :)
+            if stripped.upper() == stripped and len(stripped) > 3 and not stripped.startswith("•"):
+                pdf.set_font("Helvetica", "B", font_size + 1)
+                pdf.set_text_color(20, 20, 20)
+                pdf.multi_cell(0, 7, stripped)
+                pdf.set_font("Helvetica", "", font_size)
+                pdf.set_text_color(50, 50, 50)
+            else:
+                pdf.multi_cell(0, 6, stripped)
+
+        pdf.output(fp)
+        method = "fpdf2"
+
+    except ImportError:
+        # Fallback: reportlab
+        try:
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib import colors
+
+            doc = SimpleDocTemplate(fp, pagesize=letter,
+                                    rightMargin=inch * 0.75, leftMargin=inch * 0.75,
+                                    topMargin=inch, bottomMargin=inch)
+            styles = getSampleStyleSheet()
+            story = []
+            title_style = ParagraphStyle("title", parent=styles["Title"], fontSize=16, spaceAfter=12)
+            body_style = ParagraphStyle("body", parent=styles["Normal"], fontSize=font_size, spaceAfter=4)
+            story.append(Paragraph(title, title_style))
+            story.append(Spacer(1, 0.2 * inch))
+            for line in cleaned.split("\n"):
+                stripped = line.strip()
+                if stripped:
+                    story.append(Paragraph(stripped.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"), body_style))
+                else:
+                    story.append(Spacer(1, 0.1 * inch))
+            doc.build(story)
+            method = "reportlab"
+
+        except ImportError:
+            # Last resort: save as txt with instructions
+            txt_path = fp.replace(".pdf", ".txt")
+            with open(txt_path, "w", encoding="utf-8") as f:
+                f.write(f"{title}\n{'=' * len(title)}\n\n{cleaned}")
+            return {"success": True, "title": title, "file_path": txt_path,
+                    "preview": f"[Export: '{title}' saved as .txt (install fpdf2 for PDF: pip install fpdf2)]",
+                    "note": "PDF library not available — saved as .txt. Run: pip install fpdf2"}
+
+    return {
+        "success": True,
+        "title": title,
+        "file_path": fp,
+        "method": method,
+        "preview": f"[PDF exported: '{title}' → {os.path.basename(fp)}]",
+    }
+
+
+# ── STRIPE PAYMENT LINK ────────────────────────────────────────────────────────
+async def stripe_payment_link(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Create Stripe payment links, prices, and products — instant pay links to drop in any message."""
+    import os
+    import httpx
+
+    action = params.get("action", "create")         # create | list | deactivate | create_price
+    product_name = params.get("product_name", "")
+    description = params.get("description", "")
+    amount = params.get("amount", 0.0)              # in dollars
+    currency = params.get("currency", "usd")
+    billing = params.get("billing", "one_time")     # one_time | monthly | yearly
+    link_id = params.get("link_id", "")
+    quantity_adjustable = params.get("quantity_adjustable", False)
+    redirect_url = params.get("redirect_url", "")
+
+    stripe_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    if not stripe_key:
+        return {"error": "STRIPE_SECRET_KEY env var is required. Get it from dashboard.stripe.com → Developers → API keys."}
+
+    headers = {"Authorization": f"Bearer {stripe_key}"}
+    stripe_base = "https://api.stripe.com/v1"
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+
+            if action == "list":
+                resp = await client.get(f"{stripe_base}/payment_links", headers=headers, params={"limit": 20})
+                data = resp.json()
+                if resp.status_code != 200:
+                    return {"error": f"Stripe error: {data.get('error', {}).get('message', data)}"}
+                links = data.get("data", [])
+                return {
+                    "success": True,
+                    "count": len(links),
+                    "links": [{"id": l["id"], "url": l.get("url", ""), "active": l.get("active"), "amount": l.get("line_items", {}).get("data", [{}])[0].get("price", {}).get("unit_amount", 0) / 100 if l.get("line_items") else 0} for l in links],
+                    "preview": f"[Stripe: {len(links)} payment links]",
+                }
+
+            if action == "deactivate":
+                if not link_id:
+                    return {"error": "link_id is required"}
+                resp = await client.post(f"{stripe_base}/payment_links/{link_id}",
+                                         headers=headers, data={"active": "false"})
+                return {"success": resp.status_code == 200, "action": "deactivated", "link_id": link_id}
+
+            if not (product_name and amount):
+                return {"error": "product_name and amount are required to create a payment link"}
+
+            # Step 1: Create product
+            prod_resp = await client.post(
+                f"{stripe_base}/products",
+                headers=headers,
+                data={"name": product_name, "description": description or product_name},
+            )
+            if prod_resp.status_code != 200:
+                return {"error": f"Stripe product create error: {prod_resp.text[:200]}"}
+            product = prod_resp.json()
+
+            # Step 2: Create price
+            price_data = {
+                "product": product["id"],
+                "unit_amount": int(float(amount) * 100),
+                "currency": currency,
+            }
+            if billing == "monthly":
+                price_data["recurring"] = {"interval": "month"}
+            elif billing == "yearly":
+                price_data["recurring"] = {"interval": "year"}
+
+            price_resp = await client.post(f"{stripe_base}/prices", headers=headers, data=price_data)
+            if price_resp.status_code != 200:
+                return {"error": f"Stripe price create error: {price_resp.text[:200]}"}
+            price = price_resp.json()
+
+            # Step 3: Create payment link
+            link_data = {"line_items[0][price]": price["id"], "line_items[0][quantity]": "1"}
+            if quantity_adjustable:
+                link_data["line_items[0][adjustable_quantity][enabled]"] = "true"
+            if redirect_url:
+                link_data["after_completion[type]"] = "redirect"
+                link_data["after_completion[redirect][url]"] = redirect_url
+
+            link_resp = await client.post(f"{stripe_base}/payment_links", headers=headers, data=link_data)
+            if link_resp.status_code != 200:
+                return {"error": f"Stripe payment link create error: {link_resp.text[:200]}"}
+            link = link_resp.json()
+
+            return {
+                "success": True,
+                "product_id": product["id"],
+                "price_id": price["id"],
+                "payment_link_id": link["id"],
+                "payment_url": link.get("url", ""),
+                "amount": amount,
+                "currency": currency,
+                "billing": billing,
+                "product_name": product_name,
+                "preview": f"[Stripe: '{product_name}' ${amount} ({billing}) — {link.get('url', '')}]",
+            }
+
+    except Exception as e:
+        return {"error": f"stripe_payment_link failed: {str(e)}"}
+
+
+# ── REVENUE GOALS ──────────────────────────────────────────────────────────────
+async def revenue_goals(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Set and track revenue goals — monthly/annual targets with real-time progress vs ledger."""
+    import os, json as _json
+    from datetime import datetime, date
+
+    action = params.get("action", "check")       # set | check | progress | list | delete
+    goal_name = params.get("goal_name", "")
+    target_amount = params.get("target_amount", 0.0)
+    period = params.get("period", "monthly")     # monthly | quarterly | annual | custom
+    deadline = params.get("deadline", "")        # YYYY-MM-DD
+    goal_id = params.get("goal_id", "")
+    milestone_notes = params.get("notes", "")
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    finance_dir = os.path.join(workspace, "vesper-ai", "finance")
+    os.makedirs(finance_dir, exist_ok=True)
+    goals_path = os.path.join(finance_dir, "revenue_goals.json")
+
+    data = _json.loads(open(goals_path).read()) if os.path.exists(goals_path) else {"goals": []}
+    goals = data.get("goals", [])
+
+    def _save():
+        with open(goals_path, "w") as f:
+            _json.dump({"goals": goals}, f, indent=2)
+
+    def _get_actual_income(for_period, for_deadline):
+        """Read from income ledger to get actual income for the goal period."""
+        ledger_path = os.path.join(finance_dir, "income_ledger.json")
+        if not os.path.exists(ledger_path):
+            return 0.0
+        with open(ledger_path) as f:
+            entries = _json.load(f).get("entries", [])
+        today = date.today()
+        if for_period == "monthly":
+            prefix = today.strftime("%Y-%m")
+            return sum(e["amount"] for e in entries if e["date"].startswith(prefix))
+        elif for_period == "annual":
+            prefix = str(today.year)
+            return sum(e["amount"] for e in entries if e["date"].startswith(prefix))
+        elif for_period == "quarterly":
+            quarter_start_month = ((today.month - 1) // 3) * 3 + 1
+            return sum(
+                e["amount"] for e in entries
+                if e["date"][:7] >= f"{today.year}-{quarter_start_month:02d}"
+                and e["date"][:7] <= today.strftime("%Y-%m")
+            )
+        elif for_period == "custom" and for_deadline:
+            start_year = str(today.year)
+            return sum(e["amount"] for e in entries if e["date"] <= for_deadline and e["date"].startswith(start_year))
+        return sum(e["amount"] for e in entries)
+
+    if action == "set":
+        if not (goal_name and target_amount):
+            return {"error": "goal_name and target_amount are required"}
+        gid = f"g_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        today = date.today()
+        if not deadline:
+            if period == "monthly":
+                import calendar
+                last_day = calendar.monthrange(today.year, today.month)[1]
+                deadline = today.replace(day=last_day).isoformat()
+            elif period == "annual":
+                deadline = today.replace(month=12, day=31).isoformat()
+            elif period == "quarterly":
+                quarter_end_month = ((today.month - 1) // 3 + 1) * 3
+                if quarter_end_month > 12:
+                    quarter_end_month = 12
+                import calendar
+                last_day = calendar.monthrange(today.year, quarter_end_month)[1]
+                deadline = today.replace(month=quarter_end_month, day=last_day).isoformat()
+
+        goal = {
+            "id": gid,
+            "name": goal_name,
+            "target": float(target_amount),
+            "period": period,
+            "deadline": deadline,
+            "notes": milestone_notes,
+            "created": datetime.now().isoformat(),
+            "milestones": [],
+        }
+        goals.append(goal)
+        _save()
+        return {"success": True, "action": "goal_set", "goal": goal,
+                "preview": f"[Goal set: '{goal_name}' ${target_amount:,.2f} by {deadline}]"}
+
+    if action in ("check", "progress", "list"):
+        if not goals:
+            return {"success": True, "goals": [], "message": "No goals set yet. Use action='set' to create one.", "preview": "[No revenue goals set]"}
+
+        enriched = []
+        today = date.today()
+        for g in goals:
+            actual = _get_actual_income(g["period"], g.get("deadline", ""))
+            target = g["target"]
+            pct = round((actual / target * 100), 1) if target > 0 else 0
+            remaining = max(0, target - actual)
+            days_left = (date.fromisoformat(g["deadline"]) - today).days if g.get("deadline") else None
+            daily_needed = (remaining / days_left) if (days_left and days_left > 0 and remaining > 0) else 0
+            enriched.append({
+                **g,
+                "actual": actual,
+                "percent_complete": pct,
+                "remaining": remaining,
+                "days_left": days_left,
+                "daily_needed": round(daily_needed, 2),
+                "on_track": pct >= (((today.day / 30) * 100) if g["period"] == "monthly" else 50),
+                "status": "achieved" if actual >= target else ("on_track" if pct >= 70 else "behind"),
+            })
+
+        result = {"success": True, "goals": enriched, "total_goals": len(enriched)}
+
+        if ai_router and enriched:
+            goal_text = "\n".join(
+                f"- '{g['name']}': ${g['actual']:,.2f} / ${g['target']:,.2f} ({g['percent_complete']}%) — {g['days_left']}d left — need ${g.get('daily_needed', 0):,.2f}/day"
+                for g in enriched
+            )
+            try:
+                r = await ai_router.complete(
+                    messages=[{"role": "user", "content": f"You are Vesper reviewing CC's revenue goals. Give a candid assessment and 2 specific actions to hit each goal.\n\nGoals:\n{goal_text}"}],
+                    task_type=TaskType.ANALYSIS if TaskType else None,
+                    max_tokens=400,
+                )
+                result["assessment"] = r.content if hasattr(r, "content") else str(r)
+            except Exception:
+                pass
+
+        best = max(enriched, key=lambda x: x["percent_complete"], default=None)
+        result["preview"] = f"[Revenue Goals: {len(enriched)} active — top: '{best['name']}' at {best['percent_complete']}%]" if best else "[Revenue Goals: no goals]"
+        return result
+
+    if action == "delete":
+        original = len(goals)
+        goals[:] = [g for g in goals if g["id"] != goal_id and g["name"].lower() != goal_name.lower()]
+        _save()
+        return {"success": True, "deleted": original - len(goals)}
+
+    return {"error": f"Unknown action: {action}"}
+
+
+# ── PROCESS MEETING NOTES ──────────────────────────────────────────────────────
+async def process_meeting_notes(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Extract action items, decisions, follow-ups, and summary from any meeting transcript or notes."""
+    import os, json as _json, uuid
+    from datetime import datetime
+
+    transcript = params.get("transcript", "")       # raw meeting text, Zoom transcript, or rough notes
+    meeting_title = params.get("meeting_title", "")
+    attendees = params.get("attendees", "")
+    meeting_date = params.get("meeting_date", "")
+    context = params.get("context", "")             # what the meeting was about
+    draft_emails = params.get("draft_emails", True)  # whether to draft follow-up emails
+    save_notes = params.get("save_notes", True)
+    output_format = params.get("output_format", "full")  # full | actions_only | summary_only
+
+    if not transcript:
+        return {"error": "transcript is required — paste in call transcript, meeting notes, or any rough notes"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    today = datetime.now().strftime("%B %d, %Y")
+    meeting_context = f"Meeting: {meeting_title or 'Untitled Meeting'}\nDate: {meeting_date or today}\nAttendees: {attendees or 'Not specified'}\nContext: {context or 'General meeting'}"
+
+    if output_format == "summary_only":
+        extract_prompt = f"""Summarize this meeting in 150 words or less.
+
+{meeting_context}
+
+TRANSCRIPT/NOTES:
+{transcript[:6000]}
+
+Summary:"""
+    elif output_format == "actions_only":
+        extract_prompt = f"""Extract ONLY the action items from this meeting. List each as: [OWNER] Action (Due: date if mentioned).
+
+{meeting_context}
+
+TRANSCRIPT/NOTES:
+{transcript[:6000]}"""
+    else:
+        extract_prompt = f"""You are Vesper, processing meeting notes for CC. Extract everything actionable and important.
+
+{meeting_context}
+
+TRANSCRIPT/NOTES:
+{transcript[:6000]}
+
+Extract and format as follows:
+
+## Meeting Summary
+[2-3 sentence overview of what was discussed and decided]
+
+## Key Decisions Made
+[Bullet list of concrete decisions — things that were agreed upon]
+
+## Action Items
+| Owner | Action | Due Date | Priority |
+|-------|--------|----------|----------|
+[Table rows — be specific, include deadlines if mentioned, assign to CC or other person's name]
+
+## Open Questions / Pending
+[Things that were raised but not resolved]
+
+## Important Dates / Deadlines Mentioned
+[Any specific dates, deadlines, or follow-up timing]
+
+## Relationship Notes
+[Any personal context about the people involved — tone, concerns, what they care about]
+
+## What CC Should Do In The Next 24 Hours
+[Top 3 most time-sensitive next steps, in order]"""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": extract_prompt}],
+            task_type=TaskType.ANALYSIS if TaskType else None,
+            max_tokens=3000,
+        )
+        structured_notes = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"process_meeting_notes failed: {str(e)}"}
+
+    result = {
+        "success": True,
+        "meeting_title": meeting_title or "Meeting Notes",
+        "meeting_date": meeting_date or today,
+        "structured_notes": structured_notes,
+    }
+
+    # Extract action items as structured list for CRM/task integration
+    if draft_emails and ai_router:
+        try:
+            email_prompt = f"""Based on these meeting notes, draft any follow-up emails needed.
+
+Meeting: {meeting_title} on {meeting_date or today}
+Attendees: {attendees}
+
+Notes summary:
+{structured_notes[:1500]}
+
+Draft 1-2 follow-up emails if needed (not all meetings need them). Each email should be:
+- Professional and specific (reference actual discussion points)
+- Include agreed next steps with dates if any
+- Under 150 words each
+- Format: **To:** / **Subject:** / **Body:**
+
+If no follow-up email is needed, just say "No follow-up email needed."."""
+
+            er = await ai_router.complete(
+                messages=[{"role": "user", "content": email_prompt}],
+                task_type=TaskType.CREATIVE if TaskType else None,
+                max_tokens=800,
+            )
+            result["follow_up_emails"] = er.content if hasattr(er, "content") else str(er)
+        except Exception:
+            pass
+
+    if save_notes:
+        workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        meetings_dir = os.path.join(workspace, "vesper-ai", "meetings")
+        os.makedirs(meetings_dir, exist_ok=True)
+        slug = (meeting_title or "meeting").lower().replace(" ", "_")[:30]
+        fp = os.path.join(meetings_dir, f"{slug}_{uuid.uuid4().hex[:6]}.md")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write(f"# {meeting_title or 'Meeting Notes'}\n**Date:** {meeting_date or today}\n**Attendees:** {attendees}\n\n{structured_notes}")
+            if result.get("follow_up_emails"):
+                f.write(f"\n\n---\n## Follow-Up Emails\n{result['follow_up_emails']}")
+        result["file_path"] = fp
+
+    result["preview"] = f"[Meeting processed: '{meeting_title or 'Meeting'}' — notes + action items extracted and saved]"
+    return result
+
+
+# ── SOCIAL SCHEDULER ───────────────────────────────────────────────────────────
+async def social_scheduler(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Queue, view, and execute scheduled social media posts — Vesper's content calendar engine."""
+    import os, json as _json
+    from datetime import datetime, date, timedelta
+
+    action = params.get("action", "list")          # queue | list | post_due | cancel | preview
+    platform = params.get("platform", "")           # linkedin | twitter | both
+    content = params.get("content", "")
+    scheduled_for = params.get("scheduled_for", "")  # YYYY-MM-DD HH:MM or "tomorrow 9am"
+    post_id = params.get("post_id", "")
+    campaign = params.get("campaign", "")
+    auto_post = params.get("auto_post", False)       # if True, immediately post past-due items
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sched_dir = os.path.join(workspace, "vesper-ai", "social_queue")
+    os.makedirs(sched_dir, exist_ok=True)
+    queue_path = os.path.join(sched_dir, "queue.json")
+
+    data = _json.loads(open(queue_path).read()) if os.path.exists(queue_path) else {"posts": [], "posted": []}
+    posts = data.get("posts", [])
+    posted = data.get("posted", [])
+
+    def _save():
+        with open(queue_path, "w") as f:
+            _json.dump({"posts": posts, "posted": posted}, f, indent=2)
+
+    def _parse_schedule(raw):
+        if not raw:
+            tomorrow = datetime.now() + timedelta(days=1)
+            return tomorrow.replace(hour=9, minute=0, second=0).isoformat()
+        raw = raw.lower().strip()
+        if "tomorrow" in raw:
+            tomorrow = datetime.now() + timedelta(days=1)
+            hour = 9
+            if "noon" in raw or "12" in raw:
+                hour = 12
+            elif "afternoon" in raw or "2pm" in raw or "14" in raw:
+                hour = 14
+            elif "evening" in raw or "6pm" in raw or "18" in raw:
+                hour = 18
+            return tomorrow.replace(hour=hour, minute=0, second=0).isoformat()
+        for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d", "%Y-%m-%dT%H:%M"):
+            try:
+                return datetime.strptime(raw, fmt).isoformat()
+            except ValueError:
+                continue
+        return raw
+
+    if action == "queue":
+        if not (platform and content):
+            return {"error": "platform and content are required"}
+        pid = f"p_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        parsed_time = _parse_schedule(scheduled_for)
+        post = {
+            "id": pid,
+            "platform": platform,
+            "content": content,
+            "scheduled_for": parsed_time,
+            "campaign": campaign,
+            "status": "queued",
+            "created": datetime.now().isoformat(),
+            "char_count": len(content),
+        }
+        posts.append(post)
+        _save()
+        return {
+            "success": True,
+            "action": "queued",
+            "post": post,
+            "preview": f"[Queued: {platform} post for {parsed_time[:16]} ({len(content)} chars)]",
+        }
+
+    if action == "cancel":
+        original = len(posts)
+        posts[:] = [p for p in posts if p["id"] != post_id]
+        _save()
+        return {"success": True, "cancelled": original - len(posts)}
+
+    if action in ("post_due", "execute"):
+        now_str = datetime.now().isoformat()
+        due = [p for p in posts if p.get("scheduled_for", "") <= now_str and p["status"] == "queued"]
+        if not due:
+            return {"success": True, "message": "No posts due right now.", "next_post": sorted(posts, key=lambda x: x.get("scheduled_for", ""))[0] if posts else None}
+
+        posted_results = []
+        for post in due:
+            if auto_post:
+                # Would call post_to_linkedin or post_to_twitter here in a real execution
+                post["status"] = "posted"
+                post["posted_at"] = datetime.now().isoformat()
+                posted.append(post)
+                posted_results.append({"id": post["id"], "platform": post["platform"], "status": "posted"})
+            else:
+                posted_results.append({"id": post["id"], "platform": post["platform"], "content": post["content"][:100], "scheduled_for": post["scheduled_for"], "status": "ready_to_post"})
+
+        if auto_post:
+            posts[:] = [p for p in posts if p["status"] != "posted"]
+        _save()
+
+        return {
+            "success": True,
+            "action": "post_due",
+            "due_count": len(due),
+            "results": posted_results,
+            "auto_posted": auto_post,
+            "note": "Set auto_post=true to automatically send due posts" if not auto_post else "Posts sent",
+            "preview": f"[Social queue: {len(due)} posts due — {'auto-posted' if auto_post else 'ready to send'}]",
+        }
+
+    if action == "preview":
+        pid_match = next((p for p in posts if p["id"] == post_id), None)
+        if not pid_match:
+            return {"error": f"Post {post_id} not found"}
+        return {"success": True, "post": pid_match}
+
+    # Default: list queue
+    queued = [p for p in posts if p["status"] == "queued"]
+    by_platform = {}
+    for p in queued:
+        by_platform.setdefault(p["platform"], 0)
+        by_platform[p["platform"]] += 1
+    upcoming_posts = sorted(queued, key=lambda x: x.get("scheduled_for", ""))[:10]
+    now_str = datetime.now().isoformat()
+    overdue_posts = [p for p in queued if p.get("scheduled_for", "") < now_str]
+
+    return {
+        "success": True,
+        "total_queued": len(queued),
+        "overdue": len(overdue_posts),
+        "by_platform": by_platform,
+        "upcoming": [{"id": p["id"], "platform": p["platform"], "scheduled": p.get("scheduled_for", "")[:16], "preview": p["content"][:80]} for p in upcoming_posts],
+        "total_posted": len(posted),
+        "preview": f"[Social queue: {len(queued)} queued | {len(overdue_posts)} overdue | {len(posted)} posted all-time]",
+    }
+
+

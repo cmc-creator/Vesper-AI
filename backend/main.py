@@ -104,6 +104,9 @@ try:
         create_sop, create_webinar_funnel,
         vesper_research, vesper_learn_skill, read_and_summarize, vesper_recall,
         track_income, track_expense, financial_report, tax_estimate, invoice_tracker, budget_planner,
+        crm_contact, create_contract, read_email_inbox, schedule_task, read_analytics,
+        publish_to_beehiiv, google_calendar, export_to_pdf, stripe_payment_link,
+        revenue_goals, process_meeting_notes, social_scheduler,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -178,6 +181,18 @@ except Exception as _tc_err:
     async def tax_estimate(p, **kw): return {"error": "tools_creative not loaded"}
     async def invoice_tracker(p, **kw): return {"error": "tools_creative not loaded"}
     async def budget_planner(p, **kw): return {"error": "tools_creative not loaded"}
+    async def crm_contact(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_contract(p, **kw): return {"error": "tools_creative not loaded"}
+    async def read_email_inbox(p, **kw): return {"error": "tools_creative not loaded"}
+    async def schedule_task(p, **kw): return {"error": "tools_creative not loaded"}
+    async def read_analytics(p, **kw): return {"error": "tools_creative not loaded"}
+    async def publish_to_beehiiv(p, **kw): return {"error": "tools_creative not loaded"}
+    async def google_calendar(p, **kw): return {"error": "tools_creative not loaded"}
+    async def export_to_pdf(p, **kw): return {"error": "tools_creative not loaded"}
+    async def stripe_payment_link(p, **kw): return {"error": "tools_creative not loaded"}
+    async def revenue_goals(p, **kw): return {"error": "tools_creative not loaded"}
+    async def process_meeting_notes(p, **kw): return {"error": "tools_creative not loaded"}
+    async def social_scheduler(p, **kw): return {"error": "tools_creative not loaded"}
 
 # Firebase (optional)
 try:
@@ -1833,6 +1848,18 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `tax_estimate` — **ESTIMATE QUARTERLY SELF-EMPLOYMENT TAXES.** Calculates SE tax, federal income tax, quarterly payment amount, due date. Breaks down deductible expenses. AI tax strategy memo: missing deductions, retirement options, year-end moves.
 - `invoice_tracker` — **TRACK ALL INVOICES AND ACCOUNTS RECEIVABLE.** Add invoices, mark paid, see total outstanding/overdue/collected. Actions: add | paid | list | overdue | follow_up_email. Can auto-write a follow-up email for overdue invoices.
 - `budget_planner` — **CREATE AND TRACK MONTHLY BUDGETS.** Set income targets, expense budgets by category, savings goals. Actions: create | check | recommend. Shows actuals vs plan, category variances, profit on track status.
+- `crm_contact` — **MANAGE CC'S FULL CLIENT CRM.** Add/update contacts, log notes, track deals, view the full sales pipeline by stage. Actions: add | update | add_note | add_deal | get | search | pipeline | delete. Stores locally — use for every new lead or client.
+- `create_contract` — **DRAFT ANY LEGAL DOCUMENT WITH AI.** service_agreement | nda | retainer | contractor | freelance | consulting | partnership. Provide parties, scope, rate, terms — Vesper writes the full contract and saves it to contracts/.
+- `read_email_inbox` — **READ AND TRIAGE CC'S EMAIL INBOX.** Actions: list | read | search | triage | unread. Returns subjects, senders, AI triage summary. Env: IMAP_HOST, IMAP_USER, IMAP_PASS (use Gmail App Password).
+- `schedule_task` — **SCHEDULE TASKS, REMINDERS, AND FOLLOW-UPS.** Actions: add | list | check_due | due_today | complete | delete. Set due dates, priority, recurrence. Built-in daily/weekly/monthly recurrence. CC's to-do engine.
+- `read_analytics` — **READ GUMROAD SALES AND REVENUE ANALYTICS.** Gets revenue, sales count, top products, by-product breakdown. Also reads local income ledger. Works with GUMROAD_ACCESS_TOKEN. Gives AI insights.
+- `publish_to_beehiiv` — **PUBLISH NEWSLETTER ISSUES TO BEEHIIV.** Actions: publish | draft | list_posts | stats. Converts plain text to HTML automatically. Env: BEEHIIV_API_KEY + BEEHIIV_PUBLICATION_ID.
+- `google_calendar` — **VIEW AND MANAGE GOOGLE CALENDAR.** Actions: list | today | week | create | delete. List upcoming events, create meetings, check availability. Env: GOOGLE_CALENDAR_TOKEN + GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET + GOOGLE_CALENDAR_REFRESH_TOKEN.
+- `export_to_pdf` — **EXPORT ANY CONTENT TO A REAL PDF FILE.** Converts markdown, contracts, reports, anything to a downloadable PDF. Saved to vesper-ai/exports/. Uses fpdf2.
+- `stripe_payment_link` — **CREATE STRIPE PAYMENT LINKS INSTANTLY.** Actions: create | list | deactivate. Creates product + price + payment link in one step. Returns the URL ready to share. One-time, monthly, or yearly. Env: STRIPE_SECRET_KEY.
+- `revenue_goals` — **SET AND TRACK REVENUE GOALS.** Actions: set | check | progress | list | delete. Reads actual income from ledger, shows % complete, days remaining, daily revenue needed. Monthly / quarterly / annual / custom periods.
+- `process_meeting_notes` — **PROCESS MEETING TRANSCRIPTS OR NOTES WITH AI.** Extracts: summary, decisions made, action items (owner + due date), open questions, important dates, follow-up emails. Saves to vesper-ai/meetings/.
+- `social_scheduler` — **QUEUE AND SCHEDULE SOCIAL MEDIA POSTS.** Actions: queue | list | post_due | cancel | preview. Build a content calendar with scheduled_for times. Supports linkedin | twitter | both. Integrates with existing posting tools.
 - `push_to_creative_suite` — **MANUALLY PUSH ANY CREATION** to CC's gallery. Use this if you created something custom that isn't covered by the auto-save tools above. CC sees it immediately in the Creative Command Center → Vesper's Creations panel.
 - `download_image` — download any image from a URL into the media library
 - `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
@@ -6623,6 +6650,18 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "tax_estimate", "description": "Estimate quarterly self-employment taxes — SE tax, federal income tax, quarterly payment, due date. Identifies deductions and provides AI tax strategy memo.", "input_schema": {"type": "object", "properties": {"year": {"type": "number"}, "quarter": {"type": "number"}, "filing_status": {"type": "string", "description": "single | married_joint | married_sep | head_of_household"}, "state": {"type": "string"}, "include_strategy": {"type": "boolean"}}, "required": []}},
             {"name": "invoice_tracker", "description": "Track all invoices — add new, mark paid, list outstanding/overdue/due-soon. Can auto-write follow-up emails for overdue invoices. Actions: add | paid | list | overdue | follow_up_email.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "add | paid | list | overdue | follow_up_email"}, "invoice_id": {"type": "string"}, "client": {"type": "string"}, "amount": {"type": "number"}, "due_date": {"type": "string"}, "description": {"type": "string"}, "invoice_date": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
             {"name": "budget_planner", "description": "Create monthly budgets with income targets and expense limits by category. Actions: create | check | recommend. Shows actual vs plan, variances, and AI budget recommendations.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "create | check | recommend"}, "month": {"type": "string"}, "income_target": {"type": "number"}, "budget_categories": {"type": "object"}, "savings_goal_pct": {"type": "number"}}, "required": ["action"]}},
+            {"name": "crm_contact", "description": "Local CRM — add/update contacts, log notes, track deals, view pipeline. Actions: add | update | add_note | add_deal | get | search | pipeline | delete | list.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "name": {"type": "string"}, "email": {"type": "string"}, "company": {"type": "string"}, "phone": {"type": "string"}, "role": {"type": "string"}, "source": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}, "stage": {"type": "string", "description": "lead | qualified | proposal | negotiation | closed_won | closed_lost"}, "deal_title": {"type": "string"}, "deal_value": {"type": "number"}, "note": {"type": "string"}, "contact_id": {"type": "string"}, "query": {"type": "string"}}, "required": ["action"]}},
+            {"name": "create_contract", "description": "Draft any legal document with AI — service agreement, NDA, retainer, contractor agreement, freelance, consulting, partnership.", "input_schema": {"type": "object", "properties": {"contract_type": {"type": "string", "description": "service_agreement | nda | retainer | contractor | freelance | consulting | partnership | generic"}, "party_a": {"type": "string", "description": "Provider/your name or business"}, "party_b": {"type": "string", "description": "Client or counterparty"}, "party_a_entity": {"type": "string"}, "party_b_entity": {"type": "string"}, "scope": {"type": "string"}, "rate": {"type": "string"}, "payment_terms": {"type": "string"}, "duration": {"type": "string"}, "deliverables": {"type": "string"}, "state": {"type": "string"}, "confidential": {"type": "boolean"}, "ip_ownership": {"type": "string", "description": "client | provider | shared"}, "notice_days": {"type": "number"}, "custom_clauses": {"type": "string"}}, "required": ["contract_type", "party_a", "party_b"]}},
+            {"name": "read_email_inbox", "description": "Read CC's email inbox via IMAP — list unread, read emails, triage inbox, AI-summarize. Requires IMAP_HOST, IMAP_USER, IMAP_PASS env vars.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "list | read | search | triage | unread"}, "limit": {"type": "number"}, "search_query": {"type": "string"}, "message_number": {"type": "number", "description": "Which message to read (1=newest)"}, "folder": {"type": "string"}, "triage": {"type": "boolean"}}, "required": ["action"]}},
+            {"name": "schedule_task", "description": "Schedule tasks, reminders, and follow-ups with due dates. Actions: add | list | check_due | due_today | complete | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "task": {"type": "string"}, "description": {"type": "string"}, "due_date": {"type": "string", "description": "YYYY-MM-DD, today, tomorrow, next week"}, "due_time": {"type": "string"}, "task_type": {"type": "string", "description": "reminder | follow_up | invoice_chase | content | research | other"}, "priority": {"type": "string", "description": "high | normal | low"}, "related_contact": {"type": "string"}, "task_id": {"type": "string"}, "recurrence": {"type": "string", "description": "daily | weekly | monthly | none"}}, "required": ["action"]}},
+            {"name": "read_analytics", "description": "Read Gumroad sales analytics — revenue, sales count, top products, by-product breakdown. Also reads local income ledger. Gives AI insights.", "input_schema": {"type": "object", "properties": {"platform": {"type": "string", "description": "gumroad | all | overview"}, "period": {"type": "string", "description": "this_month | last_30 | ytd"}, "include_insights": {"type": "boolean"}}, "required": []}},
+            {"name": "publish_to_beehiiv", "description": "Publish newsletter issues to Beehiiv. Actions: publish | draft | list_posts | stats. Requires BEEHIIV_API_KEY + BEEHIIV_PUBLICATION_ID env vars.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "publish | draft | list_posts | stats"}, "title": {"type": "string"}, "subtitle": {"type": "string"}, "content": {"type": "string", "description": "HTML or plain text"}, "audience": {"type": "string", "description": "free | premium | all"}, "status": {"type": "string", "description": "draft | confirmed"}, "preview_text": {"type": "string"}}, "required": ["action"]}},
+            {"name": "google_calendar", "description": "View and manage Google Calendar — list events, create meetings, check schedule. Actions: list | today | week | create | delete. Requires GOOGLE_CALENDAR_TOKEN env var.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "list | today | week | create | delete"}, "summary": {"type": "string", "description": "Event title"}, "start": {"type": "string", "description": "ISO datetime or YYYY-MM-DD HH:MM"}, "end": {"type": "string"}, "duration_minutes": {"type": "number"}, "location": {"type": "string"}, "description": {"type": "string"}, "event_id": {"type": "string"}, "days_ahead": {"type": "number"}, "all_day": {"type": "boolean"}}, "required": ["action"]}},
+            {"name": "export_to_pdf", "description": "Export any content — contract, report, article, notes — to a real downloadable PDF file. Saved to vesper-ai/exports/.", "input_schema": {"type": "object", "properties": {"content": {"type": "string", "description": "Markdown or plain text to export"}, "title": {"type": "string"}, "filename": {"type": "string"}, "font_size": {"type": "number"}, "include_header": {"type": "boolean"}, "include_page_numbers": {"type": "boolean"}}, "required": ["content", "title"]}},
+            {"name": "stripe_payment_link", "description": "Create Stripe payment links instantly — product + price + shareable URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "create | list | deactivate"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number", "description": "Amount in dollars"}, "currency": {"type": "string"}, "billing": {"type": "string", "description": "one_time | monthly | yearly"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
+            {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with real progress vs ledger. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string", "description": "monthly | quarterly | annual | custom"}, "deadline": {"type": "string", "description": "YYYY-MM-DD"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
+            {"name": "process_meeting_notes", "description": "Process any meeting transcript or rough notes with AI — extracts action items, decisions, follow-up emails, open questions, and saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string", "description": "Raw meeting text, Zoom transcript, or rough notes"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string", "description": "full | actions_only | summary_only"}}, "required": ["transcript"]}},
+            {"name": "social_scheduler", "description": "Queue and schedule social media posts — build a content calendar. Actions: queue | list | post_due | cancel | preview. Supports linkedin | twitter | both.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "platform": {"type": "string", "description": "linkedin | twitter | both"}, "content": {"type": "string"}, "scheduled_for": {"type": "string", "description": "YYYY-MM-DD HH:MM or 'tomorrow 9am'"}, "campaign": {"type": "string"}, "post_id": {"type": "string"}, "auto_post": {"type": "boolean"}}, "required": ["action"]}},
             {"name": "create_webinar_funnel", "description": "Design a complete webinar funnel — registration page copy, pre-webinar email sequence, full slide outline with speaker notes, offer stack, and 3-email follow-up sequence.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "offer": {"type": "string"}, "offer_price": {"type": "string"}, "target_audience": {"type": "string"}, "duration_minutes": {"type": "number"}, "webinar_type": {"type": "string", "description": "live | evergreen | hybrid"}, "platform": {"type": "string"}}, "required": ["topic"]}},
 
             {
@@ -8476,6 +8515,31 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "budget_planner":
                     tool_result = await budget_planner(tool_input, ai_router=ai_router, TaskType=TaskType)
 
+                elif tool_name == "crm_contact":
+                    tool_result = await crm_contact(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "create_contract":
+                    tool_result = await create_contract(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "read_email_inbox":
+                    tool_result = await read_email_inbox(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "schedule_task":
+                    tool_result = await schedule_task(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "read_analytics":
+                    tool_result = await read_analytics(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "publish_to_beehiiv":
+                    tool_result = await publish_to_beehiiv(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "google_calendar":
+                    tool_result = await google_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "export_to_pdf":
+                    tool_result = await export_to_pdf(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "stripe_payment_link":
+                    tool_result = await stripe_payment_link(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "revenue_goals":
+                    tool_result = await revenue_goals(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "process_meeting_notes":
+                    tool_result = await process_meeting_notes(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "social_scheduler":
+                    tool_result = await social_scheduler(tool_input, ai_router=ai_router, TaskType=TaskType)
+
                 elif tool_name == "push_to_creative_suite":
                     _ptcs_id = str(uuid.uuid4())[:8]
                     memory_db.save_creation(
@@ -9713,6 +9777,18 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "tax_estimate", "description": "Estimate quarterly self-employment taxes with deduction analysis and AI tax strategy memo.", "input_schema": {"type": "object", "properties": {"year": {"type": "number"}, "quarter": {"type": "number"}, "filing_status": {"type": "string"}, "state": {"type": "string"}, "include_strategy": {"type": "boolean"}}, "required": []}},
                 {"name": "invoice_tracker", "description": "Track all invoices — add, mark paid, list outstanding/overdue. Can write follow-up emails. Actions: add | paid | list | overdue | follow_up_email.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "invoice_id": {"type": "string"}, "client": {"type": "string"}, "amount": {"type": "number"}, "due_date": {"type": "string"}, "description": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
                 {"name": "budget_planner", "description": "Create and track monthly budgets — income targets, expense limits by category, actuals vs plan. Actions: create | check | recommend.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "month": {"type": "string"}, "income_target": {"type": "number"}, "budget_categories": {"type": "object"}, "savings_goal_pct": {"type": "number"}}, "required": ["action"]}},
+                {"name": "crm_contact", "description": "Local CRM — add/update contacts, log notes, track deals, view pipeline. Actions: add | update | add_note | add_deal | get | search | pipeline | delete | list.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "name": {"type": "string"}, "email": {"type": "string"}, "company": {"type": "string"}, "phone": {"type": "string"}, "role": {"type": "string"}, "source": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}, "stage": {"type": "string"}, "deal_title": {"type": "string"}, "deal_value": {"type": "number"}, "note": {"type": "string"}, "contact_id": {"type": "string"}, "query": {"type": "string"}}, "required": ["action"]}},
+                {"name": "create_contract", "description": "Draft any legal document — service agreement, NDA, retainer, contractor, freelance, consulting, partnership. AI-generated, saved to contracts/.", "input_schema": {"type": "object", "properties": {"contract_type": {"type": "string"}, "party_a": {"type": "string"}, "party_b": {"type": "string"}, "scope": {"type": "string"}, "rate": {"type": "string"}, "payment_terms": {"type": "string"}, "duration": {"type": "string"}, "deliverables": {"type": "string"}, "state": {"type": "string"}, "ip_ownership": {"type": "string"}, "notice_days": {"type": "number"}, "custom_clauses": {"type": "string"}, "confidential": {"type": "boolean"}}, "required": ["contract_type", "party_a", "party_b"]}},
+                {"name": "read_email_inbox", "description": "Read CC's email inbox via IMAP — list, read, search, triage. Requires IMAP_HOST, IMAP_USER, IMAP_PASS.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "limit": {"type": "number"}, "search_query": {"type": "string"}, "message_number": {"type": "number"}, "folder": {"type": "string"}, "triage": {"type": "boolean"}}, "required": ["action"]}},
+                {"name": "schedule_task", "description": "Schedule tasks, reminders, follow-ups. Actions: add | list | check_due | due_today | complete | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "task": {"type": "string"}, "description": {"type": "string"}, "due_date": {"type": "string"}, "due_time": {"type": "string"}, "task_type": {"type": "string"}, "priority": {"type": "string"}, "related_contact": {"type": "string"}, "task_id": {"type": "string"}, "recurrence": {"type": "string"}}, "required": ["action"]}},
+                {"name": "read_analytics", "description": "Read Gumroad sales and revenue analytics — revenue, top products, trends. Also reads income ledger. With AI insights.", "input_schema": {"type": "object", "properties": {"platform": {"type": "string"}, "period": {"type": "string"}, "include_insights": {"type": "boolean"}}, "required": []}},
+                {"name": "publish_to_beehiiv", "description": "Publish newsletter to Beehiiv. Actions: publish | draft | list_posts | stats. Requires BEEHIIV_API_KEY + BEEHIIV_PUBLICATION_ID.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "title": {"type": "string"}, "subtitle": {"type": "string"}, "content": {"type": "string"}, "audience": {"type": "string"}, "status": {"type": "string"}, "preview_text": {"type": "string"}}, "required": ["action"]}},
+                {"name": "google_calendar", "description": "View and manage Google Calendar — list events, create meetings. Actions: list | today | week | create | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "summary": {"type": "string"}, "start": {"type": "string"}, "end": {"type": "string"}, "duration_minutes": {"type": "number"}, "location": {"type": "string"}, "description": {"type": "string"}, "event_id": {"type": "string"}, "days_ahead": {"type": "number"}, "all_day": {"type": "boolean"}}, "required": ["action"]}},
+                {"name": "export_to_pdf", "description": "Export content to a real PDF file. Converts markdown or text to downloadable PDF. Saved to vesper-ai/exports/.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "title": {"type": "string"}, "filename": {"type": "string"}, "font_size": {"type": "number"}, "include_header": {"type": "boolean"}, "include_page_numbers": {"type": "boolean"}}, "required": ["content", "title"]}},
+                {"name": "stripe_payment_link", "description": "Create Stripe payment links — product + price + URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number"}, "currency": {"type": "string"}, "billing": {"type": "string"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
+                {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with progress vs actuals. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string"}, "deadline": {"type": "string"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
+                {"name": "process_meeting_notes", "description": "Process meeting transcript or notes — extracts action items, decisions, follow-up emails, open questions. Saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string"}}, "required": ["transcript"]}},
+                {"name": "social_scheduler", "description": "Queue and schedule social media posts — content calendar. Actions: queue | list | post_due | cancel. Supports linkedin | twitter | both.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "platform": {"type": "string"}, "content": {"type": "string"}, "scheduled_for": {"type": "string"}, "campaign": {"type": "string"}, "post_id": {"type": "string"}, "auto_post": {"type": "boolean"}}, "required": ["action"]}},
                 {"name": "download_image", "description": "Download an image from a URL to the media library.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
                 {"name": "monitor_site", "description": "Check a website for changes vs a previous snapshot.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "previous_content": {"type": "string"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 
@@ -9936,6 +10012,18 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "tax_estimate": "🧮 Estimating taxes",
                     "invoice_tracker": "📋 Checking invoices",
                     "budget_planner": "💰 Building budget",
+                    "crm_contact": "👥 Updating CRM",
+                    "create_contract": "📜 Drafting contract",
+                    "read_email_inbox": "📬 Reading inbox",
+                    "schedule_task": "⏰ Scheduling task",
+                    "read_analytics": "📈 Reading analytics",
+                    "publish_to_beehiiv": "📧 Publishing to Beehiiv",
+                    "google_calendar": "📅 Checking calendar",
+                    "export_to_pdf": "📄 Exporting to PDF",
+                    "stripe_payment_link": "💳 Creating payment link",
+                    "revenue_goals": "🎯 Tracking revenue goals",
+                    "process_meeting_notes": "📝 Processing meeting notes",
+                    "social_scheduler": "🗓️ Scheduling social post",
                     "gumroad_create_product": "🛒 Listing on Gumroad",
                     "medium_publish": "📰 Publishing to Medium",
                     "post_to_linkedin": "💼 Posting to LinkedIn",
@@ -10358,6 +10446,30 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await invoice_tracker(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "budget_planner":
                         tool_result = await budget_planner(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "crm_contact":
+                        tool_result = await crm_contact(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "create_contract":
+                        tool_result = await create_contract(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "read_email_inbox":
+                        tool_result = await read_email_inbox(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "schedule_task":
+                        tool_result = await schedule_task(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "read_analytics":
+                        tool_result = await read_analytics(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "publish_to_beehiiv":
+                        tool_result = await publish_to_beehiiv(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "google_calendar":
+                        tool_result = await google_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "export_to_pdf":
+                        tool_result = await export_to_pdf(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "stripe_payment_link":
+                        tool_result = await stripe_payment_link(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "revenue_goals":
+                        tool_result = await revenue_goals(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "process_meeting_notes":
+                        tool_result = await process_meeting_notes(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "social_scheduler":
+                        tool_result = await social_scheduler(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(
