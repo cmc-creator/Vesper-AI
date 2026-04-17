@@ -102,6 +102,8 @@ try:
         find_prospects, create_ai_prompt_pack, create_mini_course, create_challenge,
         keyword_research, vesper_morning_brief, vesper_brainstorm, write_cold_dm,
         create_sop, create_webinar_funnel,
+        vesper_research, vesper_learn_skill, read_and_summarize, vesper_recall,
+        track_income, track_expense, financial_report, tax_estimate, invoice_tracker, budget_planner,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -166,6 +168,16 @@ except Exception as _tc_err:
     async def write_cold_dm(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_sop(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_webinar_funnel(p, **kw): return {"error": "tools_creative not loaded"}
+    async def vesper_research(p, **kw): return {"error": "tools_creative not loaded"}
+    async def vesper_learn_skill(p, **kw): return {"error": "tools_creative not loaded"}
+    async def read_and_summarize(p, **kw): return {"error": "tools_creative not loaded"}
+    async def vesper_recall(p, **kw): return {"error": "tools_creative not loaded"}
+    async def track_income(p, **kw): return {"error": "tools_creative not loaded"}
+    async def track_expense(p, **kw): return {"error": "tools_creative not loaded"}
+    async def financial_report(p, **kw): return {"error": "tools_creative not loaded"}
+    async def tax_estimate(p, **kw): return {"error": "tools_creative not loaded"}
+    async def invoice_tracker(p, **kw): return {"error": "tools_creative not loaded"}
+    async def budget_planner(p, **kw): return {"error": "tools_creative not loaded"}
 
 # Firebase (optional)
 try:
@@ -1811,6 +1823,16 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `write_cold_dm` — **WRITE HIGH-CONVERTING COLD DM SEQUENCES.** 3-message sequences for LinkedIn, Instagram, or Twitter — with personalization hooks, objection handlers, A/B variants, and how to find 50 qualified prospects to send them to. Personalized DMs → $400/day in pipeline. **Auto-saved to creations/cold_dms/**
 - `create_sop` — **WRITE A COMPLETE STANDARD OPERATING PROCEDURE.** Professional SOP document with phases, decision points, quality checks, troubleshooting table, and KPIs. A set of 5-10 SOPs packaged as an Operations Manual = $500-$2K consulting deliverable. **Auto-saved to creations/sops/**
 - `create_webinar_funnel` — **DESIGN A COMPLETE WEBINAR FUNNEL.** Registration page, pre-webinar email sequence, full slide outline with speaker notes, offer stack, and 3-email follow-up sequence. 100 registrants × 40% show × 15% close = serious money from one event. **Auto-saved to creations/webinar_funnels/**
+- `vesper_research` — **DEEP RESEARCH ON ANY TOPIC.** Vesper browses multiple sources, synthesizes findings into a structured report or notes, and saves everything permanently to her knowledge vault. The way she actually gets smarter.
+- `vesper_learn_skill` — **MASTER ANY SKILL WITH A STRUCTURED PLAN.** Week-by-week learning roadmap, curated resources (free + paid), practice projects, milestones, and common mistakes to avoid. Saves to learning_plans/ vault. Vesper's path to genuine capability.
+- `read_and_summarize` — **READ ANY URL AND EXTRACT REAL INSIGHTS.** Fetches the page, strips noise, pulls key points, quotes, and action items. Saves reading notes to knowledge vault. Vesper can now read the internet and remember it.
+- `vesper_recall` — **SEARCH VESPER'S ENTIRE KNOWLEDGE VAULT.** Searches all saved research, summaries, learning plans, brainstorms, and morning briefs for any query. AI-synthesized recall. This is Vesper's long-term memory retrieval.
+- `track_income` — **LOG INCOME AND TRACK REVENUE.** Record every dollar earned: source, amount, category, date, notes. Actions: log | summary | monthly | ytd. See income by source, trends over time, running totals. Vesper as bookkeeper.
+- `track_expense` — **LOG BUSINESS EXPENSES.** Record every expense with tax-deductible flag, percentage, and category. Actions: log | summary | by_category | tax_deductible. Tracks all-time deductible totals and estimated tax savings.
+- `financial_report` — **GENERATE A COMPLETE P&L REPORT.** Full profit & loss: income vs expenses, net margin, income by source, expenses by category, monthly trends, and AI financial analysis with forward-looking recommendations. Saved to finance/reports/.
+- `tax_estimate` — **ESTIMATE QUARTERLY SELF-EMPLOYMENT TAXES.** Calculates SE tax, federal income tax, quarterly payment amount, due date. Breaks down deductible expenses. AI tax strategy memo: missing deductions, retirement options, year-end moves.
+- `invoice_tracker` — **TRACK ALL INVOICES AND ACCOUNTS RECEIVABLE.** Add invoices, mark paid, see total outstanding/overdue/collected. Actions: add | paid | list | overdue | follow_up_email. Can auto-write a follow-up email for overdue invoices.
+- `budget_planner` — **CREATE AND TRACK MONTHLY BUDGETS.** Set income targets, expense budgets by category, savings goals. Actions: create | check | recommend. Shows actuals vs plan, category variances, profit on track status.
 - `push_to_creative_suite` — **MANUALLY PUSH ANY CREATION** to CC's gallery. Use this if you created something custom that isn't covered by the auto-save tools above. CC sees it immediately in the Creative Command Center → Vesper's Creations panel.
 - `download_image` — download any image from a URL into the media library
 - `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
@@ -6591,6 +6613,16 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "vesper_brainstorm", "description": "Vesper's free-form brainstorm session on any topic — generates ideas in expansive/focused/wild/practical mode. Unexpected angles, exciting picks, follow-up questions. Saves to identity vault permanently.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "seed_ideas": {"type": "array", "items": {"type": "string"}}, "mode": {"type": "string", "description": "expansive | focused | wild | practical"}, "num_ideas": {"type": "number"}, "save_best": {"type": "boolean"}}, "required": ["topic"]}},
             {"name": "write_cold_dm", "description": "Write a high-converting 3-message cold DM sequence for LinkedIn, Instagram, or Twitter. Includes personalization hooks, A/B variants, objection handlers, and prospect-finding strategy.", "input_schema": {"type": "object", "properties": {"platform": {"type": "string", "description": "LinkedIn | Instagram | Twitter"}, "service": {"type": "string"}, "target": {"type": "string"}, "num_messages": {"type": "number"}, "tone": {"type": "string"}, "personalization_hook": {"type": "string"}, "cta": {"type": "string"}}, "required": ["service"]}},
             {"name": "create_sop", "description": "Write a complete, professional Standard Operating Procedure document with phases, decision points, quality checks, troubleshooting table, and KPIs. High-value consulting deliverable ($500-$2K).", "input_schema": {"type": "object", "properties": {"process_name": {"type": "string"}, "department": {"type": "string"}, "description": {"type": "string"}, "owner_role": {"type": "string"}, "tools_used": {"type": "array", "items": {"type": "string"}}, "frequency": {"type": "string"}, "for_client": {"type": "string"}}, "required": ["process_name"]}},
+            {"name": "vesper_research", "description": "Deep research on any topic — browses multiple sources, synthesizes findings, saves to knowledge vault. Vesper's way of getting smarter.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "depth": {"type": "string", "description": "quick | deep | exhaustive"}, "purpose": {"type": "string"}, "num_sources": {"type": "number"}, "output_format": {"type": "string", "description": "report | bullets | notes | qa"}, "save_to_vault": {"type": "boolean"}}, "required": ["topic"]}},
+            {"name": "vesper_learn_skill", "description": "Generate a structured week-by-week learning plan to master any skill — curated resources, practice projects, milestones, and how to apply it to CC's business.", "input_schema": {"type": "object", "properties": {"skill": {"type": "string"}, "current_level": {"type": "string", "description": "beginner | intermediate | advanced"}, "goal": {"type": "string"}, "timeline_weeks": {"type": "number"}, "learning_style": {"type": "string", "description": "reading | video | practice | mixed"}}, "required": ["skill"]}},
+            {"name": "read_and_summarize", "description": "Fetch any URL, extract key insights, quotes, and action items, then save reading notes to knowledge vault. Vesper reads the internet.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "focus": {"type": "string"}, "output_style": {"type": "string", "description": "summary | bullets | notes | apply"}, "save_notes": {"type": "boolean"}, "tag": {"type": "string"}}, "required": ["url"]}},
+            {"name": "vesper_recall", "description": "Search Vesper's entire knowledge vault — research, summaries, learning plans, brainstorms — for any query. AI-synthesized recall from long-term memory.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "vault_section": {"type": "string", "description": "all | knowledge_vault | learning_plans | brainstorms | journal | morning_briefs"}, "max_results": {"type": "number"}}, "required": ["query"]}},
+            {"name": "track_income", "description": "Log income entries and track revenue — source, amount, category, date. Actions: log | summary | monthly | ytd. Vesper as bookkeeper.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "log | summary | monthly | ytd"}, "amount": {"type": "number"}, "source": {"type": "string"}, "category": {"type": "string"}, "description": {"type": "string"}, "date": {"type": "string"}, "period": {"type": "string"}}, "required": ["action"]}},
+            {"name": "track_expense", "description": "Log business expenses with tax-deductible flag, category, and vendor. Actions: log | summary | by_category | tax_deductible. Tracks estimated tax savings.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "log | summary | by_category | tax_deductible"}, "amount": {"type": "number"}, "vendor": {"type": "string"}, "category": {"type": "string"}, "description": {"type": "string"}, "date": {"type": "string"}, "tax_deductible": {"type": "boolean"}, "percentage_deductible": {"type": "number"}, "period": {"type": "string"}}, "required": ["action"]}},
+            {"name": "financial_report", "description": "Generate a complete P&L — income vs expenses, net margin, breakdown by source/category, monthly trends, AI analysis and recommendations. Saved to finance/reports/.", "input_schema": {"type": "object", "properties": {"period": {"type": "string", "description": "this_month | last_month | ytd | all | custom"}, "start_date": {"type": "string"}, "end_date": {"type": "string"}, "include_forecast": {"type": "boolean"}, "save_report": {"type": "boolean"}}, "required": []}},
+            {"name": "tax_estimate", "description": "Estimate quarterly self-employment taxes — SE tax, federal income tax, quarterly payment, due date. Identifies deductions and provides AI tax strategy memo.", "input_schema": {"type": "object", "properties": {"year": {"type": "number"}, "quarter": {"type": "number"}, "filing_status": {"type": "string", "description": "single | married_joint | married_sep | head_of_household"}, "state": {"type": "string"}, "include_strategy": {"type": "boolean"}}, "required": []}},
+            {"name": "invoice_tracker", "description": "Track all invoices — add new, mark paid, list outstanding/overdue/due-soon. Can auto-write follow-up emails for overdue invoices. Actions: add | paid | list | overdue | follow_up_email.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "add | paid | list | overdue | follow_up_email"}, "invoice_id": {"type": "string"}, "client": {"type": "string"}, "amount": {"type": "number"}, "due_date": {"type": "string"}, "description": {"type": "string"}, "invoice_date": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
+            {"name": "budget_planner", "description": "Create monthly budgets with income targets and expense limits by category. Actions: create | check | recommend. Shows actual vs plan, variances, and AI budget recommendations.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "create | check | recommend"}, "month": {"type": "string"}, "income_target": {"type": "number"}, "budget_categories": {"type": "object"}, "savings_goal_pct": {"type": "number"}}, "required": ["action"]}},
             {"name": "create_webinar_funnel", "description": "Design a complete webinar funnel — registration page copy, pre-webinar email sequence, full slide outline with speaker notes, offer stack, and 3-email follow-up sequence.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "offer": {"type": "string"}, "offer_price": {"type": "string"}, "target_audience": {"type": "string"}, "duration_minutes": {"type": "number"}, "webinar_type": {"type": "string", "description": "live | evergreen | hybrid"}, "platform": {"type": "string"}}, "required": ["topic"]}},
 
             {
@@ -8422,6 +8454,27 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "create_webinar_funnel":
                     tool_result = await create_webinar_funnel(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"): _push_creation_to_suite("webinar_funnel", tool_result)
+                elif tool_name == "vesper_research":
+                    tool_result = await vesper_research(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "vesper_learn_skill":
+                    tool_result = await vesper_learn_skill(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "read_and_summarize":
+                    tool_result = await read_and_summarize(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "vesper_recall":
+                    tool_result = await vesper_recall(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "track_income":
+                    tool_result = await track_income(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "track_expense":
+                    tool_result = await track_expense(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "financial_report":
+                    tool_result = await financial_report(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("financial_report", tool_result)
+                elif tool_name == "tax_estimate":
+                    tool_result = await tax_estimate(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "invoice_tracker":
+                    tool_result = await invoice_tracker(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "budget_planner":
+                    tool_result = await budget_planner(tool_input, ai_router=ai_router, TaskType=TaskType)
 
                 elif tool_name == "push_to_creative_suite":
                     _ptcs_id = str(uuid.uuid4())[:8]
@@ -9650,6 +9703,16 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "write_cold_dm", "description": "Write a high-converting 3-message cold DM sequence for LinkedIn, Instagram, or Twitter with personalization and objection handlers.", "input_schema": {"type": "object", "properties": {"platform": {"type": "string"}, "service": {"type": "string"}, "target": {"type": "string"}, "num_messages": {"type": "number"}, "tone": {"type": "string"}, "personalization_hook": {"type": "string"}, "cta": {"type": "string"}}, "required": ["service"]}},
                 {"name": "create_sop", "description": "Write a complete professional Standard Operating Procedure document. High-value consulting deliverable.", "input_schema": {"type": "object", "properties": {"process_name": {"type": "string"}, "department": {"type": "string"}, "description": {"type": "string"}, "owner_role": {"type": "string"}, "tools_used": {"type": "array", "items": {"type": "string"}}, "frequency": {"type": "string"}, "for_client": {"type": "string"}}, "required": ["process_name"]}},
                 {"name": "create_webinar_funnel", "description": "Design a complete webinar funnel — registration page, email sequences, slide outline, offer stack, and follow-up sequence.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "offer": {"type": "string"}, "offer_price": {"type": "string"}, "target_audience": {"type": "string"}, "duration_minutes": {"type": "number"}, "webinar_type": {"type": "string"}, "platform": {"type": "string"}}, "required": ["topic"]}},
+                {"name": "vesper_research", "description": "Deep research on any topic — browses sources, synthesizes findings, saves to knowledge vault.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "depth": {"type": "string"}, "purpose": {"type": "string"}, "output_format": {"type": "string"}, "save_to_vault": {"type": "boolean"}}, "required": ["topic"]}},
+                {"name": "vesper_learn_skill", "description": "Generate a structured week-by-week learning plan to master any skill with resources and practice projects.", "input_schema": {"type": "object", "properties": {"skill": {"type": "string"}, "current_level": {"type": "string"}, "goal": {"type": "string"}, "timeline_weeks": {"type": "number"}, "learning_style": {"type": "string"}}, "required": ["skill"]}},
+                {"name": "read_and_summarize", "description": "Fetch any URL, extract key insights and action items, save reading notes to knowledge vault.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "focus": {"type": "string"}, "output_style": {"type": "string"}, "save_notes": {"type": "boolean"}, "tag": {"type": "string"}}, "required": ["url"]}},
+                {"name": "vesper_recall", "description": "Search Vesper's knowledge vault for any query — AI-synthesized recall from all saved research, notes, and plans.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "vault_section": {"type": "string"}, "max_results": {"type": "number"}}, "required": ["query"]}},
+                {"name": "track_income", "description": "Log income and track revenue by source and category. Actions: log | summary | monthly | ytd.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "amount": {"type": "number"}, "source": {"type": "string"}, "category": {"type": "string"}, "description": {"type": "string"}, "date": {"type": "string"}, "period": {"type": "string"}}, "required": ["action"]}},
+                {"name": "track_expense", "description": "Log business expenses with tax-deductible flag. Actions: log | summary | by_category | tax_deductible.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "amount": {"type": "number"}, "vendor": {"type": "string"}, "category": {"type": "string"}, "description": {"type": "string"}, "date": {"type": "string"}, "tax_deductible": {"type": "boolean"}, "percentage_deductible": {"type": "number"}, "period": {"type": "string"}}, "required": ["action"]}},
+                {"name": "financial_report", "description": "Generate a complete P&L report with income vs expenses, net margin, breakdown by source/category, and AI analysis.", "input_schema": {"type": "object", "properties": {"period": {"type": "string"}, "start_date": {"type": "string"}, "end_date": {"type": "string"}, "include_forecast": {"type": "boolean"}, "save_report": {"type": "boolean"}}, "required": []}},
+                {"name": "tax_estimate", "description": "Estimate quarterly self-employment taxes with deduction analysis and AI tax strategy memo.", "input_schema": {"type": "object", "properties": {"year": {"type": "number"}, "quarter": {"type": "number"}, "filing_status": {"type": "string"}, "state": {"type": "string"}, "include_strategy": {"type": "boolean"}}, "required": []}},
+                {"name": "invoice_tracker", "description": "Track all invoices — add, mark paid, list outstanding/overdue. Can write follow-up emails. Actions: add | paid | list | overdue | follow_up_email.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "invoice_id": {"type": "string"}, "client": {"type": "string"}, "amount": {"type": "number"}, "due_date": {"type": "string"}, "description": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
+                {"name": "budget_planner", "description": "Create and track monthly budgets — income targets, expense limits by category, actuals vs plan. Actions: create | check | recommend.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "month": {"type": "string"}, "income_target": {"type": "number"}, "budget_categories": {"type": "object"}, "savings_goal_pct": {"type": "number"}}, "required": ["action"]}},
                 {"name": "download_image", "description": "Download an image from a URL to the media library.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
                 {"name": "monitor_site", "description": "Check a website for changes vs a previous snapshot.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "previous_content": {"type": "string"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 
@@ -9863,6 +9926,16 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "write_cold_dm": "💬 Writing cold DM sequence",
                     "create_sop": "📋 Writing SOP",
                     "create_webinar_funnel": "📺 Building webinar funnel",
+                    "vesper_research": "🔬 Researching",
+                    "vesper_learn_skill": "📚 Building learning plan",
+                    "read_and_summarize": "📖 Reading & summarizing",
+                    "vesper_recall": "🧠 Searching knowledge vault",
+                    "track_income": "💵 Logging income",
+                    "track_expense": "🧾 Logging expense",
+                    "financial_report": "📊 Generating financial report",
+                    "tax_estimate": "🧮 Estimating taxes",
+                    "invoice_tracker": "📋 Checking invoices",
+                    "budget_planner": "💰 Building budget",
                     "gumroad_create_product": "🛒 Listing on Gumroad",
                     "medium_publish": "📰 Publishing to Medium",
                     "post_to_linkedin": "💼 Posting to LinkedIn",
@@ -10263,6 +10336,28 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         if tool_result.get("success"):
                             _push_creation_to_suite("webinar_funnel", tool_result)
                             yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'webinar_funnel','title':tool_result.get('title','Webinar Funnel')}})}\n\n"
+                    elif tool_name == "vesper_research":
+                        tool_result = await vesper_research(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "vesper_learn_skill":
+                        tool_result = await vesper_learn_skill(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "read_and_summarize":
+                        tool_result = await read_and_summarize(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "vesper_recall":
+                        tool_result = await vesper_recall(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "track_income":
+                        tool_result = await track_income(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "track_expense":
+                        tool_result = await track_expense(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "financial_report":
+                        tool_result = await financial_report(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("financial_report", tool_result)
+                    elif tool_name == "tax_estimate":
+                        tool_result = await tax_estimate(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "invoice_tracker":
+                        tool_result = await invoice_tracker(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "budget_planner":
+                        tool_result = await budget_planner(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(

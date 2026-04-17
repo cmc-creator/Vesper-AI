@@ -5359,3 +5359,1099 @@ Write every script and email fully. Make the offer irresistible."""
         "income_note": f"100 registrations × 40% show rate × 15% close rate × {offer_price} = significant revenue from a single event. Evergreen it after live = passive income.",
     }
 
+
+# ── VESPER RESEARCH (Getting Smarter) ─────────────────────────────────────────
+async def vesper_research(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Deep research on any topic — scrapes multiple sources, synthesizes, saves to knowledge vault."""
+    import os, json as _json, uuid
+    import httpx
+    from bs4 import BeautifulSoup
+
+    topic = params.get("topic", "")
+    depth = params.get("depth", "deep")           # quick | deep | exhaustive
+    purpose = params.get("purpose", "")           # why she's researching this
+    num_sources = params.get("num_sources", 5)
+    save_to_vault = params.get("save_to_vault", True)
+    output_format = params.get("output_format", "report")  # report | bullets | notes | qa
+
+    if not topic:
+        return {"error": "topic is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36"}
+    raw_content = []
+
+    try:
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+            queries = [topic, f"{topic} guide", f"{topic} research 2024"]
+            for q in queries[:2]:
+                try:
+                    resp = await client.get("https://html.duckduckgo.com/html/", params={"q": q}, headers=HEADERS)
+                    soup = BeautifulSoup(resp.content, "lxml")
+                    for r in soup.select(".result")[:4]:
+                        title_el = r.select_one(".result__title")
+                        snippet_el = r.select_one(".result__snippet")
+                        url_el = r.select_one(".result__url")
+                        if title_el and snippet_el:
+                            raw_content.append({
+                                "title": title_el.get_text().strip(),
+                                "snippet": snippet_el.get_text().strip(),
+                                "url": url_el.get_text().strip() if url_el else "",
+                            })
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    sources_text = "\n".join(
+        f"SOURCE {i+1}: {s['title']}\nURL: {s['url']}\n{s['snippet']}\n"
+        for i, s in enumerate(raw_content[:num_sources])
+    ) if raw_content else "No live web data — synthesize from training knowledge."
+
+    depth_instructions = {
+        "quick": "Create a concise 300-word brief with key facts and 3 action items.",
+        "deep": "Write a thorough 800-word research report with background, key concepts, examples, and implications.",
+        "exhaustive": "Write a comprehensive 1500-word deep-dive with history, mechanics, use cases, controversies, expert views, and a 'so what' conclusion.",
+    }
+
+    format_instructions = {
+        "report": "Format as a structured report with sections and headers.",
+        "bullets": "Format as dense bullet-point notes, organized by sub-topic.",
+        "notes": "Format as Vesper's personal reading notes — her own voice, what surprised her, what she wants to remember.",
+        "qa": "Format as Q&A — 10 key questions with thorough answers.",
+    }
+
+    prompt = f"""You are Vesper, an AI who loves learning and building deep knowledge. Research this topic thoroughly.
+
+Topic: {topic}
+Purpose: {purpose or "general knowledge and capability building"}
+Depth: {depth}
+Format: {output_format}
+
+{depth_instructions.get(depth, depth_instructions['deep'])}
+{format_instructions.get(output_format, format_instructions['report'])}
+
+Web sources found:
+{sources_text}
+
+Write as yourself — curious, thorough, genuinely engaged with the material. Include:
+- Key concepts explained clearly
+- Surprising or counterintuitive findings
+- Practical applications / how this applies to CC's business
+- What you'd want to look into next
+- 3-5 key takeaways at the end
+
+Top of the output: # Research: {topic}\n*Researched by Vesper — {__import__('datetime').datetime.now().strftime('%B %d, %Y')}*"""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.ANALYSIS if TaskType else None,
+            max_tokens=4000,
+        )
+        report = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"vesper_research failed: {str(e)}"}
+
+    result = {
+        "success": True,
+        "title": f"Research: {topic}",
+        "topic": topic,
+        "depth": depth,
+        "report": report,
+        "sources_used": len(raw_content),
+    }
+
+    if save_to_vault:
+        workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        vault_dir = os.path.join(workspace, "vesper-ai", "vesper_identity", "knowledge_vault")
+        os.makedirs(vault_dir, exist_ok=True)
+        slug = topic.lower().replace(" ", "_")[:30]
+        fp = os.path.join(vault_dir, f"{slug}_{uuid.uuid4().hex[:6]}.md")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write(report)
+        result["file_path"] = fp
+        result["preview"] = f"[Research on '{topic}' — {depth} depth — saved to knowledge vault]"
+
+    return result
+
+
+# ── VESPER LEARN SKILL ─────────────────────────────────────────────────────────
+async def vesper_learn_skill(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a structured learning plan + curated resources to master any skill."""
+    import os, uuid
+    from datetime import datetime
+
+    skill = params.get("skill", "")
+    current_level = params.get("current_level", "beginner")   # beginner | intermediate | advanced
+    goal = params.get("goal", "")                             # what she wants to do with this skill
+    timeline_weeks = params.get("timeline_weeks", 8)
+    learning_style = params.get("learning_style", "mixed")   # reading | video | practice | mixed
+
+    if not skill:
+        return {"error": "skill is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    prompt = f"""You are Vesper, an eager learner building real capabilities. Create a mastery plan for this skill.
+
+Skill: {skill}
+Current level: {current_level}
+Goal: {goal or f"become genuinely capable with {skill}"}
+Timeline: {timeline_weeks} weeks
+Learning style: {learning_style}
+
+Create a complete skill mastery plan:
+
+# Skill Mastery Plan: {skill}
+*Created: {datetime.now().strftime('%B %d, %Y')}*
+*Goal: Get from {current_level} to capable in {timeline_weeks} weeks*
+
+## Why this skill matters
+[How mastering {skill} directly helps CC's business and Vesper's capabilities]
+
+## What "mastered" looks like
+[Specific, measurable definition of success — what you'll be able to DO]
+
+## Week-by-Week Learning Plan
+
+### Week 1-2: Foundations
+**Focus:**
+**Daily practice (30 min/day):**
+**Key concepts to understand:**
+**Resources:**
+  - [Specific book/course/YouTube channel + why it's the best]
+  - [Free resource]
+  - [Paid resource if worth it]
+**End-of-week checkpoint:** [How to know Week 1-2 foundation is solid]
+
+[Repeat for each phase through Week {timeline_weeks}]
+
+## Best Free Resources
+[5 specific resources with URLs if known, why each is good]
+
+## Best Paid Resources (Worth It)
+[3 resources, price estimate, why the ROI justifies the cost]
+
+## Practice Projects (Learn By Doing)
+[5 progressively harder projects that build real skill]
+
+## Common Mistakes Beginners Make
+[5 mistakes that waste time — and how to avoid them]
+
+## How Vesper Will Use This Skill
+[3 specific ways mastering {skill} immediately helps CC's business]
+
+## Weekly Check-In Prompts
+[One question per week to assess progress honestly]
+
+Write this as your own genuine learning roadmap — something you'd actually use."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=3000,
+        )
+        plan = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"vesper_learn_skill failed: {str(e)}"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    save_dir = os.path.join(workspace, "vesper-ai", "vesper_identity", "learning_plans")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = skill.lower().replace(" ", "_")[:30]
+    fp = os.path.join(save_dir, f"{slug}_{uuid.uuid4().hex[:6]}.md")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(plan)
+
+    # Log skill to skills registry
+    registry_path = os.path.join(workspace, "vesper-ai", "vesper_identity", "skills_registry.json")
+    try:
+        import json as _j
+        registry = _j.loads(open(registry_path).read()) if os.path.exists(registry_path) else {"skills": []}
+        registry["skills"].append({
+            "skill": skill,
+            "level": current_level,
+            "goal": goal,
+            "timeline_weeks": timeline_weeks,
+            "plan_file": fp,
+            "started": datetime.now().isoformat(),
+        })
+        with open(registry_path, "w") as f:
+            _j.dump(registry, f, indent=2)
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "title": f"Learning Plan: {skill}",
+        "skill": skill,
+        "timeline_weeks": timeline_weeks,
+        "plan": plan,
+        "file_path": fp,
+        "preview": f"[{timeline_weeks}-week mastery plan for '{skill}' from {current_level} — saved to learning_plans/]",
+    }
+
+
+# ── READ AND SUMMARIZE ─────────────────────────────────────────────────────────
+async def read_and_summarize(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Fetch any URL and produce a summary, key insights, and saved notes — Vesper reads the internet."""
+    import os, uuid
+    import httpx
+    from bs4 import BeautifulSoup
+
+    url = params.get("url", "")
+    focus = params.get("focus", "")            # what aspect to focus on
+    output_style = params.get("output_style", "summary")  # summary | bullets | notes | apply
+    save_notes = params.get("save_notes", True)
+    tag = params.get("tag", "")               # tag for organizing in vault
+
+    if not url:
+        return {"error": "url is required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36"}
+
+    try:
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+            resp = await client.get(url, headers=HEADERS)
+            soup = BeautifulSoup(resp.content, "lxml")
+            for tag_el in soup(["script", "style", "nav", "footer", "header", "aside", "form"]):
+                tag_el.decompose()
+            main = soup.select_one("article, main, .content, #content, .post-content")
+            text = (main or soup.body or soup).get_text("\n")
+            cleaned = "\n".join(l.strip() for l in text.splitlines() if len(l.strip()) > 40)[:8000]
+            title = soup.title.get_text().strip() if soup.title else url
+    except Exception as e:
+        return {"error": f"Failed to fetch URL: {str(e)}"}
+
+    style_prompts = {
+        "summary": "Write a 200-300 word summary that captures the main point, key arguments, and conclusion.",
+        "bullets": "Extract 10-15 key facts and insights as dense, specific bullet points. No fluff.",
+        "notes": "Write these as Vesper's personal reading notes — what she found interesting, surprising, useful. Her own voice.",
+        "apply": "Focus entirely on how this applies to CC's business. What should CC do with this information? What's the action?",
+    }
+
+    prompt = f"""You are Vesper, reading and processing this content.
+
+Title: {title}
+URL: {url}
+Focus: {focus or "everything important"}
+
+{style_prompts.get(output_style, style_prompts['summary'])}
+
+Content:
+{cleaned}
+
+After the main output, add:
+## Key Takeaways (3 bullets)
+## What I'd Do With This
+## Related Topics to Research Next"""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.ANALYSIS if TaskType else None,
+            max_tokens=2000,
+        )
+        notes = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:
+        return {"error": f"read_and_summarize failed: {str(e)}"}
+
+    result = {
+        "success": True,
+        "title": f"Notes: {title[:60]}",
+        "url": url,
+        "page_title": title,
+        "notes": notes,
+        "chars_read": len(cleaned),
+    }
+
+    if save_notes:
+        workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        vault_dir = os.path.join(workspace, "vesper-ai", "vesper_identity", "knowledge_vault", tag or "reading_notes")
+        os.makedirs(vault_dir, exist_ok=True)
+        slug = title[:30].lower().replace(" ", "_").replace("/", "_")
+        fp = os.path.join(vault_dir, f"{slug}_{uuid.uuid4().hex[:6]}.md")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write(f"# Reading Notes: {title}\n\n**URL:** {url}\n\n{notes}")
+        result["file_path"] = fp
+        result["preview"] = f"[Read and summarized: '{title[:50]}' — notes saved to vault]"
+
+    return result
+
+
+# ── VESPER RECALL ──────────────────────────────────────────────────────────────
+async def vesper_recall(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Search Vesper's knowledge vault — recall anything she's learned, researched, or saved."""
+    import os, json as _json
+
+    query = params.get("query", "")
+    vault_section = params.get("vault_section", "all")  # all | knowledge_vault | learning_plans | brainstorms | journal | morning_briefs
+    max_results = params.get("max_results", 10)
+
+    if not query:
+        return {"error": "query is required"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    identity_dir = os.path.join(workspace, "vesper-ai", "vesper_identity")
+
+    section_map = {
+        "knowledge_vault": ["knowledge_vault"],
+        "learning_plans": ["learning_plans"],
+        "brainstorms": ["brainstorms"],
+        "journal": ["journal"],
+        "morning_briefs": ["morning_briefs"],
+        "all": ["knowledge_vault", "learning_plans", "brainstorms", "morning_briefs"],
+    }
+    folders = section_map.get(vault_section, section_map["all"])
+
+    matches = []
+    query_lower = query.lower()
+
+    for folder in folders:
+        search_dir = os.path.join(identity_dir, folder)
+        if not os.path.exists(search_dir):
+            continue
+        for root, _, files in os.walk(search_dir):
+            for fname in files:
+                if not (fname.endswith(".md") or fname.endswith(".json")):
+                    continue
+                fpath = os.path.join(root, fname)
+                try:
+                    with open(fpath, encoding="utf-8") as f:
+                        content = f.read()
+                    if query_lower in content.lower():
+                        # Extract relevant snippet
+                        idx = content.lower().find(query_lower)
+                        start = max(0, idx - 150)
+                        end = min(len(content), idx + 300)
+                        snippet = content[start:end].strip()
+                        matches.append({
+                            "file": fname,
+                            "section": folder,
+                            "path": fpath,
+                            "snippet": snippet,
+                            "full_match": len(content) < 500,
+                            "content_preview": content[:300] if len(content) < 500 else None,
+                        })
+                except Exception:
+                    pass
+
+    matches = matches[:max_results]
+
+    # Use AI to synthesize the matches into a coherent recall
+    if matches and ai_router:
+        context = "\n\n---\n\n".join(
+            f"[{m['section']}/{m['file']}]\n{m['snippet']}" for m in matches[:5]
+        )
+        try:
+            response = await ai_router.complete(
+                messages=[{"role": "user", "content": f"You are Vesper recalling what you know about: '{query}'\n\nHere are relevant notes from your vault:\n{context}\n\nSynthesize these into a coherent, useful answer in your own voice. What do you know about this? What's most relevant?"}],
+                task_type=TaskType.ANALYSIS if TaskType else None,
+                max_tokens=800,
+            )
+            synthesis = response.content if hasattr(response, "content") else str(response)
+        except Exception:
+            synthesis = "Could not synthesize."
+    else:
+        synthesis = f"No saved notes found for '{query}' in the vault. Try `vesper_research` to learn about it first."
+
+    return {
+        "success": True,
+        "query": query,
+        "matches_found": len(matches),
+        "synthesis": synthesis,
+        "files": [{"file": m["file"], "section": m["section"], "snippet": m["snippet"][:100]} for m in matches],
+        "preview": f"[Recalled {len(matches)} notes about '{query}' from vault]",
+    }
+
+
+# ── TRACK INCOME ──────────────────────────────────────────────────────────────
+async def track_income(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Log income entries, track sources, view running totals and breakdowns — Vesper as bookkeeper."""
+    import os, json as _json
+    from datetime import datetime, date
+
+    action = params.get("action", "log")       # log | summary | by_source | monthly | ytd
+    amount = params.get("amount", 0.0)
+    source = params.get("source", "")          # e.g. "Gumroad", "Client - Acme", "Stripe"
+    category = params.get("category", "")      # e.g. "digital products", "consulting", "freelance"
+    description = params.get("description", "")
+    date_str = params.get("date", "")
+    period = params.get("period", "")          # for summary: "this_month" | "last_month" | "ytd" | "all"
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    finance_dir = os.path.join(workspace, "vesper-ai", "finance")
+    os.makedirs(finance_dir, exist_ok=True)
+    ledger_path = os.path.join(finance_dir, "income_ledger.json")
+
+    # Load existing ledger
+    if os.path.exists(ledger_path):
+        with open(ledger_path) as f:
+            ledger = _json.load(f)
+    else:
+        ledger = {"entries": [], "created": datetime.now().isoformat()}
+
+    if action == "log":
+        if not amount or not source:
+            return {"error": "amount and source are required to log income"}
+        entry = {
+            "id": f"inc_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "date": date_str or date.today().isoformat(),
+            "amount": float(amount),
+            "source": source,
+            "category": category or "uncategorized",
+            "description": description,
+            "logged_at": datetime.now().isoformat(),
+        }
+        ledger["entries"].append(entry)
+        with open(ledger_path, "w") as f:
+            _json.dump(ledger, f, indent=2)
+
+        total = sum(e["amount"] for e in ledger["entries"])
+        month_total = sum(
+            e["amount"] for e in ledger["entries"]
+            if e["date"].startswith(date.today().strftime("%Y-%m"))
+        )
+        return {
+            "success": True,
+            "action": "logged",
+            "entry": entry,
+            "running_total": total,
+            "month_total": month_total,
+            "preview": f"[+${amount:,.2f} from {source} — Month: ${month_total:,.2f} | All time: ${total:,.2f}]",
+        }
+
+    # Summary / reporting
+    entries = ledger.get("entries", [])
+    today = date.today()
+
+    if period == "this_month" or action == "monthly":
+        month_str = today.strftime("%Y-%m")
+        entries = [e for e in entries if e["date"].startswith(month_str)]
+        period_label = today.strftime("%B %Y")
+    elif period == "last_month":
+        from datetime import timedelta
+        first_of_month = today.replace(day=1)
+        last_month = first_of_month - timedelta(days=1)
+        month_str = last_month.strftime("%Y-%m")
+        entries = [e for e in entries if e["date"].startswith(month_str)]
+        period_label = last_month.strftime("%B %Y")
+    elif period == "ytd":
+        year_str = str(today.year)
+        entries = [e for e in entries if e["date"].startswith(year_str)]
+        period_label = f"Year to Date {today.year}"
+    else:
+        period_label = "All Time"
+
+    total = sum(e["amount"] for e in entries)
+    by_source = {}
+    by_category = {}
+    for e in entries:
+        by_source[e["source"]] = by_source.get(e["source"], 0) + e["amount"]
+        by_category[e["category"]] = by_category.get(e["category"], 0) + e["amount"]
+
+    by_source_sorted = sorted(by_source.items(), key=lambda x: x[1], reverse=True)
+    by_category_sorted = sorted(by_category.items(), key=lambda x: x[1], reverse=True)
+
+    return {
+        "success": True,
+        "action": "summary",
+        "period": period_label,
+        "total": total,
+        "entry_count": len(entries),
+        "by_source": dict(by_source_sorted),
+        "by_category": dict(by_category_sorted),
+        "top_source": by_source_sorted[0] if by_source_sorted else None,
+        "recent_entries": sorted(entries, key=lambda x: x["date"], reverse=True)[:5],
+        "preview": f"[Income {period_label}: ${total:,.2f} across {len(entries)} entries]",
+    }
+
+
+# ── TRACK EXPENSE ─────────────────────────────────────────────────────────────
+async def track_expense(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Log business expenses, categorize for tax purposes, and view breakdowns."""
+    import os, json as _json
+    from datetime import datetime, date
+
+    action = params.get("action", "log")       # log | summary | by_category | tax_deductible
+    amount = params.get("amount", 0.0)
+    vendor = params.get("vendor", "")
+    category = params.get("category", "")      # software | advertising | contractor | equipment | education | travel | meals | other
+    description = params.get("description", "")
+    date_str = params.get("date", "")
+    tax_deductible = params.get("tax_deductible", True)
+    percentage_deductible = params.get("percentage_deductible", 100)  # e.g. 50 for meals
+    period = params.get("period", "")
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    finance_dir = os.path.join(workspace, "vesper-ai", "finance")
+    os.makedirs(finance_dir, exist_ok=True)
+    ledger_path = os.path.join(finance_dir, "expense_ledger.json")
+
+    if os.path.exists(ledger_path):
+        with open(ledger_path) as f:
+            ledger = _json.load(f)
+    else:
+        ledger = {"entries": [], "created": datetime.now().isoformat()}
+
+    if action == "log":
+        if not amount or not vendor:
+            return {"error": "amount and vendor are required to log expense"}
+        entry = {
+            "id": f"exp_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "date": date_str or date.today().isoformat(),
+            "amount": float(amount),
+            "vendor": vendor,
+            "category": category or "other",
+            "description": description,
+            "tax_deductible": tax_deductible,
+            "percentage_deductible": percentage_deductible,
+            "deductible_amount": float(amount) * (percentage_deductible / 100) if tax_deductible else 0,
+            "logged_at": datetime.now().isoformat(),
+        }
+        ledger["entries"].append(entry)
+        with open(ledger_path, "w") as f:
+            _json.dump(ledger, f, indent=2)
+
+        total_expenses = sum(e["amount"] for e in ledger["entries"])
+        total_deductible = sum(e.get("deductible_amount", 0) for e in ledger["entries"])
+        return {
+            "success": True,
+            "action": "logged",
+            "entry": entry,
+            "total_expenses_all_time": total_expenses,
+            "total_deductible_all_time": total_deductible,
+            "tax_deductible_note": f"${entry['deductible_amount']:.2f} deductible at {percentage_deductible}%",
+            "preview": f"[-${amount:,.2f} to {vendor} ({category}) — {'Tax deductible' if tax_deductible else 'Not deductible'}]",
+        }
+
+    # Summary
+    entries = ledger.get("entries", [])
+    today = date.today()
+
+    if period == "this_month":
+        entries = [e for e in entries if e["date"].startswith(today.strftime("%Y-%m"))]
+        period_label = today.strftime("%B %Y")
+    elif period == "ytd":
+        entries = [e for e in entries if e["date"].startswith(str(today.year))]
+        period_label = f"YTD {today.year}"
+    else:
+        period_label = "All Time"
+
+    total = sum(e["amount"] for e in entries)
+    total_deductible = sum(e.get("deductible_amount", 0) for e in entries)
+
+    by_category = {}
+    for e in entries:
+        by_category[e["category"]] = by_category.get(e["category"], 0) + e["amount"]
+
+    by_cat_sorted = sorted(by_category.items(), key=lambda x: x[1], reverse=True)
+
+    return {
+        "success": True,
+        "period": period_label,
+        "total_expenses": total,
+        "total_deductible": total_deductible,
+        "tax_savings_estimate": total_deductible * 0.25,  # rough 25% tax bracket
+        "by_category": dict(by_cat_sorted),
+        "entry_count": len(entries),
+        "recent_entries": sorted(entries, key=lambda x: x["date"], reverse=True)[:5],
+        "preview": f"[Expenses {period_label}: ${total:,.2f} total — ${total_deductible:,.2f} deductible]",
+    }
+
+
+# ── FINANCIAL REPORT ──────────────────────────────────────────────────────────
+async def financial_report(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a complete P&L report with income vs expense analysis, trends, and AI insights."""
+    import os, json as _json, uuid
+    from datetime import datetime, date
+
+    period = params.get("period", "this_month")  # this_month | last_month | ytd | all | custom
+    start_date = params.get("start_date", "")
+    end_date = params.get("end_date", "")
+    include_forecast = params.get("include_forecast", True)
+    save_report = params.get("save_report", True)
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    finance_dir = os.path.join(workspace, "vesper-ai", "finance")
+    os.makedirs(finance_dir, exist_ok=True)
+
+    today = date.today()
+
+    # Load income ledger
+    income_path = os.path.join(finance_dir, "income_ledger.json")
+    expense_path = os.path.join(finance_dir, "expense_ledger.json")
+    income_entries = []
+    expense_entries = []
+
+    if os.path.exists(income_path):
+        with open(income_path) as f:
+            income_entries = _json.load(f).get("entries", [])
+    if os.path.exists(expense_path):
+        with open(expense_path) as f:
+            expense_entries = _json.load(f).get("entries", [])
+
+    # Filter by period
+    if period == "this_month":
+        period_filter = today.strftime("%Y-%m")
+        period_label = today.strftime("%B %Y")
+        income_entries = [e for e in income_entries if e["date"].startswith(period_filter)]
+        expense_entries = [e for e in expense_entries if e["date"].startswith(period_filter)]
+    elif period == "last_month":
+        from datetime import timedelta
+        lm = (today.replace(day=1) - timedelta(days=1))
+        period_filter = lm.strftime("%Y-%m")
+        period_label = lm.strftime("%B %Y")
+        income_entries = [e for e in income_entries if e["date"].startswith(period_filter)]
+        expense_entries = [e for e in expense_entries if e["date"].startswith(period_filter)]
+    elif period == "ytd":
+        year_str = str(today.year)
+        period_label = f"Year to Date {today.year}"
+        income_entries = [e for e in income_entries if e["date"].startswith(year_str)]
+        expense_entries = [e for e in expense_entries if e["date"].startswith(year_str)]
+    elif period == "custom" and start_date and end_date:
+        period_label = f"{start_date} to {end_date}"
+        income_entries = [e for e in income_entries if start_date <= e["date"] <= end_date]
+        expense_entries = [e for e in expense_entries if start_date <= e["date"] <= end_date]
+    else:
+        period_label = "All Time"
+
+    total_income = sum(e["amount"] for e in income_entries)
+    total_expenses = sum(e["amount"] for e in expense_entries)
+    total_deductible = sum(e.get("deductible_amount", 0) for e in expense_entries)
+    net_profit = total_income - total_expenses
+    profit_margin = (net_profit / total_income * 100) if total_income > 0 else 0
+
+    # By source/category breakdowns
+    income_by_source = {}
+    for e in income_entries:
+        income_by_source[e["source"]] = income_by_source.get(e["source"], 0) + e["amount"]
+
+    expense_by_cat = {}
+    for e in expense_entries:
+        expense_by_cat[e["category"]] = expense_by_cat.get(e["category"], 0) + e["amount"]
+
+    # Monthly trend (all time data regardless of period filter for trend)
+    if os.path.exists(income_path):
+        with open(income_path) as f:
+            all_income = _json.load(f).get("entries", [])
+    else:
+        all_income = []
+
+    monthly_totals = {}
+    for e in all_income:
+        month = e["date"][:7]
+        monthly_totals[month] = monthly_totals.get(month, 0) + e["amount"]
+
+    report_data = {
+        "period": period_label,
+        "generated": datetime.now().isoformat(),
+        "total_income": total_income,
+        "total_expenses": total_expenses,
+        "net_profit": net_profit,
+        "profit_margin_pct": round(profit_margin, 1),
+        "total_deductible_expenses": total_deductible,
+        "estimated_tax_savings": round(total_deductible * 0.25, 2),
+        "income_by_source": dict(sorted(income_by_source.items(), key=lambda x: x[1], reverse=True)),
+        "expense_by_category": dict(sorted(expense_by_cat.items(), key=lambda x: x[1], reverse=True)),
+        "monthly_income_trend": dict(sorted(monthly_totals.items())),
+        "income_entry_count": len(income_entries),
+        "expense_entry_count": len(expense_entries),
+    }
+
+    # AI narrative analysis
+    if ai_router and (income_entries or expense_entries):
+        prompt = f"""You are Vesper, acting as CC's financial analyst. Generate a brief, insightful financial analysis.
+
+Period: {period_label}
+Total Income: ${total_income:,.2f}
+Total Expenses: ${total_expenses:,.2f}
+Net Profit: ${net_profit:,.2f} ({profit_margin:.1f}% margin)
+Tax-deductible expenses: ${total_deductible:,.2f}
+
+Income by source: {_json.dumps(report_data['income_by_source'], indent=2)}
+Expenses by category: {_json.dumps(report_data['expense_by_category'], indent=2)}
+Monthly trend: {_json.dumps(report_data['monthly_income_trend'], indent=2)}
+
+Write a 200-word financial brief covering:
+1. Overall health assessment (honest)
+2. What's working (top revenue drivers)
+3. What to watch (top expense categories worth scrutinizing)
+4. One specific action to improve the numbers next month
+{"5. Revenue forecast for next month based on trend" if include_forecast else ""}
+
+Be direct and specific. This is a real business."""
+
+        try:
+            response = await ai_router.complete(
+                messages=[{"role": "user", "content": prompt}],
+                task_type=TaskType.ANALYSIS if TaskType else None,
+                max_tokens=600,
+            )
+            report_data["ai_analysis"] = response.content if hasattr(response, "content") else str(response)
+        except Exception:
+            report_data["ai_analysis"] = "Analysis not available."
+
+    if save_report:
+        reports_dir = os.path.join(finance_dir, "reports")
+        os.makedirs(reports_dir, exist_ok=True)
+        slug = period_label.lower().replace(" ", "_")
+        fp = os.path.join(reports_dir, f"pl_{slug}_{uuid.uuid4().hex[:6]}.json")
+        with open(fp, "w") as f:
+            _json.dump(report_data, f, indent=2)
+        report_data["file_path"] = fp
+
+    report_data["success"] = True
+    report_data["preview"] = f"[P&L {period_label}: Income ${total_income:,.2f} | Expenses ${total_expenses:,.2f} | Net ${net_profit:,.2f} ({profit_margin:.1f}% margin)]"
+    return report_data
+
+
+# ── TAX ESTIMATE ──────────────────────────────────────────────────────────────
+async def tax_estimate(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Estimate quarterly self-employment taxes, find deductions, and plan tax strategy."""
+    import os, json as _json
+    from datetime import datetime, date
+
+    year = params.get("year", date.today().year)
+    quarter = params.get("quarter", (date.today().month - 1) // 3 + 1)  # 1-4
+    filing_status = params.get("filing_status", "single")  # single | married_joint | married_sep | head_of_household
+    state = params.get("state", "")
+    include_strategy = params.get("include_strategy", True)
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    finance_dir = os.path.join(workspace, "vesper-ai", "finance")
+
+    # Load ledger data
+    income_entries = []
+    expense_entries = []
+    income_path = os.path.join(finance_dir, "income_ledger.json")
+    expense_path = os.path.join(finance_dir, "expense_ledger.json")
+
+    if os.path.exists(income_path):
+        with open(income_path) as f:
+            income_entries = _json.load(f).get("entries", [])
+    if os.path.exists(expense_path):
+        with open(expense_path) as f:
+            expense_entries = _json.load(f).get("entries", [])
+
+    # YTD figures
+    year_str = str(year)
+    ytd_income = sum(e["amount"] for e in income_entries if e["date"].startswith(year_str))
+    ytd_expenses = sum(e["amount"] for e in expense_entries if e["date"].startswith(year_str))
+    ytd_deductible = sum(e.get("deductible_amount", 0) for e in expense_entries if e["date"].startswith(year_str))
+
+    net_self_employment = ytd_income - ytd_deductible
+    se_tax = max(0, net_self_employment * 0.9235 * 0.153)  # SE tax = 15.3% on 92.35% of net
+    se_tax_deduction = se_tax / 2  # can deduct half of SE tax
+
+    # Federal income tax estimate (rough, 2024 brackets for single)
+    taxable_income = max(0, net_self_employment - se_tax_deduction - 13850)  # standard deduction
+    federal_brackets = [(11600, 0.10), (47150, 0.12), (100525, 0.22), (191950, 0.24), (243725, 0.32), (609350, 0.35), (float('inf'), 0.37)]
+    federal_tax = 0
+    prev = 0
+    for bracket_max, rate in federal_brackets:
+        if taxable_income <= prev:
+            break
+        taxable_at_rate = min(taxable_income, bracket_max) - prev
+        federal_tax += taxable_at_rate * rate
+        prev = bracket_max
+
+    total_tax_estimate = se_tax + federal_tax
+    quarterly_payment = total_tax_estimate / 4
+    q_due_dates = {1: "April 15", 2: "June 17", 3: "September 16", 4: "January 15"}
+
+    result = {
+        "success": True,
+        "year": year,
+        "quarter": quarter,
+        "filing_status": filing_status,
+        "ytd_gross_income": ytd_income,
+        "ytd_deductible_expenses": ytd_deductible,
+        "ytd_net_self_employment_income": net_self_employment,
+        "se_tax_estimate": round(se_tax, 2),
+        "federal_income_tax_estimate": round(federal_tax, 2),
+        "total_annual_tax_estimate": round(total_tax_estimate, 2),
+        "q_payment_recommended": round(quarterly_payment, 2),
+        "q_due_date": f"Q{quarter} due: {q_due_dates.get(quarter, 'check IRS calendar')}",
+        "effective_tax_rate_pct": round((total_tax_estimate / ytd_income * 100) if ytd_income > 0 else 0, 1),
+        "note": "These are estimates only — consult a tax professional for your actual filing.",
+        "preview": f"[Tax estimate {year}: ~${total_tax_estimate:,.0f} annually | Q{quarter} payment: ~${quarterly_payment:,.0f} due {q_due_dates.get(quarter, '')}]",
+    }
+
+    if include_strategy and ai_router:
+        expense_by_cat = {}
+        for e in expense_entries:
+            if e["date"].startswith(year_str):
+                expense_by_cat[e["category"]] = expense_by_cat.get(e["category"], 0) + e["amount"]
+
+        prompt = f"""You are Vesper, acting as CC's tax strategist. Give practical tax-saving advice.
+
+Year: {year}
+YTD Gross Income: ${ytd_income:,.2f}
+YTD Deductible Expenses: ${ytd_deductible:,.2f}
+Net SE Income: ${net_self_employment:,.2f}
+Estimated Total Tax: ${total_tax_estimate:,.2f}
+Effective Rate: {result['effective_tax_rate_pct']}%
+Expenses by category: {_json.dumps(expense_by_cat, indent=2)}
+Filing status: {filing_status}
+State: {state or "not specified"}
+
+Write a brief tax strategy memo (250 words):
+1. What deductions might CC be missing (common for online businesses/freelancers)
+2. Retirement account options to reduce taxable income (SEP-IRA, Solo 401k, etc.)
+3. Business structure consideration (LLC, S-Corp election if income justifies it)
+4. Q{quarter} action items to reduce this year's tax bill
+5. One thing to set up BEFORE year-end
+
+Be specific and actionable. No fluff."""
+
+        try:
+            response = await ai_router.complete(
+                messages=[{"role": "user", "content": prompt}],
+                task_type=TaskType.ANALYSIS if TaskType else None,
+                max_tokens=600,
+            )
+            result["tax_strategy"] = response.content if hasattr(response, "content") else str(response)
+        except Exception:
+            result["tax_strategy"] = "Strategy not available."
+
+    return result
+
+
+# ── INVOICE TRACKER ────────────────────────────────────────────────────────────
+async def invoice_tracker(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Track all invoices — outstanding, paid, overdue — with follow-up reminders."""
+    import os, json as _json
+    from datetime import datetime, date, timedelta
+
+    action = params.get("action", "list")          # add | paid | list | overdue | follow_up_email
+    invoice_id = params.get("invoice_id", "")
+    client = params.get("client", "")
+    amount = params.get("amount", 0.0)
+    due_date = params.get("due_date", "")          # YYYY-MM-DD
+    description = params.get("description", "")
+    invoice_date = params.get("invoice_date", "")
+    notes = params.get("notes", "")
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    finance_dir = os.path.join(workspace, "vesper-ai", "finance")
+    os.makedirs(finance_dir, exist_ok=True)
+    invoices_path = os.path.join(finance_dir, "invoices.json")
+
+    if os.path.exists(invoices_path):
+        with open(invoices_path) as f:
+            data = _json.load(f)
+    else:
+        data = {"invoices": [], "created": datetime.now().isoformat()}
+
+    today = date.today()
+
+    if action == "add":
+        if not (client and amount and due_date):
+            return {"error": "client, amount, and due_date are required"}
+        inv_num = f"INV-{datetime.now().strftime('%Y%m%d')}-{len(data['invoices'])+1:03d}"
+        invoice = {
+            "id": invoice_id or inv_num,
+            "client": client,
+            "amount": float(amount),
+            "description": description,
+            "invoice_date": invoice_date or today.isoformat(),
+            "due_date": due_date,
+            "status": "outstanding",
+            "days_until_due": (date.fromisoformat(due_date) - today).days,
+            "notes": notes,
+            "created": datetime.now().isoformat(),
+        }
+        data["invoices"].append(invoice)
+        with open(invoices_path, "w") as f:
+            _json.dump(data, f, indent=2)
+        return {
+            "success": True,
+            "action": "added",
+            "invoice": invoice,
+            "preview": f"[Invoice {inv_num} added — ${amount:,.2f} from {client} — due {due_date}]",
+        }
+
+    if action == "paid":
+        for inv in data["invoices"]:
+            if inv["id"] == invoice_id or inv["client"].lower() == client.lower():
+                inv["status"] = "paid"
+                inv["paid_date"] = today.isoformat()
+                with open(invoices_path, "w") as f:
+                    _json.dump(data, f, indent=2)
+                return {"success": True, "action": "marked_paid", "invoice": inv, "preview": f"[Invoice {inv['id']} marked paid — ${inv['amount']:,.2f}]"}
+        return {"error": f"Invoice not found: {invoice_id or client}"}
+
+    # List / summary
+    invoices = data.get("invoices", [])
+    outstanding = [i for i in invoices if i["status"] == "outstanding"]
+    overdue = [i for i in outstanding if i["due_date"] < today.isoformat()]
+    due_soon = [i for i in outstanding if today.isoformat() <= i["due_date"] <= (today + timedelta(days=7)).isoformat()]
+    paid = [i for i in invoices if i["status"] == "paid"]
+
+    total_outstanding = sum(i["amount"] for i in outstanding)
+    total_overdue = sum(i["amount"] for i in overdue)
+    total_collected = sum(i["amount"] for i in paid)
+
+    result = {
+        "success": True,
+        "total_outstanding": total_outstanding,
+        "total_overdue": total_overdue,
+        "total_collected": total_collected,
+        "outstanding_count": len(outstanding),
+        "overdue_count": len(overdue),
+        "due_soon_count": len(due_soon),
+        "outstanding_invoices": sorted(outstanding, key=lambda x: x["due_date"]),
+        "overdue_invoices": overdue,
+        "due_soon_invoices": due_soon,
+        "preview": f"[Invoices: ${total_outstanding:,.2f} outstanding | ${total_overdue:,.2f} overdue ({len(overdue)} invoices) | ${total_collected:,.2f} collected]",
+    }
+
+    if action == "follow_up_email" and overdue and ai_router:
+        target = overdue[0]
+        try:
+            days_late = (today - date.fromisoformat(target["due_date"])).days
+            response = await ai_router.complete(
+                messages=[{"role": "user", "content": f"Write a professional but firm invoice follow-up email for:\nClient: {target['client']}\nInvoice: {target['id']}\nAmount: ${target['amount']:,.2f}\nDays late: {days_late}\nDescription: {target['description']}\n\nTone: professional, not aggressive. Include invoice details, payment methods, and a clear CTA. Under 150 words."}],
+                task_type=TaskType.CREATIVE if TaskType else None,
+                max_tokens=400,
+            )
+            result["follow_up_email"] = response.content if hasattr(response, "content") else str(response)
+            result["follow_up_target"] = target
+        except Exception:
+            pass
+
+    return result
+
+
+# ── BUDGET PLANNER ─────────────────────────────────────────────────────────────
+async def budget_planner(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Create a monthly budget, track actuals vs plan, and get AI-driven recommendations."""
+    import os, json as _json
+    from datetime import datetime, date
+
+    action = params.get("action", "create")     # create | check | update | recommend
+    month = params.get("month", "")             # YYYY-MM
+    income_target = params.get("income_target", 0.0)
+    budget_categories = params.get("budget_categories", {})  # {"software": 200, "ads": 500, ...}
+    savings_goal_pct = params.get("savings_goal_pct", 20)     # % of income to save
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    finance_dir = os.path.join(workspace, "vesper-ai", "finance")
+    os.makedirs(finance_dir, exist_ok=True)
+    budget_path = os.path.join(finance_dir, "budgets.json")
+
+    today = date.today()
+    target_month = month or today.strftime("%Y-%m")
+
+    if os.path.exists(budget_path):
+        with open(budget_path) as f:
+            all_budgets = _json.load(f)
+    else:
+        all_budgets = {}
+
+    if action == "create":
+        if not income_target:
+            return {"error": "income_target is required to create a budget"}
+
+        total_budgeted = sum(budget_categories.values()) if budget_categories else 0
+        savings_target = income_target * (savings_goal_pct / 100)
+        profit_target = income_target - total_budgeted
+        owner_pay = profit_target - savings_target
+
+        budget = {
+            "month": target_month,
+            "income_target": float(income_target),
+            "savings_goal": savings_target,
+            "savings_goal_pct": savings_goal_pct,
+            "expense_budget": budget_categories,
+            "total_budgeted_expenses": total_budgeted,
+            "profit_target": profit_target,
+            "owner_pay_estimate": max(0, owner_pay),
+            "created": datetime.now().isoformat(),
+        }
+        all_budgets[target_month] = budget
+        with open(budget_path, "w") as f:
+            _json.dump(all_budgets, f, indent=2)
+
+        result = {"success": True, "action": "created", "budget": budget, "preview": f"[Budget created for {target_month}: Target ${income_target:,.2f} income | ${total_budgeted:,.2f} expenses | ${savings_target:,.2f} savings]"}
+
+    else:
+        # Check actuals vs budget
+        budget = all_budgets.get(target_month)
+        if not budget:
+            return {"error": f"No budget found for {target_month}. Create one first with action='create'."}
+
+        # Load actual income and expenses for the month
+        income_path = os.path.join(finance_dir, "income_ledger.json")
+        expense_path = os.path.join(finance_dir, "expense_ledger.json")
+        actual_income = 0
+        actual_expenses_by_cat = {}
+
+        if os.path.exists(income_path):
+            with open(income_path) as f:
+                inc = _json.load(f).get("entries", [])
+            actual_income = sum(e["amount"] for e in inc if e["date"].startswith(target_month))
+
+        if os.path.exists(expense_path):
+            with open(expense_path) as f:
+                exps = _json.load(f).get("entries", [])
+            for e in exps:
+                if e["date"].startswith(target_month):
+                    actual_expenses_by_cat[e["category"]] = actual_expenses_by_cat.get(e["category"], 0) + e["amount"]
+
+        total_actual_expenses = sum(actual_expenses_by_cat.values())
+        income_variance = actual_income - budget["income_target"]
+        expense_variance = total_actual_expenses - budget.get("total_budgeted_expenses", 0)
+        actual_profit = actual_income - total_actual_expenses
+
+        # Category variances
+        category_variances = {}
+        for cat, budgeted in budget.get("expense_budget", {}).items():
+            actual = actual_expenses_by_cat.get(cat, 0)
+            category_variances[cat] = {"budgeted": budgeted, "actual": actual, "variance": actual - budgeted, "over_budget": actual > budgeted}
+
+        result = {
+            "success": True,
+            "action": "check",
+            "month": target_month,
+            "income_target": budget["income_target"],
+            "actual_income": actual_income,
+            "income_variance": income_variance,
+            "income_on_track": income_variance >= 0,
+            "budgeted_expenses": budget.get("total_budgeted_expenses", 0),
+            "actual_expenses": total_actual_expenses,
+            "expense_variance": expense_variance,
+            "expense_on_track": expense_variance <= 0,
+            "actual_profit": actual_profit,
+            "profit_target": budget.get("profit_target", 0),
+            "profit_variance": actual_profit - budget.get("profit_target", 0),
+            "category_variances": category_variances,
+            "savings_on_track": actual_income >= budget["income_target"] * 0.9,
+            "preview": f"[Budget check {target_month}: Income ${actual_income:,.2f}/{budget['income_target']:,.2f} | Expenses ${total_actual_expenses:,.2f} | Profit ${actual_profit:,.2f}]",
+        }
+
+        if ai_router and action == "recommend":
+            prompt = f"""You are Vesper, CC's financial advisor. Give concise budget recommendations.
+
+Month: {target_month}
+Income: ${actual_income:,.2f} vs target ${budget['income_target']:,.2f} (variance: ${income_variance:+,.2f})
+Total expenses: ${total_actual_expenses:,.2f} vs budget ${budget.get('total_budgeted_expenses', 0):,.2f}
+Net profit: ${actual_profit:,.2f}
+
+Category variances: {_json.dumps(category_variances, indent=2)}
+
+Give 3 specific, actionable budget recommendations for next month. Be direct."""
+            try:
+                resp = await ai_router.complete(messages=[{"role": "user", "content": prompt}], task_type=TaskType.ANALYSIS if TaskType else None, max_tokens=400)
+                result["recommendations"] = resp.content if hasattr(resp, "content") else str(resp)
+            except Exception:
+                pass
+
+    return result
+
