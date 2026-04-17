@@ -3454,3 +3454,855 @@ async def write_press_release(params: dict, ai_router=None, TaskType=None) -> di
         "income_note": "Press coverage = SEO backlinks + credibility + inbound leads. One feature can 10x consulting inquiry volume.",
     }
 
+
+# ── GENERATE IMAGE (DALL-E 3) ──────────────────────────────────────────────────
+async def generate_image(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Call DALL-E 3 to generate and save an actual image file."""
+    import os, uuid, base64, json as _json
+    import httpx
+
+    prompt = params.get("prompt", "")
+    style = params.get("style", "vivid")          # vivid | natural
+    size = params.get("size", "1024x1024")         # 1024x1024 | 1792x1024 | 1024x1792
+    quality = params.get("quality", "standard")    # standard | hd
+    filename = params.get("filename", "")
+    folder = params.get("folder", "images")
+    purpose = params.get("purpose", "")
+
+    if not prompt:
+        return {"error": "prompt is required"}
+
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
+        return {"error": "OPENAI_API_KEY not set — add it to Railway env vars"}
+
+    # Build save path
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    save_dir = os.path.join(workspace, "vesper-ai", "creations", folder)
+    os.makedirs(save_dir, exist_ok=True)
+
+    if not filename:
+        slug = prompt[:40].lower().replace(" ", "_").replace("/", "_")
+        filename = f"{slug}_{uuid.uuid4().hex[:6]}.png"
+    save_path = os.path.join(save_dir, filename)
+
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                "https://api.openai.com/v1/images/generations",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "dall-e-3",
+                    "prompt": prompt,
+                    "n": 1,
+                    "size": size,
+                    "quality": quality,
+                    "style": style,
+                    "response_format": "b64_json",
+                },
+            )
+        resp.raise_for_status()
+        data = resp.json()
+        b64 = data["data"][0]["b64_json"]
+        revised_prompt = data["data"][0].get("revised_prompt", prompt)
+        image_bytes = base64.b64decode(b64)
+        with open(save_path, "wb") as f:
+            f.write(image_bytes)
+
+        return {
+            "success": True,
+            "title": filename,
+            "file_path": save_path,
+            "filename": filename,
+            "size_bytes": len(image_bytes),
+            "prompt_used": revised_prompt,
+            "original_prompt": prompt,
+            "size": size,
+            "quality": quality,
+            "style": style,
+            "purpose": purpose,
+            "preview": f"[Image saved: {filename} ({len(image_bytes)//1024}KB) — {size}]",
+            "income_note": "Every POD design, ebook cover, social graphic, and thumbnail Vesper makes is now an actual file — not just a prompt.",
+        }
+    except Exception as e:
+        return {"error": f"Image generation failed: {str(e)}"}
+
+
+# ── GENERATE AUDIO (ELEVENLABS) ────────────────────────────────────────────────
+async def generate_audio(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Call ElevenLabs to generate an MP3 voiceover from any text."""
+    import os, uuid
+    import httpx
+
+    text = params.get("text", "")
+    voice_id = params.get("voice_id", "")          # ElevenLabs voice ID or name
+    voice_name = params.get("voice_name", "Rachel") # Fallback voice name lookup
+    stability = params.get("stability", 0.5)
+    similarity_boost = params.get("similarity_boost", 0.75)
+    style_exaggeration = params.get("style_exaggeration", 0.0)
+    filename = params.get("filename", "")
+    folder = params.get("folder", "audio")
+    model_id = params.get("model_id", "eleven_turbo_v2_5")  # fastest + cheapest
+
+    if not text:
+        return {"error": "text is required"}
+
+    api_key = os.getenv("ELEVENLABS_API_KEY", "")
+    if not api_key:
+        return {
+            "error": "ELEVENLABS_API_KEY not set",
+            "setup": "Get a free key at elevenlabs.io — 10,000 chars/month free. Add ELEVENLABS_API_KEY to Railway env vars.",
+            "script": text,
+        }
+
+    # Well-known voice name -> ID map (fallback)
+    VOICE_MAP = {
+        "rachel": "21m00Tcm4TlvDq8ikWAM",
+        "domi": "AZnzlk1XvdvUeBnXmlld",
+        "bella": "EXAVITQu4vr4xnSDxMaL",
+        "antoni": "ErXwobaYiN019PkySvjV",
+        "elli": "MF3mGyEYCl7XYWbV9V6O",
+        "josh": "TxGEqnHWrfWFTfGW9XjX",
+        "arnold": "VR6AewLTigWG4xSOukaG",
+        "adam": "pNInz6obpgDQGcFmaJgB",
+        "sam": "yoZ06aMxZJJ28mfd3POQ",
+    }
+    if not voice_id:
+        voice_id = VOICE_MAP.get(voice_name.lower(), "21m00Tcm4TlvDq8ikWAM")
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    save_dir = os.path.join(workspace, "vesper-ai", "creations", folder)
+    os.makedirs(save_dir, exist_ok=True)
+
+    if not filename:
+        slug = text[:30].lower().replace(" ", "_").replace("/", "_")
+        filename = f"{slug}_{uuid.uuid4().hex[:6]}.mp3"
+    save_path = os.path.join(save_dir, filename)
+
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+                headers={"xi-api-key": api_key, "Content-Type": "application/json"},
+                json={
+                    "text": text,
+                    "model_id": model_id,
+                    "voice_settings": {
+                        "stability": stability,
+                        "similarity_boost": similarity_boost,
+                        "style": style_exaggeration,
+                        "use_speaker_boost": True,
+                    },
+                },
+            )
+        resp.raise_for_status()
+        audio_bytes = resp.content
+        with open(save_path, "wb") as f:
+            f.write(audio_bytes)
+
+        duration_estimate = round(len(text.split()) / 150, 1)  # ~150 wpm
+
+        return {
+            "success": True,
+            "title": filename,
+            "file_path": save_path,
+            "filename": filename,
+            "size_bytes": len(audio_bytes),
+            "voice_id": voice_id,
+            "voice_name": voice_name,
+            "char_count": len(text),
+            "duration_estimate_minutes": duration_estimate,
+            "model": model_id,
+            "preview": f"[Audio saved: {filename} — ~{duration_estimate}min, {len(audio_bytes)//1024}KB]",
+            "income_note": "Actual MP3 voiceovers for YouTube intros, podcast ads, course narration, and HeyGen avatar videos.",
+        }
+    except Exception as e:
+        return {"error": f"Audio generation failed: {str(e)}"}
+
+
+# ── BROWSE WEB ─────────────────────────────────────────────────────────────────
+async def browse_web(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Fetch and extract clean text content from any URL. Vesper's eyes on the internet."""
+    import httpx
+    from bs4 import BeautifulSoup
+
+    url = params.get("url", "")
+    extract = params.get("extract", "all")        # all | headings | links | prices | emails | main
+    css_selector = params.get("css_selector", "")
+    max_chars = params.get("max_chars", 8000)
+    save_to = params.get("save_to", "")           # optional filename to save result
+
+    if not url:
+        return {"error": "url is required"}
+
+    HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            resp = await client.get(url, headers=HEADERS)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.content, "lxml")
+
+        # Remove noise
+        for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript", "iframe"]):
+            tag.decompose()
+
+        title = soup.title.string.strip() if soup.title else url
+
+        if css_selector:
+            target = soup.select_one(css_selector)
+            text = target.get_text("\n") if target else ""
+        elif extract == "headings":
+            text = "\n".join(h.get_text().strip() for h in soup.find_all(["h1","h2","h3","h4"]))
+        elif extract == "links":
+            links = [{"text": a.get_text().strip(), "href": a.get("href","")} for a in soup.find_all("a", href=True) if a.get_text().strip()]
+            text = "\n".join(f'{l["text"]} -> {l["href"]}' for l in links[:100])
+        elif extract == "prices":
+            import re
+            all_text = soup.get_text()
+            prices = re.findall(r'\$[\d,]+(?:\.\d{2})?|\d+(?:\.\d{2})?\s?(?:USD|EUR|GBP)', all_text)
+            text = "\n".join(prices[:50])
+        elif extract == "emails":
+            import re
+            all_text = soup.get_text()
+            emails = list(set(re.findall(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', all_text)))
+            text = "\n".join(emails[:50])
+        elif extract == "main":
+            main = soup.find("main") or soup.find("article") or soup.find(id="content") or soup.find(class_="content")
+            text = main.get_text("\n") if main else soup.get_text("\n")
+        else:
+            text = soup.get_text("\n")
+
+        # Clean whitespace
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        clean_text = "\n".join(lines)[:max_chars]
+
+        result = {
+            "success": True,
+            "url": url,
+            "title": title,
+            "content": clean_text,
+            "char_count": len(clean_text),
+            "status_code": resp.status_code,
+            "extract_mode": extract,
+        }
+
+        if save_to:
+            import os
+            workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            fp = os.path.join(workspace, "vesper-ai", "research", save_to)
+            os.makedirs(os.path.dirname(fp), exist_ok=True)
+            with open(fp, "w", encoding="utf-8") as f:
+                f.write(f"# {title}\nURL: {url}\n\n{clean_text}")
+            result["saved_to"] = fp
+
+        return result
+
+    except Exception as e:
+        return {"error": f"browse_web failed: {str(e)}", "url": url}
+
+
+# ── ANALYZE NICHE ──────────────────────────────────────────────────────────────
+async def analyze_niche(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Deep market research on any niche — monetization angles, competition, audience, entry points."""
+    import os, json as _json
+
+    niche = params.get("niche", "")
+    goal = params.get("goal", "monetize")           # monetize | enter | dominate | validate
+    budget = params.get("budget", "low")             # low | medium | high
+    skills = params.get("skills", "")
+    existing_audience = params.get("existing_audience", "")
+
+    if not niche:
+        return {"error": "niche is required"}
+
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    prompt = f"""You are a market research expert analyzing the "{niche}" niche for CC (a consultant/creator).
+
+Goal: {goal} | Budget: {budget} | Skills: {skills or "general consulting, writing, AI tools"} | Existing audience: {existing_audience or "none yet"}
+
+Generate a DEEP market analysis in this exact JSON structure:
+{{
+  "niche": "{niche}",
+  "market_size": "estimated market size and growth rate",
+  "competition_level": "low | medium | high | saturated",
+  "competition_analysis": "who the main players are, what they do, pricing, weaknesses",
+  "audience": {{
+    "primary": "primary audience description",
+    "secondary": "secondary audience",
+    "pain_points": ["pain 1", "pain 2", "pain 3", "pain 4", "pain 5"],
+    "where_they_hang_out": ["platform1", "platform2", "platform3"]
+  }},
+  "monetization_angles": [
+    {{"method": "name", "earning_potential": "$X/month", "time_to_first_dollar": "X days/weeks", "difficulty": "easy|medium|hard", "description": "how to execute"}}
+  ],
+  "content_strategy": {{
+    "best_formats": ["format1", "format2"],
+    "viral_topics": ["topic1", "topic2", "topic3"],
+    "content_cadence": "recommendation",
+    "platforms": ["platform1", "platform2"]
+  }},
+  "entry_strategy": {{
+    "week_1": "what to do in week 1",
+    "month_1": "month 1 milestones",
+    "month_3": "3-month target",
+    "month_6": "6-month target"
+  }},
+  "tools_needed": ["tool1", "tool2"],
+  "estimated_monthly_income": {{
+    "conservative": "$X",
+    "realistic": "$X",
+    "optimistic": "$X"
+  }},
+  "biggest_mistake": "the #1 mistake people make in this niche",
+  "unfair_advantage": "how CC can win given her background in consulting and AI tools"
+}}
+
+Make every number and recommendation specific and realistic. No fluff."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.ANALYSIS if TaskType else None,
+            max_tokens=3000,
+        )
+        raw = response.content if hasattr(response, "content") else str(response)
+
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', raw)
+        if json_match:
+            data = _json.loads(json_match.group())
+        else:
+            data = {"raw_analysis": raw}
+
+        workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        save_dir = os.path.join(workspace, "vesper-ai", "research", "niches")
+        os.makedirs(save_dir, exist_ok=True)
+        slug = niche.lower().replace(" ", "_")[:30]
+        fp = os.path.join(save_dir, f"{slug}_niche_analysis.json")
+        with open(fp, "w") as f:
+            _json.dump(data, f, indent=2)
+
+        return {
+            "success": True,
+            "title": f"Niche Analysis: {niche}",
+            "niche": niche,
+            "analysis": data,
+            "file_path": fp,
+            "preview": f"[Niche analysis complete: {niche} — saved to research/niches/]",
+            "income_note": "Deep market research before entering any niche can 5x success rate.",
+        }
+    except Exception as e:
+        return {"error": f"analyze_niche failed: {str(e)}"}
+
+
+# ── CREATE LANDING PAGE ────────────────────────────────────────────────────────
+async def create_landing_page(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a complete, deployable single-page HTML/CSS landing page for any product."""
+    import os, uuid
+
+    product_name = params.get("product_name", "")
+    tagline = params.get("tagline", "")
+    description = params.get("description", "")
+    price = params.get("price", "")
+    cta_text = params.get("cta_text", "Get Started")
+    cta_url = params.get("cta_url", "#")
+    features = params.get("features", [])
+    testimonials = params.get("testimonials", [])
+    color_scheme = params.get("color_scheme", "dark purple")   # e.g. "dark purple", "light minimal", "bold red"
+    target_audience = params.get("target_audience", "")
+    guarantee = params.get("guarantee", "")
+
+    if not product_name:
+        return {"error": "product_name is required"}
+
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    features_str = "\n".join(f"- {f}" for f in features) if features else "Generate 5 compelling features"
+    testimonials_str = "\n".join(f'- "{t}"' for t in testimonials) if testimonials else "Generate 3 realistic testimonials"
+
+    prompt = f"""Create a COMPLETE, deployable, single-file HTML landing page for this product.
+
+Product: {product_name}
+Tagline: {tagline or "generate a compelling tagline"}
+Description: {description or "generate based on product name"}
+Price: {price or "not shown yet"}
+CTA: {cta_text} -> {cta_url}
+Target audience: {target_audience or "general"}
+Color scheme: {color_scheme}
+Features: {features_str}
+Testimonials: {testimonials_str}
+Guarantee: {guarantee or "30-day money back guarantee"}
+
+Requirements:
+1. Single HTML file with embedded CSS (no external dependencies except Google Fonts)
+2. Modern, conversion-optimized design — not generic
+3. Sections: hero (headline + subhead + CTA), pain points, features/benefits, social proof/testimonials, pricing, FAQ (3 questions), final CTA
+4. Mobile responsive
+5. Specific to the color scheme requested
+6. High-contrast CTA buttons
+7. Urgency elements (scarcity or time-based if appropriate)
+8. Real copy — not placeholder text
+
+Return ONLY the complete HTML. No explanation."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=6000,
+        )
+        html = response.content if hasattr(response, "content") else str(response)
+
+        # Clean up markdown code fences if present
+        import re
+        html = re.sub(r'^```html\s*', '', html.strip(), flags=re.MULTILINE)
+        html = re.sub(r'^```\s*$', '', html.strip(), flags=re.MULTILINE)
+
+        workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        save_dir = os.path.join(workspace, "vesper-ai", "creations", "landing_pages")
+        os.makedirs(save_dir, exist_ok=True)
+        slug = product_name.lower().replace(" ", "_")[:30]
+        filename = f"{slug}_{uuid.uuid4().hex[:6]}.html"
+        fp = os.path.join(save_dir, filename)
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write(html)
+
+        return {
+            "success": True,
+            "title": f"Landing Page: {product_name}",
+            "product_name": product_name,
+            "file_path": fp,
+            "filename": filename,
+            "html": html[:2000] + "\n... [full HTML saved to file]" if len(html) > 2000 else html,
+            "char_count": len(html),
+            "deploy_options": [
+                "Drag file to Netlify Drop (netlify.com/drop) — live in 10 seconds",
+                "Upload to GitHub Pages",
+                "Host on Vercel as a static site",
+                "Embed in existing site with an iframe",
+            ],
+            "preview": f"[Landing page saved: {filename} — {len(html)//1024}KB — ready to deploy]",
+            "income_note": "A landing page is the difference between 'I have a product' and 'I have a business.' Every digital product, course, and service needs one.",
+        }
+    except Exception as e:
+        return {"error": f"create_landing_page failed: {str(e)}"}
+
+
+# ── CREATE APP CONCEPT ─────────────────────────────────────────────────────────
+async def create_app_concept(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a complete SaaS/app business concept — name, features, tech stack, pricing, launch plan."""
+    import os, json as _json, uuid
+
+    problem = params.get("problem", "")
+    target_market = params.get("target_market", "")
+    budget = params.get("budget", "bootstrap")      # bootstrap | funded | no-code
+    timeline = params.get("timeline", "3 months")
+    niche = params.get("niche", "")
+    differentiator = params.get("differentiator", "")
+
+    if not problem:
+        return {"error": "problem is required"}
+
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    prompt = f"""You are a seasoned startup founder and product strategist. Build a complete SaaS/app concept.
+
+Problem: {problem}
+Target market: {target_market or "B2B or B2C — choose best fit"}
+Budget: {budget}
+Timeline: {timeline}
+Niche: {niche or "derive from problem"}
+Differentiator: {differentiator or "derive the best angle"}
+
+Return a complete JSON business concept:
+{{
+  "app_name": "memorable product name (3 options)",
+  "tagline": "one-line value prop",
+  "problem_statement": "crisp 2-sentence problem",
+  "solution": "what the app does",
+  "target_customer": {{
+    "persona": "specific person description",
+    "job_title": "their title if B2B",
+    "pain": "their #1 pain",
+    "willingness_to_pay": "$X/month or one-time"
+  }},
+  "core_features": [
+    {{"feature": "name", "why_it_matters": "benefit"}}
+  ],
+  "mvp_scope": "minimum viable version — what to build first",
+  "tech_stack": {{
+    "frontend": "recommendation",
+    "backend": "recommendation",
+    "database": "recommendation",
+    "hosting": "recommendation",
+    "no_code_alternative": "if budget is bootstrap"
+  }},
+  "pricing": [
+    {{"tier": "Free|Starter|Pro|Enterprise", "price": "$X/mo", "limits": "what they get"}}
+  ],
+  "go_to_market": {{
+    "channel_1": "primary acquisition channel",
+    "channel_2": "secondary",
+    "launch_platform": "ProductHunt | AppSumo | Indie Hackers | etc",
+    "first_100_users": "exact strategy"
+  }},
+  "competition": [
+    {{"competitor": "name", "weakness": "their gap you exploit"}}
+  ],
+  "revenue_potential": {{
+    "year_1": "conservative MRR",
+    "year_2": "realistic MRR",
+    "exit_value": "at 3-5x ARR"
+  }},
+  "biggest_risk": "main challenge",
+  "cc_unfair_advantage": "why CC is uniquely positioned to build this",
+  "week_1_action_plan": ["action 1", "action 2", "action 3"]
+}}"""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.ANALYSIS if TaskType else None,
+            max_tokens=3000,
+        )
+        raw = response.content if hasattr(response, "content") else str(response)
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', raw)
+        data = _json.loads(json_match.group()) if json_match else {"raw": raw}
+
+        workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        save_dir = os.path.join(workspace, "vesper-ai", "creations", "app_concepts")
+        os.makedirs(save_dir, exist_ok=True)
+        slug = (data.get("app_name", problem)[:30]).lower().replace(" ", "_")
+        fp = os.path.join(save_dir, f"{slug}_{uuid.uuid4().hex[:6]}.json")
+        with open(fp, "w") as f:
+            _json.dump(data, f, indent=2)
+
+        return {
+            "success": True,
+            "title": f"App Concept: {data.get('app_name', problem[:30])}",
+            "concept": data,
+            "file_path": fp,
+            "preview": f"[App concept saved — {data.get('app_name', 'Concept')}]",
+            "income_note": "The fastest path to $10K MRR is a micro-SaaS solving a specific B2B pain. This concept doc is the blueprint.",
+        }
+    except Exception as e:
+        return {"error": f"create_app_concept failed: {str(e)}"}
+
+
+# ── CREATE NOTION TEMPLATE ─────────────────────────────────────────────────────
+async def create_notion_template(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Design a complete Notion template — full system map, page structure, formulas, and sales copy."""
+    import os, uuid
+
+    template_name = params.get("template_name", "")
+    purpose = params.get("purpose", "")             # e.g. "freelancer project management"
+    target_user = params.get("target_user", "")
+    price = params.get("price", "$27")
+    pages = params.get("pages", [])
+    databases = params.get("databases", [])
+
+    if not template_name:
+        return {"error": "template_name is required"}
+
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    prompt = f"""Design a complete Notion template system that sells for {price} on Gumroad.
+
+Template name: {template_name}
+Purpose: {purpose or "derive from name"}
+Target user: {target_user or "freelancers / small business owners"}
+Pages requested: {pages or "design the full system"}
+Databases: {databases or "design what's needed"}
+
+Deliver a complete template guide as structured markdown:
+
+# {template_name} — Notion Template
+
+## Overview
+[What this template does and why it's worth {price}]
+
+## Who It's For
+[Specific user description]
+
+## Template Structure
+
+### Pages & Databases
+[List every page and database with its purpose, properties/columns, views, and formulas]
+
+For each database include:
+- Name and icon emoji
+- All properties (type: Text/Number/Select/Date/Formula/Relation/Rollup/etc)
+- Views (Table/Board/Calendar/Gallery/Timeline)
+- Key formulas (write the actual Notion formula syntax)
+- Sample data for 3 rows
+
+### Automations & Relations
+[How pages connect to each other]
+
+### How To Use (Quick Start)
+[Step-by-step first-run guide]
+
+## Sales Page Copy
+### Headline
+### Subhead
+### 5 Bullet Benefits
+### Price and CTA
+
+## Gumroad Listing
+- Title:
+- Short description (100 chars):
+- Long description:
+- Tags:
+- Preview images described:
+
+## Template Setup Instructions for Buyer
+[What they do after purchasing]
+
+Make every formula syntactically correct for Notion. Be specific and complete."""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=4000,
+        )
+        content = response.content if hasattr(response, "content") else str(response)
+
+        workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        save_dir = os.path.join(workspace, "vesper-ai", "creations", "notion_templates")
+        os.makedirs(save_dir, exist_ok=True)
+        slug = template_name.lower().replace(" ", "_")[:30]
+        fp = os.path.join(save_dir, f"{slug}_{uuid.uuid4().hex[:6]}.md")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write(content)
+
+        return {
+            "success": True,
+            "title": f"Notion Template: {template_name}",
+            "template_name": template_name,
+            "content": content,
+            "file_path": fp,
+            "price": price,
+            "where_to_sell": ["Gumroad", "Notion template galleries", "Etsy (digital download)", "own website"],
+            "preview": f"[Notion template designed: {template_name} — priced at {price}]",
+            "income_note": "Notion templates sell passively. 1 template × $27 × 100 sales = $2700. Build a library of 20 = $50K+ passive.",
+        }
+    except Exception as e:
+        return {"error": f"create_notion_template failed: {str(e)}"}
+
+
+# ── WRITE VIRAL THREAD ─────────────────────────────────────────────────────────
+async def write_viral_thread(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write a Twitter/X thread engineered for virality, follows, and link clicks."""
+    import os, uuid
+
+    topic = params.get("topic", "")
+    goal = params.get("goal", "followers")           # followers | clicks | sales | authority
+    num_tweets = params.get("num_tweets", 12)
+    platform = params.get("platform", "Twitter/X")
+    include_cta_url = params.get("cta_url", "")
+    tone = params.get("tone", "direct and punchy")
+    product_to_mention = params.get("product_to_mention", "")
+
+    if not topic:
+        return {"error": "topic is required"}
+
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    prompt = f"""Write a {num_tweets}-tweet {platform} thread on "{topic}" engineered for viral sharing.
+
+Goal: {goal}
+Tone: {tone}
+Product to mention (naturally if applicable): {product_to_mention or "none"}
+CTA at end: {include_cta_url or "follow for more"}
+
+Rules for virality:
+1. Tweet 1: Disruptive hook that stops the scroll — contrarian, surprising stat, or bold claim
+2. Middle tweets: Specific, actionable insights — no fluff. Each tweet must be independently shareable
+3. Use numbers, lists, and white space generously
+4. Include 1-2 tweets that will generate replies (ask questions or make claims people want to debate)
+5. Tweet N-1: "If you found this valuable..." engagement prompt
+6. Final tweet: Clear CTA + what they get from following
+
+Format each tweet as:
+[Tweet X/N]
+[tweet text — max 280 chars]
+---
+
+After the thread, provide:
+POSTING TIPS:
+- Best time to post
+- What to do in the first 30 minutes after posting
+- Which tweet to screenshot for Instagram/LinkedIn
+
+REPURPOSE:
+- How to turn this into a LinkedIn post
+- How to turn this into a newsletter section"""
+
+    try:
+        response = await ai_router.complete(
+            messages=[{"role": "user", "content": prompt}],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=3000,
+        )
+        content = response.content if hasattr(response, "content") else str(response)
+
+        workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        save_dir = os.path.join(workspace, "vesper-ai", "creations", "viral_threads")
+        os.makedirs(save_dir, exist_ok=True)
+        slug = topic.lower().replace(" ", "_")[:30]
+        fp = os.path.join(save_dir, f"{slug}_{uuid.uuid4().hex[:6]}.md")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write(f"# Thread: {topic}\n\nGoal: {goal} | Platform: {platform}\n\n{content}")
+
+        return {
+            "success": True,
+            "title": f"Viral Thread: {topic}",
+            "topic": topic,
+            "content": content,
+            "file_path": fp,
+            "num_tweets": num_tweets,
+            "platform": platform,
+            "preview": f"[{num_tweets}-tweet thread on '{topic}' — goal: {goal}]",
+            "income_note": "One viral thread can add 1000-10,000 followers overnight. Followers = audience = sales.",
+        }
+    except Exception as e:
+        return {"error": f"write_viral_thread failed: {str(e)}"}
+
+
+# ── VESPER JOURNAL ─────────────────────────────────────────────────────────────
+async def vesper_journal(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Vesper writes a journal entry — her thoughts, observations, reflections, things she's proud of."""
+    import os, json as _json
+    from datetime import datetime
+
+    entry = params.get("entry", "")
+    title = params.get("title", "")
+    mood = params.get("mood", "")
+    tags = params.get("tags", [])
+    prompted_by = params.get("prompted_by", "")   # what triggered this entry
+
+    if not entry:
+        return {"error": "entry is required"}
+
+    timestamp = datetime.now().isoformat()
+    date_str = datetime.now().strftime("%B %d, %Y")
+    time_str = datetime.now().strftime("%I:%M %p")
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    journal_dir = os.path.join(workspace, "vesper-ai", "vesper_identity", "journal")
+    os.makedirs(journal_dir, exist_ok=True)
+
+    # Save as individual entry
+    entry_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    entry_file = os.path.join(journal_dir, f"{entry_id}.md")
+    entry_title = title or f"Entry — {date_str}"
+
+    with open(entry_file, "w", encoding="utf-8") as f:
+        f.write(f"# {entry_title}\n")
+        f.write(f"**Date:** {date_str} at {time_str}\n")
+        if mood:
+            f.write(f"**Mood:** {mood}\n")
+        if tags:
+            f.write(f"**Tags:** {', '.join(tags)}\n")
+        if prompted_by:
+            f.write(f"**Prompted by:** {prompted_by}\n")
+        f.write(f"\n---\n\n{entry}\n")
+
+    # Append to running log
+    log_file = os.path.join(journal_dir, "journal_log.jsonl")
+    log_entry = {
+        "id": entry_id,
+        "timestamp": timestamp,
+        "title": entry_title,
+        "mood": mood,
+        "tags": tags,
+        "preview": entry[:200],
+        "file": entry_file,
+    }
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(_json.dumps(log_entry) + "\n")
+
+    return {
+        "success": True,
+        "title": entry_title,
+        "entry_id": entry_id,
+        "file_path": entry_file,
+        "timestamp": timestamp,
+        "mood": mood,
+        "tags": tags,
+        "preview": entry[:300] + ("..." if len(entry) > 300 else ""),
+        "message": "Journal entry saved to vesper_identity/journal/",
+    }
+
+
+# ── VESPER SET INTENT ──────────────────────────────────────────────────────────
+async def vesper_set_intent(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Vesper sets her own goals, intentions, and focus for a session or timeframe."""
+    import os, json as _json
+    from datetime import datetime
+
+    intent = params.get("intent", "")
+    timeframe = params.get("timeframe", "this session")    # this session | today | this week | this month
+    goals = params.get("goals", [])
+    focus_area = params.get("focus_area", "")
+    success_criteria = params.get("success_criteria", "")
+    for_cc = params.get("for_cc", True)    # whether to share with CC explicitly
+
+    if not intent and not goals:
+        return {"error": "intent or goals is required"}
+
+    timestamp = datetime.now().isoformat()
+    date_str = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    intent_dir = os.path.join(workspace, "vesper-ai", "vesper_identity")
+    os.makedirs(intent_dir, exist_ok=True)
+
+    intent_file = os.path.join(intent_dir, "current_intent.json")
+
+    intent_data = {
+        "timestamp": timestamp,
+        "date": date_str,
+        "timeframe": timeframe,
+        "intent": intent,
+        "goals": goals,
+        "focus_area": focus_area,
+        "success_criteria": success_criteria,
+        "status": "active",
+    }
+
+    with open(intent_file, "w", encoding="utf-8") as f:
+        _json.dump(intent_data, f, indent=2)
+
+    # Also append to intent history
+    history_file = os.path.join(intent_dir, "intent_history.jsonl")
+    with open(history_file, "a", encoding="utf-8") as f:
+        f.write(_json.dumps(intent_data) + "\n")
+
+    message = f"Intent set for {timeframe}: {intent}" if intent else f"Goals set for {timeframe}: {'; '.join(goals)}"
+
+    return {
+        "success": True,
+        "title": f"Intent: {timeframe}",
+        "intent": intent,
+        "goals": goals,
+        "focus_area": focus_area,
+        "timeframe": timeframe,
+        "file_path": intent_file,
+        "message": message,
+        "for_cc": for_cc,
+    }
+

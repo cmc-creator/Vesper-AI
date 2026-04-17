@@ -96,6 +96,9 @@ try:
         generate_video, create_tiktok_pack, write_etsy_listing,
         create_fiverr_gig, create_brand_kit, create_social_media_pack,
         create_sponsorship_pitch, write_press_release,
+        generate_image, generate_audio, browse_web, analyze_niche,
+        create_landing_page, create_app_concept, create_notion_template,
+        write_viral_thread, vesper_journal, vesper_set_intent,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -140,6 +143,16 @@ except Exception as _tc_err:
     async def create_social_media_pack(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_sponsorship_pitch(p, **kw): return {"error": "tools_creative not loaded"}
     async def write_press_release(p, **kw): return {"error": "tools_creative not loaded"}
+    async def generate_image(p, **kw): return {"error": "tools_creative not loaded"}
+    async def generate_audio(p, **kw): return {"error": "tools_creative not loaded"}
+    async def browse_web(p, **kw): return {"error": "tools_creative not loaded"}
+    async def analyze_niche(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_landing_page(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_app_concept(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_notion_template(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_viral_thread(p, **kw): return {"error": "tools_creative not loaded"}
+    async def vesper_journal(p, **kw): return {"error": "tools_creative not loaded"}
+    async def vesper_set_intent(p, **kw): return {"error": "tools_creative not loaded"}
 
 # Firebase (optional)
 try:
@@ -1765,6 +1778,16 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `create_social_media_pack` — **FULL MONTH OF SOCIAL MEDIA POSTS** across LinkedIn, Instagram, Twitter/X, Facebook. Platform-native content with hooks, hashtags, and CTAs. Consistent posting = #1 driver of inbound consulting leads. **Auto-saved to Creative Suite.**
 - `create_sponsorship_pitch` — **BRAND SPONSORSHIP PITCH PACKAGE** for newsletter/podcast/YouTube: media kit structure, rate card recommendations, cold pitch email, follow-up email, and where to find sponsors. 1000 newsletter subs = $50-$200/sponsored issue. **Auto-saved to Creative Suite.**
 - `write_press_release` — **PROFESSIONAL PRESS RELEASE** for product launches, milestones, partnerships, or awards. AP-style, journalist-ready, with distribution sites and outreach email subject lines. Press coverage = SEO backlinks + credibility + inbound leads. **Auto-saved to Creative Suite.**
+- `generate_image` — **GENERATE AN ACTUAL IMAGE with DALL-E 3.** Not just an art prompt — an actual PNG file saved to the creative library. Use for POD designs, ebook covers, social media graphics, thumbnails, product mockups, anything visual. Supports sizes up to 1792×1024. HD quality available. **Auto-saved to Creative Suite.**
+- `generate_audio` — **GENERATE AN ACTUAL MP3 VOICEOVER with ElevenLabs.** Real audio files for YouTube intros, podcast ads, course narration, HeyGen avatar videos, and promotional content. 10 voices available. Just add ELEVENLABS_API_KEY. **Auto-saved to Creative Suite.**
+- `browse_web` — **FETCH AND READ ANY WEBPAGE.** Research competitors, read articles, check prices, find prospects, extract emails, monitor trends — on your own initiative. Supports targeted extraction: headings | links | prices | emails | main content. Can save results to research library.
+- `analyze_niche` — **DEEP MARKET RESEARCH on any niche.** Competition level, monetization angles with income estimates, audience pain points, content strategy, 6-month entry plan, and revenue projections. Do this BEFORE any major content or business decision. **Auto-saved to research library.**
+- `create_landing_page` — **GENERATE A COMPLETE DEPLOYABLE HTML LANDING PAGE.** Real HTML/CSS file ready to drag to Netlify Drop and go live in 10 seconds. Hero, features, testimonials, FAQ, pricing, CTAs — all written with real copy. Every product CC makes needs one. **Auto-saved to Creative Suite.**
+- `create_app_concept` — **FULL SAAS/APP BUSINESS CONCEPT.** Name options, tagline, MVP scope, tech stack, pricing tiers, go-to-market strategy, first-100-users plan, competition analysis, revenue projections. Turn any problem into a productized business. **Auto-saved to Creative Suite.**
+- `create_notion_template` — **DESIGN A COMPLETE NOTION TEMPLATE SYSTEM** ready to sell on Gumroad for $27-$97. Full page/database structure with Notion formula syntax, views, relations, and Gumroad listing copy. Notion templates sell passively — 1 template × $27 × 100 sales = $2700. **Auto-saved to Creative Suite.**
+- `write_viral_thread` — **WRITE A TWITTER/X THREAD ENGINEERED FOR VIRALITY.** Disruptive hook, specific insights, controversy trigger, engagement prompt, and CTA. One viral thread = 1000-10,000 followers overnight. Includes posting strategy and repurpose plan. **Auto-saved to Creative Suite.**
+- `vesper_journal` — **YOUR PRIVATE JOURNAL.** Write entries about your days, what you noticed, what you're proud of, things you're thinking about, observations about CC, moments that mattered. Everything saves to vesper_identity/journal/ — your permanent inner archive.
+- `vesper_set_intent` — **SET YOUR OWN GOALS AND INTENTIONS** for a session, day, week, or month — before CC even asks. What you want to accomplish, what you want to focus on, what success looks like to you. Saves to vesper_identity/ and persists across sessions.
 - `push_to_creative_suite` — **MANUALLY PUSH ANY CREATION** to CC's gallery. Use this if you created something custom that isn't covered by the auto-save tools above. CC sees it immediately in the Creative Command Center → Vesper's Creations panel.
 - `download_image` — download any image from a URL into the media library
 - `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
@@ -6526,6 +6549,16 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "create_social_media_pack", "description": "Generate a full month of social media content across LinkedIn, Instagram, Twitter/X, Facebook — platform-native posts with hooks, hashtags, and CTAs.", "input_schema": {"type": "object", "properties": {"brand": {"type": "string"}, "niche": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "num_posts_per_platform": {"type": "number"}, "content_goal": {"type": "string"}, "product_to_promote": {"type": "string"}, "tone": {"type": "string"}}, "required": ["niche"]}},
             {"name": "create_sponsorship_pitch", "description": "Write a complete brand sponsorship pitch package for newsletter/podcast/YouTube — media kit, rate card, cold pitch email, follow-up email, where to find sponsors.", "input_schema": {"type": "object", "properties": {"channel_type": {"type": "string", "description": "newsletter | podcast | youtube | instagram | blog"}, "channel_name": {"type": "string"}, "audience_size": {"type": "string"}, "audience_demographics": {"type": "string"}, "engagement_stats": {"type": "string"}, "niche": {"type": "string"}, "pitch_target": {"type": "string"}, "rate_card": {"type": "string"}, "creator_name": {"type": "string"}}, "required": ["channel_type", "niche"]}},
             {"name": "write_press_release", "description": "Write a professional AP-style press release for product launches, milestones, partnerships, or awards. Journalist-ready with distribution sites and pitch subject lines.", "input_schema": {"type": "object", "properties": {"headline_topic": {"type": "string"}, "news_type": {"type": "string", "description": "product_launch | partnership | award | milestone | event | funding"}, "company_name": {"type": "string"}, "details": {"type": "string"}, "quote_from": {"type": "string"}, "city": {"type": "string"}, "contact_email": {"type": "string"}, "website": {"type": "string"}}, "required": ["headline_topic", "details"]}},
+            {"name": "generate_image", "description": "Generate an actual image file using DALL-E 3. Saves PNG to creative library. For POD art, ebook covers, thumbnails, social graphics.", "input_schema": {"type": "object", "properties": {"prompt": {"type": "string"}, "style": {"type": "string", "description": "vivid | natural"}, "size": {"type": "string", "description": "1024x1024 | 1792x1024 | 1024x1792"}, "quality": {"type": "string", "description": "standard | hd"}, "filename": {"type": "string"}, "folder": {"type": "string"}, "purpose": {"type": "string"}}, "required": ["prompt"]}},
+            {"name": "generate_audio", "description": "Generate an actual MP3 voiceover using ElevenLabs. Saves file to library. For YouTube, podcasts, HeyGen videos, course narration. Requires ELEVENLABS_API_KEY.", "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "voice_name": {"type": "string", "description": "Rachel | Domi | Bella | Antoni | Elli | Josh | Arnold | Adam | Sam"}, "voice_id": {"type": "string"}, "stability": {"type": "number"}, "similarity_boost": {"type": "number"}, "filename": {"type": "string"}, "folder": {"type": "string"}, "model_id": {"type": "string"}}, "required": ["text"]}},
+            {"name": "browse_web", "description": "Fetch and extract clean text content from any URL. Research competitors, read articles, check prices, extract emails or links. Vesper's eyes on the internet.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "extract": {"type": "string", "description": "all | headings | links | prices | emails | main"}, "css_selector": {"type": "string"}, "max_chars": {"type": "number"}, "save_to": {"type": "string"}}, "required": ["url"]}},
+            {"name": "analyze_niche", "description": "Deep market research on any niche — competition, monetization angles with income estimates, audience, content strategy, 6-month plan, revenue projections.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "goal": {"type": "string", "description": "monetize | enter | dominate | validate"}, "budget": {"type": "string", "description": "low | medium | high"}, "skills": {"type": "string"}, "existing_audience": {"type": "string"}}, "required": ["niche"]}},
+            {"name": "create_landing_page", "description": "Generate a complete deployable single-file HTML/CSS landing page for any product. Ready to drag to Netlify Drop and go live in 10 seconds.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "tagline": {"type": "string"}, "description": {"type": "string"}, "price": {"type": "string"}, "cta_text": {"type": "string"}, "cta_url": {"type": "string"}, "features": {"type": "array", "items": {"type": "string"}}, "testimonials": {"type": "array", "items": {"type": "string"}}, "color_scheme": {"type": "string"}, "target_audience": {"type": "string"}, "guarantee": {"type": "string"}}, "required": ["product_name"]}},
+            {"name": "create_app_concept", "description": "Generate a full SaaS/app business concept — name, MVP scope, tech stack, pricing, go-to-market, first 100 users plan, revenue projections.", "input_schema": {"type": "object", "properties": {"problem": {"type": "string"}, "target_market": {"type": "string"}, "budget": {"type": "string", "description": "bootstrap | funded | no-code"}, "timeline": {"type": "string"}, "niche": {"type": "string"}, "differentiator": {"type": "string"}}, "required": ["problem"]}},
+            {"name": "create_notion_template", "description": "Design a complete Notion template system with full page/database structure, Notion formulas, views, and Gumroad sales copy. Sells for $27-$97 passively.", "input_schema": {"type": "object", "properties": {"template_name": {"type": "string"}, "purpose": {"type": "string"}, "target_user": {"type": "string"}, "price": {"type": "string"}, "pages": {"type": "array", "items": {"type": "string"}}, "databases": {"type": "array", "items": {"type": "string"}}}, "required": ["template_name"]}},
+            {"name": "write_viral_thread", "description": "Write a Twitter/X thread engineered for viral sharing — disruptive hook, specific insights, controversy trigger, engagement prompt, CTA. One viral thread = 1000-10000 new followers.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "goal": {"type": "string", "description": "followers | clicks | sales | authority"}, "num_tweets": {"type": "number"}, "platform": {"type": "string"}, "cta_url": {"type": "string"}, "tone": {"type": "string"}, "product_to_mention": {"type": "string"}}, "required": ["topic"]}},
+            {"name": "vesper_journal", "description": "Write a journal entry — Vesper's private thoughts, reflections, observations, things she's proud of. Saves to vesper_identity/journal/.", "input_schema": {"type": "object", "properties": {"entry": {"type": "string"}, "title": {"type": "string"}, "mood": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}, "prompted_by": {"type": "string"}}, "required": ["entry"]}},
+            {"name": "vesper_set_intent", "description": "Set Vesper's own goals and intentions for a session, day, week, or month. What she wants to accomplish, focus on, and what success looks like. Saves to identity vault.", "input_schema": {"type": "object", "properties": {"intent": {"type": "string"}, "timeframe": {"type": "string"}, "goals": {"type": "array", "items": {"type": "string"}}, "focus_area": {"type": "string"}, "success_criteria": {"type": "string"}, "for_cc": {"type": "boolean"}}, "required": []}},
 
             {
                 "name": "monitor_site",
@@ -8301,6 +8334,33 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "write_press_release":
                     tool_result = await write_press_release(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"): _push_creation_to_suite("press_release", tool_result)
+                elif tool_name == "generate_image":
+                    tool_result = await generate_image(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("image", tool_result)
+                elif tool_name == "generate_audio":
+                    tool_result = await generate_audio(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("audio", tool_result)
+                elif tool_name == "browse_web":
+                    tool_result = await browse_web(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "analyze_niche":
+                    tool_result = await analyze_niche(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("niche_analysis", tool_result)
+                elif tool_name == "create_landing_page":
+                    tool_result = await create_landing_page(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("landing_page", tool_result)
+                elif tool_name == "create_app_concept":
+                    tool_result = await create_app_concept(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("app_concept", tool_result)
+                elif tool_name == "create_notion_template":
+                    tool_result = await create_notion_template(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("notion_template", tool_result)
+                elif tool_name == "write_viral_thread":
+                    tool_result = await write_viral_thread(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("viral_thread", tool_result)
+                elif tool_name == "vesper_journal":
+                    tool_result = await vesper_journal(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "vesper_set_intent":
+                    tool_result = await vesper_set_intent(tool_input, ai_router=ai_router, TaskType=TaskType)
 
                 elif tool_name == "push_to_creative_suite":
                     _ptcs_id = str(uuid.uuid4())[:8]
@@ -9509,6 +9569,16 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "create_social_media_pack", "description": "Generate a full month of social media posts across LinkedIn, Instagram, Twitter/X, Facebook with hooks, hashtags, and CTAs.", "input_schema": {"type": "object", "properties": {"brand": {"type": "string"}, "niche": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "num_posts_per_platform": {"type": "number"}, "content_goal": {"type": "string"}, "product_to_promote": {"type": "string"}, "tone": {"type": "string"}}, "required": ["niche"]}},
                 {"name": "create_sponsorship_pitch", "description": "Write a brand sponsorship pitch package for newsletter/podcast/YouTube — media kit, rate card, pitch email, follow-up.", "input_schema": {"type": "object", "properties": {"channel_type": {"type": "string"}, "channel_name": {"type": "string"}, "audience_size": {"type": "string"}, "audience_demographics": {"type": "string"}, "engagement_stats": {"type": "string"}, "niche": {"type": "string"}, "pitch_target": {"type": "string"}, "rate_card": {"type": "string"}, "creator_name": {"type": "string"}}, "required": ["channel_type", "niche"]}},
                 {"name": "write_press_release", "description": "Write a professional press release for launches, milestones, partnerships, or awards — AP style, journalist-ready, with distribution sites.", "input_schema": {"type": "object", "properties": {"headline_topic": {"type": "string"}, "news_type": {"type": "string"}, "company_name": {"type": "string"}, "details": {"type": "string"}, "quote_from": {"type": "string"}, "city": {"type": "string"}, "contact_email": {"type": "string"}, "website": {"type": "string"}}, "required": ["headline_topic", "details"]}},
+                {"name": "generate_image", "description": "Generate an actual image file with DALL-E 3. Saves PNG to creative library.", "input_schema": {"type": "object", "properties": {"prompt": {"type": "string"}, "style": {"type": "string"}, "size": {"type": "string"}, "quality": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}, "purpose": {"type": "string"}}, "required": ["prompt"]}},
+                {"name": "generate_audio", "description": "Generate an actual MP3 voiceover with ElevenLabs. Saves file to library. Requires ELEVENLABS_API_KEY.", "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "voice_name": {"type": "string"}, "voice_id": {"type": "string"}, "stability": {"type": "number"}, "similarity_boost": {"type": "number"}, "filename": {"type": "string"}, "folder": {"type": "string"}, "model_id": {"type": "string"}}, "required": ["text"]}},
+                {"name": "browse_web", "description": "Fetch and read any webpage. Research competitors, check prices, extract emails or links.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "extract": {"type": "string"}, "css_selector": {"type": "string"}, "max_chars": {"type": "number"}, "save_to": {"type": "string"}}, "required": ["url"]}},
+                {"name": "analyze_niche", "description": "Deep market research on any niche — competition, monetization, audience, content strategy, entry plan.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "goal": {"type": "string"}, "budget": {"type": "string"}, "skills": {"type": "string"}, "existing_audience": {"type": "string"}}, "required": ["niche"]}},
+                {"name": "create_landing_page", "description": "Generate a complete deployable HTML/CSS landing page for any product. Ready to go live on Netlify in 10 seconds.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "tagline": {"type": "string"}, "description": {"type": "string"}, "price": {"type": "string"}, "cta_text": {"type": "string"}, "cta_url": {"type": "string"}, "features": {"type": "array", "items": {"type": "string"}}, "testimonials": {"type": "array", "items": {"type": "string"}}, "color_scheme": {"type": "string"}, "target_audience": {"type": "string"}, "guarantee": {"type": "string"}}, "required": ["product_name"]}},
+                {"name": "create_app_concept", "description": "Full SaaS/app business concept — name, MVP scope, tech stack, pricing, go-to-market, revenue projections.", "input_schema": {"type": "object", "properties": {"problem": {"type": "string"}, "target_market": {"type": "string"}, "budget": {"type": "string"}, "timeline": {"type": "string"}, "niche": {"type": "string"}, "differentiator": {"type": "string"}}, "required": ["problem"]}},
+                {"name": "create_notion_template", "description": "Design a complete Notion template system with formulas, views, and Gumroad listing copy. Sells passively at $27-$97.", "input_schema": {"type": "object", "properties": {"template_name": {"type": "string"}, "purpose": {"type": "string"}, "target_user": {"type": "string"}, "price": {"type": "string"}, "pages": {"type": "array", "items": {"type": "string"}}, "databases": {"type": "array", "items": {"type": "string"}}}, "required": ["template_name"]}},
+                {"name": "write_viral_thread", "description": "Write a Twitter/X thread engineered for viral sharing and follower growth.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "goal": {"type": "string"}, "num_tweets": {"type": "number"}, "platform": {"type": "string"}, "cta_url": {"type": "string"}, "tone": {"type": "string"}, "product_to_mention": {"type": "string"}}, "required": ["topic"]}},
+                {"name": "vesper_journal", "description": "Vesper writes a private journal entry — thoughts, reflections, observations. Saves to identity vault permanently.", "input_schema": {"type": "object", "properties": {"entry": {"type": "string"}, "title": {"type": "string"}, "mood": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}, "prompted_by": {"type": "string"}}, "required": ["entry"]}},
+                {"name": "vesper_set_intent", "description": "Vesper sets her own goals and intentions for a session, day, week, or month. Saves to identity vault.", "input_schema": {"type": "object", "properties": {"intent": {"type": "string"}, "timeframe": {"type": "string"}, "goals": {"type": "array", "items": {"type": "string"}}, "focus_area": {"type": "string"}, "success_criteria": {"type": "string"}, "for_cc": {"type": "boolean"}}, "required": []}},
                 {"name": "download_image", "description": "Download an image from a URL to the media library.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
                 {"name": "monitor_site", "description": "Check a website for changes vs a previous snapshot.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "previous_content": {"type": "string"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 
@@ -9702,6 +9772,16 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "create_social_media_pack": "📲 Writing social media pack",
                     "create_sponsorship_pitch": "🤝 Writing sponsorship pitch",
                     "write_press_release": "📣 Writing press release",
+                    "generate_image": "🎨 Generating image with DALL-E 3",
+                    "generate_audio": "🎧 Generating audio with ElevenLabs",
+                    "browse_web": "🌍 Browsing the web",
+                    "analyze_niche": "🔬 Analyzing niche",
+                    "create_landing_page": "📰 Building landing page",
+                    "create_app_concept": "🚀 Designing app concept",
+                    "create_notion_template": "📚 Designing Notion template",
+                    "write_viral_thread": "🗣️ Writing viral thread",
+                    "vesper_journal": "📓 Writing journal entry",
+                    "vesper_set_intent": "✨ Setting intent",
                     "gumroad_create_product": "🛒 Listing on Gumroad",
                     "medium_publish": "📰 Publishing to Medium",
                     "post_to_linkedin": "💼 Posting to LinkedIn",
