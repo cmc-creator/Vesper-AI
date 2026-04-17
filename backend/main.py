@@ -9719,6 +9719,33 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         if tool_result.get("success"):
                             _push_creation_to_suite("email_sequence", tool_result)
                             yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'email_sequence','title':tool_result.get('title','Email Sequence')}})}\n\n"
+                    elif tool_name == "write_creative":
+                        tool_result = await write_creative(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("creative", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'creative','title':tool_result.get('title','Creative Writing')}})}\n\n"
+                    elif tool_name == "write_chapter":
+                        tool_result = await write_chapter(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("chapter", tool_result)
+                            _drive_file = await _save_creative_as_doc(
+                                f"{tool_result.get('book_title','Book')} — Ch{tool_result.get('chapter_number','?')}: {tool_result.get('chapter_title','')}",
+                                tool_result.get("manuscript", tool_result.get("content", "")),
+                                "chapter",
+                            )
+                            if _drive_file and not _drive_file.get("error"):
+                                tool_result["drive_link"] = _drive_file.get("webViewLink", "")
+                                tool_result["drive_doc_id"] = _drive_file.get("documentId", _drive_file.get("id", ""))
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'chapter','title':tool_result.get('chapter_title','Chapter')}})}\n\n"
+                    elif tool_name == "compile_manuscript":
+                        tool_result = await compile_manuscript(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("manuscript", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'manuscript','title':tool_result.get('book_title','Manuscript')}})}\n\n"
+                    elif tool_name == "get_writing_session":
+                        tool_result = get_writing_session()
+                    elif tool_name == "clear_writing_session":
+                        tool_result = clear_writing_session()
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(
