@@ -8962,10 +8962,12 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     _pex_code = tool_input.get("code", "")
                     _pex_timeout = min(int(tool_input.get("timeout", 30)), 120)
                     _pex_cwd = tool_input.get("cwd") or WORKSPACE_ROOT
+                    _pex_backend = os.path.join(WORKSPACE_ROOT, 'backend')
+                    _pex_env = {**os.environ, "PYTHONPATH": _pex_backend + os.pathsep + os.environ.get("PYTHONPATH", "")}
                     try:
                         _pex_result = _pex_sub.run(
                             ["python", "-c", _pex_code],
-                            capture_output=True, text=True, timeout=_pex_timeout, cwd=_pex_cwd
+                            capture_output=True, text=True, timeout=_pex_timeout, cwd=_pex_cwd, env=_pex_env
                         )
                         _pex_out = _pex_result.stdout[:10000]; _pex_err = _pex_result.stderr[:3000]
                         tool_result = {"stdout": _pex_out, "stderr": _pex_err, "returncode": _pex_result.returncode, "truncated": len(_pex_result.stdout) > 10000}
@@ -10065,8 +10067,10 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     elif tool_name == "python_exec":
                         import subprocess as _pex2_sub
                         _pex2_code = tool_input.get("code", ""); _pex2_timeout = min(int(tool_input.get("timeout", 30)), 120); _pex2_cwd = tool_input.get("cwd") or WORKSPACE_ROOT
+                        _pex2_backend = os.path.join(WORKSPACE_ROOT, 'backend')
+                        _pex2_env = {**os.environ, "PYTHONPATH": _pex2_backend + os.pathsep + os.environ.get("PYTHONPATH", "")}
                         try:
-                            _pex2_r = _pex2_sub.run(["python", "-c", _pex2_code], capture_output=True, text=True, timeout=_pex2_timeout, cwd=_pex2_cwd)
+                            _pex2_r = _pex2_sub.run(["python", "-c", _pex2_code], capture_output=True, text=True, timeout=_pex2_timeout, cwd=_pex2_cwd, env=_pex2_env)
                             tool_result = {"stdout": _pex2_r.stdout[:10000], "stderr": _pex2_r.stderr[:3000], "returncode": _pex2_r.returncode, "truncated": len(_pex2_r.stdout) > 10000}
                         except _pex2_sub.TimeoutExpired: tool_result = {"error": f"Timed out after {_pex2_timeout}s"}
                         except Exception as _e: tool_result = {"error": str(_e)}
