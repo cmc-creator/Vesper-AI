@@ -88,6 +88,11 @@ try:
         repurpose_content, create_digital_product, create_email_sequence,
         write_creative, write_chapter, compile_manuscript,
         get_writing_session, clear_writing_session,
+        write_sales_page, create_lead_magnet, write_webinar_script,
+        generate_cold_outreach, write_kdp_listing, write_youtube_package,
+        write_affiliate_content, create_podcast_episode, write_case_study,
+        generate_invoice, create_pricing_strategy, write_newsletter_issue,
+        create_pod_listing_pack,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -111,6 +116,19 @@ except Exception as _tc_err:
     async def compile_manuscript(p, **kw): return {"error": "tools_creative not loaded"}
     def get_writing_session(): return {"active": False, "error": "tools_creative not loaded"}
     def clear_writing_session(): return {"success": False, "error": "tools_creative not loaded"}
+    async def write_sales_page(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_lead_magnet(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_webinar_script(p, **kw): return {"error": "tools_creative not loaded"}
+    async def generate_cold_outreach(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_kdp_listing(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_youtube_package(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_affiliate_content(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_podcast_episode(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_case_study(p, **kw): return {"error": "tools_creative not loaded"}
+    async def generate_invoice(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_pricing_strategy(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_newsletter_issue(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_pod_listing_pack(p, **kw): return {"error": "tools_creative not loaded"}
 
 # Firebase (optional)
 try:
@@ -1715,6 +1733,19 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `repurpose_content` — **1 PIECE → 5 PLATFORMS**. Reformat any content into: LinkedIn article, Twitter/X thread, YouTube script, TikTok script, Pinterest pins. 5x reach from one creation. **Auto-saved to Creative Suite.**
 - `create_digital_product` — **CREATE ANY SELLABLE DIGITAL PRODUCT**: workbook, checklist, swipe file, resource guide, toolkit, or cheat sheet. Fully written, ready to convert to PDF and sell on Gumroad TODAY. $7–$47/sale. **Auto-saved to Creative Suite.**
 - `create_email_sequence` — **BUILD A COMPLETE EMAIL SEQUENCE**. Every email fully written, ready to load into ConvertKit, Mailchimp, Beehiiv, or ActiveCampaign. Types: welcome, launch, sales, nurture, re-engagement, onboarding. An email list is the most valuable business asset for residual income. **Auto-saved to Creative Suite.**
+- `write_sales_page` — **WRITE A COMPLETE HIGH-CONVERTING SALES PAGE**. Headline, hook, benefits, testimonials, FAQ, guarantee, price anchor, and CTA. Use for any Gumroad/Carrd/Squarespace product page. Sales pages convert 1-5% of visitors into buyers. **Auto-saved to Creative Suite.**
+- `create_lead_magnet` — **CREATE A HIGH-VALUE FREE LEAD MAGNET** to grow CC's email list. Checklist, mini-guide, swipe file, toolkit, cheat sheet, template, or email course. Includes opt-in form copy, delivery email, and social posts to promote it. List = most valuable business asset. **Auto-saved to Creative Suite.**
+- `write_webinar_script` — **FULL WORD-FOR-WORD WEBINAR SCRIPT** using the proven Perfect Webinar framework. Best tool for selling $197-$997+ products live. 50 attendees × 15% close = significant revenue. Includes slide titles, speaking script, and timing. **Auto-saved to Creative Suite.**
+- `generate_cold_outreach` — **COMPLETE COLD OUTREACH SEQUENCE** for landing consulting clients. Email or LinkedIn, 3-7 touchpoints, short hyper-personalized messages that actually get replies. Includes psychological principle, personalization variables, objection handling. 5% reply rate → conversations → clients. **Auto-saved to Creative Suite.**
+- `write_kdp_listing` — **FULLY OPTIMIZED AMAZON KDP BOOK LISTING**. Keyword-rich title, subtitle, HTML description, 7 keywords, BISAC categories, pricing strategy, A+ content, cover brief, and launch checklist. Self-published books earn 70% royalties forever. **Auto-saved to Creative Suite.**
+- `write_youtube_package` — **COMPLETE YOUTUBE VIDEO PACKAGE**: 3 title options, full SEO description, 15+ tags, chapters, thumbnail text, visual brief, 30-second hook script, mid-roll and end-screen CTAs, pinned comment, and repurposable clip ideas. YouTube earns AdSense + consulting leads passively. **Auto-saved to Creative Suite.**
+- `write_affiliate_content` — **SEO-OPTIMIZED AFFILIATE CONTENT**: reviews, comparisons, best-of articles designed to rank on Google and convert readers into buyers. Includes meta description, pros/cons table, FAQ, schema markup suggestion, and Pinterest pin. Passive income forever after it ranks. **Auto-saved to Creative Suite.**
+- `create_podcast_episode` — **COMPLETE PODCAST EPISODE PACKAGE**: title, description, full word-for-word script (with ad reads and CTAs), show notes, timestamps, clip ideas, and newsletter announcement. Podcast earns sponsorships ($15-50 CPM) and builds the listener-to-client pipeline. **Auto-saved to Creative Suite.**
+- `write_case_study` — **PROFESSIONAL CLIENT CASE STUDY** that turns results into a sales asset. Challenge, solution, results with numbers, client quote, LinkedIn post version, tweet thread. Closes deals worth 10x its creation time. **Auto-saved to Creative Suite.**
+- `generate_invoice` — **GENERATE A PROFESSIONAL CONSULTING INVOICE** instantly. Line items with hours and rates or flat amounts, tax, total, due date, payment methods, notes. Saves to invoices folder. Use for every piece of client work.
+- `create_pricing_strategy` — **FULL PRICING STRATEGY ANALYSIS**: audit current price, build 3-tier packages (Good/Better/Best) with specific prices, value justification script, discount strategy, price increase roadmap, revenue math to hit monthly income goal, and one pricing hack to test this month. Most people undercharge by 2-3x.
+- `write_newsletter_issue` — **COMPLETE MONETIZED NEWSLETTER ISSUE** for Beehiiv, Substack, or ConvertKit. 5 subject line options, preview text, full content with sponsor block, product CTA, social post to promote it. Newsletter earns sponsorships $50-500/issue at 1000+ subscribers. **Auto-saved to Creative Suite.**
+- `create_pod_listing_pack` — **PRINT-ON-DEMAND LISTING PACK** for Redbubble, Merch by Amazon, and Society6. AI art prompts for each design variation, SEO titles+tags+descriptions, pricing, and launch checklist. 100 listings × 2 sales/month = $400-1600 passive/month. **Auto-saved to Creative Suite.**
 - `push_to_creative_suite` — **MANUALLY PUSH ANY CREATION** to CC's gallery. Use this if you created something custom that isn't covered by the auto-save tools above. CC sees it immediately in the Creative Command Center → Vesper's Creations panel.
 - `download_image` — download any image from a URL into the media library
 - `monitor_site` — diff a website against a previous snapshot to detect changes (prices, listings, announcements)
@@ -6455,6 +6486,20 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "create_digital_product", "description": "Create any sellable digital product: workbook, checklist, swipe file, resource guide, toolkit, or cheat sheet. Fully written and ready to convert to PDF and sell on Gumroad/Etsy TODAY. Best entry-level passive income product.", "input_schema": {"type": "object", "properties": {"product_type": {"type": "string", "description": "workbook | checklist | swipe_file | resource_guide | cheat_sheet | toolkit"}, "topic": {"type": "string"}, "audience": {"type": "string"}, "price": {"type": "number", "description": "Price in USD (default 17)"}, "pages": {"type": "number", "description": "Approximate pages/length (default 15)"}}, "required": ["topic"]}},
             {"name": "create_email_sequence", "description": "Build a complete email nurture/sales sequence — every email fully written and ready to load into ConvertKit, Mailchimp, Beehiiv, or ActiveCampaign. An email list is the most valuable business asset for residual income.", "input_schema": {"type": "object", "properties": {"sequence_type": {"type": "string", "description": "welcome | launch | sales | nurture | re-engagement | onboarding"}, "topic": {"type": "string"}, "product": {"type": "string", "description": "What product/service is being sold?"}, "audience": {"type": "string"}, "num_emails": {"type": "number", "description": "Number of emails (default 7)"}, "brand_voice": {"type": "string"}, "cta_url": {"type": "string"}}, "required": ["topic"]}},
 
+            {"name": "write_sales_page", "description": "Write a complete high-converting sales page — headline, hook, benefits, testimonials, FAQ, guarantee, price anchor, strong CTA. For any product/service.", "input_schema": {"type": "object", "properties": {"product": {"type": "string"}, "price": {"type": "string"}, "audience": {"type": "string"}, "pain_points": {"type": "string"}, "benefits": {"type": "string"}, "guarantee": {"type": "string"}, "testimonials": {"type": "string"}, "urgency": {"type": "string"}}, "required": ["product"]}},
+            {"name": "create_lead_magnet", "description": "Create a high-value free lead magnet to grow CC's email list — checklist, mini-guide, swipe file, toolkit, cheat sheet, template, or email course. Includes opt-in copy, delivery email, and social promotion posts.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "audience": {"type": "string"}, "format": {"type": "string", "description": "checklist | mini-guide | swipe-file | toolkit | cheat-sheet | template | email-course"}, "brand": {"type": "string"}, "cta": {"type": "string"}}, "required": ["topic"]}},
+            {"name": "write_webinar_script", "description": "Write a complete word-for-word webinar script using the Perfect Webinar framework. Best for selling $197-$997+ products live. Includes slide titles, speaking script, timing cues.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "product": {"type": "string"}, "price": {"type": "string"}, "audience": {"type": "string"}, "duration_minutes": {"type": "number"}, "presenter_name": {"type": "string"}}, "required": ["topic"]}},
+            {"name": "generate_cold_outreach", "description": "Generate a personalized cold outreach sequence to land consulting clients — email or LinkedIn, multi-touchpoint, short messages that get replies. Includes psychological principles and objection handling.", "input_schema": {"type": "object", "properties": {"prospect_type": {"type": "string"}, "service_offered": {"type": "string"}, "pain_point": {"type": "string"}, "sender_name": {"type": "string"}, "sender_credentials": {"type": "string"}, "num_touchpoints": {"type": "number"}, "channel": {"type": "string", "description": "email | linkedin | both"}}, "required": ["prospect_type", "service_offered"]}},
+            {"name": "write_kdp_listing", "description": "Generate a fully optimized Amazon KDP book listing — keyword-rich title, subtitle, HTML description, 7 keywords, BISAC categories, pricing strategy, A+ content brief, cover brief, and launch checklist.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "synopsis": {"type": "string"}, "genre": {"type": "string"}, "audience": {"type": "string"}, "author_name": {"type": "string"}, "price": {"type": "number"}}, "required": ["title"]}},
+            {"name": "write_youtube_package", "description": "Generate a complete YouTube video package: 3 title options, full SEO description, 15+ tags, chapters, thumbnail text, visual brief, 30-second hook script, CTAs, pinned comment, and clip ideas.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "channel_niche": {"type": "string"}, "video_length_minutes": {"type": "number"}, "monetization_goal": {"type": "string", "description": "affiliate | course | consulting | adsense"}, "channel_name": {"type": "string"}}, "required": ["topic"]}},
+            {"name": "write_affiliate_content", "description": "Write SEO-optimized affiliate content (reviews, comparisons, best-of) that ranks on Google and converts readers into buyers via affiliate commissions. Passive income forever after it ranks.", "input_schema": {"type": "object", "properties": {"content_type": {"type": "string", "description": "review | comparison | best-of | how-to-buy"}, "product_or_niche": {"type": "string"}, "affiliate_program": {"type": "string"}, "audience": {"type": "string"}, "commission_rate": {"type": "string"}, "target_keywords": {"type": "string"}}, "required": ["product_or_niche"]}},
+            {"name": "create_podcast_episode", "description": "Write a complete podcast episode: title, description, full word-for-word script with ad reads and CTAs, show notes, timestamps, clip ideas, and newsletter announcement.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "show_name": {"type": "string"}, "episode_number": {"type": "string"}, "duration_minutes": {"type": "number"}, "guest": {"type": "string"}, "monetization": {"type": "string"}, "host_name": {"type": "string"}}, "required": ["topic"]}},
+            {"name": "write_case_study", "description": "Write a persuasive client case study that turns results into a sales asset. Challenge, solution, results with numbers, client quote, plus LinkedIn post and tweet thread versions.", "input_schema": {"type": "object", "properties": {"client_name": {"type": "string"}, "industry": {"type": "string"}, "problem": {"type": "string"}, "solution": {"type": "string"}, "results": {"type": "string"}, "timeframe": {"type": "string"}, "service_offered": {"type": "string"}, "anonymize": {"type": "boolean"}}, "required": ["industry", "problem", "results"]}},
+            {"name": "generate_invoice", "description": "Generate a professional consulting invoice with line items, tax, total, due date, and payment methods. Ready to send to clients.", "input_schema": {"type": "object", "properties": {"client_name": {"type": "string"}, "client_email": {"type": "string"}, "client_company": {"type": "string"}, "services": {"type": "array", "items": {"type": "object"}, "description": "Array of {description, hours, rate} or {description, amount}"}, "invoice_number": {"type": "string"}, "due_days": {"type": "number"}, "sender_name": {"type": "string"}, "sender_business": {"type": "string"}, "sender_email": {"type": "string"}, "notes": {"type": "string"}, "payment_methods": {"type": "array", "items": {"type": "string"}}, "tax_rate": {"type": "number"}}, "required": ["client_name", "services"]}},
+            {"name": "create_pricing_strategy", "description": "Full pricing strategy: audit current price, build 3-tier packages with specific prices, value justification script, discount strategy, price increase roadmap, revenue math. Most people undercharge by 2-3x.", "input_schema": {"type": "object", "properties": {"service_or_product": {"type": "string"}, "current_price": {"type": "string"}, "target_audience": {"type": "string"}, "competition": {"type": "string"}, "delivery_time": {"type": "string"}, "goal": {"type": "string", "description": "maximize_revenue | get_clients_fast | premium_positioning"}, "monthly_income_goal": {"type": "string"}}, "required": ["service_or_product"]}},
+            {"name": "write_newsletter_issue", "description": "Write a complete monetized newsletter issue for Beehiiv, Substack, or ConvertKit. 5 subject line options, preview text, full content with sponsor block, product CTA, and social promotion posts.", "input_schema": {"type": "object", "properties": {"newsletter_name": {"type": "string"}, "topic": {"type": "string"}, "issue_number": {"type": "string"}, "audience": {"type": "string"}, "sponsor": {"type": "string"}, "product_to_pitch": {"type": "string"}, "tone": {"type": "string"}, "word_count": {"type": "number"}}, "required": ["topic"]}},
+            {"name": "create_pod_listing_pack", "description": "Generate a print-on-demand listing pack for Redbubble, Merch by Amazon, Society6. AI art prompts for each design variation, SEO titles+tags+descriptions, pricing. 100 listings × 2 sales/month = $400-1600 passive/month.", "input_schema": {"type": "object", "properties": {"design_concept": {"type": "string"}, "niche": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "num_variations": {"type": "number"}, "art_style": {"type": "string"}}, "required": ["design_concept", "niche"]}},
+
             {
                 "name": "monitor_site",
                 "description": "Check a website for changes by comparing current content to a previous snapshot. Returns diff and change summary.",
@@ -8167,6 +8212,45 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await create_email_sequence(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"): _push_creation_to_suite("email_sequence", tool_result)
 
+                elif tool_name == "write_sales_page":
+                    tool_result = await write_sales_page(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("sales_page", tool_result)
+                elif tool_name == "create_lead_magnet":
+                    tool_result = await create_lead_magnet(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("lead_magnet", tool_result)
+                elif tool_name == "write_webinar_script":
+                    tool_result = await write_webinar_script(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("webinar", tool_result)
+                elif tool_name == "generate_cold_outreach":
+                    tool_result = await generate_cold_outreach(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("outreach", tool_result)
+                elif tool_name == "write_kdp_listing":
+                    tool_result = await write_kdp_listing(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("kdp_listing", tool_result)
+                elif tool_name == "write_youtube_package":
+                    tool_result = await write_youtube_package(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("youtube_package", tool_result)
+                elif tool_name == "write_affiliate_content":
+                    tool_result = await write_affiliate_content(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("affiliate_content", tool_result)
+                elif tool_name == "create_podcast_episode":
+                    tool_result = await create_podcast_episode(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("podcast_episode", tool_result)
+                elif tool_name == "write_case_study":
+                    tool_result = await write_case_study(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("case_study", tool_result)
+                elif tool_name == "generate_invoice":
+                    tool_result = await generate_invoice(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "create_pricing_strategy":
+                    tool_result = await create_pricing_strategy(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("pricing_strategy", tool_result)
+                elif tool_name == "write_newsletter_issue":
+                    tool_result = await write_newsletter_issue(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("newsletter_issue", tool_result)
+                elif tool_name == "create_pod_listing_pack":
+                    tool_result = await create_pod_listing_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("pod_listing_pack", tool_result)
+
                 elif tool_name == "push_to_creative_suite":
                     _ptcs_id = str(uuid.uuid4())[:8]
                     memory_db.save_creation(
@@ -9353,6 +9437,19 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "repurpose_content", "description": "Take ONE piece of content and reformat it for 5 platforms: LinkedIn, Twitter thread, YouTube script, TikTok, Pinterest pins.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "source_type": {"type": "string"}, "brand": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
                 {"name": "create_digital_product", "description": "Create any sellable digital product: workbook, checklist, swipe file, resource guide, toolkit, or cheat sheet. Fully written, ready to PDF and sell on Gumroad today.", "input_schema": {"type": "object", "properties": {"product_type": {"type": "string", "description": "workbook | checklist | swipe_file | resource_guide | cheat_sheet | toolkit"}, "topic": {"type": "string"}, "audience": {"type": "string"}, "price": {"type": "number"}, "pages": {"type": "number"}}, "required": ["topic"]}},
                 {"name": "create_email_sequence", "description": "Build a complete email nurture/sales sequence — every email fully written, ready to load into ConvertKit, Mailchimp, Beehiiv, or ActiveCampaign.", "input_schema": {"type": "object", "properties": {"sequence_type": {"type": "string", "description": "welcome | launch | sales | nurture | re-engagement | onboarding"}, "topic": {"type": "string"}, "product": {"type": "string"}, "audience": {"type": "string"}, "num_emails": {"type": "number"}, "brand_voice": {"type": "string"}, "cta_url": {"type": "string"}}, "required": ["topic"]}},
+                {"name": "write_sales_page", "description": "Write a complete high-converting sales page for any product or service.", "input_schema": {"type": "object", "properties": {"product": {"type": "string"}, "price": {"type": "string"}, "audience": {"type": "string"}, "pain_points": {"type": "string"}, "benefits": {"type": "string"}, "guarantee": {"type": "string"}, "testimonials": {"type": "string"}, "urgency": {"type": "string"}}, "required": ["product"]}},
+                {"name": "create_lead_magnet", "description": "Create a free lead magnet (checklist, guide, swipe file, toolkit, email course) to grow CC's email list.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "audience": {"type": "string"}, "format": {"type": "string"}, "brand": {"type": "string"}, "cta": {"type": "string"}}, "required": ["topic"]}},
+                {"name": "write_webinar_script", "description": "Write a complete word-for-word webinar script using the Perfect Webinar framework.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "product": {"type": "string"}, "price": {"type": "string"}, "audience": {"type": "string"}, "duration_minutes": {"type": "number"}, "presenter_name": {"type": "string"}}, "required": ["topic"]}},
+                {"name": "generate_cold_outreach", "description": "Generate a cold outreach sequence to land consulting clients via email or LinkedIn.", "input_schema": {"type": "object", "properties": {"prospect_type": {"type": "string"}, "service_offered": {"type": "string"}, "pain_point": {"type": "string"}, "sender_name": {"type": "string"}, "sender_credentials": {"type": "string"}, "num_touchpoints": {"type": "number"}, "channel": {"type": "string"}}, "required": ["prospect_type", "service_offered"]}},
+                {"name": "write_kdp_listing", "description": "Generate a fully optimized Amazon KDP book listing with keywords, description, pricing, and launch checklist.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "synopsis": {"type": "string"}, "genre": {"type": "string"}, "audience": {"type": "string"}, "author_name": {"type": "string"}, "price": {"type": "number"}}, "required": ["title"]}},
+                {"name": "write_youtube_package", "description": "Generate a complete YouTube video package: titles, SEO description, tags, chapters, thumbnail, hook script, CTAs.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "channel_niche": {"type": "string"}, "video_length_minutes": {"type": "number"}, "monetization_goal": {"type": "string"}, "channel_name": {"type": "string"}}, "required": ["topic"]}},
+                {"name": "write_affiliate_content", "description": "Write SEO-optimized affiliate review, comparison, or best-of content that earns commissions passively.", "input_schema": {"type": "object", "properties": {"content_type": {"type": "string"}, "product_or_niche": {"type": "string"}, "affiliate_program": {"type": "string"}, "audience": {"type": "string"}, "commission_rate": {"type": "string"}, "target_keywords": {"type": "string"}}, "required": ["product_or_niche"]}},
+                {"name": "create_podcast_episode", "description": "Write a complete podcast episode: script, show notes, chapters, ad reads, CTAs, clip ideas.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "show_name": {"type": "string"}, "episode_number": {"type": "string"}, "duration_minutes": {"type": "number"}, "guest": {"type": "string"}, "monetization": {"type": "string"}, "host_name": {"type": "string"}}, "required": ["topic"]}},
+                {"name": "write_case_study", "description": "Write a persuasive client case study that turns results into a sales asset.", "input_schema": {"type": "object", "properties": {"client_name": {"type": "string"}, "industry": {"type": "string"}, "problem": {"type": "string"}, "solution": {"type": "string"}, "results": {"type": "string"}, "timeframe": {"type": "string"}, "service_offered": {"type": "string"}, "anonymize": {"type": "boolean"}}, "required": ["industry", "problem", "results"]}},
+                {"name": "generate_invoice", "description": "Generate a professional consulting invoice with line items, tax, total, and payment methods.", "input_schema": {"type": "object", "properties": {"client_name": {"type": "string"}, "client_email": {"type": "string"}, "client_company": {"type": "string"}, "services": {"type": "array", "items": {"type": "object"}}, "invoice_number": {"type": "string"}, "due_days": {"type": "number"}, "sender_name": {"type": "string"}, "sender_business": {"type": "string"}, "sender_email": {"type": "string"}, "notes": {"type": "string"}, "payment_methods": {"type": "array", "items": {"type": "string"}}, "tax_rate": {"type": "number"}}, "required": ["client_name", "services"]}},
+                {"name": "create_pricing_strategy", "description": "Full pricing strategy: audit current price, 3-tier packages, value justification script, revenue math.", "input_schema": {"type": "object", "properties": {"service_or_product": {"type": "string"}, "current_price": {"type": "string"}, "target_audience": {"type": "string"}, "competition": {"type": "string"}, "delivery_time": {"type": "string"}, "goal": {"type": "string"}, "monthly_income_goal": {"type": "string"}}, "required": ["service_or_product"]}},
+                {"name": "write_newsletter_issue", "description": "Write a complete monetized newsletter issue with subject lines, content, sponsor block, and CTA.", "input_schema": {"type": "object", "properties": {"newsletter_name": {"type": "string"}, "topic": {"type": "string"}, "issue_number": {"type": "string"}, "audience": {"type": "string"}, "sponsor": {"type": "string"}, "product_to_pitch": {"type": "string"}, "tone": {"type": "string"}, "word_count": {"type": "number"}}, "required": ["topic"]}},
+                {"name": "create_pod_listing_pack", "description": "Generate a print-on-demand listing pack for Redbubble, Merch by Amazon, Society6 with AI art prompts and SEO listings.", "input_schema": {"type": "object", "properties": {"design_concept": {"type": "string"}, "niche": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "num_variations": {"type": "number"}, "art_style": {"type": "string"}}, "required": ["design_concept", "niche"]}},
                 {"name": "download_image", "description": "Download an image from a URL to the media library.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "filename": {"type": "string"}, "folder": {"type": "string"}}, "required": ["url"]}},
                 {"name": "monitor_site", "description": "Check a website for changes vs a previous snapshot.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "previous_content": {"type": "string"}, "css_selector": {"type": "string"}}, "required": ["url"]}},
                 
@@ -9525,6 +9622,19 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "repurpose_content": "🔄 Repurposing content",
                     "create_digital_product": "💰 Creating digital product",
                     "create_email_sequence": "📧 Writing email sequence",
+                    "write_sales_page": "💸 Writing sales page",
+                    "create_lead_magnet": "🧲 Creating lead magnet",
+                    "write_webinar_script": "🎤 Writing webinar script",
+                    "generate_cold_outreach": "📬 Writing outreach sequence",
+                    "write_kdp_listing": "📖 Optimizing KDP listing",
+                    "write_youtube_package": "▶️ Building YouTube package",
+                    "write_affiliate_content": "🔗 Writing affiliate content",
+                    "create_podcast_episode": "🎙️ Writing podcast episode",
+                    "write_case_study": "📊 Writing case study",
+                    "generate_invoice": "🧾 Generating invoice",
+                    "create_pricing_strategy": "💰 Building pricing strategy",
+                    "write_newsletter_issue": "📰 Writing newsletter issue",
+                    "create_pod_listing_pack": "👕 Creating POD listing pack",
                     "gumroad_create_product": "🛒 Listing on Gumroad",
                     "medium_publish": "📰 Publishing to Medium",
                     "post_to_linkedin": "💼 Posting to LinkedIn",
@@ -9746,6 +9856,68 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = get_writing_session()
                     elif tool_name == "clear_writing_session":
                         tool_result = clear_writing_session()
+                    elif tool_name == "write_sales_page":
+                        tool_result = await write_sales_page(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("sales_page", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'sales_page','title':tool_result.get('title','Sales Page')}})}\n\n"
+                    elif tool_name == "create_lead_magnet":
+                        tool_result = await create_lead_magnet(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("lead_magnet", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'lead_magnet','title':tool_result.get('title','Lead Magnet')}})}\n\n"
+                    elif tool_name == "write_webinar_script":
+                        tool_result = await write_webinar_script(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("webinar", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'webinar','title':tool_result.get('title','Webinar Script')}})}\n\n"
+                    elif tool_name == "generate_cold_outreach":
+                        tool_result = await generate_cold_outreach(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("outreach", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'outreach','title':tool_result.get('title','Cold Outreach')}})}\n\n"
+                    elif tool_name == "write_kdp_listing":
+                        tool_result = await write_kdp_listing(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("kdp_listing", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'kdp_listing','title':tool_result.get('title','KDP Listing')}})}\n\n"
+                    elif tool_name == "write_youtube_package":
+                        tool_result = await write_youtube_package(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("youtube_package", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'youtube_package','title':tool_result.get('title','YouTube Package')}})}\n\n"
+                    elif tool_name == "write_affiliate_content":
+                        tool_result = await write_affiliate_content(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("affiliate_content", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'affiliate_content','title':tool_result.get('title','Affiliate Content')}})}\n\n"
+                    elif tool_name == "create_podcast_episode":
+                        tool_result = await create_podcast_episode(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("podcast_episode", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'podcast_episode','title':tool_result.get('title','Podcast Episode')}})}\n\n"
+                    elif tool_name == "write_case_study":
+                        tool_result = await write_case_study(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("case_study", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'case_study','title':tool_result.get('title','Case Study')}})}\n\n"
+                    elif tool_name == "generate_invoice":
+                        tool_result = await generate_invoice(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "create_pricing_strategy":
+                        tool_result = await create_pricing_strategy(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("pricing_strategy", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'pricing_strategy','title':tool_result.get('title','Pricing Strategy')}})}\n\n"
+                    elif tool_name == "write_newsletter_issue":
+                        tool_result = await write_newsletter_issue(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("newsletter_issue", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'newsletter_issue','title':tool_result.get('title','Newsletter Issue')}})}\n\n"
+                    elif tool_name == "create_pod_listing_pack":
+                        tool_result = await create_pod_listing_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"):
+                            _push_creation_to_suite("pod_listing_pack", tool_result)
+                            yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'pod_listing_pack','title':tool_result.get('title','POD Listing Pack')}})}\n\n"
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(

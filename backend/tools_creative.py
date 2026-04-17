@@ -1812,3 +1812,999 @@ async def create_email_sequence(params: dict, ai_router=None, TaskType=None) -> 
         },
         "income_note": "A good welcome sequence converts 2-5% of subscribers into buyers. 1000 subscribers × 3% × $97 product = $2,910.",
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SALES PAGE COPYWRITER — High-converting sales pages
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_sales_page(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write a complete, high-converting sales page for any product or service."""
+    product = params.get("product", "")
+    price = params.get("price", "")
+    audience = params.get("audience", "")
+    pain_points = params.get("pain_points", "")
+    benefits = params.get("benefits", "")
+    guarantee = params.get("guarantee", "30-day money back guarantee")
+    testimonials = params.get("testimonials", "")
+    urgency = params.get("urgency", "")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": "You are a world-class direct response copywriter with a track record of writing 7-figure sales pages. You write with energy, specificity, and emotional resonance."},
+            {"role": "user", "content": (
+                f"Write a COMPLETE, high-converting sales page for:\n"
+                f"Product/Service: {product}\n"
+                f"Price: {price}\n"
+                f"Target Audience: {audience}\n"
+                f"Pain Points: {pain_points}\n"
+                f"Key Benefits: {benefits}\n"
+                f"Guarantee: {guarantee}\n"
+                f"Testimonials provided: {testimonials or 'None — write placeholder blocks'}\n"
+                f"Urgency/Scarcity: {urgency or 'None'}\n\n"
+                "Include ALL of:\n"
+                "1. Headline + subheadline (pattern interrupt, speak to the pain)\n"
+                "2. Opening story/hook (2-3 paragraphs)\n"
+                "3. Problem section (agitate the pain)\n"
+                "4. Solution introduction\n"
+                "5. What's included (full bullet list with benefits not features)\n"
+                "6. Transformation section ('Imagine your life when...')\n"
+                "7. Testimonial blocks (3-5, use placeholders if none provided)\n"
+                "8. About the author/creator section\n"
+                "9. Objections & answers FAQ (5 questions)\n"
+                "10. Guarantee section\n"
+                "11. Price anchor and offer breakdown\n"
+                "12. Strong CTA with buy button copy\n"
+                "13. P.S. (highest-read part of any sales page)\n\n"
+                "Use bold headers, short paragraphs, and persuasive urgency where appropriate. Write in full, ready-to-use copy."
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=4000,
+        temperature=0.7,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "sales_pages")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in product.lower())[:40]
+    fname = f"sales_page_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Sales Page: {product}",
+        "product": product,
+        "price": price,
+        "content": content,
+        "saved_to": save_path,
+        "publish_options": [
+            "Paste into Gumroad product page",
+            "Use in ConvertKit landing page builder",
+            "Host on Carrd.co (free plan available)",
+            "Add to your WordPress/Squarespace site",
+            "Use as a Notion page (share publicly)",
+        ],
+        "income_note": "A sales page converts 1-5% of traffic. 1000 visitors × 2% × $97 = $1,940.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LEAD MAGNET CREATOR — Build CC's email list
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_lead_magnet(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Create a high-value lead magnet to grow CC's email list."""
+    topic = params.get("topic", "")
+    audience = params.get("audience", "")
+    format_type = params.get("format", "checklist")  # checklist | mini-guide | swipe-file | toolkit | cheat-sheet | template | email-course
+    brand = params.get("brand", "Connie Michelle Consulting")
+    cta = params.get("cta", "")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": "You are a lead generation expert who creates irresistible free resources that build email lists. You write crisp, high-value content people actually want."},
+            {"role": "user", "content": (
+                f"Create a complete, ready-to-publish lead magnet:\n"
+                f"Topic: {topic}\n"
+                f"Audience: {audience}\n"
+                f"Format: {format_type}\n"
+                f"Brand: {brand}\n"
+                f"CTA/What they get next: {cta or 'Join the email list'}\n\n"
+                "Deliver:\n"
+                "1. Compelling title (includes a number or strong promise)\n"
+                "2. Subtitle (what they'll get)\n"
+                "3. The full lead magnet content (complete, not a stub)\n"
+                "4. Opt-in form headline and description (to put on the sign-up page)\n"
+                "5. Delivery email subject line + body (what you send after they sign up)\n"
+                "6. 3 LinkedIn/social post ideas to promote this lead magnet\n\n"
+                "Make the content genuinely valuable — this is what earns the email address and trust."
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=3000,
+        temperature=0.7,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "lead_magnets")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in topic.lower())[:40]
+    fname = f"lead_magnet_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Lead Magnet: {topic}",
+        "format": format_type,
+        "topic": topic,
+        "content": content,
+        "saved_to": save_path,
+        "distribute_via": [
+            "ConvertKit landing page (free plan: 1000 subscribers)",
+            "Beehiiv (free up to 2500 subscribers + monetization)",
+            "Mailchimp free tier",
+            "Gumroad 'pay what you want' (set min to $0)",
+        ],
+        "income_note": "1000-email list → 1 product launch = typically $3k-$10k depending on offer price.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WEBINAR SCRIPT — Sell high-ticket products/services live
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_webinar_script(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write a complete webinar script using the proven 'Perfect Webinar' framework."""
+    topic = params.get("topic", "")
+    product = params.get("product", "")
+    price = params.get("price", "")
+    audience = params.get("audience", "")
+    duration_minutes = int(params.get("duration_minutes", 60))
+    presenter_name = params.get("presenter_name", "Connie Michelle")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a webinar conversion expert who has scripted webinars generating millions in revenue. "
+                "You use Russell Brunson's Perfect Webinar framework and know exactly when to seed the offer, "
+                "handle objections, and close. You write full word-for-word scripts, not outlines."
+            )},
+            {"role": "user", "content": (
+                f"Write a COMPLETE {duration_minutes}-minute webinar script:\n"
+                f"Topic: {topic}\n"
+                f"Product being sold: {product}\n"
+                f"Price: {price}\n"
+                f"Audience: {audience}\n"
+                f"Presenter: {presenter_name}\n\n"
+                "Follow this structure with full word-for-word script:\n"
+                "1. INTRO (5 min): Hook, credibility, agenda, promise\n"
+                "2. CONTENT (30 min): 3 big secrets/strategies — each one destroys a false belief and seeds the product\n"
+                "3. TRANSITION (5 min): 'Now I want to show you how to implement everything FAST...'\n"
+                "4. THE OFFER (10 min): Stack the value, reveal price, bonuses, urgency\n"
+                "5. Q&A / OBJECTION HANDLING (10 min): Pre-handle 5 common objections\n"
+                "6. CLOSE: Final CTA, scarcity, next steps\n\n"
+                "Include: slide titles for each section, word-for-word speaking script, and timing cues."
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=4000,
+        temperature=0.7,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "webinars")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in topic.lower())[:40]
+    fname = f"webinar_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Webinar Script: {topic}",
+        "product": product,
+        "duration_minutes": duration_minutes,
+        "content": content,
+        "saved_to": save_path,
+        "host_on": [
+            "Zoom Webinars (free up to 100 attendees)",
+            "StreamYard → YouTube Live (free)",
+            "Demio (trial available)",
+            "WebinarJam (best conversion tracking)",
+        ],
+        "income_note": f"Webinars average 10-20% close rate. 50 attendees × 15% × {price or '$497'} = significant revenue.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COLD OUTREACH GENERATOR — Fill CC's consulting pipeline
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def generate_cold_outreach(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a personalized cold outreach sequence to land consulting clients."""
+    prospect_type = params.get("prospect_type", "")
+    service_offered = params.get("service_offered", "")
+    pain_point = params.get("pain_point", "")
+    sender_name = params.get("sender_name", "Connie Michelle")
+    sender_credentials = params.get("sender_credentials", "")
+    num_touchpoints = int(params.get("num_touchpoints", 5))
+    channel = params.get("channel", "email")  # email | linkedin | both
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a B2B sales expert who books high-ticket consulting clients via cold outreach. "
+                "You write short, hyper-personalized, outcome-focused messages that get replies. "
+                "No fluff, no 'I hope this finds you well', no 10-paragraph emails. Short = more replies."
+            )},
+            {"role": "user", "content": (
+                f"Write a complete {num_touchpoints}-touchpoint cold outreach sequence:\n"
+                f"Prospect type: {prospect_type}\n"
+                f"Service offered: {service_offered}\n"
+                f"Core pain point addressed: {pain_point}\n"
+                f"Sender: {sender_name}\n"
+                f"Credentials: {sender_credentials}\n"
+                f"Channel: {channel}\n\n"
+                "For each touchpoint provide:\n"
+                "- Day number (when to send)\n"
+                "- Subject line (if email) or message hook (if LinkedIn)\n"
+                "- Full message (under 150 words each)\n"
+                "- Psychological principle used (curiosity / social proof / specificity / etc.)\n\n"
+                "Also include:\n"
+                "- A 'permission-based opener' alternative for cold LinkedIn connections\n"
+                "- 3 personalization variables to fill in for each prospect\n"
+                "- What to do if they reply 'not interested'\n"
+                "- Tracking metrics to watch (reply rate, meeting booked rate)"
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=3000,
+        temperature=0.7,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "outreach")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in prospect_type.lower())[:40]
+    fname = f"outreach_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Cold Outreach: {service_offered} → {prospect_type}",
+        "prospect_type": prospect_type,
+        "num_touchpoints": num_touchpoints,
+        "channel": channel,
+        "content": content,
+        "saved_to": save_path,
+        "send_via": {
+            "email": "Apollo.io (free: 50 emails/month), Hunter.io, or Instantly.ai",
+            "linkedin": "LinkedIn Sales Navigator or manual outreach",
+        },
+        "income_note": "5% reply rate on 100 cold emails = 5 conversations. 1 close at $3k = 3k from a spreadsheet.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# KDP LISTING OPTIMIZER — Maximize Amazon book visibility
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_kdp_listing(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a fully optimized Amazon KDP book listing."""
+    title = params.get("title", "")
+    synopsis = params.get("synopsis", "")
+    genre = params.get("genre", "")
+    audience = params.get("audience", "")
+    author_name = params.get("author_name", "C. Michelle Cooper")
+    price = float(params.get("price", 9.99))
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are an Amazon KDP publishing expert who has launched multiple bestselling books. "
+                "You know keyword research, A9 algorithm optimization, and what makes people click 'Buy Now'. "
+                "Return raw JSON only."
+            )},
+            {"role": "user", "content": (
+                f"Create a fully optimized Amazon KDP listing:\n"
+                f"Title: {title}\n"
+                f"Genre: {genre}\n"
+                f"Audience: {audience}\n"
+                f"Author: {author_name}\n"
+                f"Price: ${price}\n"
+                f"Synopsis/Content: {synopsis}\n\n"
+                "Return a JSON object with:\n"
+                '{"title": "...", "subtitle": "...(keyword-rich, benefit-focused)", '
+                '"series_name": "...(optional)", '
+                '"description_html": "...full HTML description with <b> tags, using bold headers, '
+                'emotional hooks, and keyword-rich copy — 150-300 words", '
+                '"7_keywords": ["keyword1","keyword2","keyword3","keyword4","keyword5","keyword6","keyword7"], '
+                '"bisac_primary": "...", "bisac_secondary": "...", '
+                '"target_age_range": "...", '
+                '"pricing_strategy": {"ebook_price": 0.00, "paperback_price": 0.00, "kdp_select_recommended": true}, '
+                '"cover_brief": "...(visual direction for cover designer/DALL-E)", '
+                '"a_plus_content_headline": "...", "a_plus_content_body": "...", '
+                '"launch_strategy": ["step 1", "step 2", "step 3", "step 4", "step 5"]}'
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=2000,
+        temperature=0.5,
+    )
+
+    data = _extract_json(resp.get("content", "{}"))
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "kdp_listings")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in title.lower())[:40]
+    fname = f"kdp_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.json"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, json.dumps(data, indent=2))
+
+    royalty_70 = round(price * 0.70, 2)
+    royalty_35 = round(price * 0.35, 2)
+
+    return {
+        "success": True,
+        "title": title,
+        "listing": data,
+        "saved_to": save_path,
+        "royalty_estimate": {
+            "price": price,
+            "70pct_royalty_per_sale": royalty_70,
+            "35pct_royalty_per_sale": royalty_35,
+            "note": "70% applies for $2.99-$9.99 pricing",
+            "at_50_sales_month": f"${round(royalty_70 * 50, 2)}/month",
+            "at_200_sales_month": f"${round(royalty_70 * 200, 2)}/month",
+        },
+        "next_steps": [
+            "Go to kdp.amazon.com → Add New Title",
+            "Paste title, subtitle, author name from listing above",
+            "Copy/paste description_html into the description field",
+            "Enter the 7 keywords into the keyword fields",
+            "Select the BISAC categories listed",
+            "Upload your manuscript (Word/PDF) and cover image",
+            "Set price and enroll in KDP Select for bonus royalties",
+        ],
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# YOUTUBE VIDEO PACKAGE — Title, description, tags, chapters, thumbnail
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_youtube_package(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a complete YouTube video package — everything needed to upload and rank."""
+    topic = params.get("topic", "")
+    channel_niche = params.get("channel_niche", "business and consulting")
+    video_length_minutes = int(params.get("video_length_minutes", 10))
+    monetization_goal = params.get("monetization_goal", "")  # affiliate | course | consulting | adsense
+    channel_name = params.get("channel_name", "Connie Michelle")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a YouTube SEO and content strategy expert. You write titles that get clicked, "
+                "descriptions that rank, and scripts that keep viewers watching. "
+                "Every video should move toward monetization. Return raw JSON only."
+            )},
+            {"role": "user", "content": (
+                f"Create a complete YouTube video package:\n"
+                f"Topic: {topic}\n"
+                f"Channel niche: {channel_niche}\n"
+                f"Video length: {video_length_minutes} minutes\n"
+                f"Monetization goal: {monetization_goal or 'AdSense + consulting leads'}\n"
+                f"Channel name: {channel_name}\n\n"
+                "Return a JSON object with:\n"
+                '{"title_options": ["option1 (under 70 chars)", "option2", "option3"], '
+                '"chosen_title": "best option", '
+                '"description": "full 500-word SEO description with timestamps placeholder, '
+                'links section, and CTA to email list or product", '
+                '"tags": ["15-20 relevant tags"], '
+                '"chapters": [{"timestamp": "0:00", "title": "..."}, ...], '
+                '"thumbnail_text": "big bold text for thumbnail (max 6 words)", '
+                '"thumbnail_visual_brief": "visual design direction for thumbnail", '
+                '"hook_script": "first 30 seconds word-for-word (make it impossible to click away)", '
+                '"cta_scripts": {"mid_roll": "...", "end_screen": "..."}, '
+                '"pinned_comment": "...(what to pin as first comment)", '
+                '"monetization_placements": ["when to mention affiliate link", "when to pitch product"], '
+                '"repurpose_clips": ["timestamp range 1 and why it works as a clip", "range 2"]}'
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=2500,
+        temperature=0.7,
+    )
+
+    data = _extract_json(resp.get("content", "{}"))
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "youtube")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in topic.lower())[:40]
+    fname = f"yt_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.json"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "title": f"YouTube Package: {topic}",
+        "package": data,
+        "saved_to": save_path,
+        "upload_checklist": [
+            "Use chosen_title exactly as written",
+            "Paste description into YouTube description box",
+            "Add all tags to the tags field",
+            "Create thumbnail using Canva with thumbnail_text overlaid",
+            "Add chapters via the chapters list",
+            "Pin the pinned_comment immediately after upload",
+            "Schedule for Tue-Thu 12-3pm in audience timezone",
+        ],
+        "income_note": "YouTube pays $2-$8 CPM. 10k views/month = $20-$80 AdSense + consulting leads.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AFFILIATE CONTENT — Write articles that earn commissions passively
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_affiliate_content(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write SEO-optimized affiliate content — reviews, comparisons, and 'best of' articles."""
+    content_type = params.get("content_type", "review")  # review | comparison | best-of | how-to-buy
+    product_or_niche = params.get("product_or_niche", "")
+    affiliate_program = params.get("affiliate_program", "Amazon Associates")
+    audience = params.get("audience", "")
+    commission_rate = params.get("commission_rate", "")
+    target_keywords = params.get("target_keywords", "")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are an affiliate marketing content specialist who writes articles that rank on Google "
+                "and convert readers into buyers. You understand search intent, trust signals, and how to "
+                "place affiliate links naturally without being spammy."
+            )},
+            {"role": "user", "content": (
+                f"Write a complete affiliate content piece:\n"
+                f"Content type: {content_type}\n"
+                f"Product/Niche: {product_or_niche}\n"
+                f"Affiliate program: {affiliate_program}\n"
+                f"Target audience: {audience}\n"
+                f"Commission rate: {commission_rate or 'standard'}\n"
+                f"Target keywords: {target_keywords or 'research and include naturally'}\n\n"
+                "Include:\n"
+                "1. SEO headline (includes buyer-intent keyword)\n"
+                "2. Meta description (150 chars, includes keyword)\n"
+                "3. Full article (1200-1800 words) with:\n"
+                "   - Quick answer/verdict at top (for featured snippet)\n"
+                "   - Pros and cons table\n"
+                "   - Detailed sections with H2/H3 headers\n"
+                "   - Comparison table if applicable\n"
+                "   - Natural [AFFILIATE LINK] placements (mark them clearly)\n"
+                "   - Trust signals (how long tested, what criteria used)\n"
+                "   - FAQ section (5 questions, targets 'People also ask')\n"
+                "4. Schema markup suggestion (FAQ, Review, or HowTo)\n"
+                "5. Internal linking opportunities (what pages to link from/to)\n"
+                "6. Pinterest pin title + description for traffic"
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=3500,
+        temperature=0.6,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "affiliate_content")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in product_or_niche.lower())[:40]
+    fname = f"affiliate_{content_type}_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Affiliate Content: {content_type} — {product_or_niche}",
+        "content_type": content_type,
+        "product": product_or_niche,
+        "affiliate_program": affiliate_program,
+        "content": content,
+        "saved_to": save_path,
+        "publish_to": [
+            "WordPress blog (best for SEO)",
+            "Medium (Partner Program pays per read)",
+            "Substack (builds email list)",
+            "HubPages (revenue share)",
+        ],
+        "income_note": f"Affiliate content earns passively 24/7. One ranking article can earn ${commission_rate or '5-50'}+ per sale indefinitely.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PODCAST EPISODE CREATOR — Scripts + show notes + monetization
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_podcast_episode(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write a complete podcast episode — script, show notes, title, timestamps, and monetization hooks."""
+    topic = params.get("topic", "")
+    show_name = params.get("show_name", "")
+    episode_number = params.get("episode_number", "")
+    duration_minutes = int(params.get("duration_minutes", 30))
+    guest = params.get("guest", "")
+    monetization = params.get("monetization", "")
+    host_name = params.get("host_name", "Connie Michelle")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": "You are a podcast producer and host coach who creates engaging, monetizable podcast content. You write natural conversational scripts, not stiff reads."},
+            {"role": "user", "content": (
+                f"Create a complete podcast episode package:\n"
+                f"Show: {show_name or 'The Connie Michelle Show'}\n"
+                f"Episode #{episode_number or 'N'}: {topic}\n"
+                f"Host: {host_name}\n"
+                f"Guest: {guest or 'Solo episode'}\n"
+                f"Duration target: {duration_minutes} minutes\n"
+                f"Monetization: {monetization or 'sponsor ad-reads + consulting CTA'}\n\n"
+                "Deliver:\n"
+                "1. Episode title (compelling, searchable)\n"
+                "2. Episode description (100 words, for Spotify/Apple Podcasts)\n"
+                "3. Full script:\n"
+                "   - Intro (hook + welcome + what they'll learn)\n"
+                "   - Ad read placeholder section 1 (pre-roll)\n"
+                "   - Main content broken into sections with natural transitions\n"
+                "   - Ad read placeholder section 2 (mid-roll)\n"
+                "   - Key takeaways summary\n"
+                "   - Strong CTA (email list, product, consulting call)\n"
+                "   - Outro\n"
+                "4. Show notes (formatted for the description box)\n"
+                "5. Timestamps for chapters\n"
+                "6. 5 clip ideas (which moments make great 60-second social clips)\n"
+                "7. Email newsletter blurb to announce this episode"
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=4000,
+        temperature=0.7,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "podcast_episodes")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in topic.lower())[:40]
+    ep_tag = f"ep{episode_number}_" if episode_number else ""
+    fname = f"podcast_{ep_tag}{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Podcast Episode: {topic}",
+        "episode_number": episode_number,
+        "duration_minutes": duration_minutes,
+        "content": content,
+        "saved_to": save_path,
+        "host_on": [
+            "Spotify for Podcasters (free, auto-distributes everywhere)",
+            "Buzzsprout (free 90-day trial)",
+            "Anchor by Spotify (free + monetization)",
+            "RSS.com (includes Spotify/Apple/Google distribution)",
+        ],
+        "income_note": "Podcast sponsorships pay $15-50 CPM. 1000 downloads/episode = $15-50/ep. Plus: listener-to-client pipeline.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CASE STUDY WRITER — Convert client wins into sales assets
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_case_study(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write a persuasive client case study that turns results into new clients."""
+    client_name = params.get("client_name", "")  # can be anonymized
+    industry = params.get("industry", "")
+    problem = params.get("problem", "")
+    solution = params.get("solution", "")
+    results = params.get("results", "")
+    timeframe = params.get("timeframe", "")
+    service_offered = params.get("service_offered", "")
+    anonymize = params.get("anonymize", False)
+
+    client_display = f"{industry} company" if anonymize else (client_name or "the client")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a B2B case study writer and conversion copywriter. You write case studies that "
+                "make prospects see themselves in the story and want the same results. "
+                "Every case study should function as a sales asset."
+            )},
+            {"role": "user", "content": (
+                f"Write a compelling case study:\n"
+                f"Client: {client_display}\n"
+                f"Industry: {industry}\n"
+                f"Problem they had: {problem}\n"
+                f"Solution provided: {solution}\n"
+                f"Results achieved: {results}\n"
+                f"Timeframe: {timeframe}\n"
+                f"Service this showcases: {service_offered}\n\n"
+                "Structure:\n"
+                "1. Headline (result + timeframe: 'How [client] achieved [result] in [time]')\n"
+                "2. Subheadline (the core transformation)\n"
+                "3. Executive Summary (3 bullets: challenge, solution, result)\n"
+                "4. The Challenge section (make the pain real and relatable)\n"
+                "5. The Solution section (what was done and why)\n"
+                "6. The Results section (specific numbers, before/after, quotes)\n"
+                "7. Client quote (write a believable endorsement they can approve)\n"
+                "8. Key Takeaways (3 bullets prospects can apply to their situation)\n"
+                "9. CTA (how readers can get the same results)\n\n"
+                "Also write:\n"
+                "- A LinkedIn post version of this case study\n"
+                "- A tweet/X thread version (5 posts)\n"
+                "- An email subject line to send this to prospects"
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=2500,
+        temperature=0.6,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "case_studies")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (industry + "-" + service_offered).lower())[:50]
+    fname = f"case_study_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Case Study: {industry} — {service_offered}",
+        "client": client_display,
+        "content": content,
+        "saved_to": save_path,
+        "use_as": [
+            "Website /results or /case-studies page",
+            "Proposal attachments to similar prospects",
+            "LinkedIn article",
+            "Email nurture sequence content",
+            "Speaking/webinar social proof",
+        ],
+        "income_note": "One compelling case study can close deals worth 10x its creation cost.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GENERATE INVOICE — Professional invoices for consulting work
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def generate_invoice(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a professional consulting invoice ready to send."""
+    client_name = params.get("client_name", "")
+    client_email = params.get("client_email", "")
+    client_company = params.get("client_company", "")
+    services = params.get("services", [])  # [{"description": "...", "hours": 5, "rate": 150}] or [{"description": "...", "amount": 1000}]
+    invoice_number = params.get("invoice_number", f"INV-{datetime.datetime.now().strftime('%Y%m%d')}")
+    due_days = int(params.get("due_days", 14))
+    sender_name = params.get("sender_name", "Connie Michelle Cooper")
+    sender_business = params.get("sender_business", "Connie Michelle Consulting")
+    sender_email = params.get("sender_email", "")
+    notes = params.get("notes", "")
+    payment_methods = params.get("payment_methods", ["PayPal", "Venmo", "Zelle", "Bank Transfer"])
+
+    # Calculate totals
+    line_items = []
+    subtotal = 0.0
+    for s in services:
+        if isinstance(s, dict):
+            desc = s.get("description", "Consulting Services")
+            if "hours" in s and "rate" in s:
+                hours = float(s.get("hours", 1))
+                rate = float(s.get("rate", 150))
+                amount = hours * rate
+                line_items.append({"description": desc, "hours": hours, "rate": rate, "amount": amount})
+            elif "amount" in s:
+                amount = float(s.get("amount", 0))
+                line_items.append({"description": desc, "amount": amount})
+            else:
+                amount = 0
+                line_items.append({"description": desc, "amount": amount})
+            subtotal += amount
+
+    tax_rate = float(params.get("tax_rate", 0))
+    tax_amount = round(subtotal * (tax_rate / 100), 2)
+    total = round(subtotal + tax_amount, 2)
+    due_date = (datetime.datetime.now() + datetime.timedelta(days=due_days)).strftime("%B %d, %Y")
+    issue_date = datetime.datetime.now().strftime("%B %d, %Y")
+
+    # Build markdown invoice
+    lines = [
+        f"# INVOICE",
+        f"",
+        f"**{sender_business}**",
+        f"{sender_name}",
+        f"{sender_email}",
+        f"",
+        f"---",
+        f"",
+        f"**Invoice #:** {invoice_number}",
+        f"**Issue Date:** {issue_date}",
+        f"**Due Date:** {due_date} (Net {due_days})",
+        f"",
+        f"**Bill To:**",
+        f"{client_name}",
+    ]
+    if client_company:
+        lines.append(client_company)
+    if client_email:
+        lines.append(client_email)
+    lines += ["", "---", "", "## Services", ""]
+    lines.append("| Description | Hours | Rate | Amount |")
+    lines.append("|-------------|-------|------|--------|")
+    for item in line_items:
+        if "hours" in item:
+            lines.append(f"| {item['description']} | {item['hours']} | ${item['rate']:.2f}/hr | ${item['amount']:.2f} |")
+        else:
+            lines.append(f"| {item['description']} | — | — | ${item['amount']:.2f} |")
+    lines += [
+        "",
+        f"**Subtotal:** ${subtotal:.2f}",
+    ]
+    if tax_rate > 0:
+        lines.append(f"**Tax ({tax_rate}%):** ${tax_amount:.2f}")
+    lines += [
+        f"**TOTAL DUE: ${total:.2f}**",
+        "",
+        "---",
+        "",
+        f"**Payment Methods:** {', '.join(payment_methods)}",
+        "",
+    ]
+    if notes:
+        lines += [f"**Notes:** {notes}", ""]
+    lines += [
+        f"*Thank you for your business! Payment due by {due_date}.*",
+        f"*Late payments subject to 1.5% monthly interest after due date.*",
+    ]
+
+    content = "\n".join(lines)
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "invoices")
+    os.makedirs(save_dir, exist_ok=True)
+    fname = f"{invoice_number.replace('/', '-')}_{client_name.replace(' ', '_')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "invoice_number": invoice_number,
+        "client": client_name,
+        "subtotal": subtotal,
+        "tax": tax_amount,
+        "total": total,
+        "due_date": due_date,
+        "content": content,
+        "saved_to": save_path,
+        "send_options": [
+            "Copy markdown and paste into a Google Doc → File → Email as attachment",
+            f"Send via Wave (free invoicing app — wave.com)",
+            "Use PayPal Invoicing (free — paypal.com/invoice)",
+            "Paste into FreshBooks or QuickBooks",
+        ],
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PRICING STRATEGY ADVISOR — Maximize what CC charges
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_pricing_strategy(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Analyze CC's offerings and recommend optimal pricing to maximize revenue."""
+    service_or_product = params.get("service_or_product", "")
+    current_price = params.get("current_price", "")
+    target_audience = params.get("target_audience", "")
+    competition = params.get("competition", "")
+    delivery_time = params.get("delivery_time", "")
+    goal = params.get("goal", "maximize revenue")  # maximize_revenue | get_clients_fast | premium_positioning
+    monthly_income_goal = params.get("monthly_income_goal", "")
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a pricing strategist who has helped consultants and creators increase their revenue "
+                "by 2-10x by optimizing how they package and price their offerings. "
+                "You know value-based pricing, anchoring, tiering, and productized services."
+            )},
+            {"role": "user", "content": (
+                f"Build a complete pricing strategy:\n"
+                f"Service/Product: {service_or_product}\n"
+                f"Current price (if any): {current_price or 'Not yet priced'}\n"
+                f"Target audience: {target_audience}\n"
+                f"Competition landscape: {competition or 'Analyze and assume'}\n"
+                f"Delivery time: {delivery_time}\n"
+                f"Goal: {goal}\n"
+                f"Monthly income goal: {monthly_income_goal or 'Maximize'}\n\n"
+                "Provide:\n"
+                "1. Pricing audit — is current price too low/high/right and why\n"
+                "2. 3-tier package recommendation (Good/Better/Best or Bronze/Silver/Gold):\n"
+                "   - What's included at each tier\n"
+                "   - Recommended price for each tier\n"
+                "   - Which tier most buyers will choose (the anchor effect)\n"
+                "3. Value justification script — how to explain your price without flinching\n"
+                "4. Discount/payment plan strategy (when to offer, when not to)\n"
+                "5. Price increase roadmap — when and how to raise prices\n"
+                "6. Revenue math: at these prices, how many sales/clients to hit monthly goal\n"
+                "7. Red flags to avoid (discounting, scope creep, undercharging)\n"
+                "8. One pricing hack to test in the next 30 days"
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=2500,
+        temperature=0.6,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "business_strategy")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in service_or_product.lower())[:40]
+    fname = f"pricing_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Pricing Strategy: {service_or_product}",
+        "content": content,
+        "saved_to": save_path,
+        "income_note": "Most people undercharge by 2-3x. Raising prices often increases sales by attracting higher-quality clients.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NEWSLETTER ISSUE WRITER — Monetized newsletter content
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_newsletter_issue(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Write a complete monetized newsletter issue for Beehiiv, Substack, or ConvertKit."""
+    newsletter_name = params.get("newsletter_name", "")
+    topic = params.get("topic", "")
+    issue_number = params.get("issue_number", "")
+    audience = params.get("audience", "")
+    sponsor = params.get("sponsor", "")  # optional sponsor to write an ad for
+    product_to_pitch = params.get("product_to_pitch", "")
+    tone = params.get("tone", "smart and conversational")
+    word_count = int(params.get("word_count", 600))
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a newsletter writer who grows paid subscriber lists and generates sponsorship revenue. "
+                "You write newsletters people actually open — punchy subject lines, clear value, "
+                "genuine personality, and monetization that doesn't feel gross."
+            )},
+            {"role": "user", "content": (
+                f"Write a complete newsletter issue:\n"
+                f"Newsletter: {newsletter_name or 'The Connie Michelle Letter'}\n"
+                f"Issue #{issue_number or 'N'}: {topic}\n"
+                f"Audience: {audience}\n"
+                f"Tone: {tone}\n"
+                f"Target length: ~{word_count} words\n"
+                f"Sponsor: {sponsor or 'No sponsor this issue'}\n"
+                f"Product to pitch: {product_to_pitch or 'None — just provide value'}\n\n"
+                "Deliver:\n"
+                "1. Subject line (5 options, A/B testable)\n"
+                "2. Preview text (shows under subject in inbox)\n"
+                "3. Full newsletter body:\n"
+                "   - Personal opening hook (1-2 paragraphs)\n"
+                "   - Main content (the value — insight, story, framework, or how-to)\n"
+                "   - Sponsor block (if applicable, write native ad copy)\n"
+                "   - 'What I'm seeing/reading/thinking' section\n"
+                "   - Product/service CTA (soft, not salesy)\n"
+                "   - Sign-off with personality\n"
+                "4. Social post to promote this issue (LinkedIn + Twitter)\n"
+                "5. Recommended send time"
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=3000,
+        temperature=0.8,
+    )
+
+    content = resp.get("content", "").strip()
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "newsletter_issues")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in topic.lower())[:40]
+    ep_tag = f"issue{issue_number}_" if issue_number else ""
+    fname = f"newsletter_{ep_tag}{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.md"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, content)
+
+    return {
+        "success": True,
+        "title": f"Newsletter Issue: {topic}",
+        "issue_number": issue_number,
+        "content": content,
+        "saved_to": save_path,
+        "monetization_options": [
+            "Beehiiv Boosts: earn $1-3 per new subscriber you refer",
+            "Sponsorships: $50-500 per issue at 1000+ subscribers",
+            "Paid tier: charge $5-20/month for premium content",
+            "Product mentions: soft-sell your own offers each issue",
+        ],
+        "income_note": "1000 newsletter subscribers with 40% open rate = real monetization potential. Start free on Beehiiv.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PRINT-ON-DEMAND LISTING PACK — Redbubble, Merch by Amazon, Society6
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_pod_listing_pack(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Generate a complete print-on-demand product listing pack for passive income."""
+    design_concept = params.get("design_concept", "")
+    niche = params.get("niche", "")
+    platforms = params.get("platforms", ["Redbubble", "Merch by Amazon", "Society6"])
+    num_variations = int(params.get("num_variations", 5))
+    art_style = params.get("art_style", "")
+
+    if isinstance(platforms, str):
+        platforms = [p.strip() for p in platforms.split(",")]
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": (
+                "You are a print-on-demand expert who creates passive income through strategic product listings. "
+                "You know which niches sell, how to write SEO titles and tags, and how to create design briefs "
+                "that AI art tools can execute. Return raw JSON only."
+            )},
+            {"role": "user", "content": (
+                f"Create a complete POD listing pack:\n"
+                f"Design concept: {design_concept}\n"
+                f"Niche: {niche}\n"
+                f"Art style: {art_style or 'modern, clean, commercially appealing'}\n"
+                f"Number of design variations: {num_variations}\n"
+                f"Platforms: {', '.join(platforms)}\n\n"
+                "Return a JSON object with:\n"
+                '{"designs": ['
+                '  {"variation_number": 1, "concept": "...", "ai_art_prompt": "...(detailed Midjourney/DALL-E prompt)", '
+                '   "color_palette": ["hex1", "hex2"], "products_to_enable": ["t-shirt", "hoodie", "sticker", "poster"]}'
+                '], '
+                '"listing": {'
+                '  "title_template": "...(include main keyword, keep under 60 chars for Merch)", '
+                '  "tags": ["15 SEO tags"], '
+                '  "description_template": "...(100 words, natural keyword inclusion)", '
+                '  "bullet_points": ["benefit 1", "benefit 2", "benefit 3"] '
+                '}, '
+                '"pricing": {"t_shirt": 0.00, "hoodie": 0.00, "sticker": 0.00, "poster": 0.00}, '
+                '"seo_strategy": "...", '
+                '"estimated_monthly_income": "...", '
+                '"launch_checklist": ["step 1", "step 2", "step 3"]}'
+            )}
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=2500,
+        temperature=0.7,
+    )
+
+    data = _extract_json(resp.get("content", "{}"))
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "pod_listings")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (niche + "-" + design_concept).lower())[:50]
+    fname = f"pod_{slug}_{datetime.datetime.now().strftime('%Y%m%d')}.json"
+    save_path = os.path.join(save_dir, fname)
+    _safe_write(save_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "title": f"POD Listing Pack: {design_concept} — {niche}",
+        "num_variations": num_variations,
+        "platforms": platforms,
+        "pack": data,
+        "saved_to": save_path,
+        "upload_to": {
+            "Redbubble": "redbubble.com → Artist Account → Add New Work",
+            "Merch by Amazon": "merch.amazon.com (request invite, then upload)",
+            "Society6": "society6.com/sell",
+            "Printful + Etsy": "Create Printful account → connect Etsy → auto-fulfill",
+        },
+        "income_note": "POD earns $2-8 per sale royalty. 100 listings × 2 sales/month = $400-1600 passive/month.",
+    }
+
