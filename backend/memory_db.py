@@ -200,6 +200,7 @@ class PersistentMemoryDB:
             database_url = os.getenv("DATABASE_URL")
         
         self._initialized = False
+        self._schema_checked = False  # Run ensure_memory_schema only once per process
         self.database_url = database_url
         self.engine = None
         self.SessionLocal = None
@@ -285,7 +286,9 @@ class PersistentMemoryDB:
     def get_session(self) -> Session:
         """Get database session (initializes DB on first call)"""
         self._ensure_initialized()
-        self.ensure_memory_schema()
+        if not self._schema_checked:
+            self.ensure_memory_schema()
+            self._schema_checked = True
         return self.SessionLocal()
     
     # === THREADS ===
@@ -1129,7 +1132,7 @@ class PersistentMemoryDB:
         }
 
     def ensure_memory_schema(self) -> None:
-        """Apply schema migrations — runs on every session to pick up new columns/renames."""
+        """Apply schema migrations — runs once per process on first DB access."""
         if not self.SessionLocal:
             return
         session = self.SessionLocal()
@@ -1141,10 +1144,31 @@ class PersistentMemoryDB:
                 if "title" not in mem_cols:
                     session.execute(text("ALTER TABLE memories ADD COLUMN title VARCHAR"))
                     session.commit()
+                if "importance" not in mem_cols:
+                    session.execute(text("ALTER TABLE memories ADD COLUMN importance INTEGER DEFAULT 5"))
+                    session.commit()
+                if "tags" not in mem_cols:
+                    session.execute(text("ALTER TABLE memories ADD COLUMN tags JSON"))
+                    session.commit()
+                if "meta_data" not in mem_cols:
+                    session.execute(text("ALTER TABLE memories ADD COLUMN meta_data JSON"))
+                    session.commit()
 
                 thr_cols = {row[1] for row in session.execute(text("PRAGMA table_info(threads)")).fetchall()}
                 if "pinned" not in thr_cols:
                     session.execute(text("ALTER TABLE threads ADD COLUMN pinned BOOLEAN DEFAULT 0"))
+                    session.commit()
+                if "messages" not in thr_cols:
+                    session.execute(text("ALTER TABLE threads ADD COLUMN messages JSON"))
+                    session.commit()
+                if "meta_data" not in thr_cols:
+                    session.execute(text("ALTER TABLE threads ADD COLUMN meta_data JSON"))
+                    session.commit()
+                if "created_at" not in thr_cols:
+                    session.execute(text("ALTER TABLE threads ADD COLUMN created_at DATETIME"))
+                    session.commit()
+                if "updated_at" not in thr_cols:
+                    session.execute(text("ALTER TABLE threads ADD COLUMN updated_at DATETIME"))
                     session.commit()
 
                 # SQLite: ensure legacy tasks tables have modern columns.
@@ -1165,6 +1189,16 @@ class PersistentMemoryDB:
                     session.execute(text("ALTER TABLE tasks ADD COLUMN meta_data JSON"))
                     session.commit()
 
+                # SQLite: ensure gaps_journal has seen_by_cc column
+                try:
+                    gap_cols = {row[1] for row in session.execute(text("PRAGMA table_info(gaps_journal)")).fetchall()}
+                    if "seen_by_cc" not in gap_cols and gap_cols:
+                        session.execute(text("ALTER TABLE gaps_journal ADD COLUMN seen_by_cc BOOLEAN DEFAULT 0"))
+                        session.commit()
+                except Exception as _e:
+                    session.rollback()
+                    print(f"⚠️  gaps_journal migration (SQLite) skipped: {_e}")
+
                 # SQLite: rename creative_items.metadata → item_metadata (commit a5ec920a)
                 try:
                     cre_cols = {row[1] for row in session.execute(text("PRAGMA table_info(creative_items)")).fetchall()}
@@ -1177,13 +1211,25 @@ class PersistentMemoryDB:
                     print(f"⚠️  creative_items rename (SQLite) skipped: {_e}")
             else:
                 # PostgreSQL: use ADD COLUMN IF NOT EXISTS
-                session.execute(text("ALTER TABLE memories ADD COLUMN IF NOT EXISTS title VARCHAR"))
+                # threads — ensure all ORM columns exist in old DBs
                 session.execute(text("ALTER TABLE threads ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT false"))
+                session.execute(text("ALTER TABLE threads ADD COLUMN IF NOT EXISTS messages JSONB DEFAULT '[]'::jsonb"))
+                session.execute(text("ALTER TABLE threads ADD COLUMN IF NOT EXISTS meta_data JSONB DEFAULT '{}'::jsonb"))
+                session.execute(text("ALTER TABLE threads ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()"))
+                session.execute(text("ALTER TABLE threads ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()"))
+                # memories — ensure all ORM columns exist
+                session.execute(text("ALTER TABLE memories ADD COLUMN IF NOT EXISTS title VARCHAR"))
+                session.execute(text("ALTER TABLE memories ADD COLUMN IF NOT EXISTS importance INTEGER DEFAULT 5"))
+                session.execute(text("ALTER TABLE memories ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb"))
+                session.execute(text("ALTER TABLE memories ADD COLUMN IF NOT EXISTS meta_data JSONB DEFAULT '{}'::jsonb"))
+                # tasks
                 session.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_date TIMESTAMP"))
                 session.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder BOOLEAN DEFAULT false"))
                 session.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP"))
                 session.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb"))
                 session.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS meta_data JSONB DEFAULT '{}'::jsonb"))
+                # gaps_journal — ensure seen_by_cc exists
+                session.execute(text("ALTER TABLE gaps_journal ADD COLUMN IF NOT EXISTS seen_by_cc BOOLEAN DEFAULT false"))
                 session.commit()
 
                 # PostgreSQL: rename creative_items.metadata → item_metadata (commit a5ec920a)
@@ -1200,7 +1246,8 @@ class PersistentMemoryDB:
                 except Exception as _e:
                     session.rollback()
                     print(f"⚠️  creative_items rename (PostgreSQL) skipped: {_e}")
-        except Exception:
+        except Exception as _schema_err:
+            print(f"⚠️  Schema migration error (non-fatal): {_schema_err}")
             session.rollback()
         finally:
             session.close()
