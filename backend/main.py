@@ -15561,6 +15561,40 @@ def _vesper_startup_notify():
         loop = _su_aio.new_event_loop()
         loop.run_until_complete(_gen())
         loop.close()
+
+        # Check if email notifications are configured — remind CC once if not
+        time.sleep(5)
+        email_to   = os.getenv("VESPER_EMAIL_TO",   "").strip()
+        smtp_user  = os.getenv("VESPER_SMTP_USER",  "").strip()
+        smtp_pass  = os.getenv("VESPER_SMTP_PASS",  "").strip()
+        if not (email_to and smtp_user and smtp_pass):
+            # Only nag once per day — file-based flag, no DB dependency
+            import tempfile as _tmp, pathlib as _pl
+            _today = datetime.datetime.now().strftime("%Y-%m-%d")
+            _flag_file = _pl.Path(_tmp.gettempdir()) / ("vesper_email_nag_" + _today + ".flag")
+            if not _flag_file.exists():
+                missing = []
+                if not email_to:   missing.append("VESPER_EMAIL_TO")
+                if not smtp_user:  missing.append("VESPER_SMTP_USER")
+                if not smtp_pass:  missing.append("VESPER_SMTP_PASS")
+                nag_msg = (
+                    "Hey quick reminder — you said you'd set up email notifications so I can reach you "
+                    "when you're away. Still missing: " + ", ".join(missing) + ". "
+                    "Just add them to your Railway environment variables when you get a minute. "
+                    "Use a Gmail app password (not your main password). I'll stop bugging you once it's done."
+                )
+                VESPER_PROACTIVE_QUEUE.append({
+                    "message": nag_msg,
+                    "priority": "normal",
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "source": "config_reminder",
+                })
+                try:
+                    _flag_file.touch()
+                except Exception:
+                    pass
+                print("[STARTUP] Email config reminder queued")
+
     except Exception as _su_err:
         print(f"[STARTUP] Notify error: {_su_err}")
 

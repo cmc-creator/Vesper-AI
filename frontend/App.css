@@ -7,6 +7,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-feature-settings: 'kern' 1;
+  -webkit-tap-highlight-color: transparent; /* Android: remove gray tap flash */
+  -webkit-text-size-adjust: 100%; /* Android: prevent text size adjustment */
   background:
     radial-gradient(circle at top left, rgba(240, 223, 188, 0.08), transparent 28%),
     radial-gradient(circle at 85% 12%, rgba(126, 168, 202, 0.08), transparent 26%),
@@ -482,7 +484,7 @@ body[data-style="lux"] .hex-grid {
   z-index: 1;
   display: grid;
   grid-template-columns: 262px 1fr;
-  min-height: 100vh;
+  min-height: 100svh; /* svh excludes browser chrome on Android */
   width: 100vw;
   padding: 20px;
   gap: 20px;
@@ -857,6 +859,8 @@ body[data-style="lux"] {
   box-shadow: inset 0 0 30px rgba(var(--accent-rgb), 0.04), inset 0 1px 0 rgba(255,255,255,0.04);
   min-height: 0;
   scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* smooth momentum scroll on Android/iOS */
+  overscroll-behavior: contain; /* prevent page scroll when hitting chat edges */
 }
 
 .chat-resize-handle {
@@ -1542,6 +1546,15 @@ button:active,
   display: none !important;
 }
 
+/* Android: remove 300ms tap delay on interactive elements */
+button,
+.ghost-button,
+.cta-button,
+.nav-item,
+[role="button"] {
+  touch-action: manipulation;
+}
+
 /* Mobile sidebar backdrop hidden on desktop */
 .mobile-sidebar-backdrop {
   display: none;
@@ -1697,11 +1710,18 @@ button:active,
 @media (max-width: 480px) {
   .app-shell {
     padding: 4px;
+    /* Android safe-area for notch/gesture-nav devices */
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+    padding-left: max(4px, env(safe-area-inset-left));
+    padding-right: max(4px, env(safe-area-inset-right));
     gap: 4px;
   }
 
   .app-shell.launch-mode {
     padding: 4px;
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+    padding-left: max(4px, env(safe-area-inset-left));
+    padding-right: max(4px, env(safe-area-inset-right));
     gap: 4px;
   }
 
@@ -1738,6 +1758,15 @@ button:active,
     min-width: 40px !important;
     min-height: 40px !important;
     padding: 8px !important;
+  }
+
+  /* Android: force 16px font on inputs to prevent auto-zoom on focus */
+  input,
+  textarea,
+  select,
+  .MuiInputBase-input,
+  .MuiInputBase-inputMultiline {
+    font-size: 16px !important;
   }
 
   /* Command deck: scroll horizontally instead of wrapping tiny columns */
