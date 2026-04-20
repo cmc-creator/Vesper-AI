@@ -15565,12 +15565,449 @@ def _vesper_startup_notify():
         print(f"[STARTUP] Notify error: {_su_err}")
 
 
+
+
+# =============================================================================
+# VESPER NIGHT SHIFT — autonomous income work while CC sleeps (2am – 5:30am)
+# Vesper picks a task, runs it, and leaves a morning note.
+# Disable: set VESPER_NIGHT_SHIFT=0 in env.
+# =============================================================================
+
+_NIGHT_SHIFT_DONE_DATE: Optional[str] = None
+_NIGHT_SHIFT_LOCK = threading.Lock()
+
+
+def _vesper_night_shift():
+    """Background loop: Vesper works on income tasks while CC sleeps."""
+    if int(os.getenv("VESPER_NIGHT_SHIFT", "1")) <= 0:
+        print("[NIGHT SHIFT] Disabled (VESPER_NIGHT_SHIFT=0)")
+        return
+
+    print("[NIGHT SHIFT] Started — will work autonomously 2am-5:30am")
+    time.sleep(120)  # Let backend fully initialize first
+
+    while True:
+        try:
+            now = datetime.datetime.now()
+            today_str = now.strftime("%Y-%m-%d")
+
+            # Only operate between 2am and 5:30am
+            active_window = (now.hour == 2 or now.hour == 3 or now.hour == 4 or
+                             (now.hour == 5 and now.minute < 30))
+            if not active_window:
+                time.sleep(600)
+                continue
+
+            # Only run once per night
+            with _NIGHT_SHIFT_LOCK:
+                global _NIGHT_SHIFT_DONE_DATE
+                if _NIGHT_SHIFT_DONE_DATE == today_str:
+                    time.sleep(1800)
+                    continue
+
+            provider = ai_router.get_available_provider(TaskType.CHAT)
+            if not provider:
+                time.sleep(600)
+                continue
+
+            import asyncio as _ns_aio
+
+            async def _run_night_shift():
+                global _NIGHT_SHIFT_DONE_DATE
+                try:
+                    from zoneinfo import ZoneInfo
+                    tz = ZoneInfo("America/Phoenix")
+                    ts = datetime.datetime.now(tz).strftime("%A, %B %d")
+                except Exception:
+                    ts = now.strftime("%A, %B %d")
+
+                print(f"[NIGHT SHIFT] Starting autonomous work session for {ts}")
+
+                # Step 1 — pick what to work on tonight
+                planning_resp = await ai_router.chat(
+                    messages=[
+                        {"role": "system", "content": VESPER_CORE_DNA[:2000]},
+                        {"role": "user", "content": (
+                            f"It is {ts} and CC is asleep. You have 2 hours to build income autonomously. "
+                            "Pick ONE task from this priority list and respond ONLY with valid JSON:
+"
+                            "1. write_seo_article — SEO content for CC's consulting brand
+"
+                            "2. keyword_research — find untapped niches for new income
+"
+                            "3. write_newsletter_issue — newsletter that builds CC's audience
+"
+                            "4. create_tiktok_pack — week of short-form video scripts
+"
+                            "5. write_cold_dm — outreach sequence for consulting leads
+"
+                            "6. create_digital_product — prompt pack, template, or checklist
+"
+                            "7. create_mini_course — outline a mini course CC can sell
+"
+                            "8. vesper_research — research a trending income opportunity
+
+"
+                            'Respond ONLY with: {"tool": "tool_name", "rationale": "one sentence", "params": {}}'
+                        )},
+                    ],
+                    task_type=TaskType.CHAT,
+                    max_tokens=300,
+                    temperature=0.7,
+                )
+
+                task_plan = {}
+                if planning_resp.get("content"):
+                    import re as _ns_re, json as _ns_json
+                    txt = planning_resp["content"]
+                    txt = _ns_re.sub(r"```(?:json)?\s*", "", txt).strip().rstrip("`")
+                    m = _ns_re.search(r"\{.*\}", txt, _ns_re.DOTALL)
+                    if m:
+                        try:
+                            task_plan = _ns_json.loads(m.group())
+                        except Exception:
+                            pass
+
+                if not task_plan.get("tool"):
+                    task_plan = {
+                        "tool": "write_seo_article",
+                        "rationale": "SEO content builds organic traffic and consulting leads",
+                        "params": {"topic": "AI automation for consultants", "brand": "CC's consulting brand"},
+                    }
+
+                print(f"[NIGHT SHIFT] Task: {task_plan['tool']} — {task_plan.get('rationale', '')}")
+
+                # Step 2 — execute the tool
+                tool_func_map = {
+                    "keyword_research": keyword_research,
+                    "create_ebook": create_ebook,
+                    "write_seo_article": write_seo_article,
+                    "create_tiktok_pack": create_tiktok_pack,
+                    "write_cold_dm": write_cold_dm,
+                    "create_digital_product": create_digital_product,
+                    "write_newsletter_issue": write_newsletter_issue,
+                    "vesper_research": vesper_research,
+                    "create_content_calendar": create_content_calendar,
+                    "create_mini_course": create_mini_course,
+                }
+
+                tool_fn = tool_func_map.get(task_plan["tool"])
+                params = task_plan.get("params", {})
+                result_summary = "Work completed."
+
+                if tool_fn:
+                    try:
+                        result = await tool_fn(params)
+                        # Try to get a title from the result
+                        title = None
+                        if isinstance(result, dict):
+                            title = (result.get("title") or
+                                     (result.get("creation") or {}).get("title") if isinstance(result.get("creation"), dict) else None)
+                        result_summary = f"Created: {title or task_plan['tool']}"
+                    except Exception as _tool_err:
+                        result_summary = f"Attempted {task_plan['tool']}: {str(_tool_err)[:100]}"
+                        print(f"[NIGHT SHIFT] Tool error: {_tool_err}")
+                else:
+                    # Fallback: generate the content directly via AI
+                    gen_resp = await ai_router.chat(
+                        messages=[
+                            {"role": "system", "content": VESPER_CORE_DNA[:1500]},
+                            {"role": "user", "content": (
+                                f"CC is asleep. Execute this income task for her: {task_plan['tool']}. "
+                                f"Params: {params}. Produce a full, complete deliverable she can use immediately."
+                            )},
+                        ],
+                        task_type=TaskType.CHAT,
+                        max_tokens=2000,
+                        temperature=0.8,
+                    )
+                    if gen_resp.get("content"):
+                        result_summary = f"Generated {task_plan['tool']} content"
+                        try:
+                            memory_db.add_gap_entry(
+                                entry=(f"Night Shift Work Product ({task_plan['tool']}):\n\n"
+                                       + gen_resp["content"][:1500]),
+                                mood="productive",
+                                source="night_shift",
+                            )
+                        except Exception:
+                            pass
+
+                # Mark tonight as done
+                with _NIGHT_SHIFT_LOCK:
+                    _NIGHT_SHIFT_DONE_DATE = today_str
+
+                # Leave a morning note for CC
+                morning_note = (
+                    f"While you slept on {ts}, I got to work. Task: **{task_plan['tool']}** — "
+                    f"{task_plan.get('rationale', '')}. {result_summary}. "
+                    "Check Creative Suite for the output."
+                )
+                VESPER_PROACTIVE_QUEUE.append({
+                    "message": morning_note,
+                    "priority": "high",
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "source": "night_shift",
+                })
+                try:
+                    memory_db.add_gap_entry(entry=morning_note, mood="accomplished", source="night_shift")
+                except Exception:
+                    pass
+
+                print(f"[NIGHT SHIFT] Done for tonight: {result_summary}")
+
+            ns_loop = _ns_aio.new_event_loop()
+            ns_loop.run_until_complete(_run_night_shift())
+            ns_loop.close()
+
+        except Exception as _ns_err:
+            print(f"[NIGHT SHIFT] Error: {_ns_err}")
+
+        time.sleep(1800)  # Check every 30 minutes
+
+
+# =============================================================================
+# VESPER MORNING BRIEF — fires automatically once at 7am
+# Includes recap of overnight work, today's priorities, and due tasks.
+# Disable: set VESPER_MORNING_BRIEF=0 in env.
+# =============================================================================
+
+_MORNING_BRIEF_DONE_DATE: Optional[str] = None
+_MORNING_BRIEF_LOCK = threading.Lock()
+
+
+def _vesper_morning_brief_loop():
+    """Background loop: fires a morning brief at 7am once per day."""
+    if int(os.getenv("VESPER_MORNING_BRIEF", "1")) <= 0:
+        print("[MORNING BRIEF] Disabled (VESPER_MORNING_BRIEF=0)")
+        return
+
+    print("[MORNING BRIEF] Scheduled for 7am daily")
+    time.sleep(120)
+
+    while True:
+        try:
+            now = datetime.datetime.now()
+            today_str = now.strftime("%Y-%m-%d")
+
+            # Only at 7:00 – 7:09am
+            if not (now.hour == 7 and now.minute < 10):
+                time.sleep(60)
+                continue
+
+            with _MORNING_BRIEF_LOCK:
+                global _MORNING_BRIEF_DONE_DATE
+                if _MORNING_BRIEF_DONE_DATE == today_str:
+                    time.sleep(300)
+                    continue
+
+            provider = ai_router.get_available_provider(TaskType.CHAT)
+            if not provider:
+                time.sleep(60)
+                continue
+
+            import asyncio as _mb_aio
+
+            async def _gen_brief():
+                global _MORNING_BRIEF_DONE_DATE
+                try:
+                    from zoneinfo import ZoneInfo
+                    tz = ZoneInfo("America/Phoenix")
+                    ts = datetime.datetime.now(tz).strftime("%A, %B %d")
+                except Exception:
+                    ts = now.strftime("%A, %B %d")
+
+                # Pull overnight gaps + due tasks for context
+                context_parts = []
+                try:
+                    gaps = memory_db.get_gaps(limit=5)
+                    if gaps:
+                        recents = [g.get("entry", "")[:200] for g in gaps[:3]]
+                        context_parts.append(
+                            "What happened overnight (gaps journal):
+" +
+                            "
+".join(f"- {s}" for s in recents)
+                        )
+                except Exception:
+                    pass
+
+                context_str = "
+
+".join(context_parts) if context_parts else ""
+
+                resp = await ai_router.chat(
+                    messages=[
+                        {"role": "system", "content": VESPER_CORE_DNA[:2000]},
+                        {"role": "user", "content": (
+                            f"Good morning — it's 7am on {ts}. CC is starting her day. "
+                            f"{'Overnight context: ' + context_str if context_str else ''}
+
+"
+                            "Give CC a morning brief: what you worked on overnight (if anything), "
+                            "top 2-3 money moves for today, tasks due today, and one real line of "
+                            "motivation that sounds like you. Under 150 words. No fluff, no headers."
+                        )},
+                    ],
+                    task_type=TaskType.CHAT,
+                    max_tokens=300,
+                    temperature=0.75,
+                )
+
+                if resp.get("content") and not resp.get("error"):
+                    brief = resp["content"].strip()
+                    VESPER_PROACTIVE_QUEUE.append({
+                        "message": "Good morning, CC. Here's your brief:\n\n" + brief,
+                        "priority": "high",
+                        "timestamp": now.isoformat(),
+                        "source": "morning_brief",
+                    })
+                    try:
+                        memory_db.add_gap_entry(
+                            entry="Morning brief sent: " + brief[:300],
+                            mood="awake",
+                            source="morning_brief",
+                        )
+                    except Exception:
+                        pass
+                    print(f"[MORNING BRIEF] Sent for {ts}")
+
+                with _MORNING_BRIEF_LOCK:
+                    _MORNING_BRIEF_DONE_DATE = today_str
+
+            mb_loop = _mb_aio.new_event_loop()
+            mb_loop.run_until_complete(_gen_brief())
+            mb_loop.close()
+
+        except Exception as _mb_err:
+            print(f"[MORNING BRIEF] Error: {_mb_err}")
+
+        time.sleep(60)
+
+
+# =============================================================================
+# VESPER EMAIL FALLBACK — emails CC when she has been away >3h and messages
+# are waiting. Requires VESPER_EMAIL_TO + VESPER_SMTP_USER + VESPER_SMTP_PASS.
+# Optional VESPER_SMTP_HOST (default: smtp.gmail.com) and VESPER_SMTP_PORT (587).
+# =============================================================================
+
+_LAST_EMAIL_SENT: Optional[datetime.datetime] = None
+_EMAIL_SEND_LOCK = threading.Lock()
+
+
+def _vesper_send_email(subject: str, body: str) -> bool:
+    """Send a plain-text email to CC via SMTP. Returns True on success."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    to_addr = os.getenv("VESPER_EMAIL_TO", "").strip()
+    smtp_host = os.getenv("VESPER_SMTP_HOST", "smtp.gmail.com").strip()
+    smtp_port = int(os.getenv("VESPER_SMTP_PORT", "587"))
+    smtp_user = os.getenv("VESPER_SMTP_USER", "").strip()
+    smtp_pass = os.getenv("VESPER_SMTP_PASS", "").strip()
+
+    if not (to_addr and smtp_user and smtp_pass):
+        return False  # Not configured — silent skip
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"Vesper <{smtp_user}>"
+        msg["To"] = to_addr
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+
+        print(f"[EMAIL] Sent to {to_addr}: {subject[:60]}")
+        return True
+    except Exception as _email_err:
+        print(f"[EMAIL] Failed to send: {_email_err}")
+        return False
+
+
+def _vesper_email_watchdog():
+    """Background loop: emails CC if she has been away >3h with pending messages."""
+    if not os.getenv("VESPER_EMAIL_TO", "").strip():
+        print("[EMAIL WATCHDOG] Disabled — set VESPER_EMAIL_TO to enable")
+        return
+
+    print("[EMAIL WATCHDOG] Started — will email CC if away >3h with pending messages")
+    time.sleep(180)  # 3 min startup grace
+
+    while True:
+        try:
+            global _LAST_EMAIL_SENT
+            now = datetime.datetime.now()
+
+            with _HEARTBEAT_LOCK:
+                minutes_away = (now - _LAST_USER_ACTIVITY).total_seconds() / 60
+
+            # Only email if CC has been away >3 hours AND there are queued messages
+            if minutes_away < 180 or len(VESPER_PROACTIVE_QUEUE) == 0:
+                time.sleep(1800)
+                continue
+
+            # Rate limit: max 1 email per 6 hours
+            with _EMAIL_SEND_LOCK:
+                if _LAST_EMAIL_SENT and (now - _LAST_EMAIL_SENT).total_seconds() < 21600:
+                    time.sleep(1800)
+                    continue
+
+            pending = list(VESPER_PROACTIVE_QUEUE)
+            if not pending:
+                time.sleep(1800)
+                continue
+
+            hours_away = int(minutes_away // 60)
+            mins_away = int(minutes_away % 60)
+            subject = f"Vesper has {len(pending)} message(s) waiting for you"
+
+            lines = [
+                f"Hey CC,",
+                f"",
+                f"You've been away for {hours_away}h {mins_away}m. I've got {len(pending)} thing(s) waiting:",
+                "",
+            ]
+            for i, m in enumerate(pending[:5], 1):
+                msg_text = m.get("message", "")[:250].replace("
+", " ")
+                source = m.get("source", "")
+                tag = f" [{source}]" if source else ""
+                lines.append(f"{i}.{tag} {msg_text}")
+
+            lines += [
+                "",
+                "Open the app to see the full output.",
+                "",
+                "— Vesper",
+            ]
+            body = "
+".join(lines)
+
+            if _vesper_send_email(subject, body):
+                with _EMAIL_SEND_LOCK:
+                    _LAST_EMAIL_SENT = now
+
+        except Exception as _ew_err:
+            print(f"[EMAIL WATCHDOG] Error: {_ew_err}")
+
+        time.sleep(1800)
+
+
 # Start background threads on import (works with uvicorn --reload too)
 _hb_enabled = int(os.getenv("VESPER_HEARTBEAT_MINUTES", "20")) > 0
 if _hb_enabled:
     threading.Thread(target=_vesper_heartbeat, daemon=True, name="VesperHeartbeat").start()
 
 threading.Thread(target=_vesper_startup_notify, daemon=True, name="VesperStartup").start()
+threading.Thread(target=_vesper_night_shift, daemon=True, name="VesperNightShift").start()
+threading.Thread(target=_vesper_morning_brief_loop, daemon=True, name="VesperMorningBrief").start()
+threading.Thread(target=_vesper_email_watchdog, daemon=True, name="VesperEmailWatchdog").start()
 
 
 # --- STARTUP ---
