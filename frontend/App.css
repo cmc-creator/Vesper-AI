@@ -1693,6 +1693,83 @@ button:active,
   }
 }
 
+/* ─── Small phones (< 480px) ─── */
+@media (max-width: 480px) {
+  .app-shell {
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .app-shell.launch-mode {
+    padding: 4px;
+    gap: 4px;
+  }
+
+  /* Narrower sidebar on tiny screens */
+  .sidebar {
+    width: min(88vw, 280px);
+    padding: 12px 10px;
+  }
+
+  /* Shorter avatar so keyboard + chat fits */
+  .chat-avatar-card {
+    height: 130px;
+    width: min(170px, 90%);
+  }
+
+  .chat-panel {
+    min-height: calc(100dvh - 8px);
+  }
+
+  /* Use dvh so chat shrinks when keyboard opens */
+  .chat-window {
+    max-height: 44dvh;
+  }
+
+  /* Tighter input bar */
+  .input-bar {
+    padding: 8px 10px !important;
+    border-radius: 14px !important;
+  }
+
+  /* Larger tap targets — 44px minimum per mobile UX guidelines */
+  .ghost-button,
+  .cta-button {
+    min-width: 40px !important;
+    min-height: 40px !important;
+    padding: 8px !important;
+  }
+
+  /* Command deck: scroll horizontally instead of wrapping tiny columns */
+  .command-deck {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 4px !important;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+
+  .command-deck::-webkit-scrollbar {
+    display: none; /* Webkit */
+  }
+
+  .command-deck > * {
+    flex: 0 0 auto;
+    min-width: 52px;
+    max-width: 64px;
+  }
+
+  /* Board sections */
+  .content-grid[data-section="research"] .ops-panel,
+  .content-grid[data-section="memory"] .ops-panel,
+  .content-grid[data-section="tasks"] .ops-panel,
+  .content-grid[data-section="settings"] .ops-panel {
+    min-height: calc(100dvh - 8px);
+  }
+}
+
 
 /* ════════════════════════════════════════════════════════════════════════════
    IMMERSIVE THEME PACKAGES — v2: DRAMATIC VISUAL TRANSFORMATION
