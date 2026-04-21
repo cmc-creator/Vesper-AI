@@ -11721,7 +11721,9 @@ async def _save_creative_to_drive(title: str, content: str, creative_type: str =
         filename = f"Vesper_{creative_type.capitalize()}_{slug}_{ts}.md"
         parent_id = _google_default_folder()
         service = get_google_service("drive", "v3")
-        metadata = {"name": filename, "parents": [parent_id]}
+        metadata = {"name": filename}
+        if parent_id:
+            metadata["parents"] = [parent_id]
         media = MediaInMemoryUpload(content.encode("utf-8"), mimetype="text/plain", resumable=False)
         f = service.files().create(body=metadata, media_body=media, fields="id, name, webViewLink").execute()
         print(f"[DRIVE] Saved {creative_type} to Drive: {filename} → {f.get('webViewLink', '')}")
@@ -11746,7 +11748,9 @@ async def _save_image_to_drive(image_url: str, prompt: str, provider: str = ""):
         filename = f"Vesper_Art_{slug}_{int(datetime.datetime.now().timestamp())}.{ext}"
         parent_id = _google_default_folder()
         service = get_google_service("drive", "v3")
-        metadata = {"name": filename, "parents": [parent_id]}
+        metadata = {"name": filename}
+        if parent_id:
+            metadata["parents"] = [parent_id]
         media = MediaInMemoryUpload(image_bytes, mimetype=content_type, resumable=False)
         f = service.files().create(body=metadata, media_body=media, fields="id, name, webViewLink").execute()
         print(f"[DRIVE] Saved image to Drive: {filename} → {f.get('webViewLink', '')}")
@@ -14217,9 +14221,21 @@ def _google_owner_email() -> str:
     )
 
 def _google_default_folder() -> str:
-    """Return CC's shared Google Drive folder ID. Files uploaded here appear directly in CC's Drive.
-    CC shared this folder with the service account so Vesper can write into it."""
-    return os.getenv("GOOGLE_DRIVE_FOLDER_ID", "13h9LtxOBddmvYqaq2X7pQ64EmkSUUbEs")
+    """Return the Google Drive folder ID to save files into.
+    When using OAuth (personal account), returns '' so files go to Drive root.
+    When using a service account with a shared folder, returns the folder ID."""
+    explicit = os.getenv("GOOGLE_DRIVE_FOLDER_ID", "")
+    if explicit:
+        return explicit
+    # Only use the hardcoded folder ID when running with the service account that has access to it
+    try:
+        creds = get_google_credentials()
+        if hasattr(creds, "service_account_email"):
+            return "13h9LtxOBddmvYqaq2X7pQ64EmkSUUbEs"
+    except Exception:
+        pass
+    # OAuth / personal account: save to Drive root (no parent folder restriction)
+    return ""
 
 def _google_move_to_folder(drive_service, file_id: str, folder_id: str) -> None:
     """Move a file into CC's shared folder so it appears in her Drive immediately."""
@@ -14609,7 +14625,9 @@ async def google_drive_upload(req: dict):
         parent_id = req.get("parent_id") or _google_default_folder()
         mime_type = req.get("mime_type", "text/plain")
         service = get_google_service("drive", "v3")
-        metadata = {"name": name, "parents": [parent_id]}
+        metadata = {"name": name}
+        if parent_id:
+            metadata["parents"] = [parent_id]
         media = MediaInMemoryUpload(content.encode("utf-8"), mimetype=mime_type, resumable=False)
         f = service.files().create(body=metadata, media_body=media, fields="id, name, webViewLink").execute()
         f["folder_id"] = parent_id
@@ -14652,11 +14670,13 @@ async def google_docs_create(req: dict):
         title = req.get("title", "Untitled Document")
         content = req.get("content", "")
         drive = get_google_service("drive", "v3")
+        _default_folder = _google_default_folder()
         file_metadata = {
             "name": title,
             "mimeType": "application/vnd.google-apps.document",
-            "parents": [_google_default_folder()],
         }
+        if _default_folder:
+            file_metadata["parents"] = [_default_folder]
         if content:
             # Convert to safe HTML — MUST escape all text content first to prevent broken HTML
             # from <, >, & in dialogue/prose stopping Drive mid-chapter
@@ -14747,11 +14767,13 @@ async def google_sheets_create(req: dict):
         headers = req.get("headers", [])
         # Create via Drive API so parents can be set at creation time (avoids orphaning bug)
         drive = get_google_service("drive", "v3")
+        _default_folder = _google_default_folder()
         file_metadata = {
             "name": title,
             "mimeType": "application/vnd.google-apps.spreadsheet",
-            "parents": [_google_default_folder()],
         }
+        if _default_folder:
+            file_metadata["parents"] = [_default_folder]
         sheet_file = drive.files().create(body=file_metadata, fields="id,webViewLink").execute()
         sheet_id = sheet_file["id"]
         # Add headers via Sheets API if provided
