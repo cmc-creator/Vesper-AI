@@ -73,6 +73,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   TrendingUp as TrendingUpIcon,
   NightsStay as NightsStayIcon,
+  WbSunny as WbSunnyIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -121,6 +122,7 @@ import VesperAvatar3D from './src/components/VesperAvatar3D';
 import IntegrationsHub from './src/components/IntegrationsHub';
 import IncomeDashboard from './src/components/IncomeDashboard';
 import GapsJournal from './src/components/GapsJournal';
+import MorningBrief from './src/components/MorningBrief';
 import BackgroundStudio from './src/components/BackgroundStudio';
 import SetupWizard from './src/components/SetupWizard';
 
@@ -284,6 +286,7 @@ const NAV = [
   { id: 'sassy', label: 'Vesper\'s Wardrobe', icon: Checkroom },
   { id: 'integrations', label: 'Command Center', icon: BoltRounded },
   { id: 'income', label: 'Income Dashboard', icon: TrendingUpIcon },
+  { id: 'morning-brief', label: 'Morning Brief', icon: WbSunnyIcon },
   { id: 'gaps', label: 'Memory of the Gaps', icon: NightsStayIcon },
   { id: 'analytics', label: 'Analytics', icon: BarChart },
   { id: 'personality', label: 'Personality', icon: Person },
@@ -4860,6 +4863,10 @@ export default function App() {
       case 'income':
         return (
           <IncomeDashboard apiBase={apiBase} onBack={() => setActiveSection('chat')} />
+        );
+      case 'morning-brief':
+        return (
+          <MorningBrief apiBase={apiBase} onClose={() => setActiveSection('chat')} />
         );
       case 'gaps':
         return (

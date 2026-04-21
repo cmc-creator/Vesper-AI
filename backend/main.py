@@ -833,6 +833,49 @@ async def get_unseen_gap_count():
         return {"count": 0}
 
 
+# ── Morning Brief — auto-generated daily opportunity scan ────────────────────
+
+@app.get("/api/morning-brief/today")
+async def get_morning_brief_today():
+    """Get (or auto-generate) today's Vesper morning brief.
+    Returns cached brief if already generated today, otherwise creates fresh one."""
+    import datetime as _dt
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.join(os.path.dirname(__file__), ".."))
+    brief_dir = os.path.join(workspace, "vesper-ai", "vesper_identity", "morning_briefs")
+    today_slug = _dt.datetime.now().strftime("%Y%m%d")
+    today_label = _dt.datetime.now().strftime("%A, %B %d, %Y")
+    brief_file = os.path.join(brief_dir, f"brief_{today_slug}.md")
+
+    # Return cached brief if one exists for today
+    if os.path.exists(brief_file):
+        try:
+            with open(brief_file, encoding="utf-8") as f:
+                content = f.read()
+            # Strip the markdown title line to get just the brief body
+            brief_text = content.split("\n\n", 1)[1] if "\n\n" in content else content
+            return {"date": today_label, "brief": brief_text, "cached": True}
+        except Exception:
+            pass  # fall through to regenerate
+
+    # Auto-generate: rich brief + income review
+    try:
+        result = await vesper_morning_brief(
+            {
+                "include_tasks": True,
+                "include_intent": True,
+                "include_income_review": True,
+                "tone": "warm, energizing, and ready to make money",
+            },
+            ai_router=ai_router,
+            TaskType=TaskType,
+        )
+        if result.get("error"):
+            return {"date": today_label, "brief": None, "error": result["error"]}
+        return {"date": today_label, "brief": result.get("brief", ""), "cached": False}
+    except Exception as e:
+        return {"date": today_label, "brief": None, "error": str(e)}
+
+
 @app.get("/api/elevenlabs/voices")
 async def get_elevenlabs_voices():
     """Fetch available voices from ElevenLabs API"""
