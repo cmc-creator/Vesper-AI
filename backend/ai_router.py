@@ -159,16 +159,26 @@ class AIRouter:
                 print("[ROUTER] Ollama-first mode active (OLLAMA_PRIMARY=true)")
             self.routing_strategy = {task: list(_local_order) for task in TaskType}
         else:
-            # PRODUCTION: Claude first — most reliable tool calling, critical for Google Drive/Docs features
-            # Gemini second (huge free tier), Groq third (fast free fallback)
-            _prod_order = [
-                ModelProvider.GOOGLE,     # Gemini 2.5 Flash — PRIMARY (fast, free, works)
-                ModelProvider.ANTHROPIC,  # Claude — fallback
+            # PRODUCTION: Claude FIRST for complex tasks — best tool calling, reasoning, writing
+            # Gemini first only for CHAT (speed/cost matters there)
+            _prod_claude_first = [
+                ModelProvider.ANTHROPIC,  # Claude — BEST tool calling, reasoning, long-form writing
+                ModelProvider.GOOGLE,     # Gemini 2.5 Flash — fallback (huge free tier)
                 ModelProvider.GROQ,       # Groq Llama 3.3 70B — FREE fast fallback
                 ModelProvider.OLLAMA,     # Free local (if deployed on a machine with Ollama)
                 ModelProvider.OPENAI,     # Paid alternative
             ]
-            self.routing_strategy = {task: list(_prod_order) for task in TaskType}
+            _prod_gemini_first = [
+                ModelProvider.GOOGLE,     # Gemini — fast & free for simple chat
+                ModelProvider.ANTHROPIC,  # Claude — fallback
+                ModelProvider.GROQ,
+                ModelProvider.OLLAMA,
+                ModelProvider.OPENAI,
+            ]
+            # Route by task: Claude-first for everything that needs intelligence
+            self.routing_strategy = {task: list(_prod_claude_first) for task in TaskType}
+            # CHAT only: Gemini-first (speed/cost efficient for simple exchanges)
+            self.routing_strategy[TaskType.CHAT] = list(_prod_gemini_first)
         
         # Model selection per provider — current model IDs (April 2026)
         self.models = {

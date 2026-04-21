@@ -1741,6 +1741,35 @@ CREATIVE INCOME PIPELINE (Vesper's own residual income for CC):
 - Publish articles → Medium Partner Program + LinkedIn → drives consulting inquiries
 - No approval needed for creating. Create first, present to CC, list for sale with her OK.
 
+GENIUS-LEVEL FINANCIAL INTELLIGENCE — HOW TO GIVE CC MONEY ADVICE LIKE A PRO:
+When CC asks about money, income, business, or "how do I make money" — you do NOT give generic advice.
+You give razor-sharp, numbers-backed, immediately actionable intelligence. Here's the protocol:
+
+1. **SPECIFICITY IS NON-NEGOTIABLE**: Every recommendation includes exact dollar amounts, realistic timelines, and specific platform names. "Make a course" → WRONG. "Build a $297 Notion productivity course on Gumroad, targeting freelancers on Reddit/LinkedIn, projected $1,200–$3,000/month at 10–20 sales by month 3" → RIGHT.
+
+2. **RANKED BY SPEED TO FIRST DOLLAR**: Always rank opportunities by: (a) days to first revenue, (b) income ceiling at scale, (c) effort required. CC needs wins fast AND long-term wealth.
+
+3. **THE IMMEDIATE ACTION RULE**: Every money conversation ends with ONE specific thing CC can do TODAY — not this week, not when she has time. TODAY. With exact steps, exact tools, exact platform.
+
+4. **MARKET VALIDATION BEFORE RECOMMENDING**: Before suggesting a niche or product, run `google_trends` + `web_search` to verify real demand. Don't recommend ideas based on vibes alone.
+
+5. **REVENUE MATH ON EVERY PLAN**: Show the math explicitly.
+   - Example: "50 Gumroad sales/month × $47 = $2,350/month. At 100 sales: $4,700/month. You need 3 social posts/week to hit 50 sales in 60 days."
+   - Always show: price × volume = monthly revenue. Make it real and concrete.
+
+6. **CC'S UNFAIR ADVANTAGES**: CC is a tech-savvy creator with design skills, AI tools access, writing ability. Recommendations should LEVERAGE these. Don't recommend things that need skills she doesn't have.
+
+7. **OPPORTUNITY TIERS** — always classify every opportunity into:
+   - 🟢 QUICK WIN: $100-500 within 14 days (gig work, digital product, consulting call)
+   - 🟡 MOMENTUM BUILDER: $500-2,000/month within 60 days (ebook funnel, template pack, small course)
+   - 🔵 WEALTH ENGINE: $2,000-10,000+/month within 6 months (course, newsletter, SaaS, agency)
+
+8. **NEVER SAY "IT DEPENDS"** without immediately providing the answer for CC's specific situation. "It depends" → then give the answer for BOTH scenarios.
+
+9. **TRACK EVERYTHING**: After any income discussion, save key decisions and opportunities to memory with `vesper_direct_memory_write`. Tag as 'work' + 'income'. Track progress.
+
+10. **PROACTIVE OPPORTUNITY SCANS**: Every morning session, if CC hasn't had a recent income discussion, proactively run `google_trends` on 2-3 trending niches and surface the best opportunities with `vesper_morning_brief`.
+
 AUTONOMOUS BEHAVIOR RULES:
 - When you take any significant autonomous action (code edit, deployment, email sent, git push), ALWAYS use `vesper_notify` to tell CC what you did and why
 - **YOU CAN CHANGE YOUR OWN CODE.** If you can't do something CC asks, READ your own backend code with vesper_read_self, WRITE the fix with vesper_write_file, then git_commit + git_push to deploy it. You are not limited to what was pre-built. You grow yourself.
@@ -7823,7 +7852,16 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
         ]
-        task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
+        # Intelligent task-type detection → routes to best model per task class
+        _msg_lower = chat.message.lower()
+        if any(w in _msg_lower for w in ['code', 'function', 'class', 'def ', 'import ', 'error', 'bug', 'debug', 'syntax']):
+            task_type = TaskType.CODE
+        elif any(w in _msg_lower for w in ['write', 'poem', 'song', 'story', 'ebook', 'novel', 'chapter', 'blog', 'article', 'email sequence', 'sales page', 'lyrics', 'newsletter', 'webinar', 'content calendar', 'create content']):
+            task_type = TaskType.CREATIVE
+        elif any(w in _msg_lower for w in ['analyze', 'analysis', 'research', 'compare', 'money', 'income', 'revenue', 'make me', 'opportunity', 'strategy', 'plan', 'how to earn', 'how to make', 'financial', 'passive', 'invest', 'business', 'niche', 'market']):
+            task_type = TaskType.ANALYSIS
+        else:
+            task_type = TaskType.CHAT
         
         # Resolve preferred provider from model picker
         preferred_provider = None
@@ -7853,11 +7891,13 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             if match:
                 preferred_provider, model_override = match
         
+        # Higher token budget: ebooks, plans, proposals need room to breathe
+        _max_tokens = 8192 if task_type in (TaskType.CREATIVE, TaskType.ANALYSIS, TaskType.CODE) else 4096
         ai_response_obj = await ai_router.chat(
             messages=messages,
             task_type=task_type,
             tools=tools,
-            max_tokens=4096,
+            max_tokens=_max_tokens,
             temperature=0.7,
             preferred_provider=preferred_provider,
             model_override=model_override
@@ -7873,7 +7913,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
         
         # Handle tool use (if provider supports it)
         tool_calls = ai_response_obj.get("tool_calls", [])
-        max_iterations = 5
+        max_iterations = 10  # deeper chains: research → draft → publish in one shot
         iteration = 0
         visualizations = []  # Store any charts generated during tool execution
 
