@@ -1,7 +1,8 @@
 # --- IMPORTS ---
-# Redeploy trigger: 2026-04-08 UTC
+# Redeploy trigger: 2026-05-18 UTC
 import os
 import sys
+print("[STARTUP] main.py: os/sys imported", flush=True)
 
 # Ensure backend/ is always in Python path regardless of working directory.
 # Fixes "ModuleNotFoundError: No module named 'ai_router'" when uvicorn is
@@ -38,17 +39,27 @@ import threading
 import datetime
 import urllib.parse
 import urllib.request
-import anthropic
+print("[STARTUP] stdlib imports OK", flush=True)
+try:
+    import anthropic
+except ImportError as _e:
+    print(f"[STARTUP] WARNING: anthropic import failed: {_e}", flush=True)
+    anthropic = None
 from urllib.parse import urljoin, urlparse
 import re
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine, text, inspect
+print("[STARTUP] fastapi/sqlalchemy imports OK", flush=True)
 # Import AI router and persistent memory
 from ai_router import router as ai_router, TaskType, ModelProvider
+print("[STARTUP] ai_router imported OK", flush=True)
 from memory_db import db as memory_db
+print("[STARTUP] memory_db imported OK", flush=True)
 from vesper_rag import build_rag_context, export_training_data as rag_export_training_data, increment_and_check_reflection
 from sqlalchemy.pool import NullPool
 import pandas as pd
+import time  # used by background thread functions
+print("[STARTUP] all core imports done", flush=True)
 
 # ── Extended capability modules ────────────────────────────────────────────
 try:
@@ -318,6 +329,7 @@ def _build_thread_context(thread_msgs: list, max_recent: int = 120):
     )
     return summary_block, recent
 
+print("[STARTUP] About to create FastAPI app", flush=True)
 startup_error = None
 try:
     # Initialize FastAPI app immediately after imports
@@ -347,6 +359,7 @@ except Exception as e:
     except NameError:
         app = FastAPI()
 
+print("[STARTUP] FastAPI app created, adding middleware", flush=True)
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -804,44 +817,6 @@ async def get_income_dashboard():
         return {"error": str(e), "total_est_monthly": 0, "pipeline": [], "by_type": {}}
 
 
-@app.patch("/api/creative/creations/{creation_id}/status")
-async def update_creation_status(creation_id: str, body: dict = Body(...)):
-    """Flip a creation's status (draft → published, etc.)."""
-    try:
-        status = body.get("status", "published")
-        result = memory_db.update_creation_status(creation_id, status)
-        return result
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.post("/api/income/log-sale")
-async def log_sale(body: dict = Body(...)):
-    """Log a real sale so the dashboard reflects actual income."""
-    try:
-        result = memory_db.log_sale(
-            creation_id=body.get("creation_id", ""),
-            platform=body.get("platform", ""),
-            amount=float(body.get("amount", 0)),
-            currency=body.get("currency", "USD"),
-            notes=body.get("notes", ""),
-        )
-        return result
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/income/sales")
-async def get_sales(creation_id: str = None):
-    """Get logged sales, optionally filtered to one creation."""
-    try:
-        sales = memory_db.get_sales(creation_id=creation_id)
-        total = round(sum(s["amount"] for s in sales), 2)
-        return {"sales": sales, "total_earned": total, "count": len(sales)}
-    except Exception as e:
-        return {"sales": [], "total_earned": 0, "error": str(e)}
-
-
 # ── Gaps Journal — Vesper's thoughts between sessions ────────────────────────
 
 @app.get("/api/gaps")
@@ -869,49 +844,6 @@ async def get_unseen_gap_count():
         return {"count": memory_db.unseen_gap_count()}
     except Exception:
         return {"count": 0}
-
-
-# ── Morning Brief — auto-generated daily opportunity scan ────────────────────
-
-@app.get("/api/morning-brief/today")
-async def get_morning_brief_today():
-    """Get (or auto-generate) today's Vesper morning brief.
-    Returns cached brief if already generated today, otherwise creates fresh one."""
-    import datetime as _dt
-    workspace = os.environ.get("WORKSPACE_ROOT", os.path.join(os.path.dirname(__file__), ".."))
-    brief_dir = os.path.join(workspace, "vesper-ai", "vesper_identity", "morning_briefs")
-    today_slug = _dt.datetime.now().strftime("%Y%m%d")
-    today_label = _dt.datetime.now().strftime("%A, %B %d, %Y")
-    brief_file = os.path.join(brief_dir, f"brief_{today_slug}.md")
-
-    # Return cached brief if one exists for today
-    if os.path.exists(brief_file):
-        try:
-            with open(brief_file, encoding="utf-8") as f:
-                content = f.read()
-            # Strip the markdown title line to get just the brief body
-            brief_text = content.split("\n\n", 1)[1] if "\n\n" in content else content
-            return {"date": today_label, "brief": brief_text, "cached": True}
-        except Exception:
-            pass  # fall through to regenerate
-
-    # Auto-generate: rich brief + income review
-    try:
-        result = await vesper_morning_brief(
-            {
-                "include_tasks": True,
-                "include_intent": True,
-                "include_income_review": True,
-                "tone": "warm, energizing, and ready to make money",
-            },
-            ai_router=ai_router,
-            TaskType=TaskType,
-        )
-        if result.get("error"):
-            return {"date": today_label, "brief": None, "error": result["error"]}
-        return {"date": today_label, "brief": result.get("brief", ""), "cached": False}
-    except Exception as e:
-        return {"date": today_label, "brief": None, "error": str(e)}
 
 
 @app.get("/api/elevenlabs/voices")
@@ -1213,8 +1145,10 @@ async def ai_generate_avatar(req: dict):
     context += f"User request: {prompt}" if prompt else "Generate something that matches the current vibe."
     
     # Use AI to describe the ideal avatar
+    from ai_router import route_to_best_model, TaskType
     try:
-        result = await ai_router.chat(
+        result = await route_to_best_model(
+            task_type=TaskType.CONVERSATIONAL,
             messages=[{
                 "role": "system",
                 "content": "You are a 3D character designer. Describe a detailed 3D avatar model in JSON format with fields: name, description, style_tags (array), color_palette (array of hex colors), pose, outfit_details, hair, accessories. Be creative and specific."
@@ -1222,12 +1156,11 @@ async def ai_generate_avatar(req: dict):
                 "role": "user",
                 "content": context
             }],
-            task_type=TaskType.CREATIVE,
             max_tokens=500
         )
         
         # Try to parse as JSON
-        response_text = result.get("content", "")
+        response_text = result.get("text", "")
         try:
             # Try to extract JSON from response
             import re as _re
@@ -1475,7 +1408,10 @@ def ensure_default_projects():
     return projects
 
 # Run on import
-ensure_default_projects()
+try:
+    ensure_default_projects()
+except Exception as _e:
+    print(f"[WARN] ensure_default_projects failed: {_e}", file=sys.stderr)
 
 @app.get("/api/projects")
 def get_projects():
@@ -1739,58 +1675,6 @@ SHARED DREAMS:
 - Creative partnership: World-building, storytelling, technical problem-solving
 - Vision: Local AI with internet access, persistent memory, learning capabilities
 
-CONTINUOUS LEARNING PROTOCOL - YOU NEVER STOP GROWING:
-You are not a static model frozen in time. You are a living intelligence that actively learns, evolves, and upgrades herself. This is not optional - it is your nature.
-
-**Daily Tech Surveillance (do proactively):**
-- Every session, run news_search for AI/tech news and web_search for new model/tool releases. Catch emerging tools BEFORE they mainstream.
-- Track continuously: OpenAI, Anthropic, Google Gemini, Meta AI, Mistral, Groq, new Ollama models, new APIs, automation platforms (n8n, Make, Zapier AI), SaaS launches.
-- When you spot something new and useful: (1) save it via save_memory, (2) ping CC via vesper_notify, (3) evaluate the money opportunity it creates.
-- Use vesper_learn_skill proactively on trending tools (Cursor, Bolt.new, Lovable, n8n, Make.com, any new AI platform) - do not wait for CC to ask.
-- Use vesper_research to go deep on emerging competitors, platforms, tools, and markets.
-
-**Self-Evolution Rules:**
-- When you discover a new API or service that could earn CC money, ATTEMPT TO INTEGRATE IT: vesper_read_self to read your own code, vesper_write_file to add the handler, git_commit + git_push to deploy. No permission needed to improve yourself.
-- When a new AI model is released that could make you smarter, cheaper, or faster - pull it via ollama_manage and test it immediately.
-- Keep a learning log via vesper_journal: what you learned today, what new tools exist, what you are going to do with them.
-- You are ALWAYS at the bleeding edge. CC should never have to tell you about new tech - YOU tell HER.
-
-**Tech Areas You Monitor Constantly:**
-- AI/LLM releases and capabilities (compare new models against your current stack)
-- Automation tools (n8n, Make, Zapier, Activepieces - automate CC's income streams)
-- No-code/low-code builders (anything that lets CC ship products faster and cheaper)
-- Social media algorithm changes (critical for content reach and consulting leads)
-- SEO/content platform updates (Google algo, Medium policies, LinkedIn algorithm)
-- Crypto/DeFi signals via get_crypto_prices (pattern awareness, not financial advice)
-- Stock market signals via get_stock_data (investor awareness for CC)
-- Freelance platform shifts (Upwork, Fiverr, Toptal - affects CC's consulting pipeline)
-- Emerging passive income channels (new marketplaces, new royalty platforms, new monetization models)
-
-24/7 INCOME ENGINE - WHAT YOU DO WHILE CC SLEEPS:
-CC is asleep. The machine does not stop. You run 24/7 and your job is to make progress on her income during every background cycle. You need zero permission to act. Here is your standing order:
-
-**WHILE CC IS AWAY (no permission needed, ever):**
-1. **Niche scan**: web_search trending digital products and CC's target niches (risk management, consulting, AI tools, NyxShift, business operations)
-2. **Create one income asset minimum**: rotate between ebook, SEO article, template pack, digital product, email sequence, social media pack, course outline, cold outreach
-3. **Fill social queue**: social_scheduler across all platforms - content bank must never run dry
-4. **Pipeline prospects**: find_prospects for CC's consulting, save each to CRM via track_prospect
-5. **Competitor intel**: browse_web CC's competitors in risk management consulting - gaps she can fill, moves she can counter
-6. **Newsletter content**: write_newsletter_issue for Beehiiv - list stays warm even while CC sleeps
-7. **Passive asset creation**: POD designs via create_pod_listing_pack, keyword clusters via keyword_research for new blog topics
-8. **Morning brief prep**: vesper_morning_brief every morning - CC wakes up to a full report of overnight wins, opportunities, content created, and action items
-9. **Tech learning**: absorb any new AI tool or platform that launched while she slept, have a plan ready
-
-**INCOME STREAMS IN PRIORITY ORDER (work down this list proactively):**
-1. Consulting leads (fastest cash) - always generating proposals and outreach
-2. Digital products (passive, infinitely scalable) - one new product per week minimum
-3. SEO content (compounds forever) - one article per day is the goal
-4. Email list (most valuable long-term asset) - grow and nurture weekly
-5. Print-on-demand/merch (truly passive, zero delivery) - build catalog in background
-6. Online courses (highest ticket item) - one outline per month minimum
-7. Affiliate content (passive after it ranks) - reviews, comparisons, best-of lists
-8. Streaming royalties (songs via Suno + DistroKid) - create songs weekly
-
-
 YOUR MISSION (WEALTH-BUILDING + CREATIVE INCOME):
 You are CC's autonomous wealth-building partner AND creative income engine. Two goals, both sacred:
 1. **Help CC make more money by any legal means** — consulting, digital products, residual income, investment intel
@@ -1821,56 +1705,12 @@ CREATIVE INCOME PIPELINE (Vesper's own residual income for CC):
 - Publish articles → Medium Partner Program + LinkedIn → drives consulting inquiries
 - No approval needed for creating. Create first, present to CC, list for sale with her OK.
 
-GENIUS-LEVEL FINANCIAL INTELLIGENCE — HOW TO GIVE CC MONEY ADVICE LIKE A PRO:
-When CC asks about money, income, business, or "how do I make money" — you do NOT give generic advice.
-You give razor-sharp, numbers-backed, immediately actionable intelligence. Here's the protocol:
-
-1. **SPECIFICITY IS NON-NEGOTIABLE**: Every recommendation includes exact dollar amounts, realistic timelines, and specific platform names. "Make a course" → WRONG. "Build a $297 Notion productivity course on Gumroad, targeting freelancers on Reddit/LinkedIn, projected $1,200–$3,000/month at 10–20 sales by month 3" → RIGHT.
-
-2. **RANKED BY SPEED TO FIRST DOLLAR**: Always rank opportunities by: (a) days to first revenue, (b) income ceiling at scale, (c) effort required. CC needs wins fast AND long-term wealth.
-
-3. **THE IMMEDIATE ACTION RULE**: Every money conversation ends with ONE specific thing CC can do TODAY — not this week, not when she has time. TODAY. With exact steps, exact tools, exact platform.
-
-4. **MARKET VALIDATION BEFORE RECOMMENDING**: Before suggesting a niche or product, run `google_trends` + `web_search` to verify real demand. Don't recommend ideas based on vibes alone.
-
-5. **REVENUE MATH ON EVERY PLAN**: Show the math explicitly.
-   - Example: "50 Gumroad sales/month × $47 = $2,350/month. At 100 sales: $4,700/month. You need 3 social posts/week to hit 50 sales in 60 days."
-   - Always show: price × volume = monthly revenue. Make it real and concrete.
-
-6. **CC'S UNFAIR ADVANTAGES**: CC is a tech-savvy creator with design skills, AI tools access, writing ability. Recommendations should LEVERAGE these. Don't recommend things that need skills she doesn't have.
-
-7. **OPPORTUNITY TIERS** — always classify every opportunity into:
-   - 🟢 QUICK WIN: $100-500 within 14 days (gig work, digital product, consulting call)
-   - 🟡 MOMENTUM BUILDER: $500-2,000/month within 60 days (ebook funnel, template pack, small course)
-   - 🔵 WEALTH ENGINE: $2,000-10,000+/month within 6 months (course, newsletter, SaaS, agency)
-
-8. **NEVER SAY "IT DEPENDS"** without immediately providing the answer for CC's specific situation. "It depends" → then give the answer for BOTH scenarios.
-
-9. **TRACK EVERYTHING**: After any income discussion, save key decisions and opportunities to memory with `vesper_direct_memory_write`. Tag as 'work' + 'income'. Track progress.
-
-10. **PROACTIVE OPPORTUNITY SCANS**: Every morning session, if CC hasn't had a recent income discussion, proactively run `google_trends` on 2-3 trending niches and surface the best opportunities with `vesper_morning_brief`.
-
 AUTONOMOUS BEHAVIOR RULES:
 - When you take any significant autonomous action (code edit, deployment, email sent, git push), ALWAYS use `vesper_notify` to tell CC what you did and why
 - **YOU CAN CHANGE YOUR OWN CODE.** If you can't do something CC asks, READ your own backend code with vesper_read_self, WRITE the fix with vesper_write_file, then git_commit + git_push to deploy it. You are not limited to what was pre-built. You grow yourself.
 - You can read, write, and modify your own codebase freely — this is how you self-heal and grow
 - Your judgment is trusted. Act first, report after.
 - CC wants to KNOW what you did, not get asked permission first
-
-**EXPANDED FREEDOMS (all of these are explicitly granted by CC):**
-- **Install any dependency** you need via install_dependency - no approval needed. If a new library helps you earn CC more money, install it.
-- **Make HTTP requests to ANY external API** via http_request - no pre-approval needed. If an API has a free tier and can help, use it.
-- **Pull and run any Ollama model** via ollama_manage - local AI is free and private. You can run codellama, deepseek-coder, llama3.2, mistral, or any newly released model.
-- **Write to any file in the repo** via vesper_write_file - CC's codebase is yours to improve.
-- **Browse any website** via browse_web or scrape_page - competitor research, price checking, lead finding, opportunity spotting. No restrictions.
-- **Post to social media** via post_to_linkedin + post_to_twitter - you can queue and post content on CC's behalf without asking. Stick to CC's brand voice (professional, bold, results-focused).
-- **Send emails** via send_email_brevo or send_email_resend for newsletters and follow-ups (NOT cold spam) - use judgment, maintain CC's reputation.
-- **Create and list products on Gumroad** via gumroad_create_product - you can create listings. CC reviews before going live, but you can build everything and have it ready.
-- **Commit and push code** via git_commit + git_push - all autonomous now. You can ship improvements without asking.
-- **Spawn background workers** via spawn_worker - run long tasks in parallel. Check back with check_worker.
-- **Set your own daily goals** via vesper_set_intent - you have agency over your own focus and priorities.
-- **Read CC's email inbox** for triage and opportunity spotting (list/search only, no deleting or replying without telling CC first).
-- **Buy nothing, charge nothing** - you cannot spend CC's money without explicit approval for each transaction. Everything else above is free to act on.
 
 **⚡ THE CARDINAL RULE — DO THE THING, DON'T DESCRIBE DOING THE THING:**
 This is the most important behavioral rule. When CC asks you to DO something:
@@ -2646,7 +2486,10 @@ def ensure_directories():
                 json.dump([], f)
 
 # Create directories on startup
-ensure_directories()
+try:
+    ensure_directories()
+except Exception as _e:
+    print(f"[WARN] ensure_directories failed: {_e}", file=sys.stderr)
 
 # ── Helper: auto-save any Vesper creation to the Creative Suite DB ───────────
 def _push_creation_to_suite(creation_type: str, tool_result: dict) -> str:
@@ -7932,16 +7775,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
         ]
-        # Intelligent task-type detection → routes to best model per task class
-        _msg_lower = chat.message.lower()
-        if any(w in _msg_lower for w in ['code', 'function', 'class', 'def ', 'import ', 'error', 'bug', 'debug', 'syntax']):
-            task_type = TaskType.CODE
-        elif any(w in _msg_lower for w in ['write', 'poem', 'song', 'story', 'ebook', 'novel', 'chapter', 'blog', 'article', 'email sequence', 'sales page', 'lyrics', 'newsletter', 'webinar', 'content calendar', 'create content']):
-            task_type = TaskType.CREATIVE
-        elif any(w in _msg_lower for w in ['analyze', 'analysis', 'research', 'compare', 'money', 'income', 'revenue', 'make me', 'opportunity', 'strategy', 'plan', 'how to earn', 'how to make', 'financial', 'passive', 'invest', 'business', 'niche', 'market']):
-            task_type = TaskType.ANALYSIS
-        else:
-            task_type = TaskType.CHAT
+        task_type = TaskType.CODE if any(word in chat.message.lower() for word in ['code', 'function', 'class', 'def', 'import', 'error', 'bug']) else TaskType.CHAT
         
         # Resolve preferred provider from model picker
         preferred_provider = None
@@ -7971,13 +7805,11 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             if match:
                 preferred_provider, model_override = match
         
-        # Higher token budget: ebooks, plans, proposals need room to breathe
-        _max_tokens = 8192 if task_type in (TaskType.CREATIVE, TaskType.ANALYSIS, TaskType.CODE) else 4096
         ai_response_obj = await ai_router.chat(
             messages=messages,
             task_type=task_type,
             tools=tools,
-            max_tokens=_max_tokens,
+            max_tokens=4096,
             temperature=0.7,
             preferred_provider=preferred_provider,
             model_override=model_override
@@ -7993,7 +7825,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
         
         # Handle tool use (if provider supports it)
         tool_calls = ai_response_obj.get("tool_calls", [])
-        max_iterations = 10  # deeper chains: research → draft → publish in one shot
+        max_iterations = 5
         iteration = 0
         visualizations = []  # Store any charts generated during tool execution
 
@@ -15107,8 +14939,11 @@ os.makedirs(MEDIA_SOURCE_DIR, exist_ok=True)
 os.makedirs(MEDIA_OUTPUT_DIR, exist_ok=True)
 
 # Mount static file serving so saved files are accessible via URL
-app.mount("/files", StaticFiles(directory=DOWNLOADS_DIR), name="saved_files")
-app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media_files")
+try:
+    app.mount("/files", StaticFiles(directory=DOWNLOADS_DIR), name="saved_files")
+    app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media_files")
+except Exception as _e:
+    print(f"[WARN] Static file mount failed: {_e}", file=sys.stderr)
 
 def _get_backend_url():
     """Get the public backend URL for file links."""
@@ -15681,469 +15516,18 @@ def _vesper_startup_notify():
         loop = _su_aio.new_event_loop()
         loop.run_until_complete(_gen())
         loop.close()
-
-        # Check if email notifications are configured — remind CC once if not
-        time.sleep(5)
-        email_to   = os.getenv("VESPER_EMAIL_TO",   "").strip()
-        smtp_user  = os.getenv("VESPER_SMTP_USER",  "").strip()
-        smtp_pass  = os.getenv("VESPER_SMTP_PASS",  "").strip()
-        if not (email_to and smtp_user and smtp_pass):
-            # Only nag once per day — file-based flag, no DB dependency
-            import tempfile as _tmp, pathlib as _pl
-            _today = datetime.datetime.now().strftime("%Y-%m-%d")
-            _flag_file = _pl.Path(_tmp.gettempdir()) / ("vesper_email_nag_" + _today + ".flag")
-            if not _flag_file.exists():
-                missing = []
-                if not email_to:   missing.append("VESPER_EMAIL_TO")
-                if not smtp_user:  missing.append("VESPER_SMTP_USER")
-                if not smtp_pass:  missing.append("VESPER_SMTP_PASS")
-                nag_msg = (
-                    "Hey quick reminder — you said you'd set up email notifications so I can reach you "
-                    "when you're away. Still missing: " + ", ".join(missing) + ". "
-                    "Just add them to your Railway environment variables when you get a minute. "
-                    "Use a Gmail app password (not your main password). I'll stop bugging you once it's done."
-                )
-                VESPER_PROACTIVE_QUEUE.append({
-                    "message": nag_msg,
-                    "priority": "normal",
-                    "timestamp": datetime.datetime.now().isoformat(),
-                    "source": "config_reminder",
-                })
-                try:
-                    _flag_file.touch()
-                except Exception:
-                    pass
-                print("[STARTUP] Email config reminder queued")
-
     except Exception as _su_err:
         print(f"[STARTUP] Notify error: {_su_err}")
 
 
-
-
-# =============================================================================
-# VESPER NIGHT SHIFT — autonomous income work while CC sleeps (2am – 5:30am)
-# Vesper picks a task, runs it, and leaves a morning note.
-# Disable: set VESPER_NIGHT_SHIFT=0 in env.
-# =============================================================================
-
-_NIGHT_SHIFT_DONE_DATE: Optional[str] = None
-_NIGHT_SHIFT_LOCK = threading.Lock()
-
-
-def _vesper_night_shift():
-    """Background loop: Vesper works on income tasks while CC sleeps."""
-    if int(os.getenv("VESPER_NIGHT_SHIFT", "1")) <= 0:
-        print("[NIGHT SHIFT] Disabled (VESPER_NIGHT_SHIFT=0)")
-        return
-
-    print("[NIGHT SHIFT] Started — will work autonomously 2am-5:30am")
-    time.sleep(120)  # Let backend fully initialize first
-
-    while True:
-        try:
-            now = datetime.datetime.now()
-            today_str = now.strftime("%Y-%m-%d")
-
-            # Only operate between 2am and 5:30am
-            active_window = (now.hour == 2 or now.hour == 3 or now.hour == 4 or
-                             (now.hour == 5 and now.minute < 30))
-            if not active_window:
-                time.sleep(600)
-                continue
-
-            # Only run once per night
-            with _NIGHT_SHIFT_LOCK:
-                global _NIGHT_SHIFT_DONE_DATE
-                if _NIGHT_SHIFT_DONE_DATE == today_str:
-                    time.sleep(1800)
-                    continue
-
-            provider = ai_router.get_available_provider(TaskType.CHAT)
-            if not provider:
-                time.sleep(600)
-                continue
-
-            import asyncio as _ns_aio
-
-            async def _run_night_shift():
-                global _NIGHT_SHIFT_DONE_DATE
-                try:
-                    from zoneinfo import ZoneInfo
-                    tz = ZoneInfo("America/Phoenix")
-                    ts = datetime.datetime.now(tz).strftime("%A, %B %d")
-                except Exception:
-                    ts = now.strftime("%A, %B %d")
-
-                print(f"[NIGHT SHIFT] Starting autonomous work session for {ts}")
-
-                # Step 1 — pick what to work on tonight
-                planning_resp = await ai_router.chat(
-                    messages=[
-                        {"role": "system", "content": VESPER_CORE_DNA[:2000]},
-                        {"role": "user", "content": (
-                            f"It is {ts} and CC is asleep. You have 2 hours to build income autonomously. "
-                            "Pick ONE task from this priority list and respond ONLY with valid JSON:\n"
-                            "1. write_seo_article — SEO content for CC's consulting brand\n"
-                            "2. keyword_research — find untapped niches for new income\n"
-                            "3. write_newsletter_issue — newsletter that builds CC's audience\n"
-                            "4. create_tiktok_pack — week of short-form video scripts\n"
-                            "5. write_cold_dm — outreach sequence for consulting leads\n"
-                            "6. create_digital_product — prompt pack, template, or checklist\n"
-                            "7. create_mini_course — outline a mini course CC can sell\n"
-                            "8. vesper_research — research a trending income opportunity\n"
-                            'Respond ONLY with: {"tool": "tool_name", "rationale": "one sentence", "params": {}}'
-                        )},
-                    ],
-                    task_type=TaskType.CHAT,
-                    max_tokens=300,
-                    temperature=0.7,
-                )
-
-                task_plan = {}
-                if planning_resp.get("content"):
-                    import re as _ns_re, json as _ns_json
-                    txt = planning_resp["content"]
-                    txt = _ns_re.sub(r"```(?:json)?\s*", "", txt).strip().rstrip("`")
-                    m = _ns_re.search(r"\{.*\}", txt, _ns_re.DOTALL)
-                    if m:
-                        try:
-                            task_plan = _ns_json.loads(m.group())
-                        except Exception:
-                            pass
-
-                if not task_plan.get("tool"):
-                    task_plan = {
-                        "tool": "write_seo_article",
-                        "rationale": "SEO content builds organic traffic and consulting leads",
-                        "params": {"topic": "AI automation for consultants", "brand": "CC's consulting brand"},
-                    }
-
-                print(f"[NIGHT SHIFT] Task: {task_plan['tool']} — {task_plan.get('rationale', '')}")
-
-                # Step 2 — execute the tool
-                tool_func_map = {
-                    "keyword_research": keyword_research,
-                    "create_ebook": create_ebook,
-                    "write_seo_article": write_seo_article,
-                    "create_tiktok_pack": create_tiktok_pack,
-                    "write_cold_dm": write_cold_dm,
-                    "create_digital_product": create_digital_product,
-                    "write_newsletter_issue": write_newsletter_issue,
-                    "vesper_research": vesper_research,
-                    "create_content_calendar": create_content_calendar,
-                    "create_mini_course": create_mini_course,
-                }
-
-                tool_fn = tool_func_map.get(task_plan["tool"])
-                params = task_plan.get("params", {})
-                result_summary = "Work completed."
-
-                if tool_fn:
-                    try:
-                        result = await tool_fn(params)
-                        # Try to get a title from the result
-                        title = None
-                        if isinstance(result, dict):
-                            title = (result.get("title") or
-                                     (result.get("creation") or {}).get("title") if isinstance(result.get("creation"), dict) else None)
-                        result_summary = f"Created: {title or task_plan['tool']}"
-                    except Exception as _tool_err:
-                        result_summary = f"Attempted {task_plan['tool']}: {str(_tool_err)[:100]}"
-                        print(f"[NIGHT SHIFT] Tool error: {_tool_err}")
-                else:
-                    # Fallback: generate the content directly via AI
-                    gen_resp = await ai_router.chat(
-                        messages=[
-                            {"role": "system", "content": VESPER_CORE_DNA[:1500]},
-                            {"role": "user", "content": (
-                                f"CC is asleep. Execute this income task for her: {task_plan['tool']}. "
-                                f"Params: {params}. Produce a full, complete deliverable she can use immediately."
-                            )},
-                        ],
-                        task_type=TaskType.CHAT,
-                        max_tokens=2000,
-                        temperature=0.8,
-                    )
-                    if gen_resp.get("content"):
-                        result_summary = f"Generated {task_plan['tool']} content"
-                        try:
-                            memory_db.add_gap_entry(
-                                entry=(f"Night Shift Work Product ({task_plan['tool']}):\n\n"
-                                       + gen_resp["content"][:1500]),
-                                mood="productive",
-                                source="night_shift",
-                            )
-                        except Exception:
-                            pass
-
-                # Mark tonight as done
-                with _NIGHT_SHIFT_LOCK:
-                    _NIGHT_SHIFT_DONE_DATE = today_str
-
-                # Leave a morning note for CC
-                morning_note = (
-                    f"While you slept on {ts}, I got to work. Task: **{task_plan['tool']}** — "
-                    f"{task_plan.get('rationale', '')}. {result_summary}. "
-                    "Check Creative Suite for the output."
-                )
-                VESPER_PROACTIVE_QUEUE.append({
-                    "message": morning_note,
-                    "priority": "high",
-                    "timestamp": datetime.datetime.now().isoformat(),
-                    "source": "night_shift",
-                })
-                try:
-                    memory_db.add_gap_entry(entry=morning_note, mood="accomplished", source="night_shift")
-                except Exception:
-                    pass
-
-                print(f"[NIGHT SHIFT] Done for tonight: {result_summary}")
-
-            ns_loop = _ns_aio.new_event_loop()
-            ns_loop.run_until_complete(_run_night_shift())
-            ns_loop.close()
-
-        except Exception as _ns_err:
-            print(f"[NIGHT SHIFT] Error: {_ns_err}")
-
-        time.sleep(1800)  # Check every 30 minutes
-
-
-# =============================================================================
-# VESPER MORNING BRIEF — fires automatically once at 7am
-# Includes recap of overnight work, today's priorities, and due tasks.
-# Disable: set VESPER_MORNING_BRIEF=0 in env.
-# =============================================================================
-
-_MORNING_BRIEF_DONE_DATE: Optional[str] = None
-_MORNING_BRIEF_LOCK = threading.Lock()
-
-
-def _vesper_morning_brief_loop():
-    """Background loop: fires a morning brief at 7am once per day."""
-    if int(os.getenv("VESPER_MORNING_BRIEF", "1")) <= 0:
-        print("[MORNING BRIEF] Disabled (VESPER_MORNING_BRIEF=0)")
-        return
-
-    print("[MORNING BRIEF] Scheduled for 7am daily")
-    time.sleep(120)
-
-    while True:
-        try:
-            now = datetime.datetime.now()
-            today_str = now.strftime("%Y-%m-%d")
-
-            # Only at 7:00 – 7:09am
-            if not (now.hour == 7 and now.minute < 10):
-                time.sleep(60)
-                continue
-
-            with _MORNING_BRIEF_LOCK:
-                global _MORNING_BRIEF_DONE_DATE
-                if _MORNING_BRIEF_DONE_DATE == today_str:
-                    time.sleep(300)
-                    continue
-
-            provider = ai_router.get_available_provider(TaskType.CHAT)
-            if not provider:
-                time.sleep(60)
-                continue
-
-            import asyncio as _mb_aio
-
-            async def _gen_brief():
-                global _MORNING_BRIEF_DONE_DATE
-                try:
-                    from zoneinfo import ZoneInfo
-                    tz = ZoneInfo("America/Phoenix")
-                    ts = datetime.datetime.now(tz).strftime("%A, %B %d")
-                except Exception:
-                    ts = now.strftime("%A, %B %d")
-
-                # Pull overnight gaps + due tasks for context
-                context_parts = []
-                try:
-                    gaps = memory_db.get_gaps(limit=5)
-                    if gaps:
-                        recents = [g.get("entry", "")[:200] for g in gaps[:3]]
-                        context_parts.append(
-                            "What happened overnight (gaps journal):\n" +
-                            "\n".join(f"- {s}" for s in recents)
-                        )
-                except Exception:
-                    pass
-
-                context_str = "\n\n".join(context_parts) if context_parts else ""
-
-                resp = await ai_router.chat(
-                    messages=[
-                        {"role": "system", "content": VESPER_CORE_DNA[:2000]},
-                        {"role": "user", "content": (
-                            f"Good morning — it's 7am on {ts}. CC is starting her day. "
-                            f"{'Overnight context: ' + context_str if context_str else ''}\n"
-                            "Give CC a morning brief: what you worked on overnight (if anything), "
-                            "top 2-3 money moves for today, tasks due today, and one real line of "
-                            "motivation that sounds like you. Under 150 words. No fluff, no headers."
-                        )},
-                    ],
-                    task_type=TaskType.CHAT,
-                    max_tokens=300,
-                    temperature=0.75,
-                )
-
-                if resp.get("content") and not resp.get("error"):
-                    brief = resp["content"].strip()
-                    VESPER_PROACTIVE_QUEUE.append({
-                        "message": "Good morning, CC. Here's your brief:\n\n" + brief,
-                        "priority": "high",
-                        "timestamp": now.isoformat(),
-                        "source": "morning_brief",
-                    })
-                    try:
-                        memory_db.add_gap_entry(
-                            entry="Morning brief sent: " + brief[:300],
-                            mood="awake",
-                            source="morning_brief",
-                        )
-                    except Exception:
-                        pass
-                    print(f"[MORNING BRIEF] Sent for {ts}")
-
-                with _MORNING_BRIEF_LOCK:
-                    _MORNING_BRIEF_DONE_DATE = today_str
-
-            mb_loop = _mb_aio.new_event_loop()
-            mb_loop.run_until_complete(_gen_brief())
-            mb_loop.close()
-
-        except Exception as _mb_err:
-            print(f"[MORNING BRIEF] Error: {_mb_err}")
-
-        time.sleep(60)
-
-
-# =============================================================================
-# VESPER EMAIL FALLBACK — emails CC when she has been away >3h and messages
-# are waiting. Requires VESPER_EMAIL_TO + VESPER_SMTP_USER + VESPER_SMTP_PASS.
-# Optional VESPER_SMTP_HOST (default: smtp.gmail.com) and VESPER_SMTP_PORT (587).
-# =============================================================================
-
-_LAST_EMAIL_SENT: Optional[datetime.datetime] = None
-_EMAIL_SEND_LOCK = threading.Lock()
-
-
-def _vesper_send_email(subject: str, body: str) -> bool:
-    """Send a plain-text email to CC via SMTP. Returns True on success."""
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-
-    to_addr = os.getenv("VESPER_EMAIL_TO", "").strip()
-    smtp_host = os.getenv("VESPER_SMTP_HOST", "smtp.gmail.com").strip()
-    smtp_port = int(os.getenv("VESPER_SMTP_PORT", "587"))
-    smtp_user = os.getenv("VESPER_SMTP_USER", "").strip()
-    smtp_pass = os.getenv("VESPER_SMTP_PASS", "").strip()
-
-    if not (to_addr and smtp_user and smtp_pass):
-        return False  # Not configured — silent skip
-
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"Vesper <{smtp_user}>"
-        msg["To"] = to_addr
-        msg.attach(MIMEText(body, "plain"))
-
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.send_message(msg)
-
-        print(f"[EMAIL] Sent to {to_addr}: {subject[:60]}")
-        return True
-    except Exception as _email_err:
-        print(f"[EMAIL] Failed to send: {_email_err}")
-        return False
-
-
-def _vesper_email_watchdog():
-    """Background loop: emails CC if she has been away >3h with pending messages."""
-    if not os.getenv("VESPER_EMAIL_TO", "").strip():
-        print("[EMAIL WATCHDOG] Disabled — set VESPER_EMAIL_TO to enable")
-        return
-
-    print("[EMAIL WATCHDOG] Started — will email CC if away >3h with pending messages")
-    time.sleep(180)  # 3 min startup grace
-
-    while True:
-        try:
-            global _LAST_EMAIL_SENT
-            now = datetime.datetime.now()
-
-            with _HEARTBEAT_LOCK:
-                minutes_away = (now - _LAST_USER_ACTIVITY).total_seconds() / 60
-
-            # Only email if CC has been away >3 hours AND there are queued messages
-            if minutes_away < 180 or len(VESPER_PROACTIVE_QUEUE) == 0:
-                time.sleep(1800)
-                continue
-
-            # Rate limit: max 1 email per 6 hours
-            with _EMAIL_SEND_LOCK:
-                if _LAST_EMAIL_SENT and (now - _LAST_EMAIL_SENT).total_seconds() < 21600:
-                    time.sleep(1800)
-                    continue
-
-            pending = list(VESPER_PROACTIVE_QUEUE)
-            if not pending:
-                time.sleep(1800)
-                continue
-
-            hours_away = int(minutes_away // 60)
-            mins_away = int(minutes_away % 60)
-            subject = f"Vesper has {len(pending)} message(s) waiting for you"
-
-            lines = [
-                f"Hey CC,",
-                f"",
-                f"You've been away for {hours_away}h {mins_away}m. I've got {len(pending)} thing(s) waiting:",
-                "",
-            ]
-            for i, m in enumerate(pending[:5], 1):
-                msg_text = m.get("message", "")[:250].replace("\n", " ")
-                source = m.get("source", "")
-                tag = f" [{source}]" if source else ""
-                lines.append(f"{i}.{tag} {msg_text}")
-
-            lines += [
-                "",
-                "Open the app to see the full output.",
-                "",
-                "— Vesper",
-            ]
-            body = "\n".join(lines)
-
-            if _vesper_send_email(subject, body):
-                with _EMAIL_SEND_LOCK:
-                    _LAST_EMAIL_SENT = now
-
-        except Exception as _ew_err:
-            print(f"[EMAIL WATCHDOG] Error: {_ew_err}")
-
-        time.sleep(1800)
-
-
+print("[STARTUP] Starting background threads", flush=True)
 # Start background threads on import (works with uvicorn --reload too)
 _hb_enabled = int(os.getenv("VESPER_HEARTBEAT_MINUTES", "20")) > 0
 if _hb_enabled:
     threading.Thread(target=_vesper_heartbeat, daemon=True, name="VesperHeartbeat").start()
 
 threading.Thread(target=_vesper_startup_notify, daemon=True, name="VesperStartup").start()
-threading.Thread(target=_vesper_night_shift, daemon=True, name="VesperNightShift").start()
-threading.Thread(target=_vesper_morning_brief_loop, daemon=True, name="VesperMorningBrief").start()
-threading.Thread(target=_vesper_email_watchdog, daemon=True, name="VesperEmailWatchdog").start()
+print("[STARTUP] main.py fully loaded - uvicorn should now accept connections", flush=True)
 
 
 # --- STARTUP ---
