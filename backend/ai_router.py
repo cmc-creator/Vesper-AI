@@ -56,6 +56,7 @@ class TaskType(Enum):
     SEARCH = "search"
     ANALYSIS = "analysis"
     CREATIVE = "creative"
+    CONVERSATIONAL = "conversational"  # warm emotional/personal chat → Claude
     
 class ModelProvider(Enum):
     ANTHROPIC = "anthropic"
@@ -179,6 +180,8 @@ class AIRouter:
             self.routing_strategy = {task: list(_prod_claude_first) for task in TaskType}
             # CHAT only: Gemini-first (speed/cost efficient for simple exchanges)
             self.routing_strategy[TaskType.CHAT] = list(_prod_gemini_first)
+            # CONVERSATIONAL: Claude-first — personal/emotional responses need warmth + depth
+            self.routing_strategy[TaskType.CONVERSATIONAL] = list(_prod_claude_first)
         
         # Model selection per provider — current model IDs (April 2026)
         self.models = {

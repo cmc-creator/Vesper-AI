@@ -1132,10 +1132,8 @@ async def ai_generate_avatar(req: dict):
     context += f"User request: {prompt}" if prompt else "Generate something that matches the current vibe."
     
     # Use AI to describe the ideal avatar
-    from ai_router import route_to_best_model, TaskType
     try:
-        result = await route_to_best_model(
-            task_type=TaskType.CONVERSATIONAL,
+        result = await ai_router.chat(
             messages=[{
                 "role": "system",
                 "content": "You are a 3D character designer. Describe a detailed 3D avatar model in JSON format with fields: name, description, style_tags (array), color_palette (array of hex colors), pose, outfit_details, hair, accessories. Be creative and specific."
@@ -1143,11 +1141,12 @@ async def ai_generate_avatar(req: dict):
                 "role": "user",
                 "content": context
             }],
+            task_type=TaskType.CREATIVE,
             max_tokens=500
         )
         
         # Try to parse as JSON
-        response_text = result.get("text", "")
+        response_text = result.get("content", "")
         try:
             # Try to extract JSON from response
             import re as _re
