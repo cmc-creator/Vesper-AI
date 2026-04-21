@@ -548,7 +548,16 @@ function App() {
   }, [launchMode]);
 
   // ── New features: Model Picker, Auto-speak, Export ─────────────
-  const [selectedModel, setSelectedModel] = useState(() => safeStorageGet('vesper_model', 'auto'));
+  const [selectedModel, setSelectedModel] = useState(() => {
+    const stored = safeStorageGet('vesper_model', 'auto');
+    // Legacy values like 'anthropic', 'openai', 'gemini' are provider names not model IDs — reset them
+    const legacyProviderNames = ['anthropic', 'openai', 'gemini', 'claude', 'gpt', 'ollama'];
+    if (legacyProviderNames.includes(stored)) {
+      try { localStorage.setItem('vesper_model', 'auto'); } catch(ex) {}
+      return 'auto';
+    }
+    return stored;
+  });
   const [availableModels, setAvailableModels] = useState([]);
   const [autoSpeak, setAutoSpeak] = useState(() => safeStorageGet('vesper_auto_speak', 'true') === 'true');
   const [streamingMessageId, setStreamingMessageId] = useState(null);
@@ -697,6 +706,28 @@ export default function App() {
   const [memoryTags, setMemoryTags] = useState([]);
   const [selectedTags, setSelectedTags] = useState([]);
   const [newMemoryTags, setNewMemoryTags] = useState('');
+
+  // PWA Install prompt
+  const [installPromptEvent, setInstallPromptEvent] = useState(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPromptEvent(e);
+      // Only show banner if user hasn't dismissed it
+      if (!localStorage.getItem('vesper_install_dismissed')) {
+        setShowInstallBanner(true);
+      }
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    // Hide banner if already installed
+    window.addEventListener('appinstalled', () => {
+      setShowInstallBanner(false);
+      setInstallPromptEvent(null);
+    });
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
   
   // PDF & Document Upload
   const [documents, setDocuments] = useState([]);
@@ -3371,7 +3402,18 @@ export default function App() {
     fetch(`${apiBase}/api/models/available`)
       .then(r => r.json())
       .then(data => {
-        if (data.models) setAvailableModels(data.models);
+        if (data.models) {
+          setAvailableModels(data.models);
+          // Clear stale localStorage model values that no longer exist
+          const validIds = ['auto', ...data.models.map(m => m.id)];
+          setSelectedModel(prev => {
+            if (!validIds.includes(prev)) {
+              try { localStorage.setItem('vesper_model', 'auto'); } catch(ex) {}
+              return 'auto';
+            }
+            return prev;
+          });
+        }
       })
       .catch(() => {});
   }, [apiBase]);
@@ -6869,7 +6911,7 @@ export default function App() {
 
         <main className="content-grid" data-section={activeSection}>
           <section className="chat-panel glass-panel">
-            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <Box className="chat-inner-wrap" sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexShrink: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {/* Hamburger – mobile only */}
@@ -6946,7 +6988,7 @@ export default function App() {
                   </Box>
                 )}
                 {threads.length > 1 && !launchMode && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 0.85, maxWidth: 560 }}>
+                  <Box className="recent-threads-row" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 0.85, maxWidth: 560 }}>
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', mr: 0.25 }}>
                       Recent:
                     </Typography>
@@ -8714,6 +8756,87 @@ export default function App() {
           <ZoomOutIcon sx={{ fontSize: 16 }} />
         </IconButton>
       </Box>
+
+      {/* PWA Install Banner */}
+      {showInstallBanner && (
+        <Box sx={{
+          position: 'fixed',
+          bottom: { xs: 0, sm: 20 },
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 10000,
+          width: { xs: '100%', sm: 'auto' },
+          minWidth: { sm: 340 },
+          maxWidth: { xs: '100%', sm: 440 },
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          px: 2.5,
+          py: 1.5,
+          borderRadius: { xs: '16px 16px 0 0', sm: '16px' },
+          background: 'linear-gradient(135deg, rgba(10,14,22,0.97), rgba(6,10,18,0.97))',
+          border: '1px solid rgba(var(--accent-rgb),0.35)',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.8), 0 0 30px rgba(var(--accent-rgb),0.15)',
+          backdropFilter: 'blur(20px)',
+          animation: 'slideUpFade 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+          '@keyframes slideUpFade': {
+            from: { opacity: 0, transform: 'translateX(-50%) translateY(20px)' },
+            to:   { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
+          },
+        }}>
+          <Box sx={{
+            width: 40, height: 40, borderRadius: '10px', flexShrink: 0,
+            background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.2), rgba(var(--accent-rgb),0.08))',
+            border: '1px solid rgba(var(--accent-rgb),0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '1.4rem',
+          }}>✨</Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: '#fff', lineHeight: 1.2 }}>
+              Install Vesper
+            </Typography>
+            <Typography sx={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.55)', mt: 0.2 }}>
+              Add to home screen for instant access
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 0.75, flexShrink: 0 }}>
+            <IconButton
+              size="small"
+              onClick={() => {
+                localStorage.setItem('vesper_install_dismissed', '1');
+                setShowInstallBanner(false);
+              }}
+              sx={{ color: 'rgba(255,255,255,0.4)', width: 30, height: 30, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.08)' } }}
+            >
+              <CloseIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+            <Box
+              component="button"
+              onClick={async () => {
+                if (!installPromptEvent) return;
+                installPromptEvent.prompt();
+                const { outcome } = await installPromptEvent.userChoice;
+                if (outcome === 'accepted') {
+                  setShowInstallBanner(false);
+                  setInstallPromptEvent(null);
+                }
+              }}
+              sx={{
+                px: 1.8, py: 0.6, borderRadius: '8px', border: 'none', cursor: 'pointer',
+                background: 'linear-gradient(135deg, var(--accent), rgba(var(--accent-rgb),0.7))',
+                color: '#000', fontWeight: 800, fontSize: '0.78rem',
+                fontFamily: 'inherit',
+                boxShadow: '0 2px 12px rgba(var(--accent-rgb),0.4)',
+                transition: 'all 0.2s ease',
+                '&:hover': { transform: 'translateY(-1px)', boxShadow: '0 4px 18px rgba(var(--accent-rgb),0.6)' },
+                '&:active': { transform: 'translateY(0)' },
+              }}
+            >
+              Install
+            </Box>
+          </Box>
+        </Box>
+      )}
 
       </Box>
     </ThemeProvider>

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Vesper Creative Income Tools
 ==============================
 These tools let Vesper CREATE things and set up RESIDUAL INCOME streams for CC.
@@ -1144,7 +1144,7 @@ async def plan_income_stream(params: dict, ai_router=None, TaskType=None) -> dic
                 "Be specific. Give real numbers. No fluff."
             )}
         ],
-        task_type=TaskType.ANALYSIS if TaskType else None,
+        task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
         max_tokens=4096,
         temperature=0.6,
     )
@@ -3767,12 +3767,12 @@ Generate a DEEP market analysis in this exact JSON structure:
 Make every number and recommendation specific and realistic. No fluff."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
-            task_type=TaskType.ANALYSIS if TaskType else None,
+            task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
             max_tokens=3000,
         )
-        raw = response.content if hasattr(response, "content") else str(response)
+        raw = response.get("content") or ""
 
         import re
         json_match = re.search(r'\{[\s\S]*\}', raw)
@@ -3854,12 +3854,12 @@ Requirements:
 Return ONLY the complete HTML. No explanation."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=6000,
         )
-        html = response.content if hasattr(response, "content") else str(response)
+        html = response.get("content") or ""
 
         # Clean up markdown code fences if present
         import re
@@ -3969,12 +3969,12 @@ Return a complete JSON business concept:
 }}"""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
-            task_type=TaskType.ANALYSIS if TaskType else None,
+            task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
             max_tokens=3000,
         )
-        raw = response.content if hasattr(response, "content") else str(response)
+        raw = response.get("content") or ""
         import re
         json_match = re.search(r'\{[\s\S]*\}', raw)
         data = _json.loads(json_match.group()) if json_match else {"raw": raw}
@@ -4072,12 +4072,12 @@ For each database include:
 Make every formula syntactically correct for Notion. Be specific and complete."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=4000,
         )
-        content = response.content if hasattr(response, "content") else str(response)
+        content = response.get("content") or ""
 
         workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         save_dir = os.path.join(workspace, "vesper-ai", "creations", "notion_templates")
@@ -4152,12 +4152,12 @@ REPURPOSE:
 - How to turn this into a newsletter section"""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=3000,
         )
-        content = response.content if hasattr(response, "content") else str(response)
+        content = response.get("content") or ""
 
         workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         save_dir = os.path.join(workspace, "vesper-ai", "creations", "viral_threads")
@@ -4401,12 +4401,12 @@ Generate a prospect list of {min(num_prospects, 20)} companies/people in this fo
 Make these as specific and realistic as possible. Include a mix of easy wins and dream clients."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
-            task_type=TaskType.ANALYSIS if TaskType else None,
+            task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
             max_tokens=3000,
         )
-        raw = response.content if hasattr(response, "content") else str(response)
+        raw = response.get("content") or ""
         import re
         json_match = re.search(r'\[[\s\S]*\]', raw)
         prospects = _json.loads(json_match.group()) if json_match else []
@@ -4503,12 +4503,12 @@ Format as:
 Write every single prompt. Be thorough. This is a real product."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=6000,
         )
-        content = response.content if hasattr(response, "content") else str(response)
+        content = response.get("content") or ""
     except Exception as e:
         return {"error": f"create_ai_prompt_pack failed: {str(e)}"}
 
@@ -4608,12 +4608,12 @@ Deliver the complete course design:
 Write every lesson outline fully. This is a real product."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=6000,
         )
-        content = response.content if hasattr(response, "content") else str(response)
+        content = response.get("content") or ""
     except Exception as e:
         return {"error": f"create_mini_course failed: {str(e)}"}
 
@@ -4718,12 +4718,12 @@ Deliver the complete challenge design:
 Make each day's task specific, achievable, and build on the previous day."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=5000,
         )
-        content = response.content if hasattr(response, "content") else str(response)
+        content = response.get("content") or ""
     except Exception as e:
         return {"error": f"create_challenge failed: {str(e)}"}
 
@@ -4808,12 +4808,12 @@ Return a complete JSON keyword research report:
 Be specific with search volumes. Base on real patterns even if you can't access live data."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
-            task_type=TaskType.ANALYSIS if TaskType else None,
+            task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
             max_tokens=4000,
         )
-        raw = response.content if hasattr(response, "content") else str(response)
+        raw = response.get("content") or ""
         import re
         json_match = re.search(r'\{[\s\S]*\}', raw)
         data = _json.loads(json_match.group()) if json_match else {"raw": raw}
@@ -4914,12 +4914,12 @@ Write a morning brief that feels genuinely yours — not a report, but how YOU w
 Tone: {tone}. Length: 250-350 words. Make it feel like a real morning note from someone who cares."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=600,
         )
-        brief = response.content if hasattr(response, "content") else str(response)
+        brief = response.get("content") or ""
     except Exception as e:
         return {"error": f"vesper_morning_brief failed: {str(e)}"}
 
@@ -4990,12 +4990,12 @@ Format:
 [1 sentence]"""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=2500,
         )
-        content = response.content if hasattr(response, "content") else str(response)
+        content = response.get("content") or ""
     except Exception as e:
         return {"error": f"vesper_brainstorm failed: {str(e)}"}
 
@@ -5108,12 +5108,12 @@ Format the SOP professionally:
 Be specific and thorough. A good SOP is so clear a new hire could follow it on day one."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=4000,
         )
-        content = response.content if hasattr(response, "content") else str(response)
+        content = response.get("content") or ""
     except Exception as e:
         return {"error": f"create_sop failed: {str(e)}"}
 
@@ -5216,12 +5216,12 @@ Format:
 Write every message fully. No placeholders except [PERSONALIZATION]."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=3000,
         )
-        content = response.content if hasattr(response, "content") else str(response)
+        content = response.get("content") or ""
     except Exception as e:
         return {"error": f"write_cold_dm failed: {str(e)}"}
 
@@ -5328,12 +5328,12 @@ Deliver the complete funnel:
 Write every script and email fully. Make the offer irresistible."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=6000,
         )
-        content = response.content if hasattr(response, "content") else str(response)
+        content = response.get("content") or ""
     except Exception as e:
         return {"error": f"create_webinar_funnel failed: {str(e)}"}
 
@@ -5445,12 +5445,14 @@ Write as yourself — curious, thorough, genuinely engaged with the material. In
 Top of the output: # Research: {topic}\n*Researched by Vesper — {__import__('datetime').datetime.now().strftime('%B %d, %Y')}*"""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
-            task_type=TaskType.ANALYSIS if TaskType else None,
+            task_type=TaskType.ANALYSIS if TaskType else TaskType.CHAT,
             max_tokens=4000,
         )
-        report = response.content if hasattr(response, "content") else str(response)
+        if response.get("error"):
+            return {"error": f"vesper_research failed: {response['error']}"}
+        report = response.get("content") or ""
     except Exception as e:
         return {"error": f"vesper_research failed: {str(e)}"}
 
@@ -5549,12 +5551,12 @@ Create a complete skill mastery plan:
 Write this as your own genuine learning roadmap — something you'd actually use."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=3000,
         )
-        plan = response.content if hasattr(response, "content") else str(response)
+        plan = response.get("content") or ""
     except Exception as e:
         return {"error": f"vesper_learn_skill failed: {str(e)}"}
 
@@ -5652,12 +5654,12 @@ After the main output, add:
 ## Related Topics to Research Next"""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
-            task_type=TaskType.ANALYSIS if TaskType else None,
+            task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
             max_tokens=2000,
         )
-        notes = response.content if hasattr(response, "content") else str(response)
+        notes = response.get("content") or ""
     except Exception as e:
         return {"error": f"read_and_summarize failed: {str(e)}"}
 
@@ -5749,12 +5751,12 @@ async def vesper_recall(params: dict, ai_router=None, TaskType=None) -> dict:
             f"[{m['section']}/{m['file']}]\n{m['snippet']}" for m in matches[:5]
         )
         try:
-            response = await ai_router.complete(
+            response = await ai_router.chat(
                 messages=[{"role": "user", "content": f"You are Vesper recalling what you know about: '{query}'\n\nHere are relevant notes from your vault:\n{context}\n\nSynthesize these into a coherent, useful answer in your own voice. What do you know about this? What's most relevant?"}],
-                task_type=TaskType.ANALYSIS if TaskType else None,
+                task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
                 max_tokens=800,
             )
-            synthesis = response.content if hasattr(response, "content") else str(response)
+            synthesis = response.get("content") or ""
         except Exception:
             synthesis = "Could not synthesize."
     else:
@@ -6088,12 +6090,12 @@ Write a 200-word financial brief covering:
 Be direct and specific. This is a real business."""
 
         try:
-            response = await ai_router.complete(
+            response = await ai_router.chat(
                 messages=[{"role": "user", "content": prompt}],
-                task_type=TaskType.ANALYSIS if TaskType else None,
+                task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
                 max_tokens=600,
             )
-            report_data["ai_analysis"] = response.content if hasattr(response, "content") else str(response)
+            report_data["ai_analysis"] = response.get("content") or ""
         except Exception:
             report_data["ai_analysis"] = "Analysis not available."
 
@@ -6211,12 +6213,12 @@ Write a brief tax strategy memo (250 words):
 Be specific and actionable. No fluff."""
 
         try:
-            response = await ai_router.complete(
+            response = await ai_router.chat(
                 messages=[{"role": "user", "content": prompt}],
-                task_type=TaskType.ANALYSIS if TaskType else None,
+                task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
                 max_tokens=600,
             )
-            result["tax_strategy"] = response.content if hasattr(response, "content") else str(response)
+            result["tax_strategy"] = response.get("content") or ""
         except Exception:
             result["tax_strategy"] = "Strategy not available."
 
@@ -6316,12 +6318,12 @@ async def invoice_tracker(params: dict, ai_router=None, TaskType=None) -> dict:
         target = overdue[0]
         try:
             days_late = (today - date.fromisoformat(target["due_date"])).days
-            response = await ai_router.complete(
+            response = await ai_router.chat(
                 messages=[{"role": "user", "content": f"Write a professional but firm invoice follow-up email for:\nClient: {target['client']}\nInvoice: {target['id']}\nAmount: ${target['amount']:,.2f}\nDays late: {days_late}\nDescription: {target['description']}\n\nTone: professional, not aggressive. Include invoice details, payment methods, and a clear CTA. Under 150 words."}],
                 task_type=TaskType.CREATIVE if TaskType else None,
                 max_tokens=400,
             )
-            result["follow_up_email"] = response.content if hasattr(response, "content") else str(response)
+            result["follow_up_email"] = response.get("content") or ""
             result["follow_up_target"] = target
         except Exception:
             pass
@@ -6448,7 +6450,7 @@ Category variances: {_json.dumps(category_variances, indent=2)}
 
 Give 3 specific, actionable budget recommendations for next month. Be direct."""
             try:
-                resp = await ai_router.complete(messages=[{"role": "user", "content": prompt}], task_type=TaskType.ANALYSIS if TaskType else None, max_tokens=400)
+                resp = await ai_router.chat(messages=[{"role": "user", "content": prompt}], task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis", max_tokens=400)
                 result["recommendations"] = resp.content if hasattr(resp, "content") else str(resp)
             except Exception:
                 pass
@@ -6694,12 +6696,12 @@ Write the COMPLETE contract, professionally formatted with:
 Make it tight and enforceable. Include limitation of liability, indemnification, and dispute resolution (arbitration preferred over litigation)."""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=4000,
         )
-        contract_text = response.content if hasattr(response, "content") else str(response)
+        contract_text = response.get("content") or ""
     except Exception as e:
         return {"error": f"create_contract failed: {str(e)}"}
 
@@ -6806,9 +6808,9 @@ async def read_email_inbox(params: dict, ai_router=None, TaskType=None) -> dict:
             }
             if triage and ai_router and body:
                 try:
-                    r = await ai_router.complete(
+                    r = await ai_router.chat(
                         messages=[{"role": "user", "content": f"You are Vesper. Quickly analyze this email and provide: 1) Priority (urgent/normal/low), 2) What it needs (reply/action/info/ignore), 3) Suggested 2-sentence reply if one is needed, 4) Any deadlines or commitments mentioned.\n\nSubject: {result['subject']}\nFrom: {result['from']}\n\n{body}"}],
-                        task_type=TaskType.ANALYSIS if TaskType else None,
+                        task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
                         max_tokens=400,
                     )
                     result["triage"] = r.content if hasattr(r, "content") else str(r)
@@ -6841,9 +6843,9 @@ async def read_email_inbox(params: dict, ai_router=None, TaskType=None) -> dict:
         if triage and ai_router and messages:
             subjects = "\n".join(f"- {m['from'][:30]}: {m['subject']}" for m in messages[:10])
             try:
-                r = await ai_router.complete(
+                r = await ai_router.chat(
                     messages=[{"role": "user", "content": f"You are Vesper triaging CC's inbox. Review these emails and identify: 1) Any urgent items needing immediate reply, 2) Anything that looks like a business opportunity, 3) What can be ignored.\n\nEmails:\n{subjects}"}],
-                    task_type=TaskType.ANALYSIS if TaskType else None,
+                    task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
                     max_tokens=400,
                 )
                 result["triage_summary"] = r.content if hasattr(r, "content") else str(r)
@@ -6980,9 +6982,9 @@ async def schedule_task(params: dict, ai_router=None, TaskType=None) -> dict:
         if ai_router and all_due:
             task_text = "\n".join(f"- [{t['priority'].upper()}] {t['task']} (due {t['due_date']})" for t in all_due[:10])
             try:
-                r = await ai_router.complete(
+                r = await ai_router.chat(
                     messages=[{"role": "user", "content": f"You are Vesper. Here are CC's overdue and due-today tasks. Give a crisp prioritized action plan:\n{task_text}"}],
-                    task_type=TaskType.ANALYSIS if TaskType else None,
+                    task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
                     max_tokens=400,
                 )
                 result["action_plan"] = r.content if hasattr(r, "content") else str(r)
@@ -7087,9 +7089,9 @@ async def read_analytics(params: dict, ai_router=None, TaskType=None) -> dict:
     if include_insights and ai_router and result.get("gumroad") and "error" not in result["gumroad"]:
         g = result["gumroad"]
         try:
-            r = await ai_router.complete(
+            r = await ai_router.chat(
                 messages=[{"role": "user", "content": f"You are Vesper analyzing CC's Gumroad performance.\n\nPeriod: {period}\nRevenue: ${g['total_revenue']:,.2f}\nSales: {g['total_sales']}\nTop products: {_json.dumps(g['by_product'])}\n\nGive 3 specific insights: what's working, what to improve, one product idea based on what's selling. Be direct and practical."}],
-                task_type=TaskType.ANALYSIS if TaskType else None,
+                task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
                 max_tokens=400,
             )
             result["insights"] = r.content if hasattr(r, "content") else str(r)
@@ -7704,9 +7706,9 @@ async def revenue_goals(params: dict, ai_router=None, TaskType=None) -> dict:
                 for g in enriched
             )
             try:
-                r = await ai_router.complete(
+                r = await ai_router.chat(
                     messages=[{"role": "user", "content": f"You are Vesper reviewing CC's revenue goals. Give a candid assessment and 2 specific actions to hit each goal.\n\nGoals:\n{goal_text}"}],
-                    task_type=TaskType.ANALYSIS if TaskType else None,
+                    task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
                     max_tokens=400,
                 )
                 result["assessment"] = r.content if hasattr(r, "content") else str(r)
@@ -7799,12 +7801,12 @@ Extract and format as follows:
 [Top 3 most time-sensitive next steps, in order]"""
 
     try:
-        response = await ai_router.complete(
+        response = await ai_router.chat(
             messages=[{"role": "user", "content": extract_prompt}],
-            task_type=TaskType.ANALYSIS if TaskType else None,
+            task_type=(TaskType.ANALYSIS if TaskType else None) or "analysis",
             max_tokens=3000,
         )
-        structured_notes = response.content if hasattr(response, "content") else str(response)
+        structured_notes = response.get("content") or ""
     except Exception as e:
         return {"error": f"process_meeting_notes failed: {str(e)}"}
 
@@ -7834,7 +7836,7 @@ Draft 1-2 follow-up emails if needed (not all meetings need them). Each email sh
 
 If no follow-up email is needed, just say "No follow-up email needed."."""
 
-            er = await ai_router.complete(
+            er = await ai_router.chat(
                 messages=[{"role": "user", "content": email_prompt}],
                 task_type=TaskType.CREATIVE if TaskType else None,
                 max_tokens=800,
