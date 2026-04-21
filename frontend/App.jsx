@@ -7022,7 +7022,7 @@ export default function App() {
                 )}
               </Box>
               </Box>{/* end mobile-menu-btn + title wrapper */}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 0.5 }}>
+              <Box className="chat-header-controls" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 0.5 }}>
                 {/* Model Picker */}
                 {availableModels.length > 0 && (
                   <Select
@@ -7170,7 +7170,7 @@ export default function App() {
               ))}
             </Stack>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
+            <Box className="chat-avatar-wrapper" sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
               <Box
                 className="chat-avatar-card"
                 sx={{ borderColor: `${activeTheme.accent}55`, width: 220, height: 280, flexShrink: 0 }}
