@@ -1,10 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 
-html {
-  overflow-x: hidden;
-  max-width: 100vw;
-}
-
 body {
   margin: 0;
   font-family: 'Manrope', 'Segoe UI', sans-serif;
@@ -12,8 +7,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-feature-settings: 'kern' 1;
-  -webkit-tap-highlight-color: transparent; /* Android: remove gray tap flash */
-  -webkit-text-size-adjust: 100%; /* Android: prevent text size adjustment */
   background:
     radial-gradient(circle at top left, rgba(240, 223, 188, 0.08), transparent 28%),
     radial-gradient(circle at 85% 12%, rgba(126, 168, 202, 0.08), transparent 26%),
@@ -22,10 +15,6 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   letter-spacing: 0.15px;
-  /* Prevent Android pull-to-refresh interfering with the chat scroll */
-  overscroll-behavior-y: contain;
-  /* Android rubber-band prevention */
-  overscroll-behavior-x: none;
 }
 
 .gradient-background {
@@ -41,13 +30,6 @@ code {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  /* Remove Android tap flash */
-  -webkit-tap-highlight-color: transparent;
-  /* Prevent text inflation on Android */
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-  /* Box model sanity */
-  box-sizing: border-box;
 }
 
 /* Smooth canvas rendering */
@@ -500,14 +482,12 @@ body[data-style="lux"] .hex-grid {
   z-index: 1;
   display: grid;
   grid-template-columns: 262px 1fr;
-  min-height: 100svh; /* svh excludes browser chrome on Android */
-  width: 100%;
-  max-width: 100vw;
+  min-height: 100vh;
+  width: 100vw;
   padding: 20px;
   gap: 20px;
   color: #eef2f7;
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: visible;
   transition: grid-template-columns 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -633,14 +613,10 @@ body[data-style="lux"] {
   top: 12px;
   height: calc(100vh - 24px);
   align-self: start;
-  /* Hardware-accelerated slide on Android */
-  will-change: transform;
-  -webkit-transform: translateZ(0);
   transition:
     width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
     min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    padding 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-item {
@@ -653,7 +629,6 @@ body[data-style="lux"] {
   color: rgba(255, 255, 255, 0.76);
   transition: all 0.28s ease;
   border: 1px solid rgba(255,255,255,0.04);
-  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   font-weight: 600;
   box-sizing: border-box;
@@ -744,7 +719,6 @@ body[data-style="lux"] {
   border: 1px solid rgba(242,222,170,0.28);
   font-weight: 700 !important;
   letter-spacing: 0.01em;
-  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
@@ -769,7 +743,6 @@ body[data-style="lux"] {
     0 28px 80px rgba(0, 0, 0, 0.52),
     inset 0 1px 0 rgba(255,255,255,0.08),
     inset 0 0 80px rgba(255,255,255,0.015);
-  -webkit-backdrop-filter: blur(28px) saturate(140%);
   backdrop-filter: blur(28px) saturate(140%);
   display: flex;
   flex-direction: column;
@@ -815,7 +788,6 @@ body[data-style="lux"] {
 [data-theme-id="marble-palace"] .app-shell,
 [data-theme-id="diamond-vault"] .app-shell,
 [data-theme-id="stained-glass"] .app-shell {
-  -webkit-backdrop-filter: blur(8px) saturate(130%);
   backdrop-filter: blur(8px) saturate(130%);
 }
 
@@ -885,8 +857,6 @@ body[data-style="lux"] {
   box-shadow: inset 0 0 30px rgba(var(--accent-rgb), 0.04), inset 0 1px 0 rgba(255,255,255,0.04);
   min-height: 0;
   scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch; /* smooth momentum scroll on Android/iOS */
-  overscroll-behavior: contain; /* prevent page scroll when hitting chat edges */
 }
 
 .chat-resize-handle {
@@ -981,7 +951,6 @@ body[data-style="lux"] {
   background: rgba(0, 0, 0, 0.75);
   border: 1px solid rgba(var(--accent-rgb), 0.2);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 30px rgba(var(--accent-rgb), 0.1), inset 0 0 40px rgba(var(--accent-rgb), 0.03);
-  -webkit-backdrop-filter: blur(15px);
   backdrop-filter: blur(15px);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -1015,7 +984,6 @@ body[data-style="lux"] {
     radial-gradient(circle at 80% 30%, rgba(0, 255, 88, 0.12), transparent 32%),
     rgba(0, 0, 0, 0.85);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 40px rgba(var(--accent-rgb), 0.15), inset 0 0 60px rgba(var(--accent-rgb), 0.05);
-  -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
 }
 
@@ -1029,7 +997,6 @@ body[data-style="lux"] {
     0 0 60px rgba(218, 165, 32, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     inset 0 0 40px rgba(218, 165, 32, 0.04);
-  -webkit-backdrop-filter: blur(25px);
   backdrop-filter: blur(25px);
   max-width: 500px;
   margin: 0 auto;
@@ -1529,7 +1496,6 @@ button:active,
 
 /* Smooth Modal Backdrop */
 .MuiBackdrop-root {
-  -webkit-backdrop-filter: blur(8px) !important;
   backdrop-filter: blur(8px) !important;
   transition: all 0.3s ease !important;
 }
@@ -1576,15 +1542,6 @@ button:active,
   display: none !important;
 }
 
-/* Android: remove 300ms tap delay on interactive elements */
-button,
-.ghost-button,
-.cta-button,
-.nav-item,
-[role="button"] {
-  touch-action: manipulation;
-}
-
 /* Mobile sidebar backdrop hidden on desktop */
 .mobile-sidebar-backdrop {
   display: none;
@@ -1597,6 +1554,9 @@ button,
     grid-template-columns: 1fr;
     padding: 12px;
     gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   /* Sidebar-collapsed is desktop-only; on tablet/mobile sidebar goes off-canvas */
@@ -1684,17 +1644,42 @@ button,
   .content-grid[data-section="settings"] .ops-panel {
     min-height: calc(100svh - 24px);
   }
+
+  /* Full-screen sections — hide chat, give ops-panel full height */
+  .content-grid[data-section="nyxshift"] .chat-panel,
+  .content-grid[data-section="income"] .chat-panel,
+  .content-grid[data-section="morning-brief"] .chat-panel,
+  .content-grid[data-section="gaps"] .chat-panel,
+  .content-grid[data-section="integrations"] .chat-panel,
+  .content-grid[data-section="analytics"] .chat-panel,
+  .content-grid[data-section="sassy"] .chat-panel,
+  .content-grid[data-section="personality"] .chat-panel {
+    display: none;
+  }
+  .content-grid[data-section="nyxshift"] .ops-panel,
+  .content-grid[data-section="income"] .ops-panel,
+  .content-grid[data-section="morning-brief"] .ops-panel,
+  .content-grid[data-section="gaps"] .ops-panel,
+  .content-grid[data-section="integrations"] .ops-panel,
+  .content-grid[data-section="analytics"] .ops-panel,
+  .content-grid[data-section="sassy"] .ops-panel,
+  .content-grid[data-section="personality"] .ops-panel {
+    min-height: calc(100svh - 24px);
+  }
 }
 
 @media (max-width: 768px) {
   .app-shell {
-    padding: 8px;
-    gap: 8px;
+    padding: 6px;
+    gap: 6px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   .app-shell.launch-mode {
-    padding: 8px;
-    gap: 8px;
+    padding: 6px;
+    gap: 6px;
   }
 
   /* Sidebar becomes a fixed off-canvas drawer */
@@ -1703,9 +1688,43 @@ button,
     padding: 16px 12px;
   }
 
-  /* Content fills the full width */
+  /* Content fills the full width — no wasted space */
   .content-grid {
-    min-height: calc(100vh - 16px);
+    min-height: calc(100svh - 12px);
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Chat panel fills the viewport — chat IS the focus on mobile */
+  .chat-panel {
+    min-height: calc(100svh - 12px);
+    border-radius: 16px;
+    padding: 10px 10px 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Hide the avatar section — saves ~300px vertical + removes gray side area */
+  .chat-avatar-wrapper {
+    display: none !important;
+  }
+
+  /* Hide prompt rail chips — saves ~50px vertical on mobile */
+  .prompt-rail {
+    display: none !important;
+  }
+
+  /* Chat window takes the majority of the viewport */
+  .chat-window {
+    max-height: calc(100svh - 200px);
+    flex: 1;
+  }
+
+  /* Hide low-priority header controls on mobile — keep hamburger, title, New Chat, voice only */
+  .chat-header-controls .MuiSelect-root,
+  .chat-header-controls .MuiInputBase-root,
+  .chat-header-controls .MuiOutlinedInput-root {
+    display: none !important;
   }
 
   .chat-stage-shell {
@@ -1719,20 +1738,24 @@ button,
     justify-self: center;
   }
 
-  .chat-panel {
-    min-height: calc(100svh - 32px);
-  }
-
-  .chat-window {
-    max-height: 55svh;
-  }
-
   /* Board sections fill the full mobile viewport */
   .content-grid[data-section="research"] .ops-panel,
   .content-grid[data-section="memory"] .ops-panel,
   .content-grid[data-section="tasks"] .ops-panel,
   .content-grid[data-section="settings"] .ops-panel {
-    min-height: calc(100svh - 16px);
+    min-height: calc(100svh - 12px);
+  }
+
+  /* Full-screen sections at 768px */
+  .content-grid[data-section="nyxshift"] .ops-panel,
+  .content-grid[data-section="income"] .ops-panel,
+  .content-grid[data-section="morning-brief"] .ops-panel,
+  .content-grid[data-section="gaps"] .ops-panel,
+  .content-grid[data-section="integrations"] .ops-panel,
+  .content-grid[data-section="analytics"] .ops-panel,
+  .content-grid[data-section="sassy"] .ops-panel,
+  .content-grid[data-section="personality"] .ops-panel {
+    min-height: calc(100svh - 12px);
   }
 }
 
@@ -1740,18 +1763,14 @@ button,
 @media (max-width: 480px) {
   .app-shell {
     padding: 4px;
-    /* Android safe-area for notch/gesture-nav devices */
-    padding-bottom: max(4px, env(safe-area-inset-bottom));
-    padding-left: max(4px, env(safe-area-inset-left));
-    padding-right: max(4px, env(safe-area-inset-right));
     gap: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   .app-shell.launch-mode {
     padding: 4px;
-    padding-bottom: max(4px, env(safe-area-inset-bottom));
-    padding-left: max(4px, env(safe-area-inset-left));
-    padding-right: max(4px, env(safe-area-inset-right));
     gap: 4px;
   }
 
@@ -1761,24 +1780,22 @@ button,
     padding: 12px 10px;
   }
 
-  /* Shorter avatar so keyboard + chat fits */
-  .chat-avatar-card {
-    height: 130px;
-    width: min(170px, 90%);
-  }
-
+  /* Chat panel edge-to-edge on small phones */
   .chat-panel {
     min-height: calc(100dvh - 8px);
+    border-radius: 12px;
+    padding: 8px 8px 6px;
   }
 
   /* Use dvh so chat shrinks when keyboard opens */
   .chat-window {
-    max-height: 44dvh;
+    max-height: calc(100dvh - 160px);
+    flex: 1;
   }
 
   /* Tighter input bar */
   .input-bar {
-    padding: 8px 10px !important;
+    padding: 6px 8px !important;
     border-radius: 14px !important;
   }
 
@@ -1788,15 +1805,6 @@ button,
     min-width: 40px !important;
     min-height: 40px !important;
     padding: 8px !important;
-  }
-
-  /* Android: force 16px font on inputs to prevent auto-zoom on focus */
-  input,
-  textarea,
-  select,
-  .MuiInputBase-input,
-  .MuiInputBase-inputMultiline {
-    font-size: 16px !important;
   }
 
   /* Command deck: scroll horizontally instead of wrapping tiny columns */
@@ -1825,6 +1833,18 @@ button,
   .content-grid[data-section="memory"] .ops-panel,
   .content-grid[data-section="tasks"] .ops-panel,
   .content-grid[data-section="settings"] .ops-panel {
+    min-height: calc(100dvh - 8px);
+  }
+
+  /* Full-screen sections at 480px */
+  .content-grid[data-section="nyxshift"] .ops-panel,
+  .content-grid[data-section="income"] .ops-panel,
+  .content-grid[data-section="morning-brief"] .ops-panel,
+  .content-grid[data-section="gaps"] .ops-panel,
+  .content-grid[data-section="integrations"] .ops-panel,
+  .content-grid[data-section="analytics"] .ops-panel,
+  .content-grid[data-section="sassy"] .ops-panel,
+  .content-grid[data-section="personality"] .ops-panel {
     min-height: calc(100dvh - 8px);
   }
 }
@@ -2199,300 +2219,6 @@ body[data-style="ocean"] {
     0 0 100px rgba(var(--accent-rgb), 0.10),
     inset 0 0 120px rgba(var(--accent-rgb), 0.07) !important;
   position: relative;
-}
-
-
-/* ════════════════════════════════════════════════════════════════════════════
-   MOBILE POLISH v2 — phones & small tablets  (≤ 768px / ≤ 480px)
-   Supplements and overrides the basic breakpoints above.
-   ════════════════════════════════════════════════════════════════════════════ */
-
-/* Safe-area inset support variable (phones with notches / home-bar) */
-:root {
-  --sai-bottom: env(safe-area-inset-bottom, 0px);
-  --sai-top:    env(safe-area-inset-top, 0px);
-  --sai-left:   env(safe-area-inset-left, 0px);
-  --sai-right:  env(safe-area-inset-right, 0px);
-}
-
-@media (max-width: 768px) {
-  /* ── Body: prevent horizontal scroll, allow vertical */
-  body {
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* ── App shell: full-bleed, no gap on phone */
-  .app-shell {
-    padding: 0 !important;
-    gap: 0 !important;
-    min-height: 100dvh;
-    /* Prevent horizontal overflow / gray bar on the right */
-    width: 100% !important;
-    max-width: 100vw !important;
-    overflow-x: hidden !important;
-    grid-template-columns: 1fr !important;
-  }
-
-  /* ── Content grid: fill the screen, single column */
-  .content-grid {
-    min-height: 100dvh;
-    border-radius: 0;
-    grid-template-columns: 1fr !important;
-    max-width: 100% !important;
-    overflow-x: hidden !important;
-  }
-
-  /* ── Force chat section to hide the ops-panel (belt-and-suspenders) */
-  .content-grid[data-section="chat"] .ops-panel,
-  .content-grid:not([data-section]) .ops-panel {
-    display: none !important;
-  }
-
-  /* ── Chat panel: tighten radius & padding on mobile */
-  .chat-panel {
-    border-radius: 0 !important;
-    padding: 10px 10px 0 10px !important;
-    gap: 8px !important;
-    height: 100dvh !important;
-    max-height: 100dvh !important;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* ── Critical Android fix: override MUI Box overflow:hidden that breaks
-        position:sticky and prevents proper keyboard-resize layout reflow */
-  .chat-inner-wrap {
-    overflow: visible !important;
-    display: flex !important;
-    flex-direction: column !important;
-    flex: 1 1 0 !important;
-    min-height: 0 !important;
-    height: auto !important;
-  }
-
-  /* ── Chat window: fill remaining space above input */
-  .chat-window {
-    flex: 1 1 0 !important;
-    max-height: none !important;
-    min-height: 0 !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-    /* Prevent Android pull-to-refresh from hijacking chat scroll */
-    overscroll-behavior-y: contain;
-  }
-
-  /* ── Chat stage: hide decoration avatar on mobile to save space */
-  .chat-avatar-card {
-    display: none !important;
-  }
-  .chat-stage-shell {
-    grid-template-columns: 1fr !important;
-    gap: 0 !important;
-  }
-  /* Chat stage meta stretches full width */
-  .chat-stage-meta {
-    border-radius: 12px;
-    padding: 8px 10px;
-  }
-
-  /* ── Input bar: flex-anchored to bottom of chat-inner-wrap (sticky is
-        unreliable on Android inside flex containers; flex-order is stable) */
-  .input-bar {
-    flex: 0 0 auto !important;
-    position: relative !important;
-    padding-bottom: max(10px, var(--sai-bottom)) !important;
-    border-radius: 12px 12px 0 0 !important;
-    z-index: 20;
-    background: linear-gradient(180deg, rgba(10,12,18,0.98), rgba(8,10,16,0.99)) !important;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.5) !important;
-  }
-
-  /* ── Command deck: 3 columns instead of 5 on small screens */
-  .command-deck {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  }
-
-  /* ── Ops panel sections — full viewport height */
-  .ops-panel {
-    min-height: 100dvh;
-    padding: 12px 8px;
-  }
-
-  /* ── All non-chat sections: hide chat panel and show ops panel.
-        Extends the existing research/memory/tasks/settings rules to cover
-        every section in the sidebar nav. */
-  .content-grid[data-section="nyxshift"] .chat-panel,
-  .content-grid[data-section="gallery"] .chat-panel,
-  .content-grid[data-section="sassy"] .chat-panel,
-  .content-grid[data-section="documents"] .chat-panel,
-  .content-grid[data-section="integrations"] .chat-panel,
-  .content-grid[data-section="income"] .chat-panel,
-  .content-grid[data-section="gaps"] .chat-panel,
-  .content-grid[data-section="analytics"] .chat-panel,
-  .content-grid[data-section="personality"] .chat-panel {
-    display: none;
-  }
-  .content-grid[data-section="nyxshift"] .ops-panel,
-  .content-grid[data-section="gallery"] .ops-panel,
-  .content-grid[data-section="sassy"] .ops-panel,
-  .content-grid[data-section="documents"] .ops-panel,
-  .content-grid[data-section="integrations"] .ops-panel,
-  .content-grid[data-section="income"] .ops-panel,
-  .content-grid[data-section="gaps"] .ops-panel,
-  .content-grid[data-section="analytics"] .ops-panel,
-  .content-grid[data-section="personality"] .ops-panel {
-    min-height: calc(100dvh - 16px);
-  }
-
-  /* ── Sidebar: tighten on mobile */
-  .sidebar {
-    width: 78vw !important;
-    max-width: 300px !important;
-    padding: 14px 12px !important;
-    padding-top: max(14px, var(--sai-top)) !important;
-  }
-
-  /* ── Nav items: minimum 44×44px touch target (Apple HIG) */
-  .nav-item,
-  .sidebar .nav-item,
-  .sidebar .nav-item.active {
-    min-height: 44px !important;
-    padding: 10px 12px !important;
-  }
-
-  /* ── Ghost / CTA buttons: bigger tap targets on mobile */
-  .ghost-button,
-  .cta-button {
-    min-width: 40px !important;
-    min-height: 40px !important;
-  }
-
-  /* ── Thin scrollbars on mobile */
-  ::-webkit-scrollbar {
-    width: 3px !important;
-    height: 3px !important;
-  }
-
-  /* ── Panel grid: 1 column below 500px */
-  .panel-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* ── Board cards: no fixed widths */
-  .board-card {
-    min-width: 0 !important;
-    max-width: 100% !important;
-  }
-
-  /* ── Intel board: full width */
-  .intel-board {
-    min-width: 0 !important;
-  }
-
-  /* ── Ops card: full width, normal height */
-  .ops-card {
-    max-height: none !important;
-  }
-
-  /* ── Logo banner in ops panel: hide to save space */
-  .ops-panel-logo {
-    display: none !important;
-  }
-
-  /* ── Prevent iOS double-tap zoom on buttons & interactive cells */
-  button,
-  [role="button"],
-  .nav-item,
-  .tool-item,
-  .tool-card,
-  .board-card,
-  .ops-card {
-    touch-action: manipulation;
-  }
-
-  /* ── Prevent Android auto-zoom when focusing text inputs (requires ≥16px) */
-  input,
-  textarea,
-  select,
-  .MuiInputBase-input,
-  .MuiOutlinedInput-input {
-    font-size: 16px !important;
-  }
-  .MuiInputLabel-root {
-    font-size: 14px !important;
-  }
-
-  /* ── task columns & theme cards: no fixed min-widths that overflow */
-  .task-column {
-    min-width: 0 !important;
-    width: 100% !important;
-  }
-  .theme-card {
-    min-width: 0 !important;
-    flex: 1 1 140px !important;
-  }
-}
-
-/* ── Very small phones (≤ 480px) ─────────────────────────────────────────── */
-@media (max-width: 480px) {
-  /* ── Chat header: wrap chips so they don't overflow */
-  .chat-panel .MuiChip-root {
-    height: 22px;
-    font-size: 0.65rem;
-  }
-
-  /* ── Typography scale-down for headers inside chat */
-  .chat-panel .MuiTypography-h5 {
-    font-size: 1.1rem !important;
-  }
-
-  /* ── Command deck: 3 narrow cols */
-  .command-deck {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 4px !important;
-    padding: 4px !important;
-  }
-
-  /* ── Chat panel padding */
-  .chat-panel {
-    padding: 6px 6px 0 6px !important;
-  }
-
-  /* ── Reduce chat message bubble padding */
-  .chat-message-bubble {
-    padding: 10px 12px !important;
-  }
-
-  /* ── Hide the "Recent:" thread chips row in chat header on very small phones */
-  .recent-threads-row {
-    display: none;
-  }
-}
-
-/* ── Landscape phones (short + wide) ────────────────────────────────────── */
-@media (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
-  .chat-avatar-card {
-    display: none !important;
-  }
-
-  .chat-window {
-    max-height: 40dvh;
-  }
-
-  .command-deck {
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-    gap: 3px !important;
-    padding: 3px !important;
-  }
-
-  .sidebar {
-    height: 100dvh !important;
-    max-height: 100dvh !important;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
 }
 
 /* Bioluminescent wisps floating in sidebar */
