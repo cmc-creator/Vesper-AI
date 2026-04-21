@@ -804,6 +804,44 @@ async def get_income_dashboard():
         return {"error": str(e), "total_est_monthly": 0, "pipeline": [], "by_type": {}}
 
 
+@app.patch("/api/creative/creations/{creation_id}/status")
+async def update_creation_status(creation_id: str, body: dict = Body(...)):
+    """Flip a creation's status (draft → published, etc.)."""
+    try:
+        status = body.get("status", "published")
+        result = memory_db.update_creation_status(creation_id, status)
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/income/log-sale")
+async def log_sale(body: dict = Body(...)):
+    """Log a real sale so the dashboard reflects actual income."""
+    try:
+        result = memory_db.log_sale(
+            creation_id=body.get("creation_id", ""),
+            platform=body.get("platform", ""),
+            amount=float(body.get("amount", 0)),
+            currency=body.get("currency", "USD"),
+            notes=body.get("notes", ""),
+        )
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/api/income/sales")
+async def get_sales(creation_id: str = None):
+    """Get logged sales, optionally filtered to one creation."""
+    try:
+        sales = memory_db.get_sales(creation_id=creation_id)
+        total = round(sum(s["amount"] for s in sales), 2)
+        return {"sales": sales, "total_earned": total, "count": len(sales)}
+    except Exception as e:
+        return {"sales": [], "total_earned": 0, "error": str(e)}
+
+
 # ── Gaps Journal — Vesper's thoughts between sessions ────────────────────────
 
 @app.get("/api/gaps")

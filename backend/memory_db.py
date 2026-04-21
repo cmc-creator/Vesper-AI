@@ -185,6 +185,19 @@ class CreativeItem(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 
+class IncomeSale(Base):
+    """Logs real sales so the income dashboard reflects truth, not just estimates."""
+    __tablename__ = "income_sales"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    creation_id = Column(String, nullable=True, index=True)   # may be blank for ad-hoc sales
+    platform = Column(String, default="")                      # KDP, Gumroad, Spotify, Etsy, etc.
+    amount = Column(Float, default=0.0)
+    currency = Column(String, default="USD")
+    notes = Column(String, default="")
+    sold_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
 class PersistentMemoryDB:
     """Database manager for persistent memory"""
     
@@ -1821,6 +1834,78 @@ class PersistentMemoryDB:
         except Exception as e:
             session.rollback()
             return False
+        finally:
+            session.close()
+
+    def update_creation_status(self, id: str, status: str) -> dict:
+        """Update only the status field of a creation (e.g. draft → published)."""
+        session = self.get_session()
+        try:
+            item = session.query(CreativeItem).filter_by(id=id).first()
+            if not item:
+                return {"error": "not found"}
+            item.status = status
+            item.updated_at = datetime.datetime.utcnow()
+            session.commit()
+            return {"id": id, "status": status}
+        except Exception as e:
+            session.rollback()
+            return {"error": str(e)}
+        finally:
+            session.close()
+
+    def log_sale(self, creation_id: str, platform: str, amount: float,
+                 currency: str = "USD", notes: str = "") -> dict:
+        """Log a real sale for a creation so the income dashboard shows truth."""
+        session = self.get_session()
+        try:
+            row = IncomeSale(
+                creation_id=creation_id,
+                platform=platform,
+                amount=amount,
+                currency=currency,
+                notes=notes,
+                sold_at=datetime.datetime.utcnow(),
+            )
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+            return {
+                "id": row.id,
+                "creation_id": creation_id,
+                "platform": platform,
+                "amount": amount,
+                "sold_at": row.sold_at.isoformat(),
+            }
+        except Exception as e:
+            session.rollback()
+            return {"error": str(e)}
+        finally:
+            session.close()
+
+    def get_sales(self, creation_id: str = None, limit: int = 200) -> list:
+        """Get logged sales, optionally filtered to one creation."""
+        session = self.get_session()
+        try:
+            q = session.query(IncomeSale)
+            if creation_id:
+                q = q.filter_by(creation_id=creation_id)
+            rows = q.order_by(IncomeSale.sold_at.desc()).limit(limit).all()
+            return [
+                {
+                    "id": r.id,
+                    "creation_id": r.creation_id,
+                    "platform": r.platform,
+                    "amount": float(r.amount),
+                    "currency": r.currency,
+                    "notes": r.notes,
+                    "sold_at": r.sold_at.isoformat() if r.sold_at else None,
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            print(f"[get_sales] {e}")
+            return []
         finally:
             session.close()
 

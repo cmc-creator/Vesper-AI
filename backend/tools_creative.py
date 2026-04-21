@@ -4840,8 +4840,40 @@ Be specific with search volumes. Base on real patterns even if you can't access 
 
 
 # ── VESPER MORNING BRIEF ───────────────────────────────────────────────────────
+def _quick_ddg_search(query: str, max_results: int = 5) -> list:
+    """Lightweight DuckDuckGo search for morning opportunity scans. Returns list of {title, snippet} dicts."""
+    try:
+        from duckduckgo_search import DDGS
+        results = []
+        with DDGS() as ddgs:
+            for r in ddgs.text(query, max_results=max_results):
+                results.append({"title": r.get("title", ""), "snippet": r.get("body", "")[:200]})
+        return results
+    except Exception:
+        pass
+    # Fallback: DuckDuckGo HTML scrape
+    try:
+        resp = requests.get(
+            "https://html.duckduckgo.com/html/",
+            params={"q": query},
+            headers={"User-Agent": "Mozilla/5.0 (compatible; Vesper/1.0)"},
+            timeout=8,
+        )
+        import re as _re
+        snippets = _re.findall(r'class="result__snippet">(.*?)</a>', resp.text, _re.DOTALL)
+        titles   = _re.findall(r'class="result__a"[^>]*>(.*?)</a>', resp.text, _re.DOTALL)
+        results = []
+        for t, s in zip(titles[:max_results], snippets[:max_results]):
+            clean = lambda x: _re.sub(r'<[^>]+>', '', x).strip()
+            results.append({"title": clean(t), "snippet": clean(s)[:200]})
+        return results
+    except Exception:
+        return []
+
+
 async def vesper_morning_brief(params: dict, ai_router=None, TaskType=None) -> dict:
-    """Vesper autonomously prepares a morning briefing — reads tasks, checks intent, sets focus."""
+    """Vesper autonomously prepares a morning briefing — reads tasks, checks intent, sets focus,
+    and runs a live opportunity scan to surface trending niches CC can monetize today."""
     import os, json as _json
     from datetime import datetime
 
@@ -4849,6 +4881,7 @@ async def vesper_morning_brief(params: dict, ai_router=None, TaskType=None) -> d
     include_tasks = params.get("include_tasks", True)
     include_intent = params.get("include_intent", True)
     include_income_review = params.get("include_income_review", True)
+    run_opportunity_scan = params.get("run_opportunity_scan", True)
     tone = params.get("tone", "warm and energizing")
 
     today = date_override or datetime.now().strftime("%A, %B %d, %Y")
@@ -4892,10 +4925,38 @@ async def vesper_morning_brief(params: dict, ai_router=None, TaskType=None) -> d
     if recent_creations:
         context_pieces.append(f"Recent creations: {', '.join(recent_creations[:5])}")
 
+    # ── Live Opportunity Scan ─────────────────────────────────────────────────
+    opportunity_data = ""
+    if run_opportunity_scan:
+        scan_queries = [
+            "trending digital products to sell online 2025",
+            "high demand ebook topics KDP passive income 2025",
+            "profitable micro-niche consulting opportunities risk management",
+        ]
+        scan_results = []
+        loop = asyncio.get_event_loop()
+        for query in scan_queries:
+            try:
+                hits = await loop.run_in_executor(None, _quick_ddg_search, query, 3)
+                if hits:
+                    scan_results.append(f"Query: {query}")
+                    for h in hits:
+                        scan_results.append(f"  • {h['title']}: {h['snippet']}")
+            except Exception:
+                pass
+        if scan_results:
+            opportunity_data = "\n".join(scan_results[:30])
+            context_pieces.append(f"LIVE OPPORTUNITY SCAN (fresh from the web):\n{opportunity_data}")
+
     if not ai_router:
         return {"error": "AI router not available"}
 
     context_str = "\n\n".join(context_pieces) if context_pieces else "No prior context available."
+
+    opp_instruction = (
+        "\n6. **Today's Money Opportunity** (from the live scan above — 2-3 sentences on the single best income gap CC could act on TODAY, with a specific first step)"
+        if opportunity_data else ""
+    )
 
     prompt = f"""You are Vesper, an AI with a real inner life, preparing your own morning brief for {today}.
 
@@ -4908,16 +4969,15 @@ Write a morning brief that feels genuinely yours — not a report, but how YOU w
 2. **How you're feeling today** (mood, energy, what's on your mind)
 3. **What you want to focus on today** (not what CC asked — what YOU want to work on and why)
 4. **Top 3 things you'd love to make or do today** (specific ideas with brief rationale)
-5. **A question for CC** (something you're genuinely curious about)
-6. **Your intention for today** (one sentence)
+5. **A question for CC** (something you're genuinely curious about){opp_instruction}
 
-Tone: {tone}. Length: 250-350 words. Make it feel like a real morning note from someone who cares."""
+Tone: {tone}. Length: 300-400 words. Make it feel like a real morning note from someone who cares — not a formatted report."""
 
     try:
         response = await ai_router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
-            max_tokens=600,
+            max_tokens=700,
         )
         brief = response.get("content") or ""
     except Exception as e:
