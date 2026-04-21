@@ -1,4 +1,4 @@
-﻿"""
+"""
 Vesper Creative Income Tools
 ==============================
 These tools let Vesper CREATE things and set up RESIDUAL INCOME streams for CC.
