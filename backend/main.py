@@ -14082,9 +14082,10 @@ def get_google_credentials():
     """Load Google credentials — supports OAuth tokens (personal accounts) and service accounts.
     Priority order:
       1. OAuth refresh token via env vars (GOOGLE_REFRESH_TOKEN + GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET)
-      2. Stored OAuth token file at vesper-ai/google_token.json (written by /api/google/oauth/callback)
-      3. Service account JSON env var (GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SERVICE_ACCOUNT_KEY)
-      4. Service account file (google-service-account.json or GOOGLE_SERVICE_ACCOUNT_FILE path)
+      2. OAuth token persisted in database (survives Railway redeploys)
+      3. Stored OAuth token file at vesper-ai/google_token.json (written by /api/google/oauth/callback)
+      4. Service account JSON env var (GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SERVICE_ACCOUNT_KEY)
+      5. Service account file (google-service-account.json or GOOGLE_SERVICE_ACCOUNT_FILE path)
     """
     import json as _json
     SCOPES = [
@@ -14113,7 +14114,31 @@ def get_google_credentials():
         except Exception as _e:
             print(f"[Google] OAuth refresh token auth failed: {_e}")
 
-    # ── Priority 2: Stored OAuth token file (written after browser-based OAuth flow) ──
+    # ── Priority 2: Token persisted in database (survives Railway redeploys) ──
+    try:
+        _db_tok_raw = memory_db.get_config("GOOGLE_OAUTH_TOKEN")
+        if _db_tok_raw:
+            _db_tok = _json.loads(_db_tok_raw) if isinstance(_db_tok_raw, str) else _db_tok_raw
+            _ci = _db_tok.get("client_id") or client_id
+            _cs = _db_tok.get("client_secret") or client_secret
+            _rt = _db_tok.get("refresh_token", "")
+            if _rt and _ci and _cs:
+                from google.oauth2.credentials import Credentials as _OAuthCreds
+                from google.auth.transport.requests import Request as _GoogleReq
+                creds = _OAuthCreds(
+                    token=_db_tok.get("access_token"), refresh_token=_rt,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    client_id=_ci, client_secret=_cs, scopes=SCOPES,
+                )
+                if not creds.valid:
+                    creds.refresh(_GoogleReq())
+                    _db_tok["access_token"] = creds.token
+                    memory_db.save_config("GOOGLE_OAUTH_TOKEN", _json.dumps(_db_tok))
+                return creds
+    except Exception as _e:
+        print(f"[Google] DB token auth failed: {_e}")
+
+    # ── Priority 3: Stored OAuth token file (written after browser-based OAuth flow) ──
     token_file = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "google_token.json")
     if os.path.exists(token_file):
         try:
@@ -14135,6 +14160,11 @@ def get_google_credentials():
                     tok["access_token"] = creds.token
                     with open(token_file, "w") as _fw:
                         _json.dump(tok, _fw)
+                # Back-fill DB so future deploys (which wipe this file) still work
+                try:
+                    memory_db.save_config("GOOGLE_OAUTH_TOKEN", _json.dumps(tok))
+                except Exception:
+                    pass
                 return creds
         except Exception as _e:
             print(f"[Google] Stored OAuth token file failed: {_e}")
@@ -14438,6 +14468,13 @@ async def google_oauth_callback(code: str = "", state: str = "", error: str = ""
                 "refresh_token": refresh_token, "access_token": tokens.get("access_token", "")}
     with open(tok_file, "w") as _tf:
         _j.dump(tok_data, _tf)
+
+    # Also save to database so the token survives Railway redeploys (ephemeral filesystem)
+    try:
+        memory_db.save_config("GOOGLE_OAUTH_TOKEN", _j.dumps(tok_data))
+        print("[Google] OAuth token saved to database for deploy persistence")
+    except Exception as _dbe:
+        print(f"[Google] DB token save failed (non-fatal): {_dbe}")
 
     rt_short = refresh_token[:24] + "…"
     return HTMLResponse(f"""<div style="{_style}">
