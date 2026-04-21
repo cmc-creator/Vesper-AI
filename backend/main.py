@@ -14389,10 +14389,24 @@ async def google_debug():
 @app.get("/api/google/oauth/start")
 async def google_oauth_start():
     """Start the Google OAuth 2.0 flow. Returns an auth URL to open in the browser.
-    Prerequisites: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set.
+    Prerequisites: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set (or previously stored in DB).
     Get them from: console.cloud.google.com → APIs & Services → Credentials → OAuth 2.0 Client IDs"""
     import urllib.parse as _up
+    import json as _j
     client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+    # Fall back to credentials stored in DB from a previous successful OAuth flow
+    if not client_id:
+        try:
+            _db_tok_raw = memory_db.get_config("GOOGLE_OAUTH_TOKEN")
+            if _db_tok_raw:
+                _db_tok = _j.loads(_db_tok_raw) if isinstance(_db_tok_raw, str) else _db_tok_raw
+                client_id = client_id or _db_tok.get("client_id", "")
+                client_secret = client_secret or _db_tok.get("client_secret", "")
+        except Exception:
+            pass
+
     if not client_id:
         return {
             "error": "GOOGLE_CLIENT_ID not set",
@@ -14444,6 +14458,19 @@ async def google_oauth_callback(code: str = "", state: str = "", error: str = ""
 
     client_id = os.getenv("GOOGLE_CLIENT_ID", "")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+    # Fall back to credentials stored in DB (same as oauth/start does)
+    if not client_id:
+        try:
+            import json as _jj
+            _db_tok_raw = memory_db.get_config("GOOGLE_OAUTH_TOKEN")
+            if _db_tok_raw:
+                _db_tok = _jj.loads(_db_tok_raw) if isinstance(_db_tok_raw, str) else _db_tok_raw
+                client_id = client_id or _db_tok.get("client_id", "")
+                client_secret = client_secret or _db_tok.get("client_secret", "")
+        except Exception:
+            pass
+
     callback = f"{_get_backend_url()}/api/google/oauth/callback"
 
     try:
