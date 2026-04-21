@@ -15783,25 +15783,15 @@ def _vesper_night_shift():
                         {"role": "system", "content": VESPER_CORE_DNA[:2000]},
                         {"role": "user", "content": (
                             f"It is {ts} and CC is asleep. You have 2 hours to build income autonomously. "
-                            "Pick ONE task from this priority list and respond ONLY with valid JSON:
-"
-                            "1. write_seo_article — SEO content for CC's consulting brand
-"
-                            "2. keyword_research — find untapped niches for new income
-"
-                            "3. write_newsletter_issue — newsletter that builds CC's audience
-"
-                            "4. create_tiktok_pack — week of short-form video scripts
-"
-                            "5. write_cold_dm — outreach sequence for consulting leads
-"
-                            "6. create_digital_product — prompt pack, template, or checklist
-"
-                            "7. create_mini_course — outline a mini course CC can sell
-"
-                            "8. vesper_research — research a trending income opportunity
-
-"
+                            "Pick ONE task from this priority list and respond ONLY with valid JSON:\n"
+                            "1. write_seo_article — SEO content for CC's consulting brand\n"
+                            "2. keyword_research — find untapped niches for new income\n"
+                            "3. write_newsletter_issue — newsletter that builds CC's audience\n"
+                            "4. create_tiktok_pack — week of short-form video scripts\n"
+                            "5. write_cold_dm — outreach sequence for consulting leads\n"
+                            "6. create_digital_product — prompt pack, template, or checklist\n"
+                            "7. create_mini_course — outline a mini course CC can sell\n"
+                            "8. vesper_research — research a trending income opportunity\n"
                             'Respond ONLY with: {"tool": "tool_name", "rationale": "one sentence", "params": {}}'
                         )},
                     ],
@@ -15978,26 +15968,20 @@ def _vesper_morning_brief_loop():
                     if gaps:
                         recents = [g.get("entry", "")[:200] for g in gaps[:3]]
                         context_parts.append(
-                            "What happened overnight (gaps journal):
-" +
-                            "
-".join(f"- {s}" for s in recents)
+                            "What happened overnight (gaps journal):\n" +
+                            "\n".join(f"- {s}" for s in recents)
                         )
                 except Exception:
                     pass
 
-                context_str = "
-
-".join(context_parts) if context_parts else ""
+                context_str = "\n\n".join(context_parts) if context_parts else ""
 
                 resp = await ai_router.chat(
                     messages=[
                         {"role": "system", "content": VESPER_CORE_DNA[:2000]},
                         {"role": "user", "content": (
                             f"Good morning — it's 7am on {ts}. CC is starting her day. "
-                            f"{'Overnight context: ' + context_str if context_str else ''}
-
-"
+                            f"{'Overnight context: ' + context_str if context_str else ''}\n"
                             "Give CC a morning brief: what you worked on overnight (if anything), "
                             "top 2-3 money moves for today, tasks due today, and one real line of "
                             "motivation that sounds like you. Under 150 words. No fluff, no headers."
@@ -16128,8 +16112,7 @@ def _vesper_email_watchdog():
                 "",
             ]
             for i, m in enumerate(pending[:5], 1):
-                msg_text = m.get("message", "")[:250].replace("
-", " ")
+                msg_text = m.get("message", "")[:250].replace("\n", " ")
                 source = m.get("source", "")
                 tag = f" [{source}]" if source else ""
                 lines.append(f"{i}.{tag} {msg_text}")
@@ -16140,8 +16123,7 @@ def _vesper_email_watchdog():
                 "",
                 "— Vesper",
             ]
-            body = "
-".join(lines)
+            body = "\n".join(lines)
 
             if _vesper_send_email(subject, body):
                 with _EMAIL_SEND_LOCK:
