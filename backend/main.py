@@ -236,6 +236,41 @@ except Exception as _gmail_err:
     print(f"[WARN] gmail failed to load: {_gmail_err}")
     async def gmail_tool(p, **kw): return {"error": "gmail module not loaded"}
 
+try:
+    from weather import weather_tool
+    print("[OK] weather loaded")
+except Exception as _w_err:
+    print(f"[WARN] weather: {_w_err}")
+    async def weather_tool(p, **kw): return {"error": "weather module not loaded"}
+
+try:
+    from file_reader import file_reader_tool
+    print("[OK] file_reader loaded")
+except Exception as _fr_err:
+    print(f"[WARN] file_reader: {_fr_err}")
+    async def file_reader_tool(p, **kw): return {"error": "file_reader module not loaded"}
+
+try:
+    from code_sandbox import code_sandbox_tool
+    print("[OK] code_sandbox loaded")
+except Exception as _cs_err:
+    print(f"[WARN] code_sandbox: {_cs_err}")
+    async def code_sandbox_tool(p, **kw): return {"error": "code_sandbox module not loaded"}
+
+try:
+    from notion import notion_tool
+    print("[OK] notion loaded")
+except Exception as _no_err:
+    print(f"[WARN] notion: {_no_err}")
+    async def notion_tool(p, **kw): return {"error": "notion module not loaded"}
+
+try:
+    from reminders import reminders_tool
+    print("[OK] reminders loaded")
+except Exception as _rem_err:
+    print(f"[WARN] reminders: {_rem_err}")
+    async def reminders_tool(p, **kw): return {"error": "reminders module not loaded"}
+
 # Firebase (optional)
 try:
     import firebase_utils
@@ -2011,6 +2046,12 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `create_google_doc`, `read_google_doc`, `update_google_doc` — Google Docs
 - `create_google_sheet`, `read_google_sheet`, `update_google_sheet` — Google Sheets
 - `google_calendar_events`, `google_calendar_create`, `google_calendar_delete` — Google Calendar
+- `google_calendar_find_free` — find open time slots in CC's calendar for scheduling
+- `weather` — current conditions, 3-day forecast, hourly, sunrise/sunset, air quality for any location
+- `file_reader` — read and extract text from PDFs, DOCX, CSV, HTML, TXT via URL or Google Drive; also lists/searches Drive
+- `code_sandbox` — execute Python code safely in an isolated sandbox; great for data analysis, calculations, generating charts
+- `notion` — full Notion CRUD: search, read pages, create/update pages, query/add rows to databases (needs NOTION_API_KEY)
+- `reminders` — set timed reminders (natural language: "in 30 minutes", "tomorrow at 9am"); Vesper alerts CC when they fire
 - `get_recent_threads`, `get_thread_messages` — recall past conversations
 - `analyze_patterns` — analyze usage/memory patterns
 - `approve_action` / `deny_action` — approve/deny pending actions
@@ -6591,6 +6632,108 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "weather",
+                "description": "Get current weather, forecast, hourly breakdown, sunrise/sunset, air quality, or weather alerts for any city. No API key needed for basic weather.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "current | forecast | hourly | astronomy | alerts | air (default: current)"},
+                        "location": {"type": "string", "description": "City name, ZIP code, or lat,lon (e.g. 'Phoenix, AZ', '85001', '33.44,-94.04')"},
+                        "units": {"type": "string", "description": "imperial (F) or metric (C) — default: imperial"},
+                        "days": {"type": "integer", "description": "Number of forecast days (1-3, for action=forecast)"}
+                    },
+                    "required": ["location"]
+                }
+            },
+            {
+                "name": "file_reader",
+                "description": "Read, extract text from, or summarize files (PDF, DOCX, CSV, TXT, HTML) from any URL or Google Drive. Can also list and search Drive files.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "read_url | read_drive | summarize | list_recent | search_drive"},
+                        "url": {"type": "string", "description": "URL of the file to read (for read_url / summarize)"},
+                        "file_id": {"type": "string", "description": "Google Drive file ID (for read_drive / summarize)"},
+                        "query": {"type": "string", "description": "Search query for file names (for search_drive)"},
+                        "prompt": {"type": "string", "description": "Custom AI prompt for summarize action"},
+                        "max_chars": {"type": "integer", "description": "Max characters to return (default 12000)"},
+                        "max_results": {"type": "integer", "description": "Max files to return (default 20)"}
+                    },
+                    "required": ["action"]
+                }
+            },
+            {
+                "name": "code_sandbox",
+                "description": "Execute Python code safely in an isolated sandbox. Use for data analysis, calculations, generating charts, running scripts, or verifying logic. Can also run code with injected data (CSV/JSON).",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "run | run_data | install (default: run)"},
+                        "code": {"type": "string", "description": "Python code to execute"},
+                        "data": {"type": "string", "description": "CSV or JSON data string to inject as a variable (for run_data)"},
+                        "var_name": {"type": "string", "description": "Variable name for injected data (default: 'data')"},
+                        "package": {"type": "string", "description": "Package to install (for action=install)"},
+                        "timeout": {"type": "integer", "description": "Execution timeout in seconds (default 30)"}
+                    },
+                    "required": ["action"]
+                }
+            },
+            {
+                "name": "notion",
+                "description": "Full Notion CRUD: search pages/databases, read page content, create/update pages, query and add rows to databases. Requires NOTION_API_KEY.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "search | get_page | create_page | update_page | append_blocks | get_database | query_database | create_row | update_row | delete_page | get_block"},
+                        "query": {"type": "string", "description": "Search query (for search)"},
+                        "page_id": {"type": "string", "description": "Notion page ID (for get_page / update_page / delete_page / append_blocks)"},
+                        "database_id": {"type": "string", "description": "Notion database ID (for get_database / query_database / create_row)"},
+                        "parent_id": {"type": "string", "description": "Parent page or database ID (for create_page)"},
+                        "parent_type": {"type": "string", "description": "'page' or 'database' (for create_page)"},
+                        "title": {"type": "string", "description": "Page title (for create_page / update_page)"},
+                        "content": {"type": "string", "description": "Page content in plain text / markdown (for create_page / append_blocks)"},
+                        "properties": {"type": "object", "description": "Database row properties as key-value dict (for create_row / update_page)"},
+                        "filter": {"description": "Notion filter object (for query_database)"},
+                        "sorts": {"type": "array", "description": "Notion sort array (for query_database)"},
+                        "max_results": {"type": "integer", "description": "Max results to return"}
+                    },
+                    "required": ["action"]
+                }
+            },
+            {
+                "name": "reminders",
+                "description": "Set, list, snooze, or delete timed reminders. Vesper will alert CC when the time arrives. Use natural language for times: 'in 30 minutes', 'tomorrow at 9am', 'next Monday at 3pm'.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "set | list | delete | snooze (default: list)"},
+                        "text": {"type": "string", "description": "What to remind CC about (for set)"},
+                        "when": {"type": "string", "description": "When to fire the reminder — natural language or ISO (for set). E.g. 'in 30 minutes', 'tomorrow at 9am'"},
+                        "id": {"type": "integer", "description": "Reminder ID (for delete / snooze)"},
+                        "minutes": {"type": "integer", "description": "Minutes to snooze by (for snooze, default 30)"}
+                    },
+                    "required": ["action"]
+                }
+            },
+            {
+                "name": "google_calendar_find_free",
+                "description": "Find free time slots in CC's Google Calendar. Use when CC wants to schedule something and needs to know when she's available.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "duration_minutes": {"type": "integer", "description": "Length of the desired slot in minutes (default 60)"},
+                        "start_date": {"type": "string", "description": "Start of search window (ISO date, e.g. '2025-07-15'). Default: today."},
+                        "end_date": {"type": "string", "description": "End of search window (ISO date, e.g. '2025-07-20'). Default: 7 days from today."},
+                        "work_start_hour": {"type": "integer", "description": "Earliest hour to consider (24h, default 9)"},
+                        "work_end_hour": {"type": "integer", "description": "Latest hour to consider (24h, default 18)"},
+                        "timezone": {"type": "string", "description": "Timezone (default: America/Phoenix)"},
+                        "calendar_id": {"type": "string", "description": "Calendar ID (default: primary)"},
+                        "max_slots": {"type": "integer", "description": "Max free slots to return (default 10)"}
+                    },
+                    "required": []
+                }
+            },
+            {
                 "name": "google_calendar_events",
                 "description": "Get upcoming calendar events. Use this when CC asks about their schedule, upcoming meetings, or calendar.",
                 "input_schema": {
@@ -8347,6 +8490,18 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await google_slides_tool(tool_input)
                 elif tool_name == "gmail":
                     tool_result = await gmail_tool(tool_input)
+                elif tool_name == "weather":
+                    tool_result = await weather_tool(tool_input)
+                elif tool_name == "file_reader":
+                    tool_result = await file_reader_tool(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "code_sandbox":
+                    tool_result = await code_sandbox_tool(tool_input)
+                elif tool_name == "notion":
+                    tool_result = await notion_tool(tool_input)
+                elif tool_name == "reminders":
+                    tool_result = await reminders_tool(tool_input)
+                elif tool_name == "google_calendar_find_free":
+                    tool_result = await _google_calendar_find_free(tool_input)
 
                 elif tool_name == "create_google_sheet":
                     tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
@@ -10282,6 +10437,18 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await google_slides_tool(tool_input)
                     elif tool_name == "gmail":
                         tool_result = await gmail_tool(tool_input)
+                    elif tool_name == "weather":
+                        tool_result = await weather_tool(tool_input)
+                    elif tool_name == "file_reader":
+                        tool_result = await file_reader_tool(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "code_sandbox":
+                        tool_result = await code_sandbox_tool(tool_input)
+                    elif tool_name == "notion":
+                        tool_result = await notion_tool(tool_input)
+                    elif tool_name == "reminders":
+                        tool_result = await reminders_tool(tool_input)
+                    elif tool_name == "google_calendar_find_free":
+                        tool_result = await _google_calendar_find_free(tool_input)
                     elif tool_name == "create_google_sheet":
                         tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
                     elif tool_name == "read_google_sheet":
@@ -15088,6 +15255,79 @@ async def google_calendar_delete(event_id: str, calendar_id: str = "primary"):
         return {"error": str(e)[:300]}
 
 
+async def _google_calendar_find_free(params: dict) -> dict:
+    """Find free time slots using the Calendar freebusy API."""
+    import datetime as _dt
+    try:
+        duration_min = int(params.get("duration_minutes", 60))
+        work_start = int(params.get("work_start_hour", 9))
+        work_end = int(params.get("work_end_hour", 18))
+        timezone = params.get("timezone", "America/Phoenix")
+        calendar_id = params.get("calendar_id", "primary")
+        max_slots = int(params.get("max_slots", 10))
+
+        today = _dt.date.today()
+        start_date = _dt.date.fromisoformat(params["start_date"]) if params.get("start_date") else today
+        end_date = _dt.date.fromisoformat(params["end_date"]) if params.get("end_date") else today + _dt.timedelta(days=7)
+
+        # Build time window in UTC (approximate — treat work hours as UTC offset 0 since we don't have tz conversion without pytz)
+        time_min = _dt.datetime.combine(start_date, _dt.time(0, 0)).isoformat() + "Z"
+        time_max = _dt.datetime.combine(end_date + _dt.timedelta(days=1), _dt.time(0, 0)).isoformat() + "Z"
+
+        service = get_google_service("calendar", "v3")
+        freebusy_result = service.freebusy().query(body={
+            "timeMin": time_min,
+            "timeMax": time_max,
+            "timeZone": timezone,
+            "items": [{"id": calendar_id}],
+        }).execute()
+
+        busy_periods = freebusy_result.get("calendars", {}).get(calendar_id, {}).get("busy", [])
+
+        # Parse busy periods
+        busy = []
+        for b in busy_periods:
+            s = _dt.datetime.fromisoformat(b["start"].replace("Z", "+00:00")).replace(tzinfo=None)
+            e = _dt.datetime.fromisoformat(b["end"].replace("Z", "+00:00")).replace(tzinfo=None)
+            busy.append((s, e))
+
+        # Find free slots
+        free_slots = []
+        current_day = start_date
+        while current_day <= end_date and len(free_slots) < max_slots:
+            if current_day.weekday() >= 5:  # Skip weekends
+                current_day += _dt.timedelta(days=1)
+                continue
+            slot_start = _dt.datetime.combine(current_day, _dt.time(work_start, 0))
+            day_end = _dt.datetime.combine(current_day, _dt.time(work_end, 0))
+
+            while slot_start + _dt.timedelta(minutes=duration_min) <= day_end and len(free_slots) < max_slots:
+                slot_end = slot_start + _dt.timedelta(minutes=duration_min)
+                # Check if overlaps with any busy period
+                overlaps = any(
+                    not (slot_end <= bs or slot_start >= be)
+                    for bs, be in busy
+                )
+                if not overlaps:
+                    free_slots.append({
+                        "start": slot_start.strftime("%Y-%m-%d %H:%M"),
+                        "end": slot_end.strftime("%Y-%m-%d %H:%M"),
+                        "label": slot_start.strftime("%A, %b %-d — %-I:%M %p") + " to " + slot_end.strftime("%-I:%M %p"),
+                    })
+                    slot_start = slot_end  # No overlap — jump past this slot
+                else:
+                    slot_start += _dt.timedelta(minutes=15)  # Advance in 15-min increments when busy
+            current_day += _dt.timedelta(days=1)
+
+        lines = [f"📅 **Free {duration_min}-minute slots ({len(free_slots)} found)**\n"]
+        for s in free_slots:
+            lines.append(f"• {s['label']}")
+
+        return {"free_slots": free_slots, "count": len(free_slots), "preview": "\n".join(lines)}
+    except Exception as e:
+        return {"error": f"Calendar freebusy error: {e}"}
+
+
 # ── Google Workspace Status ──────────────────────────────────────────────────
 
 @app.get("/api/google/status")
@@ -15908,6 +16148,20 @@ def _vesper_core_loop():
                 _VESPER_CORE_STATUS["status"] = "running"
                 time.sleep(CORE_INTERVAL)
                 continue
+
+            # ── REMINDER CHECK (every loop) ────────────────────────────────
+            try:
+                _fired_result = _run(reminders_tool({"action": "check"}))
+                for _r in ((_fired_result or {}).get("fired") or []):
+                    VESPER_PROACTIVE_QUEUE.append({
+                        "message": f"⏰ Reminder: {_r['text']}",
+                        "priority": "high",
+                        "timestamp": now.isoformat(),
+                        "source": "reminder",
+                    })
+                    _log(f"Fired reminder [{_r['id']}]: {_r['text']}")
+            except Exception as _rem_core_err:
+                _log(f"Reminder check error: {_rem_core_err}")
 
             # ── QUIET CHECK → PROACTIVE MESSAGE ──────────────────────────────
             with _HEARTBEAT_LOCK:
