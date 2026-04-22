@@ -11550,6 +11550,14 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     ]
                     yield f"data: {json.dumps({'type': 'visualizations', 'data': _plots_payload})}\n\n"
 
+                # Emit weather card so frontend can render structured weather UI
+                if tool_name == "weather" and isinstance(tool_result, dict) and "temp" in tool_result:
+                    yield f"data: {json.dumps({'type': 'visualizations', 'data': [{'type': 'weather_card', **tool_result}]})}\n\n"
+
+                # Emit reminder card when a reminder is set so frontend shows a confirmation card
+                if tool_name == "reminders" and isinstance(tool_result, dict) and "due" in tool_result and "text" in tool_result:
+                    yield f"data: {json.dumps({'type': 'visualizations', 'data': [{'type': 'reminder_card', **tool_result}]})}\n\n"
+
                 await asyncio.sleep(0)
                 
                 # Append tool messages for conversation context

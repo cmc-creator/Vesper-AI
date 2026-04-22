@@ -1688,6 +1688,10 @@ export default function App() {
                   addLocalMessage('assistant', 'Generated Chart', { type: 'chart', chartData: viz });
                 } else if (viz.type === 'sandbox_image') {
                   addLocalMessage('assistant', '', { type: 'sandbox_image', imageData: viz.image_data, caption: viz.caption || '' });
+                } else if (viz.type === 'weather_card') {
+                  addLocalMessage('assistant', '', { type: 'weather_card', ...viz });
+                } else if (viz.type === 'reminder_card') {
+                  addLocalMessage('assistant', '', { type: 'reminder_card', ...viz });
                 } else if (viz.type === 'image_generation') {
                   addLocalMessage('assistant', `Here's your image ✨`, { type: 'image', imageUrl: viz.image_url, imagePrompt: viz.prompt, imageProvider: viz.provider });
                   const promptSuggestsWallpaper = /wallpaper|background/i.test(String(viz.prompt || ''));
@@ -3763,6 +3767,97 @@ export default function App() {
               {message.caption}
             </Typography>
           )}
+        </motion.div>
+      );
+    }
+
+    // Handle Weather Cards
+    if (message.type === 'weather_card') {
+      const wc = message;
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+          key={message.id}
+        >
+          <Typography variant="caption" sx={{ color: 'var(--accent)', mb: 0.5, fontFamily: 'monospace', letterSpacing: 1 }}>
+            VESPER · WEATHER · {ts}
+          </Typography>
+          <Box sx={{
+            minWidth: 260, maxWidth: 360,
+            borderRadius: 2,
+            border: '1px solid var(--accent)44',
+            bgcolor: 'rgba(0,0,0,0.45)',
+            backdropFilter: 'blur(8px)',
+            p: 2,
+          }}>
+            <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, mb: 0.5 }}>
+              {wc.location}
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1.5 }}>
+              {wc.description}
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+              {[
+                { label: 'Temp', value: wc.temp },
+                { label: 'Feels Like', value: wc.feels_like },
+                { label: 'Humidity', value: wc.humidity },
+                { label: 'Wind', value: `${wc.wind} ${wc.wind_direction || ''}`.trim() },
+                { label: 'UV Index', value: wc.uv_index },
+              ].filter(r => r.value).map(row => (
+                <Box key={row.label}>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                    {row.label}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'var(--accent)', fontWeight: 600 }}>
+                    {row.value}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </motion.div>
+      );
+    }
+
+    // Handle Reminder Confirmation Cards
+    if (message.type === 'reminder_card') {
+      const rc = message;
+      const dueDisplay = rc.due ? new Date(rc.due).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+          key={message.id}
+        >
+          <Typography variant="caption" sx={{ color: 'var(--accent)', mb: 0.5, fontFamily: 'monospace', letterSpacing: 1 }}>
+            VESPER · REMINDER SET · {ts}
+          </Typography>
+          <Box sx={{
+            minWidth: 240, maxWidth: 340,
+            borderRadius: 2,
+            border: '1px solid #ff980044',
+            bgcolor: 'rgba(255,152,0,0.08)',
+            backdropFilter: 'blur(8px)',
+            p: 1.5,
+            display: 'flex', alignItems: 'flex-start', gap: 1.5,
+          }}>
+            <Typography sx={{ fontSize: '1.4rem', lineHeight: 1, mt: 0.25 }}>⏰</Typography>
+            <Box>
+              <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, mb: 0.25 }}>
+                {rc.text}
+              </Typography>
+              {dueDisplay && (
+                <Typography variant="caption" sx={{ color: '#ff9800', fontSize: '0.7rem' }}>
+                  Fires at {dueDisplay}
+                </Typography>
+              )}
+            </Box>
+          </Box>
         </motion.div>
       );
     }
