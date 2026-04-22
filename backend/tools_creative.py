@@ -9838,3 +9838,251 @@ async def instagram_content_pack(params: dict, ai_router=None, TaskType=None) ->
     }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PRODUCT IDEA GENERATOR
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def product_idea_generator(params: dict, ai_router, TaskType):
+    """
+    Research-backed product idea generator. Takes a niche and audience,
+    searches for trending demand, and produces 3-5 ranked product ideas
+    with validation data, revenue projections, effort scores, and first move.
+    """
+    niche              = params.get("niche", "")
+    audience           = params.get("audience_description", "")
+    budget             = params.get("budget", "low")
+    skills             = params.get("skills", "")
+    existing_products  = params.get("existing_products", "")
+    validation_depth   = params.get("validation_depth", "standard")  # quick | standard | deep
+
+    if not niche:
+        return {"error": "niche is required"}
+
+    # ── Market research phase ──────────────────────────────────────────────
+    trend_results = ""
+    if validation_depth in ("standard", "deep"):
+        try:
+            from duckduckgo_search import DDGS
+            with DDGS() as d:
+                results = list(d.text(f"best selling digital products {niche} 2024 2025 profitable", max_results=6))
+            if results:
+                trend_results = "\n".join(f"- {r.get('title','')} — {r.get('body','')[:200]}" for r in results)
+        except Exception:
+            trend_results = "(trend search unavailable)"
+
+    competition_results = ""
+    if validation_depth == "deep":
+        try:
+            from duckduckgo_search import DDGS
+            with DDGS() as d:
+                c_results = list(d.text(f"{niche} digital products competition analysis what sells gumroad etsy", max_results=5))
+            if c_results:
+                competition_results = "\n".join(f"- {r.get('title','')} — {r.get('body','')[:150]}" for r in c_results)
+        except Exception:
+            competition_results = ""
+
+    # ── AI analysis phase ─────────────────────────────────────────────────
+    context_block = f"""
+NICHE: {niche}
+TARGET AUDIENCE: {audience or 'general'}
+AVAILABLE BUDGET: {budget}
+CREATOR SKILLS: {skills or 'not specified'}
+EXISTING PRODUCTS: {existing_products or 'none'}
+
+MARKET RESEARCH:
+{trend_results or '(not available)'}
+
+COMPETITION DATA:
+{competition_results or '(not available)'}
+""".strip()
+
+    resp = await ai_router.complete(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a product validation expert who helps creators build profitable digital products. "
+                    "You combine market research, competitor analysis, and revenue math to rank product opportunities."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Based on this context, generate 5 ranked product ideas:\n\n{context_block}\n\n"
+                    "For EACH idea produce:\n"
+                    "1. PRODUCT NAME + TYPE (ebook/template/course/tool/membership/coaching)\n"
+                    "2. ONE-LINE CONCEPT\n"
+                    "3. DEMAND VALIDATION: why people need this right now (cite trends if available)\n"
+                    "4. COMPETITION GAP: what's missing from existing products in this space\n"
+                    "5. REVENUE MODEL: price point + estimated monthly revenue at 20/50/100 sales\n"
+                    "6. EFFORT SCORE: 1-10 (1=weekend build, 10=6-month project)\n"
+                    "7. BUILD TIMELINE: realistic time to launch\n"
+                    "8. FIRST MOVE: the one action to take this week to validate demand\n"
+                    "9. RISK LEVEL: low/medium/high + one mitigation\n\n"
+                    "Rank from #1 (best ROI for least effort) to #5. "
+                    "Be specific, practical, and ruthlessly honest about what will actually sell."
+                ),
+            },
+        ],
+        task_type=TaskType.RESEARCH if TaskType else None,
+        max_tokens=4000,
+        temperature=0.7,
+    )
+
+    content = resp.get("content", "")
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "product_ideas")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in niche.lower())[:40]
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    file_path = os.path.join(save_dir, f"ideas_{slug}_{ts}.md")
+    header = f"# Product Ideas: {niche}\nAudience: {audience or 'general'} | Budget: {budget} | Depth: {validation_depth}\n\n"
+    _safe_write(file_path, header + content)
+
+    return {
+        "success": True,
+        "niche": niche,
+        "audience": audience,
+        "content": content,
+        "file_path": file_path,
+        "preview": f"[Product Ideas] {niche} — 5 ranked opportunities with revenue projections",
+        "title": f"Product Ideas: {niche}",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONTENT REPURPOSER
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def content_repurposer(params: dict, ai_router, TaskType):
+    """
+    Repurpose any content into multiple formats simultaneously.
+    Accepts a URL or raw text and transforms it into 1-5 target formats.
+    """
+    content_type    = params.get("content_type", "blog")  # youtube | blog | newsletter | podcast | thread
+    content_url     = params.get("content_url", "")
+    content_text    = params.get("content_text", "")
+    target_formats  = params.get("target_formats", ["instagram", "twitter", "linkedin"])
+    brand_voice     = params.get("brand_voice", "")
+    cta             = params.get("cta", "")
+    product         = params.get("product_to_promote", "")
+
+    if not content_url and not content_text:
+        return {"error": "Provide either content_url or content_text"}
+
+    # ── Fetch content if URL provided ─────────────────────────────────────
+    source_content = content_text
+    if content_url and not content_text:
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=15) as client:
+                r = await client.get(content_url, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"})
+                raw_html = r.text
+            # Basic extraction: strip HTML tags
+            import re as _re
+            source_content = _re.sub(r"<[^>]+>", " ", raw_html)
+            source_content = _re.sub(r"\s{2,}", " ", source_content).strip()[:8000]
+        except Exception as e:
+            source_content = f"(Could not fetch URL: {e})"
+
+    if not source_content:
+        return {"error": "Could not retrieve or parse content"}
+
+    # ── Build format instructions ─────────────────────────────────────────
+    FORMAT_SPECS = {
+        "instagram": (
+            "INSTAGRAM POST: Hook (first line stops the scroll) + value body (5-7 lines max) + CTA + 10-15 hashtags. "
+            "Write 3 post variations (A/B/C). Tone: conversational, visual, punchy."
+        ),
+        "twitter": (
+            "TWITTER/X THREAD: 8-12 tweet thread with a hook tweet, value tweets (numbered), and a closing CTA tweet. "
+            "Each tweet ≤ 280 chars. Format: 1/ 2/ 3/ etc."
+        ),
+        "linkedin": (
+            "LINKEDIN POST: Thought-leadership format. Hook line, blank line, body (insight + story + lesson), "
+            "blank line, CTA. 200-400 words. Professional but human."
+        ),
+        "email_sequence": (
+            "EMAIL SEQUENCE: 3-email nurture sequence. Email 1: hook + value (day 0). Email 2: deeper insight (day 2). "
+            "Email 3: offer/CTA (day 4). Each email: subject line + preview text + body + P.S."
+        ),
+        "tiktok_script": (
+            "TIKTOK SCRIPT: 60-second script. Hook (0-3s) + problem (3-10s) + solution/value (10-45s) + CTA (45-60s). "
+            "Include visual cues [in brackets]. Write 2 variations."
+        ),
+        "blog_summary": (
+            "BLOG SUMMARY + SEO SNIPPET: 3-paragraph summary, meta description (155 chars), 5 SEO keywords, "
+            "and a pull quote for sharing."
+        ),
+        "pinterest": (
+            "PINTEREST PINS: 5 pin concepts with title (max 100 chars), description (max 500 chars), "
+            "and board suggestion for each."
+        ),
+        "youtube_description": (
+            "YOUTUBE DESCRIPTION: Hook paragraph, timestamps (estimate reasonable times), keywords section, "
+            "links section placeholder, and end screen CTA."
+        ),
+    }
+
+    requested_specs = []
+    for fmt in target_formats:
+        spec = FORMAT_SPECS.get(fmt.lower())
+        if spec:
+            requested_specs.append(f"=== {fmt.upper()} ===\n{spec}")
+        else:
+            requested_specs.append(f"=== {fmt.upper()} ===\nRepurpose into this format in the best way possible.")
+
+    voice_note = f"\nBRAND VOICE: {brand_voice}" if brand_voice else ""
+    cta_note   = f"\nCTA TO USE: {cta}" if cta else ""
+    promo_note = f"\nPRODUCT TO MENTION/PROMOTE: {product}" if product else ""
+
+    resp = await ai_router.complete(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an expert content repurposing strategist. "
+                    "You take source content and transform it into platform-optimized formats "
+                    "that feel native to each platform while preserving the core message and maximizing engagement."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"SOURCE CONTENT TYPE: {content_type}\n"
+                    f"SOURCE URL: {content_url or 'N/A'}\n"
+                    f"{voice_note}{cta_note}{promo_note}\n\n"
+                    f"SOURCE CONTENT:\n{source_content[:6000]}\n\n"
+                    "Repurpose the above content into ALL of the following formats. "
+                    "Produce complete, ready-to-publish output for each:\n\n"
+                    + "\n\n".join(requested_specs)
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=6000,
+        temperature=0.75,
+    )
+
+    content_out = resp.get("content", "")
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "repurposed")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (content_type + "-" + (content_url or "text")).lower())[:40]
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    file_path = os.path.join(save_dir, f"repurposed_{slug}_{ts}.md")
+    formats_str = ", ".join(target_formats)
+    header = f"# Repurposed Content\nSource: {content_type} | Formats: {formats_str}\n\n"
+    _safe_write(file_path, header + content_out)
+
+    return {
+        "success": True,
+        "source_type": content_type,
+        "formats_produced": target_formats,
+        "content": content_out,
+        "file_path": file_path,
+        "preview": f"[Repurposed] {content_type} → {', '.join(target_formats)}",
+        "title": f"Repurposed Content: {content_type} → {', '.join(target_formats)}",
+    }
+
+

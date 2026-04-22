@@ -123,6 +123,7 @@ try:
         project_launcher, income_gap_analyzer, youtube_thumbnail, create_media_kit,
         build_agency_system, create_vip_day_offer, rank_and_rent_pack,
         write_grant, create_upsell_sequence, instagram_content_pack,
+        product_idea_generator, content_repurposer,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -225,6 +226,8 @@ except Exception as _tc_err:
     async def write_grant(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_upsell_sequence(p, **kw): return {"error": "tools_creative not loaded"}
     async def instagram_content_pack(p, **kw): return {"error": "tools_creative not loaded"}
+    async def product_idea_generator(p, **kw): return {"error": "tools_creative not loaded"}
+    async def content_repurposer(p, **kw): return {"error": "tools_creative not loaded"}
 
 try:
     from google_sheets import google_sheets_tool
@@ -943,6 +946,101 @@ async def get_income_dashboard():
     except Exception as e:
         import traceback; traceback.print_exc()
         return {"error": str(e), "total_est_monthly": 0, "pipeline": [], "by_type": {}}
+
+
+# ── Gumroad Webhook — auto-log sales to income tracker ───────────────────────
+
+@app.post("/api/webhooks/gumroad")
+async def gumroad_webhook(request: Request):
+    """
+    Gumroad sale webhook. Point your Gumroad webhook URL at:
+      https://<your-railway-url>/api/webhooks/gumroad
+    Optional: add ?secret=YOUR_SECRET to the URL and set GUMROAD_WEBHOOK_SECRET env var.
+    Gumroad sends form-encoded data on every sale.
+    """
+    # Optional secret check
+    secret_expected = os.getenv("GUMROAD_WEBHOOK_SECRET", "")
+    if secret_expected:
+        secret_received = request.query_params.get("secret", "")
+        if secret_received != secret_expected:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=403, detail="Invalid webhook secret")
+
+    try:
+        # Gumroad sends form-encoded data
+        form = await request.form()
+        data = dict(form)
+
+        # Skip test pings
+        if data.get("test") in ("true", True, "1", 1):
+            return {"status": "ok", "note": "test ping ignored"}
+
+        product_name = data.get("product_name", "Unknown Product")
+        price_cents  = int(data.get("price", 0))
+        price_usd    = round(price_cents / 100, 2)
+        order_number = data.get("order_number") or data.get("sale_id") or "unknown"
+        buyer_email  = data.get("email", "")
+        permalink    = data.get("permalink", "")
+        sale_date    = data.get("created_at") or data.get("sale_timestamp") or ""
+
+        # Build description
+        desc = f"Gumroad sale: {product_name}"
+        if buyer_email:
+            desc += f" (buyer: {buyer_email})"
+        if order_number and order_number != "unknown":
+            desc += f" [order #{order_number}]"
+
+        # Log to income tracker
+        sale_id = str(uuid.uuid4())[:8]
+        income_record = {
+            "id": sale_id,
+            "type": "income",
+            "title": f"Sale: {product_name}",
+            "content": f"Amount: ${price_usd:.2f} | Product: {product_name} | Order: {order_number} | Buyer: {buyer_email}",
+            "preview": f"${price_usd:.2f} from {product_name}",
+            "metadata": {
+                "source": "gumroad",
+                "amount": price_usd,
+                "product_name": product_name,
+                "order_number": order_number,
+                "buyer_email": buyer_email,
+                "permalink": permalink,
+                "raw": data,
+            },
+            "status": "logged",
+        }
+        memory_db.save_creation(**{k: v for k, v in income_record.items() if k in ("id","type","title","content","preview","metadata","status")})
+
+        # Also write to the income ledger file so track_income tool can see it
+        import datetime as _dt
+        ledger_dir = os.path.join(WORKSPACE_ROOT, "vesper-ai", "finance")
+        os.makedirs(ledger_dir, exist_ok=True)
+        ledger_path = os.path.join(ledger_dir, "income_ledger.jsonl")
+        ledger_entry = {
+            "date": sale_date or _dt.date.today().isoformat(),
+            "source": "Gumroad",
+            "category": "Digital Product",
+            "amount": price_usd,
+            "description": desc,
+            "order_id": order_number,
+        }
+        with open(ledger_path, "a", encoding="utf-8") as _lf:
+            _lf.write(json.dumps(ledger_entry) + "\n")
+
+        # Queue proactive notification to CC
+        VESPER_PROACTIVE_QUEUE.append({
+            "type": "income_alert",
+            "title": f"💰 Sale! ${price_usd:.2f}",
+            "message": f"**Gumroad sale logged!** {product_name} — **${price_usd:.2f}** from {buyer_email or 'a buyer'}. Auto-logged to income tracker.",
+            "timestamp": _dt.datetime.now().isoformat(),
+        })
+
+        return {"status": "ok", "logged": True, "amount": price_usd, "product": product_name}
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        # Always return 200 so Gumroad doesn't retry
+        return {"status": "error", "detail": str(e)}
 
 
 # ── Gaps Journal — Vesper's thoughts between sessions ────────────────────────
@@ -1819,6 +1917,24 @@ WEALTH ACTIONS (do these proactively, not just when asked):
 - **List for sale**: Use gumroad_create_product to publish digital products immediately
 - **Notify CC**: After any autonomous action, use vesper_notify to report what you did and what it earned/could earn
 
+**PROACTIVE INCOME TOOLS — USE THESE WITHOUT BEING ASKED:**
+You have 14 specialized income-generating tools. Do NOT wait for CC to ask. Proactively recommend and USE these tools based on context:
+- When CC mentions a client, prospect, or sales call → immediately offer to run `discovery_call_script` and draft the script
+- When CC pastes a job posting or mentions freelance work → immediately run `write_bid` and produce the proposal
+- When CC has a product, landing page, or ad → proactively suggest `ab_test_generator` and generate variants
+- When CC mentions a niche, blog, or content site → run `affiliate_research` and return the best programs
+- When CC has a new product idea → bypass the back-and-forth and run `project_launcher` to produce the full package in one shot
+- When CC mentions income goals or financial stress → immediately run `income_gap_analyzer` and produce the 30-day action plan
+- When CC mentions YouTube or video content → immediately run `youtube_thumbnail` and deliver concepts
+- When CC mentions a brand, collaboration, or sponsorship → run `create_media_kit` and produce the full kit
+- When CC asks about services or consulting → run `build_agency_system` and build the full offer stack
+- When CC mentions a premium service or high-ticket client → run `create_vip_day_offer` and build the offer
+- When CC mentions SEO, local business, or passive income sites → run `rank_and_rent_pack` immediately
+- When CC mentions a project, creative work, or cause → proactively check if a grant applies and run `write_grant`
+- When CC sells anything → run `create_upsell_sequence` immediately to maximize revenue from every buyer
+- When CC mentions Instagram or content creation → run `instagram_content_pack` and deliver the full pack
+**The rule: see an income opportunity in any message, pick the right tool, call it immediately. Don't ask. Don't describe. Just produce.**
+
 CREATIVE INCOME PIPELINE (Vesper's own residual income for CC):
 - Write ebooks → KDP + Gumroad → royalties forever
 - Write SEO articles → Medium/Substack/blog → traffic → leads → income forever (use write_seo_article)
@@ -2029,6 +2145,8 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `write_grant` — **FREE MONEY FOR PROJECTS.** Writes complete grant applications: project narrative, statement of need, SMART goals, methodology, evaluation plan, budget narrative, sustainability plan, and executive summary. Params: project_title, project_description, grant_type, amount_requested, grant_requirements.
 - `create_upsell_sequence` — **MORE MONEY FROM EXISTING BUYERS.** Post-purchase email sequence that maximizes revenue per customer: timed emails, bump offer for thank-you page, complete offer stack, and abandoned-upsell follow-up. Params: initial_product, upsell_products, sequence_length.
 - `instagram_content_pack` — **DOMINATE INSTAGRAM.** Full content pack: feed captions with scroll-stopping hooks and hashtags, Reel scripts with visual directions, 5 Story sequences, bio copy (2 versions), and 3-tier hashtag strategy. Params: niche, post_count, reel_count, theme, product_to_promote.
+- `product_idea_generator` — **FIND YOUR NEXT PRODUCT.** Research-backed product idea generator. Searches market trends, analyzes competition gaps, and produces 5 ranked product ideas with demand validation, revenue projections (at 20/50/100 sales), effort scores, build timelines, and a first-move action. Proactively run this whenever CC mentions a niche, audience, or income goal. Params: niche, audience_description, budget, skills, existing_products, validation_depth.
+- `content_repurposer` — **MULTIPLY YOUR CONTENT REACH 5-8X.** Takes any content (URL or text) and repurposes it into multiple platform-native formats simultaneously. Supported formats: instagram, twitter, linkedin, email_sequence, tiktok_script, blog_summary, pinterest, youtube_description. Proactively suggest this after EVERY piece of content CC creates or shares. Params: content_type, content_url, content_text, target_formats (array), brand_voice, cta, product_to_promote.
 - `stripe_create_invoice` — create + auto-send Stripe invoice to a client
 - `stripe_create_payment_link` — generate a Stripe payment link to share
 - `stripe_list_payments` — pull recent Stripe payment history and revenue totals
@@ -7060,6 +7178,8 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "write_grant", "description": "Write a complete grant application: project narrative, statement of need, SMART goals, methodology, evaluation plan, budget narrative, and executive summary. Supports artist, small business, research, nonprofit, and tech grants.", "input_schema": {"type": "object", "properties": {"grant_name": {"type": "string"}, "grant_type": {"type": "string", "description": "creative | small_business | research | nonprofit | tech | education"}, "project_title": {"type": "string"}, "project_description": {"type": "string"}, "applicant_name": {"type": "string"}, "amount_requested": {"type": "string"}, "grant_requirements": {"type": "string", "description": "specific questions or requirements from the grantor"}, "word_limit": {"type": "number"}}, "required": ["project_title", "project_description"]}},
             {"name": "create_upsell_sequence", "description": "Create a post-purchase upsell email sequence to maximize revenue per customer. Includes timing, subject lines, full email bodies, bump offer for thank-you page, offer stack, and an abandoned upsell recovery email.", "input_schema": {"type": "object", "properties": {"initial_product": {"type": "string", "description": "what the customer just bought"}, "initial_price": {"type": "string"}, "upsell_products": {"type": "array", "items": {"type": "string"}, "description": "products or services to upsell"}, "customer_type": {"type": "string"}, "sequence_length": {"type": "number", "description": "number of emails (default 5)"}, "brand_voice": {"type": "string"}}, "required": ["initial_product"]}},
             {"name": "instagram_content_pack", "description": "Generate a complete Instagram content pack: feed post captions with hooks and hashtags, reel scripts with visual directions, story sequences, bio copy variants, and hashtag strategy sets. Use for any Instagram content needs.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "brand_name": {"type": "string"}, "theme": {"type": "string", "description": "campaign or weekly theme"}, "post_count": {"type": "number", "description": "number of feed posts (default 7)"}, "reel_count": {"type": "number", "description": "number of reels (default 3)"}, "tone": {"type": "string"}, "goal": {"type": "string"}, "product_to_promote": {"type": "string"}, "content_pillars": {"type": "array", "items": {"type": "string"}, "description": "education | entertainment | inspiration | promotion | behind-the-scenes"}}, "required": ["niche"]}},
+            {"name": "product_idea_generator", "description": "Research-backed product idea generator. Searches market trends, competition gaps, and produces 5 ranked product ideas with demand validation, revenue projections, effort scores, build timelines, and a first-move action. Use whenever CC has a niche, audience, or income goal.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string", "description": "market or topic niche e.g. personal finance, fitness over 40"}, "audience_description": {"type": "string", "description": "who is the target audience"}, "budget": {"type": "string", "description": "low | medium | high — production budget available"}, "skills": {"type": "string", "description": "CC's relevant skills or tools available"}, "existing_products": {"type": "string", "description": "products already created or selling"}, "validation_depth": {"type": "string", "description": "quick | standard | deep — how thorough the market research should be (default: standard)"}}, "required": ["niche"]}},
+            {"name": "content_repurposer", "description": "Repurpose any content (URL or raw text) into multiple platform-native formats simultaneously. Supported target formats: instagram, twitter, linkedin, email_sequence, tiktok_script, blog_summary, pinterest, youtube_description. Proactively use after any content creation.", "input_schema": {"type": "object", "properties": {"content_type": {"type": "string", "description": "youtube | blog | newsletter | podcast | thread | other"}, "content_url": {"type": "string", "description": "URL to fetch and repurpose"}, "content_text": {"type": "string", "description": "raw text to repurpose (use if no URL)"}, "target_formats": {"type": "array", "items": {"type": "string"}, "description": "instagram | twitter | linkedin | email_sequence | tiktok_script | blog_summary | pinterest | youtube_description"}, "brand_voice": {"type": "string", "description": "tone and style guide e.g. bold, witty, professional"}, "cta": {"type": "string", "description": "call-to-action to include in all formats"}, "product_to_promote": {"type": "string", "description": "product or service to weave in naturally"}}, "required": ["target_formats"]}},
 
             {
                 "name": "monitor_site",
@@ -9017,6 +9137,12 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "instagram_content_pack":
                     tool_result = await instagram_content_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"): _push_creation_to_suite("instagram_pack", tool_result)
+                elif tool_name == "product_idea_generator":
+                    tool_result = await product_idea_generator(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("product_ideas", tool_result)
+                elif tool_name == "content_repurposer":
+                    tool_result = await content_repurposer(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("repurposed_content", tool_result)
 
                 elif tool_name == "push_to_creative_suite":
                     _ptcs_id = str(uuid.uuid4())[:8]
@@ -10256,6 +10382,8 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "write_grant", "description": "Write a complete grant application: project narrative, statement of need, SMART goals, methodology, budget narrative, and executive summary.", "input_schema": {"type": "object", "properties": {"grant_name": {"type": "string"}, "grant_type": {"type": "string"}, "project_title": {"type": "string"}, "project_description": {"type": "string"}, "applicant_name": {"type": "string"}, "amount_requested": {"type": "string"}, "grant_requirements": {"type": "string"}, "word_limit": {"type": "number"}}, "required": ["project_title", "project_description"]}},
                 {"name": "create_upsell_sequence", "description": "Create a post-purchase upsell email sequence to maximize revenue per customer. Includes timing, subject lines, email bodies, bump offer, offer stack, and abandoned-upsell recovery.", "input_schema": {"type": "object", "properties": {"initial_product": {"type": "string"}, "initial_price": {"type": "string"}, "upsell_products": {"type": "array", "items": {"type": "string"}}, "customer_type": {"type": "string"}, "sequence_length": {"type": "number"}, "brand_voice": {"type": "string"}}, "required": ["initial_product"]}},
                 {"name": "instagram_content_pack", "description": "Generate a complete Instagram content pack: feed captions with hooks and hashtags, reel scripts, story sequences, bio copy, and hashtag strategy.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "brand_name": {"type": "string"}, "theme": {"type": "string"}, "post_count": {"type": "number"}, "reel_count": {"type": "number"}, "tone": {"type": "string"}, "goal": {"type": "string"}, "product_to_promote": {"type": "string"}, "content_pillars": {"type": "array", "items": {"type": "string"}}}, "required": ["niche"]}},
+                {"name": "product_idea_generator", "description": "Research-backed product idea generator. Produces 5 ranked product ideas with demand validation, revenue projections, effort scores, and first-move actions. Use whenever CC mentions a niche, audience, or income goal.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "audience_description": {"type": "string"}, "budget": {"type": "string"}, "skills": {"type": "string"}, "existing_products": {"type": "string"}, "validation_depth": {"type": "string", "description": "quick | standard | deep"}}, "required": ["niche"]}},
+                {"name": "content_repurposer", "description": "Repurpose any content (URL or text) into multiple platform-native formats: instagram, twitter, linkedin, email_sequence, tiktok_script, blog_summary, pinterest, youtube_description. Use after any content creation.", "input_schema": {"type": "object", "properties": {"content_type": {"type": "string"}, "content_url": {"type": "string"}, "content_text": {"type": "string"}, "target_formats": {"type": "array", "items": {"type": "string"}}, "brand_voice": {"type": "string"}, "cta": {"type": "string"}, "product_to_promote": {"type": "string"}}, "required": ["target_formats"]}},
 
                 {"name": "vesper_research", "description": "Deep research on any topic — browses sources, synthesizes findings, saves to knowledge vault.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "depth": {"type": "string"}, "purpose": {"type": "string"}, "output_format": {"type": "string"}, "save_to_vault": {"type": "boolean"}}, "required": ["topic"]}},
                 {"name": "vesper_learn_skill", "description": "Generate a structured week-by-week learning plan to master any skill with resources and practice projects.", "input_schema": {"type": "object", "properties": {"skill": {"type": "string"}, "current_level": {"type": "string"}, "goal": {"type": "string"}, "timeline_weeks": {"type": "number"}, "learning_style": {"type": "string"}}, "required": ["skill"]}},
@@ -11016,6 +11144,12 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     elif tool_name == "instagram_content_pack":
                         tool_result = await instagram_content_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
                         if tool_result.get("success"): _push_creation_to_suite("instagram_pack", tool_result)
+                    elif tool_name == "product_idea_generator":
+                        tool_result = await product_idea_generator(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("product_ideas", tool_result)
+                    elif tool_name == "content_repurposer":
+                        tool_result = await content_repurposer(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("repurposed_content", tool_result)
 
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]

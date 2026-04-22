@@ -1703,6 +1703,7 @@ button:active,
   /* Content fills the full width — no wasted space */
   .content-grid {
     min-height: calc(100svh - 12px);
+    height: calc(100svh - 12px);
     width: 100%;
     max-width: 100%;
   }
@@ -1710,6 +1711,7 @@ button:active,
   /* Chat panel fills the viewport — chat IS the focus on mobile */
   .chat-panel {
     min-height: calc(100svh - 12px);
+    height: calc(100svh - 12px);
     border-radius: 16px;
     padding: 10px 10px 8px;
     width: 100%;
@@ -1718,8 +1720,38 @@ button:active,
     overflow: hidden;
   }
 
-  /* Hide the avatar section — saves ~300px vertical + removes gray side area */
+  /* Compact face strip — Vesper's face inline above chat on mobile */
   .chat-avatar-wrapper {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 12px !important;
+    border-radius: 12px;
+    border: 1px solid rgba(var(--accent-rgb), 0.2);
+    padding: 5px 10px !important;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(var(--accent-rgb), 0.07), transparent 60%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  /* Circle-crop the face on mobile */
+  .chat-avatar-card {
+    width: 60px !important;
+    height: 60px !important;
+    border-radius: 50% !important;
+    justify-self: auto !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Center the face in the circle crop */
+  .chat-avatar-card video {
+    object-position: center 8% !important;
+  }
+
+  /* Hide the generate button inside the strip — saves space */
+  .chat-avatar-wrapper .MuiButtonBase-root,
+  .chat-avatar-wrapper .MuiButton-root {
     display: none !important;
   }
 
@@ -1728,9 +1760,9 @@ button:active,
     display: none !important;
   }
 
-  /* Chat window takes the majority of the viewport */
+  /* Chat window takes the remaining viewport after face strip */
   .chat-window {
-    max-height: calc(100svh - 200px);
+    max-height: calc(100svh - 270px);
     flex: 1;
   }
 
@@ -1744,12 +1776,6 @@ button:active,
   .chat-stage-shell {
     grid-template-columns: 1fr;
     gap: 10px;
-  }
-
-  .chat-avatar-card {
-    width: min(240px, 100%);
-    height: 186px;
-    justify-self: center;
   }
 
   /* Board sections fill the full mobile viewport */
@@ -1797,6 +1823,7 @@ button:active,
   /* Chat panel edge-to-edge on small phones */
   .chat-panel {
     min-height: calc(100dvh - 8px);
+    height: calc(100dvh - 8px);
     border-radius: 12px;
     padding: 8px 8px 6px;
     overflow: hidden;
@@ -1804,7 +1831,7 @@ button:active,
 
   /* Use dvh so chat shrinks when keyboard opens */
   .chat-window {
-    max-height: calc(100dvh - 160px);
+    max-height: calc(100dvh - 250px);
     flex: 1;
   }
 

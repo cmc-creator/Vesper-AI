@@ -7307,10 +7307,10 @@ export default function App() {
               ))}
             </Stack>
 
-            <Box className="chat-avatar-wrapper" sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
+            <Box className="chat-avatar-wrapper" sx={{ display: 'flex', flexDirection: { xs: 'row', sm: 'column' }, gap: { xs: 1.5, sm: 1 }, alignItems: { xs: 'center', sm: 'flex-start' } }}>
               <Box
                 className="chat-avatar-card"
-                sx={{ borderColor: `${activeTheme.accent}55`, width: 220, height: 280, flexShrink: 0 }}
+                sx={{ borderColor: `${activeTheme.accent}55`, width: { xs: 60, sm: 220 }, height: { xs: 60, sm: 280 }, borderRadius: { xs: '50%', sm: '20px' }, flexShrink: 0 }}
               >
                   <Box
                     sx={{
@@ -7367,13 +7367,30 @@ export default function App() {
                       }}
                     />
                   </Box>
-                </Box>
+              </Box>
+
+              {/* Mobile-only: name + status beside the face */}
+              <Box sx={{ display: { xs: 'flex', sm: 'none' }, flexDirection: 'column', gap: 0.3, flex: 1, minWidth: 0 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent)', letterSpacing: '0.06em', lineHeight: 1.1 }}>
+                  VESPER
+                </Typography>
+                <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', fontWeight: 500, lineHeight: 1.2 }}>
+                  {vesperIdentity?.mood?.emoji || '✨'} {vesperIdentity?.mood?.label || 'Ready'}
+                </Typography>
+                {isSpeaking && (
+                  <Typography sx={{ fontSize: '0.65rem', color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.1em', animation: 'textGlow 1.5s ease-in-out infinite' }}>
+                    ● SPEAKING
+                  </Typography>
+                )}
+              </Box>
+
               <Button
                 size="small"
                 variant="outlined"
                 onClick={() => generateVideoAvatar()}
                 disabled={videogenLoading}
                 sx={{
+                  display: { xs: 'none', sm: 'flex' },
                   width: 220,
                   borderColor: activeTheme.accent,
                   color: activeTheme.accent,
