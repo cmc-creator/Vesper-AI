@@ -1211,7 +1211,8 @@ export default function App() {
 
   // ── Vesper proactive message polling ──────────────────────────────────────
   // Vesper can queue messages for CC using the vesper_notify tool.
-  // Frontend polls every 30s and injects them into the chat automatically.
+  // Frontend polls every 15s; reminders get an alarm toast, others go into chat.
+  const [reminderAlerts, setReminderAlerts] = useState([]);
   useEffect(() => {
     const pollProactive = async () => {
       try {
@@ -1220,14 +1221,20 @@ export default function App() {
         const data = await res.json();
         if (data.messages && data.messages.length > 0) {
           for (const msg of data.messages) {
-            addLocalMessage('assistant', `🔔 ${msg.message}`);
+            if (msg.source === 'reminder') {
+              // Show as a dismissible alarm toast AND add to chat
+              setReminderAlerts(prev => [...prev, { id: Date.now() + Math.random(), text: msg.message }]);
+              addLocalMessage('assistant', `⏰ ${msg.message}`);
+            } else {
+              addLocalMessage('assistant', `🔔 ${msg.message}`);
+            }
           }
         }
       } catch {
         // silently ignore poll failures
       }
     };
-    const timer = setInterval(pollProactive, 30000);
+    const timer = setInterval(pollProactive, 15000);
     return () => clearInterval(timer);
   }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1679,6 +1686,8 @@ export default function App() {
               data.data.forEach(viz => {
                 if (viz.type === 'chart_visualization') {
                   addLocalMessage('assistant', 'Generated Chart', { type: 'chart', chartData: viz });
+                } else if (viz.type === 'sandbox_image') {
+                  addLocalMessage('assistant', '', { type: 'sandbox_image', imageData: viz.image_data, caption: viz.caption || '' });
                 } else if (viz.type === 'image_generation') {
                   addLocalMessage('assistant', `Here's your image ✨`, { type: 'image', imageUrl: viz.image_url, imagePrompt: viz.prompt, imageProvider: viz.provider });
                   const promptSuggestsWallpaper = /wallpaper|background/i.test(String(viz.prompt || ''));
@@ -3729,6 +3738,31 @@ export default function App() {
                  yKey={message.chartData.keys.y}
               />
            </Box>
+        </motion.div>
+      );
+    }
+
+    // Handle Sandbox Images (base64 plots from code_sandbox)
+    if (message.type === 'sandbox_image' && message.imageData) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+          key={message.id}
+        >
+          <Typography variant="caption" sx={{ color: 'var(--accent)', mb: 0.5, fontFamily: 'monospace', letterSpacing: 1 }}>
+            VESPER · CODE OUTPUT · {ts}
+          </Typography>
+          <Box sx={{ maxWidth: 560, borderRadius: 2, overflow: 'hidden', border: '1px solid var(--accent)33' }}>
+            <img src={message.imageData} alt="Code output" style={{ width: '100%', display: 'block' }} />
+          </Box>
+          {message.caption && (
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', mt: 0.5, fontSize: '0.65rem' }}>
+              {message.caption}
+            </Typography>
+          )}
         </motion.div>
       );
     }
@@ -7166,8 +7200,9 @@ export default function App() {
             {/* Voice selector moved to Voice Lab > Personas tab */}
 
             <Stack className="prompt-rail" direction="row" spacing={0.75} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.75, flexShrink: 0 }}>
-              {['Summarize this thread', 'Give me next best move', 'Draft premium response'].map((label) => (
-                <Chip key={label} label={label} onClick={() => setInput(label)} className="chip-ghost" />
+              {['Summarize this thread', 'Give me next best move', 'Draft premium response',
+                '🌤 Weather here', '⏰ Remind me in 1 hour', '🐍 Run Python code', '📄 Read a file', '📝 Search Notion'].map((label) => (
+                <Chip key={label} label={label} onClick={() => setInput(label.replace(/^[\p{Emoji}\s]+/u, '').trim())} className="chip-ghost" />
               ))}
             </Stack>
 
@@ -8447,6 +8482,35 @@ export default function App() {
           {voiceErrorToast}
         </Alert>
       </Snackbar>
+
+      {/* Reminder alarm toasts — stacked at top-right, each dismissible */}
+      {reminderAlerts.map((alert, idx) => (
+        <Snackbar
+          key={alert.id}
+          open={true}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          sx={{ top: `${(idx * 72) + 16}px !important` }}
+        >
+          <Alert
+            severity="warning"
+            variant="filled"
+            onClose={() => setReminderAlerts(prev => prev.filter(a => a.id !== alert.id))}
+            icon="⏰"
+            sx={{
+              background: 'linear-gradient(135deg, rgba(255,180,0,0.25), rgba(200,80,0,0.18))',
+              border: '1px solid rgba(255,180,0,0.5)',
+              backdropFilter: 'blur(20px)',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '0.92rem',
+              maxWidth: 380,
+              boxShadow: '0 0 28px rgba(255,150,0,0.4), 0 8px 32px rgba(0,0,0,0.5)',
+            }}
+          >
+            {alert.text}
+          </Alert>
+        </Snackbar>
+      ))}
       <Menu
         anchorEl={exportMenuAnchor}
         open={Boolean(exportMenuAnchor)}

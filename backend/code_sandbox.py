@@ -111,14 +111,35 @@ async def _execute(code: str, params: dict) -> dict:
     with tempfile.TemporaryDirectory() as tmpdir:
         script_path = os.path.join(tmpdir, "script.py")
 
-        # Add safe preamble
+        # Add safe preamble + matplotlib non-interactive backend
         preamble = textwrap.dedent("""
 import warnings
 warnings.filterwarnings('ignore')
-import os, sys
+import os, sys, base64, io as _io_std
 # Restrict file writes to temp dir only (best-effort)
 _ORIG_OPEN = open
 _TMPDIR = os.getcwd()
+# Force matplotlib to non-interactive backend so plots can be captured
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+except ImportError:
+    pass
+# Capture matplotlib figures as base64 at script end
+def _save_figures():
+    try:
+        import matplotlib.pyplot as plt
+        figs = [plt.figure(n) for n in plt.get_fignums()]
+        for i, fig in enumerate(figs):
+            buf = _io_std.BytesIO()
+            fig.savefig(buf, format='png', bbox_inches='tight', dpi=120)
+            b64 = base64.b64encode(buf.getvalue()).decode()
+            print(f'__VESPER_PLOT__{i}__data:image/png;base64,{b64}__END_PLOT__')
+        plt.close('all')
+    except Exception:
+        pass
+import atexit as _atexit
+_atexit.register(_save_figures)
 """).strip()
 
         full_code = preamble + "\n\n" + code
@@ -153,22 +174,37 @@ _TMPDIR = os.getcwd()
             stderr = _clean_output(stderr_bytes.decode("utf-8", errors="replace"))
             exit_code = proc.returncode
 
+            # Extract any embedded plot images from stdout
+            plots = []
+            import re as _re
+            plot_pattern = _re.compile(r'__VESPER_PLOT__\d+__(data:image/png;base64,[^_]+)__END_PLOT__')
+            stdout_clean = stdout
+            for m in plot_pattern.finditer(stdout):
+                plots.append(m.group(1))
+            if plots:
+                stdout_clean = plot_pattern.sub('', stdout).strip()
+
             if exit_code == 0:
-                preview = f"✅ **Code executed successfully**\n\n```\n{stdout[:2000]}\n```" if stdout else "✅ Code ran (no output)"
+                preview = f"✅ **Code executed successfully**\n\n```\n{stdout_clean[:2000]}\n```" if stdout_clean else "✅ Code ran (no output)"
                 if stderr:
                     preview += f"\n\n⚠️ Warnings:\n```\n{stderr[:500]}\n```"
+                if plots:
+                    preview += f"\n\n📊 {len(plots)} plot(s) generated."
             else:
                 preview = f"❌ **Code failed (exit {exit_code})**\n\n```\n{stderr[:2000]}\n```"
-                if stdout:
-                    preview = f"📤 Output before error:\n```\n{stdout[:1000]}\n```\n\n" + preview
+                if stdout_clean:
+                    preview = f"📤 Output before error:\n```\n{stdout_clean[:1000]}\n```\n\n" + preview
 
-            return {
+            result = {
                 "success": exit_code == 0,
                 "exit_code": exit_code,
-                "stdout": stdout,
+                "stdout": stdout_clean,
                 "stderr": stderr,
                 "preview": preview,
             }
+            if plots:
+                result["plots"] = plots  # list of data:image/png;base64,... strings
+            return result
 
         except FileNotFoundError:
             return {"error": f"Python executable not found: {_PYTHON}", "success": False}

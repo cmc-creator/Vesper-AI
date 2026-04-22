@@ -11541,6 +11541,15 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 # Emit tool_done so frontend can update the activity indicator
                 _tool_success = isinstance(tool_result, dict) and "error" not in tool_result
                 yield f"data: {json.dumps({'type': 'tool_done', 'tool_name': tool_name, 'tool_label': _tool_label, 'success': _tool_success})}\n\n"
+
+                # Emit sandbox plots as inline visualizations so frontend renders them
+                if tool_name == "code_sandbox" and isinstance(tool_result, dict) and tool_result.get("plots"):
+                    _plots_payload = [
+                        {"type": "sandbox_image", "image_data": _p, "caption": f"Plot {_i+1}"}
+                        for _i, _p in enumerate(tool_result["plots"])
+                    ]
+                    yield f"data: {json.dumps({'type': 'visualizations', 'data': _plots_payload})}\n\n"
+
                 await asyncio.sleep(0)
                 
                 # Append tool messages for conversation context
