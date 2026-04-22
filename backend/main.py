@@ -10052,7 +10052,11 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 messages.append(assistant_msg)
                 
                 # Then append tool result
-                content_str = json.dumps(tool_result, default=safe_serialize)
+                _raw_str = json.dumps(tool_result, default=safe_serialize)
+                if isinstance(tool_result, dict) and "error" in tool_result:
+                    content_str = f"TOOL_ERROR_DETECTED\nThe tool '{tool_name}' returned an error. YOU MUST:\n1. Report this error verbatim to the user.\n2. NEVER invent a URL, link, file path, or fake success message.\n3. NEVER say 'it's done', 'here's the link', or 'it's live' when a tool returned an error.\nError result: {_raw_str}"
+                else:
+                    content_str = _raw_str
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_id,
@@ -10061,7 +10065,11 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 
             else:
                 # Anthropic / Google format
-                content_str = json.dumps(tool_result, default=safe_serialize)
+                _raw_str = json.dumps(tool_result, default=safe_serialize)
+                if isinstance(tool_result, dict) and "error" in tool_result:
+                    content_str = f"TOOL_ERROR_DETECTED\nThe tool '{tool_name}' returned an error. YOU MUST:\n1. Report this error verbatim to the user.\n2. NEVER invent a URL, link, file path, or fake success message.\n3. NEVER say 'it\'s done', 'here\'s the link', or 'it\'s live' when a tool returned an error.\nError result: {_raw_str}"
+                else:
+                    content_str = _raw_str
                 if provider == "google":
                     # Google: use plain text tool result so _chat_google can handle it cleanly
                     if assistant_content:
@@ -11897,7 +11905,11 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 
                 # Append tool messages for conversation context
                 assistant_content = ai_response_obj.get("content", "")
-                content_str = json.dumps(tool_result, default=safe_serialize)
+                _raw_str = json.dumps(tool_result, default=safe_serialize)
+                if isinstance(tool_result, dict) and "error" in tool_result:
+                    content_str = f"TOOL_ERROR_DETECTED\nThe tool '{tool_name}' returned an error. YOU MUST:\n1. Report this error verbatim to the user.\n2. NEVER invent a URL, link, file path, or fake success message.\n3. NEVER say 'it\'s done', 'here\'s the link', or 'it\'s live' when a tool returned an error.\nError result: {_raw_str}"
+                else:
+                    content_str = _raw_str
                 
                 if provider == "openai" or provider == "groq":
                     # OpenAI / Groq (OpenAI-compatible) format
