@@ -208,6 +208,13 @@ except Exception as _tc_err:
     async def hue_control(p, **kw): return {"error": "tools_creative not loaded"}
     async def pandora_control(p, **kw): return {"error": "tools_creative not loaded"}
 
+try:
+    from google_sheets import google_sheets_tool
+    print("[OK] google_sheets loaded")
+except Exception as _gs_err:
+    print(f"[WARN] google_sheets failed to load: {_gs_err}")
+    async def google_sheets_tool(p, **kw): return {"error": "google_sheets module not loaded"}
+
 # Firebase (optional)
 try:
     import firebase_utils
@@ -6470,6 +6477,28 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "google_sheets",
+                "description": "Full Google Sheets control: create spreadsheets, read/write/update/clear data, manage tabs (list/add/rename), delete rows, format headers, and search for values. Use this for any spreadsheet work beyond basic append.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "create | read | append | update | clear | get_info | list_tabs | add_tab | rename_tab | delete_rows | format_headers | find"},
+                        "sheet_id": {"type": "string", "description": "Spreadsheet ID (from URL or prior create result)"},
+                        "title": {"type": "string", "description": "Spreadsheet title (for action=create)"},
+                        "tab_name": {"type": "string", "description": "Worksheet tab name"},
+                        "new_name": {"type": "string", "description": "New tab name (for action=rename_tab)"},
+                        "range": {"type": "string", "description": "A1 notation range, e.g. Sheet1!A1:D10"},
+                        "headers": {"type": "array", "items": {"type": "string"}, "description": "Column header names (for action=create)"},
+                        "rows": {"type": "array", "items": {"type": "array"}, "description": "Rows of data (array of arrays, for append/update)"},
+                        "values": {"type": "array", "items": {"type": "array"}, "description": "Values to write (for action=update)"},
+                        "row_numbers": {"type": "array", "items": {"type": "integer"}, "description": "1-based row numbers to delete (for action=delete_rows)"},
+                        "bg_color": {"type": "string", "description": "Header background: dark | blue | green | light | none (for action=format_headers)"},
+                        "query": {"type": "string", "description": "Search text (for action=find)"}
+                    },
+                    "required": ["action"]
+                }
+            },
+            {
                 "name": "google_calendar_events",
                 "description": "Get upcoming calendar events. Use this when CC asks about their schedule, upcoming meetings, or calendar.",
                 "input_schema": {
@@ -8218,6 +8247,9 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "update_google_doc":
                     tool_result = await google_docs_append(tool_input.get("doc_id", ""), {"text": tool_input.get("text", "")})
                 
+                elif tool_name == "google_sheets":
+                    tool_result = await google_sheets_tool(tool_input)
+
                 elif tool_name == "create_google_sheet":
                     tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
                 
@@ -10144,6 +10176,8 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await google_docs_get(tool_input.get("doc_id", ""))
                     elif tool_name == "update_google_doc":
                         tool_result = await google_docs_append(tool_input.get("doc_id", ""), {"text": tool_input.get("text", "")})
+                    elif tool_name == "google_sheets":
+                        tool_result = await google_sheets_tool(tool_input)
                     elif tool_name == "create_google_sheet":
                         tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
                     elif tool_name == "read_google_sheet":
