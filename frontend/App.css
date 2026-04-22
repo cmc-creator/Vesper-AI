@@ -488,6 +488,7 @@ body[data-style="lux"] .hex-grid {
   gap: 20px;
   color: #eef2f7;
   overflow: visible;
+  box-sizing: border-box;
   transition: grid-template-columns 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 

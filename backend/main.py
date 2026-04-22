@@ -15430,6 +15430,7 @@ async def _fetch_google_reviews(params: dict) -> dict:
 # =============================================================================
 
 _LAST_USER_ACTIVITY: datetime.datetime = datetime.datetime.now()
+_LAST_HEARTBEAT_SENT: datetime.datetime = datetime.datetime.min
 _HEARTBEAT_LOCK = threading.Lock()
 
 def _record_user_activity():
@@ -15462,9 +15463,11 @@ def _vesper_heartbeat():
 
             with _HEARTBEAT_LOCK:
                 minutes_quiet = (now - _LAST_USER_ACTIVITY).total_seconds() / 60
+                minutes_since_sent = (now - _LAST_HEARTBEAT_SENT).total_seconds() / 60
 
-            # Only message if CC has been quiet >60min and queue is empty
-            if minutes_quiet < 60 or len(VESPER_PROACTIVE_QUEUE) > 0:
+            # Only message if CC has been quiet >60min, queue is empty,
+            # and at least 120 min have passed since the last heartbeat message
+            if minutes_quiet < 60 or len(VESPER_PROACTIVE_QUEUE) > 0 or minutes_since_sent < 120:
                 time.sleep(interval_seconds)
                 continue
 
@@ -15499,7 +15502,7 @@ def _vesper_heartbeat():
                         {"role": "user", "content": prompt},
                     ],
                     task_type=TaskType.CHAT,
-                    max_tokens=200,
+                    max_tokens=400,
                     temperature=0.85,
                 )
                 if resp.get("content") and not resp.get("error"):
@@ -15510,6 +15513,9 @@ def _vesper_heartbeat():
                         "timestamp": now.isoformat(),
                         "source": "heartbeat",
                     })
+                    # Record send time so we don't spam messages every 20 min
+                    global _LAST_HEARTBEAT_SENT
+                    _LAST_HEARTBEAT_SENT = now
                     # Also write to the gaps journal so CC can see it later
                     try:
                         memory_db.add_gap_entry(entry=msg, mood="reflective", source="heartbeat")
