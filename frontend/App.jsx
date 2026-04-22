@@ -7048,7 +7048,7 @@ export default function App() {
 
         <main className="content-grid" data-section={activeSection}>
           <section className="chat-panel glass-panel">
-            <Box className="chat-inner-wrap" sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <Box className="chat-inner-wrap" sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexShrink: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
                 {/* Hamburger – mobile only */}
