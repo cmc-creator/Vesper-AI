@@ -1706,6 +1706,7 @@ button:active,
   .content-grid {
     height: 100%;
     min-height: unset;
+    grid-template-rows: 1fr;
     align-items: stretch;
     width: 100%;
     max-width: 100%;
@@ -1832,6 +1833,10 @@ button:active,
   }
 
   /* Chat panel edge-to-edge on small phones */
+  .content-grid {
+    grid-template-rows: 1fr;
+  }
+
   .chat-panel {
     height: 100%;
     min-height: unset;
