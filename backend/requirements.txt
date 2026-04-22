@@ -52,3 +52,9 @@ elevenlabs>=1.7.0,<3.0.0
 
 psutil
 fpdf2
+
+# New tools (weather, file_reader, code_sandbox, notion, reminders)
+aiohttp>=3.9.0        # file_reader + notion HTTP calls
+pypdf>=4.0.0          # file_reader: PDF text extraction
+python-docx>=1.1.0    # file_reader: DOCX text extraction
+openpyxl>=3.1.0       # file_reader: XLSX support
