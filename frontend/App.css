@@ -1768,10 +1768,11 @@ button:active,
     display: none !important;
   }
 
-  /* Chat window takes the remaining viewport after face strip */
+  /* Chat window fills all remaining space in the flex column */
   .chat-window {
-    max-height: calc(100dvh - 270px);
     flex: 1;
+    max-height: none;
+    min-height: 0;
   }
 
   /* Hide low-priority header controls on mobile — keep hamburger, title, New Chat, voice only */
@@ -1839,10 +1840,11 @@ button:active,
     overflow: hidden;
   }
 
-  /* Use dvh so chat shrinks when keyboard opens */
+  /* Chat window fills all remaining space in the flex column */
   .chat-window {
-    max-height: calc(100dvh - 250px);
     flex: 1;
+    max-height: none;
+    min-height: 0;
   }
 
   /* Tighter input bar */

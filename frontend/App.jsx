@@ -7327,6 +7327,7 @@ export default function App() {
                     <video
                       ref={avatarVideoRef}
                       src={videoAvatarUrl || `${mediaBase}/media/source/vesper_base.mp4`}
+                      autoPlay
                       style={{
                         width: '100%',
                         height: '100%',
