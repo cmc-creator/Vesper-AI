@@ -7050,17 +7050,17 @@ export default function App() {
           <section className="chat-panel glass-panel">
             <Box className="chat-inner-wrap" sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexShrink: 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
                 {/* Hamburger – mobile only */}
                 <IconButton
                   className="mobile-menu-btn"
                   size="small"
                   onClick={() => setMobileSidebarOpen(o => !o)}
-                  sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}
+                  sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' }, flexShrink: 0 }}
                 >
                   <MenuIcon fontSize="small" />
                 </IconButton>
-              <Box>
+              <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--accent)' }}>
                     Neural Chat
@@ -7070,6 +7070,7 @@ export default function App() {
                     size="small"
                     onClick={() => setActiveSection('settings')}
                     sx={{
+                      display: { xs: 'none', sm: 'inline-flex' },
                       bgcolor: runtimeCapabilities?.features?.tts ? 'rgba(0,255,136,0.12)' : 'rgba(255,190,92,0.12)',
                       color: runtimeCapabilities?.features?.tts ? '#7ff2b8' : '#f6d38c',
                       border: `1px solid ${runtimeCapabilities?.features?.tts ? 'rgba(0,255,136,0.28)' : 'rgba(255,190,92,0.28)'}`,
@@ -7085,6 +7086,7 @@ export default function App() {
                       size="small"
                       onClick={() => setActiveSection('settings')}
                       sx={{
+                        display: { xs: 'none', sm: 'inline-flex' },
                         bgcolor: vesperIdentity.mood?.color ? `${vesperIdentity.mood.color}22` : 'rgba(0,255,255,0.1)',
                         color: vesperIdentity.mood?.color || 'var(--accent)',
                         border: `1px solid ${vesperIdentity.mood?.color || 'var(--accent)'}44`,
@@ -7102,7 +7104,7 @@ export default function App() {
                   )}
                 </Box>
                 {currentThreadId && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                  <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1, mt: 0.5 }}>
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
                       💬 {currentThreadTitle}
                     </Typography>
@@ -7125,7 +7127,7 @@ export default function App() {
                   </Box>
                 )}
                 {threads.length > 1 && !launchMode && (
-                  <Box className="recent-threads-row" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 0.85, maxWidth: 560 }}>
+                  <Box className="recent-threads-row" sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 0.85, maxWidth: 560 }}>
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', mr: 0.25 }}>
                       Recent:
                     </Typography>
@@ -7192,16 +7194,17 @@ export default function App() {
                     borderColor: 'rgba(0,255,255,0.35)',
                     textTransform: 'none',
                     fontWeight: 700,
-                    minWidth: 96,
+                    minWidth: { xs: 36, sm: 96 },
                     height: 32,
-                    px: 1.25,
+                    px: { xs: 0.5, sm: 1.25 },
+                    '& .MuiButton-startIcon': { mr: { xs: 0, sm: 0.5 } },
                     '&:hover': {
                       bgcolor: 'rgba(0,255,255,0.1)',
                       borderColor: 'var(--accent)',
                     },
                   }}
                 >
-                  New Chat
+                  <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>New Chat</Box>
                 </Button>
 
                 {/* Auto-speak Toggle */}
@@ -7210,6 +7213,7 @@ export default function App() {
                     size="small"
                     onClick={toggleAutoSpeak}
                     sx={{
+                      display: { xs: 'none', md: 'inline-flex' },
                       color: autoSpeak ? '#00ff88' : 'rgba(255,255,255,0.3)',
                       bgcolor: autoSpeak ? 'rgba(0,255,136,0.1)' : 'transparent',
                       border: autoSpeak ? '1px solid rgba(0,255,136,0.4)' : '1px solid rgba(255,255,255,0.15)',
@@ -7227,6 +7231,7 @@ export default function App() {
                     size="small"
                     onClick={() => exportChat('markdown')}
                     sx={{
+                      display: { xs: 'none', md: 'inline-flex' },
                       color: 'rgba(255,255,255,0.4)',
                       '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(0,255,255,0.1)' },
                       width: 32, height: 32,
@@ -7241,6 +7246,7 @@ export default function App() {
                     size="small"
                     onClick={() => setLaunchMode((prev) => !prev)}
                     sx={{
+                      display: { xs: 'none', md: 'inline-flex' },
                       color: launchMode ? '#f2deaa' : 'rgba(255,255,255,0.35)',
                       bgcolor: launchMode ? 'rgba(242,222,170,0.1)' : 'transparent',
                       border: launchMode ? '1px solid rgba(242,222,170,0.4)' : '1px solid rgba(255,255,255,0.15)',

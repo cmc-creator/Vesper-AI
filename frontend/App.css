@@ -483,11 +483,13 @@ body[data-style="lux"] .hex-grid {
   display: grid;
   grid-template-columns: 262px 1fr;
   min-height: 100vh;
-  width: 100vw;
+  width: 100%;
+  max-width: 100vw;
   padding: 20px;
   gap: 20px;
   color: #eef2f7;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: visible;
   box-sizing: border-box;
   transition: grid-template-columns 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1702,7 +1704,9 @@ button:active,
     border-radius: 16px;
     padding: 10px 10px 8px;
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
+    overflow: hidden;
   }
 
   /* Hide the avatar section — saves ~300px vertical + removes gray side area */
@@ -1786,6 +1790,7 @@ button:active,
     min-height: calc(100dvh - 8px);
     border-radius: 12px;
     padding: 8px 8px 6px;
+    overflow: hidden;
   }
 
   /* Use dvh so chat shrinks when keyboard opens */
