@@ -8391,3 +8391,1450 @@ async def pandora_control(params: dict, **kwargs) -> dict:
     }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# DISCOVERY CALL SCRIPT
+# Generates a full sales call script for closing high-ticket consulting clients.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def discovery_call_script(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate a complete discovery call script.
+    Includes: opening, qualifying questions, pain-point exploration,
+    objection handling, pitch framing, and close sequence.
+    """
+    service = params.get("service", "")
+    target_client = params.get("target_client", "business owner")
+    price_point = params.get("price_point", "")
+    duration_minutes = int(params.get("duration_minutes", 30))
+    objections = params.get("objections", [])
+    style = params.get("style", "conversational")  # conversational | consultative | challenger
+
+    if not service:
+        return {"error": "Provide 'service' - what you're selling on the call"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    objections_str = ", ".join(objections) if objections else "price, timing, need to think about it, already have someone"
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a high-ticket sales coach who has helped consultants close $2k-$50k deals. "
+                    "Write scripts that feel like real conversations, not robotic sales pitches. "
+                    "Every line should be something a real human would say. "
+                    "Focus on uncovering pain, creating urgency, and making the client sell themselves."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Write a complete {duration_minutes}-minute discovery call script for selling: {service}\n"
+                    f"Target client: {target_client}\n"
+                    f"Price point: {price_point or 'not specified'}\n"
+                    f"Style: {style}\n"
+                    f"Handle these objections: {objections_str}\n\n"
+                    "Structure:\n"
+                    "1. OPENING (30 sec) - build rapport, set agenda\n"
+                    "2. QUALIFYING QUESTIONS (5-7 questions with follow-ups) - uncover budget, timeline, decision-maker, pain\n"
+                    "3. PAIN AMPLIFICATION (2-3 exchanges) - make the problem feel urgent\n"
+                    "4. PITCH BRIDGE (1 min) - tie their pain to your solution\n"
+                    "5. OFFER PRESENTATION (2 min) - what they get, results, proof\n"
+                    "6. OBJECTION HANDLERS - word-for-word scripts for each objection\n"
+                    "7. CLOSE SEQUENCE - 3 close attempts, each escalating\n"
+                    "8. FOLLOW-UP PLAN - what to say if they don't decide today\n\n"
+                    "Mark Vesper's lines as [V] and client responses as [CLIENT]. "
+                    "Include coaching notes in (parentheses) for tone/pacing."
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=4000,
+        temperature=0.7,
+    )
+
+    script = resp.get("content", "")
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "sales_scripts")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in service.lower())[:40]
+    file_path = os.path.join(save_dir, f"discovery_call_{slug}.md")
+    _safe_write(file_path, f"# Discovery Call Script: {service}\n\n{script}")
+
+    return {
+        "success": True,
+        "service": service,
+        "target_client": target_client,
+        "price_point": price_point,
+        "duration_minutes": duration_minutes,
+        "script": script,
+        "file_path": file_path,
+        "preview": f"[Discovery Call Script] {service} | {duration_minutes} min | {style} style",
+        "title": f"Discovery Call Script: {service}",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WRITE BID — Upwork / Fiverr / Freelancer custom proposal
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_bid(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Write a custom bid/proposal for a specific freelance job posting.
+    Designed to win on Upwork, Fiverr, Freelancer, Toptal, or direct outreach.
+    """
+    job_title = params.get("job_title", "")
+    job_description = params.get("job_description", "")
+    platform = params.get("platform", "upwork")  # upwork | fiverr | freelancer | direct
+    your_rate = params.get("your_rate", "")
+    your_skills = params.get("your_skills", [])
+    portfolio_items = params.get("portfolio_items", [])
+    bid_style = params.get("bid_style", "hook-problem-solution")
+
+    if not job_description and not job_title:
+        return {"error": "Provide 'job_description' and/or 'job_title'"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    skills_str = ", ".join(your_skills) if your_skills else "not specified"
+    portfolio_str = "\n".join(f"- {p}" for p in portfolio_items) if portfolio_items else "not provided"
+
+    platform_tips = {
+        "upwork": "Upwork proposals: under 200 words wins more. Address the client by name if possible. Answer their specific ask in line 1. No generic 'I am a professional' openers.",
+        "fiverr": "Fiverr buyer requests: be friendly, fast, specific. Show you read the brief. Mention a quick turnaround. End with a question to start the conversation.",
+        "freelancer": "Freelancer.com: competitive market. Be direct about price and timeline upfront. Differentiate immediately.",
+        "direct": "Direct outreach: warmer tone, research their business, mention something specific about them. Longer is okay here.",
+    }
+    tip = platform_tips.get(platform, platform_tips["upwork"])
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a top-1% freelancer who consistently wins high-value contracts. "
+                    "You write bids that address exactly what the client said, not generic pitches. "
+                    f"{tip}"
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Platform: {platform}\n"
+                    f"Job title: {job_title}\n"
+                    f"Job description:\n{job_description}\n\n"
+                    f"My rate: {your_rate or 'flexible'}\n"
+                    f"My relevant skills: {skills_str}\n"
+                    f"Portfolio/proof:\n{portfolio_str}\n\n"
+                    f"Write a winning bid using the '{bid_style}' structure.\n"
+                    "Include:\n"
+                    "- Attention-grabbing opening line (not 'Hi, I'm...')\n"
+                    "- Show you understood their specific problem\n"
+                    "- Your relevant experience/proof\n"
+                    "- Exactly how you'll solve it and your timeline\n"
+                    "- Clear CTA\n"
+                    "- A follow-up message template if they don't respond in 48h\n\n"
+                    "Also provide: 3 subject line variants (for direct email bids) and "
+                    "1 shortened version (for platforms with character limits)."
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=2000,
+        temperature=0.7,
+    )
+
+    bid_content = resp.get("content", "")
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "bids")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (job_title or "bid").lower())[:40]
+    file_path = os.path.join(save_dir, f"bid_{platform}_{slug}.md")
+    _safe_write(file_path, f"# Bid: {job_title}\nPlatform: {platform}\n\n{bid_content}")
+
+    return {
+        "success": True,
+        "job_title": job_title,
+        "platform": platform,
+        "your_rate": your_rate,
+        "bid": bid_content,
+        "file_path": file_path,
+        "preview": f"[Bid] {platform.upper()} | {job_title}",
+        "title": f"Bid: {job_title} ({platform})",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A/B TEST GENERATOR
+# Generate split-test variants for any piece of copy.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def ab_test_generator(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate A/B test variants for headlines, subject lines, CTAs, pricing pages,
+    ad copy, or any conversion element.
+    """
+    element_type = params.get("element_type", "headline")  # headline | subject_line | cta | pricing | ad_copy | landing_page_hero | sales_page_header
+    original = params.get("original", "")
+    product = params.get("product", "")
+    audience = params.get("audience", "")
+    goal = params.get("goal", "increase clicks")  # increase clicks | increase signups | increase purchases | reduce churn
+    variants = int(params.get("variants", 5))
+    angles = params.get("angles", [])  # specific angles to test: curiosity | urgency | social proof | fear | benefit | story
+
+    if not original and not product:
+        return {"error": "Provide 'original' (the current copy) or 'product' to write from scratch"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    angles_str = ", ".join(angles) if angles else "curiosity, urgency, benefit-focused, social proof, fear of missing out"
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a conversion rate optimization (CRO) expert who has run thousands of A/B tests. "
+                    "You understand psychology, copywriting frameworks, and what actually moves metrics. "
+                    "Return results as structured JSON only, no markdown fences."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Create {variants} A/B test variants for this {element_type}.\n\n"
+                    f"Original: {original or 'N/A - write fresh'}\n"
+                    f"Product/offer: {product}\n"
+                    f"Target audience: {audience}\n"
+                    f"Goal: {goal}\n"
+                    f"Angles to test: {angles_str}\n\n"
+                    "Return ONLY a JSON object:\n"
+                    "{\n"
+                    '  "element_type": "...",\n'
+                    '  "original": "...",\n'
+                    '  "variants": [\n'
+                    '    {"id": "A", "copy": "...", "angle": "...", "why_it_works": "...", "predicted_lift": "low/medium/high"},\n'
+                    "    ...\n"
+                    "  ],\n"
+                    '  "test_priority": ["A", "B", ...],\n'
+                    '  "testing_notes": "how long to run, sample size needed, what metric to track",\n'
+                    '  "winner_prediction": "variant X because..."\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=2500,
+        temperature=0.8,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("variants"):
+        data = {"element_type": element_type, "original": original, "raw_output": raw}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "ab_tests")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (product or element_type).lower())[:40]
+    file_path = os.path.join(save_dir, f"abtest_{element_type}_{slug}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "element_type": element_type,
+        "original": original,
+        "variants": data.get("variants", []),
+        "test_priority": data.get("test_priority", []),
+        "testing_notes": data.get("testing_notes", ""),
+        "winner_prediction": data.get("winner_prediction", ""),
+        "file_path": file_path,
+        "preview": f"[A/B Test] {element_type} | {len(data.get('variants', []))} variants | goal: {goal}",
+        "title": f"A/B Test: {element_type} for {product or 'unknown product'}",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AFFILIATE RESEARCH
+# Find high-commission affiliate programs in any niche.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def affiliate_research(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Research and compile a list of affiliate programs in a niche with commission
+    rates, EPC estimates, cookie durations, and application tips.
+    """
+    niche = params.get("niche", "")
+    content_type = params.get("content_type", "blog")  # blog | youtube | email | social | course
+    audience_size = params.get("audience_size", "")
+    focus = params.get("focus", "high_commission")  # high_commission | recurring | easy_approval | high_ticket | beginner
+
+    if not niche:
+        return {"error": "Provide 'niche'"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    # Optionally do a live search for current programs
+    live_results = []
+    try:
+        search_query = f"best affiliate programs {niche} 2025 high commission"
+        live_results = _quick_ddg_search(search_query, max_results=5)
+    except Exception:
+        pass
+
+    live_context = ""
+    if live_results:
+        live_context = "\n\nLive search results to inform your recommendations:\n" + "\n".join(
+            f"- {r.get('title', '')} — {r.get('url', '')}" for r in live_results
+        )
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an affiliate marketing strategist with deep knowledge of affiliate networks "
+                    "(Impact, ShareASale, CJ, ClickBank, Partnerstack, Amazon Associates, Gumroad, etc.) "
+                    "and thousands of individual programs. Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Find the best affiliate programs for the '{niche}' niche.\n"
+                    f"Content type: {content_type}\n"
+                    f"Audience size: {audience_size or 'not specified'}\n"
+                    f"Focus: {focus}\n"
+                    f"{live_context}\n\n"
+                    "Return ONLY a JSON object:\n"
+                    "{\n"
+                    '  "niche": "...",\n'
+                    '  "programs": [\n'
+                    '    {\n'
+                    '      "name": "...",\n'
+                    '      "network": "Impact/ShareASale/Direct/etc",\n'
+                    '      "commission_rate": "20% or $50/sale",\n'
+                    '      "commission_type": "one-time | recurring | hybrid",\n'
+                    '      "cookie_days": 30,\n'
+                    '      "avg_order_value": "$100",\n'
+                    '      "epc_estimate": "$1.50",\n'
+                    '      "approval_difficulty": "easy | medium | hard",\n'
+                    '      "best_for": "bloggers/YouTubers/email",\n'
+                    '      "apply_url": "...",\n'
+                    '      "notes": "..."\n'
+                    '    }\n'
+                    "  ],\n"
+                    '  "top_pick": "program name",\n'
+                    '  "strategy": "how to promote these for maximum income",\n'
+                    '  "monthly_income_estimate": "realistic estimate for 1000 monthly clicks",\n'
+                    '  "content_ideas": ["5 content ideas that convert for these programs"]\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=3000,
+        temperature=0.5,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("programs"):
+        data = {"niche": niche, "raw_output": raw}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "affiliate_research")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in niche.lower())[:40]
+    file_path = os.path.join(save_dir, f"affiliate_{slug}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "niche": niche,
+        "programs": data.get("programs", []),
+        "top_pick": data.get("top_pick", ""),
+        "strategy": data.get("strategy", ""),
+        "monthly_income_estimate": data.get("monthly_income_estimate", ""),
+        "content_ideas": data.get("content_ideas", []),
+        "file_path": file_path,
+        "preview": f"[Affiliate Research] {niche} | {len(data.get('programs', []))} programs found",
+        "title": f"Affiliate Programs: {niche}",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PROJECT LAUNCHER
+# One-shot product launch: creates product + sales page + landing page + listing.
+# Chains existing tool logic into a single coordinated launch package.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def project_launcher(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Launch a complete digital product in one shot.
+    Creates: product spec, sales page, landing page copy, Gumroad listing,
+    email sequence, and launch checklist.
+    """
+    product_name = params.get("product_name", "")
+    product_type = params.get("product_type", "digital product")  # ebook | template | course | coaching | swipe file | tool | service
+    target_audience = params.get("target_audience", "")
+    price = params.get("price", "")
+    niche = params.get("niche", "")
+    transformation = params.get("transformation", "")  # what the buyer gets / becomes
+    launch_date = params.get("launch_date", "")
+
+    if not product_name:
+        return {"error": "Provide 'product_name'"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    # Step 1: Product spec + positioning
+    spec_resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a digital product launch strategist. Return raw JSON only.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Create a complete launch package spec for:\n"
+                    f"Product: {product_name}\n"
+                    f"Type: {product_type}\n"
+                    f"Audience: {target_audience}\n"
+                    f"Price: {price or 'to be determined'}\n"
+                    f"Niche: {niche}\n"
+                    f"Transformation promised: {transformation}\n\n"
+                    "Return ONLY a JSON object:\n"
+                    "{\n"
+                    '  "product_name": "...",\n'
+                    '  "tagline": "...",\n'
+                    '  "price_recommendation": {"low": "$X", "mid": "$Y", "high": "$Z", "recommended": "$Z", "reasoning": "..."},\n'
+                    '  "target_audience": "...",\n'
+                    '  "core_promise": "...",\n'
+                    '  "what_they_get": ["list of deliverables"],\n'
+                    '  "bonuses": ["2-3 bonus ideas"],\n'
+                    '  "upsell": "what to offer after purchase",\n'
+                    '  "launch_platform": "Gumroad | Stripe | Kajabi | Teachable",\n'
+                    '  "sales_page_headline": "...",\n'
+                    '  "sales_page_subheadline": "..."\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=1500,
+        temperature=0.7,
+    )
+
+    spec = _extract_json(spec_resp.get("content", "{}"))
+    if not spec:
+        spec = {"product_name": product_name, "tagline": "", "price_recommendation": {}}
+
+    effective_price = price or spec.get("price_recommendation", {}).get("recommended", "$47")
+    effective_headline = spec.get("sales_page_headline", f"Introducing {product_name}")
+
+    # Step 2: Full sales page
+    sales_resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a direct-response copywriter. Write complete, long-form sales pages that convert. No placeholders.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Write a complete sales page for:\n"
+                    f"Product: {product_name} — {spec.get('tagline', '')}\n"
+                    f"Price: {effective_price}\n"
+                    f"Audience: {target_audience or spec.get('target_audience', '')}\n"
+                    f"Core promise: {spec.get('core_promise', transformation)}\n"
+                    f"What they get: {', '.join(spec.get('what_they_get', []))}\n\n"
+                    "Include: hero section, problem section, solution reveal, what's inside, "
+                    "who this is for/not for, testimonial placeholders, FAQ (5 questions), "
+                    "price anchor, guarantee, urgency/scarcity element, and buy button CTA. "
+                    "Write in markdown. Every section should be complete — no [INSERT X HERE] placeholders."
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=4000,
+        temperature=0.75,
+    )
+
+    sales_page = sales_resp.get("content", "")
+
+    # Step 3: Landing page (shorter opt-in version)
+    landing_resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": "You write high-converting opt-in landing pages. Short, punchy, single CTA.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Write an opt-in landing page for a free lead magnet that leads into the {product_name} offer.\n"
+                    f"Main offer: {product_name} at {effective_price}\n"
+                    f"Audience: {target_audience or spec.get('target_audience', '')}\n"
+                    f"Transformation: {transformation or spec.get('core_promise', '')}\n\n"
+                    "Include: headline, subheadline, 3 bullet benefits, email form copy, "
+                    "privacy note, and above-the-fold CTA. Under 300 words."
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=800,
+        temperature=0.7,
+    )
+
+    landing_page = landing_resp.get("content", "")
+
+    # Step 4: Gumroad listing description
+    gumroad_resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": "You write Gumroad product listings that rank in Gumroad search and convert browsers into buyers.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Write a Gumroad product listing for: {product_name}\n"
+                    f"Price: {effective_price}\n"
+                    f"Audience: {target_audience}\n"
+                    f"Promise: {transformation or spec.get('core_promise', '')}\n"
+                    f"What's included: {', '.join(spec.get('what_they_get', []))}\n\n"
+                    "Write: title (under 60 chars), description (300-500 words, plain text), "
+                    "5 suggested tags, and a thumbnail image description."
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=1000,
+        temperature=0.7,
+    )
+
+    gumroad_listing = gumroad_resp.get("content", "")
+
+    # Step 5: Launch checklist
+    checklist = [
+        f"[ ] Create product files ({', '.join(spec.get('what_they_get', ['deliverables'])[:3])})",
+        f"[ ] Set up Gumroad product at {effective_price}",
+        "[ ] Upload product thumbnail",
+        "[ ] Set up landing page (opt-in)",
+        "[ ] Connect email list to landing page",
+        "[ ] Write 3-email launch sequence (announce, cart open, last chance)",
+        "[ ] Post launch thread on Twitter/X",
+        "[ ] Post on LinkedIn",
+        "[ ] DM 10 warm prospects",
+        f"[ ] Launch date: {launch_date or 'TBD'}",
+        "[ ] 24h after launch: send 'last chance' email",
+        "[ ] After launch: set up Stripe upsell link",
+    ]
+
+    result = {
+        "success": True,
+        "product_name": product_name,
+        "product_spec": spec,
+        "sales_page": sales_page,
+        "landing_page": landing_page,
+        "gumroad_listing": gumroad_listing,
+        "launch_checklist": checklist,
+        "recommended_price": effective_price,
+        "title": f"Launch Package: {product_name}",
+        "preview": f"[Project Launch] {product_name} | {effective_price} | {product_type}",
+    }
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "launches")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in product_name.lower())[:40]
+    file_path = os.path.join(save_dir, f"launch_{slug}.md")
+    full_doc = (
+        f"# Launch Package: {product_name}\n\n"
+        f"## Product Spec\n```json\n{json.dumps(spec, indent=2)}\n```\n\n"
+        f"## Sales Page\n{sales_page}\n\n"
+        f"## Landing Page\n{landing_page}\n\n"
+        f"## Gumroad Listing\n{gumroad_listing}\n\n"
+        f"## Launch Checklist\n" + "\n".join(checklist)
+    )
+    _safe_write(file_path, full_doc)
+    result["file_path"] = file_path
+
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INCOME GAP ANALYZER
+# Reads actual income data and creates a specific action plan to close the gap.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def income_gap_analyzer(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Analyze the gap between current income and revenue goals.
+    Generates a specific, executable action plan to close the gap.
+    """
+    current_monthly = params.get("current_monthly", 0)
+    goal_monthly = params.get("goal_monthly", 0)
+    active_streams = params.get("active_streams", [])  # list of current income sources
+    available_hours = params.get("available_hours", 20)  # hours per week available
+    skills = params.get("skills", [])
+    assets = params.get("assets", [])  # existing products, audiences, accounts
+    timeline_days = int(params.get("timeline_days", 30))
+
+    if not goal_monthly:
+        return {"error": "Provide 'goal_monthly' - the monthly income target"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    gap = float(goal_monthly) - float(current_monthly)
+    daily_goal = gap / 30
+    streams_str = ", ".join(active_streams) if active_streams else "none specified"
+    skills_str = ", ".join(skills) if skills else "not specified"
+    assets_str = ", ".join(assets) if assets else "not specified"
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a business strategist who specializes in rapid income growth for solopreneurs. "
+                    "You give hyper-specific, executable advice — not theory. Every recommendation comes with "
+                    "a dollar amount, a time estimate, and an exact first action. Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Income Gap Analysis:\n"
+                    f"Current monthly income: ${current_monthly:,.0f}\n"
+                    f"Goal monthly income: ${goal_monthly:,.0f}\n"
+                    f"Gap to close: ${gap:,.0f}/month (${daily_goal:,.0f}/day)\n"
+                    f"Timeline: {timeline_days} days\n"
+                    f"Available hours/week: {available_hours}h\n"
+                    f"Active income streams: {streams_str}\n"
+                    f"Skills: {skills_str}\n"
+                    f"Existing assets: {assets_str}\n\n"
+                    "Return ONLY a JSON object:\n"
+                    "{\n"
+                    '  "gap": "$X/month",\n'
+                    '  "daily_target": "$X/day",\n'
+                    '  "assessment": "honest 2-sentence assessment of the situation",\n'
+                    '  "fastest_path": {\n'
+                    '    "method": "...",\n'
+                    '    "potential": "$X in 7 days",\n'
+                    '    "first_action": "exactly what to do TODAY, step by step",\n'
+                    '    "time_investment": "X hours total"\n'
+                    '  },\n'
+                    '  "30_day_plan": [\n'
+                    '    {"week": 1, "focus": "...", "target": "$X", "actions": ["..."]},\n'
+                    '    {"week": 2, "focus": "...", "target": "$X", "actions": ["..."]},\n'
+                    '    {"week": 3, "focus": "...", "target": "$X", "actions": ["..."]},\n'
+                    '    {"week": 4, "focus": "...", "target": "$X", "actions": ["..."]}\n'
+                    '  ],\n'
+                    '  "income_streams_to_add": [\n'
+                    '    {"stream": "...", "setup_time": "X hours", "monthly_potential": "$X-$Y", "difficulty": "easy/medium/hard"}\n'
+                    '  ],\n'
+                    '  "streams_to_scale": ["which existing streams to double down on and how"],\n'
+                    '  "streams_to_drop": ["anything wasting time with low ROI"],\n'
+                    '  "vesper_tasks": ["specific tasks Vesper can do RIGHT NOW to help"],\n'
+                    '  "success_probability": "X% if plan is followed"\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=3000,
+        temperature=0.6,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("30_day_plan"):
+        data = {
+            "gap": f"${gap:,.0f}/month",
+            "daily_target": f"${daily_goal:,.0f}/day",
+            "raw_output": raw,
+        }
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "income_analysis")
+    os.makedirs(save_dir, exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    file_path = os.path.join(save_dir, f"income_gap_{ts}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "gap": f"${gap:,.0f}/month",
+        "daily_target": f"${daily_goal:,.0f}/day",
+        "current_monthly": current_monthly,
+        "goal_monthly": goal_monthly,
+        "timeline_days": timeline_days,
+        "analysis": data,
+        "file_path": file_path,
+        "preview": f"[Income Gap] ${gap:,.0f} gap | {timeline_days} days | fastest path: {data.get('fastest_path', {}).get('method', 'see analysis')}",
+        "title": f"Income Gap Analysis: ${current_monthly:,.0f} -> ${goal_monthly:,.0f}",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# YOUTUBE THUMBNAIL GENERATOR
+# Generates thumbnail concepts, title variants, and click-through strategies.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def youtube_thumbnail(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate YouTube thumbnail concepts with visual descriptions, title variants,
+    color schemes, and A/B test suggestions.
+    """
+    video_topic = params.get("video_topic", "")
+    channel_niche = params.get("channel_niche", "")
+    target_emotion = params.get("target_emotion", "curiosity")  # curiosity | shock | inspiration | fear | desire
+    style = params.get("style", "text-heavy")  # text-heavy | face-dominant | minimal | infographic | dramatic
+    current_title = params.get("current_title", "")
+    competitors = params.get("competitors", [])  # competitor channels to differentiate from
+
+    if not video_topic:
+        return {"error": "Provide 'video_topic'"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    comp_str = ", ".join(competitors) if competitors else "none specified"
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a YouTube growth strategist who specializes in click-through rate optimization. "
+                    "You understand what makes thumbnails irresistible: contrast, faces, emotions, curiosity gaps, "
+                    "bold text, and pattern interrupts. Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Create complete YouTube thumbnail + title packages for:\n"
+                    f"Topic: {video_topic}\n"
+                    f"Channel niche: {channel_niche}\n"
+                    f"Target emotion: {target_emotion}\n"
+                    f"Style: {style}\n"
+                    f"Current title: {current_title or 'none yet'}\n"
+                    f"Competitors to differentiate from: {comp_str}\n\n"
+                    "Return ONLY a JSON object:\n"
+                    "{\n"
+                    '  "thumbnail_concepts": [\n'
+                    '    {\n'
+                    '      "concept_name": "...",\n'
+                    '      "visual_description": "exact description of what to show in the image",\n'
+                    '      "text_overlay": "the words on the thumbnail (short, max 5 words)",\n'
+                    '      "background": "color/image/gradient",\n'
+                    '      "focal_element": "face/object/text/scene",\n'
+                    '      "emotion_conveyed": "...",\n'
+                    '      "dalle_prompt": "ready-to-use DALL-E/Midjourney prompt for this thumbnail",\n'
+                    '      "ctr_prediction": "low/medium/high",\n'
+                    '      "why_it_works": "..."\n'
+                    '    }\n'
+                    "  ],\n"
+                    '  "title_variants": [\n'
+                    '    {"title": "...", "hook_type": "curiosity/shock/how-to/list/story", "ctr_prediction": "..."},\n'
+                    '    ...\n'
+                    "  ],\n"
+                    '  "recommended_combo": {"concept": "...", "title": "..."},\n'
+                    '  "ab_test_plan": "which two concepts to test first and why",\n'
+                    '  "common_mistakes_to_avoid": ["..."],\n'
+                    '  "best_time_to_post": "..."\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=2500,
+        temperature=0.8,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("thumbnail_concepts"):
+        data = {"video_topic": video_topic, "raw_output": raw}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "thumbnails")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in video_topic.lower())[:40]
+    file_path = os.path.join(save_dir, f"thumbnail_{slug}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "video_topic": video_topic,
+        "thumbnail_concepts": data.get("thumbnail_concepts", []),
+        "title_variants": data.get("title_variants", []),
+        "recommended_combo": data.get("recommended_combo", {}),
+        "ab_test_plan": data.get("ab_test_plan", ""),
+        "file_path": file_path,
+        "preview": f"[YouTube Thumbnail] {video_topic} | {len(data.get('thumbnail_concepts', []))} concepts",
+        "title": f"YouTube Thumbnails: {video_topic}",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CREATE MEDIA KIT
+# Full sponsorship/brand partnership kit.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_media_kit(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate a complete media kit / sponsorship package for brand partnerships.
+    Includes: about page, audience stats, content packages, rate card, and pitch email.
+    """
+    creator_name = params.get("creator_name", "CC")
+    niche = params.get("niche", "")
+    platforms = params.get("platforms", [])  # youtube | instagram | podcast | newsletter | blog | tiktok
+    audience_stats = params.get("audience_stats", {})  # {"youtube": "10k subs", "newsletter": "2k subscribers"}
+    past_partners = params.get("past_partners", [])
+    target_brands = params.get("target_brands", [])
+    rates = params.get("rates", {})  # {"sponsored_post": "$500", "dedicated_email": "$200"}
+    unique_angle = params.get("unique_angle", "")
+
+    if not niche:
+        return {"error": "Provide 'niche'"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    platforms_str = ", ".join(platforms) if platforms else "content creator"
+    stats_str = json.dumps(audience_stats) if audience_stats else "growing audience"
+    partners_str = ", ".join(past_partners) if past_partners else "available upon request"
+    brands_str = ", ".join(target_brands) if target_brands else "brands in the " + niche + " space"
+    rates_str = json.dumps(rates) if rates else "to be discussed"
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a talent manager and brand partnership specialist who has negotiated "
+                    "hundreds of creator-brand deals. Write media kits that get responses and close deals. "
+                    "Make the creator sound authoritative and valuable."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Create a complete media kit for:\n"
+                    f"Creator: {creator_name}\n"
+                    f"Niche: {niche}\n"
+                    f"Platforms: {platforms_str}\n"
+                    f"Audience stats: {stats_str}\n"
+                    f"Past partners: {partners_str}\n"
+                    f"Target brands: {brands_str}\n"
+                    f"Rates: {rates_str}\n"
+                    f"Unique angle: {unique_angle or 'to be determined'}\n\n"
+                    "Generate the full media kit in markdown including:\n"
+                    "1. EXECUTIVE SUMMARY (2-3 sentences, bold and compelling)\n"
+                    "2. ABOUT THE CREATOR (who CC is, the story, the mission)\n"
+                    "3. AUDIENCE PROFILE (demographics, psychographics, buying behavior)\n"
+                    "4. PLATFORM OVERVIEW (stats, engagement rates, growth trends)\n"
+                    "5. WHY PARTNER WITH US (the value proposition)\n"
+                    "6. CONTENT PACKAGES (3-4 tiers with inclusions and pricing)\n"
+                    "7. RATE CARD (formatted table: deliverable | price | turnaround)\n"
+                    "8. PAST PARTNERS & RESULTS (or 'references available')\n"
+                    "9. TESTIMONIALS (3 placeholder quotes with realistic attribution)\n"
+                    "10. HOW TO GET STARTED (next steps, contact info)\n\n"
+                    "Also write:\n"
+                    "- A cold pitch email to send to brand partnerships teams (subject line + body)\n"
+                    "- A follow-up email for 7 days later\n"
+                    "- A one-liner pitch for Instagram DMs"
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=4000,
+        temperature=0.7,
+    )
+
+    kit_content = resp.get("content", "")
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "media_kits")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in niche.lower())[:40]
+    file_path = os.path.join(save_dir, f"media_kit_{slug}.md")
+    _safe_write(file_path, f"# Media Kit: {creator_name}\n\n{kit_content}")
+
+    return {
+        "success": True,
+        "creator_name": creator_name,
+        "niche": niche,
+        "platforms": platforms,
+        "media_kit": kit_content,
+        "file_path": file_path,
+        "preview": f"[Media Kit] {creator_name} | {niche} | {platforms_str}",
+        "title": f"Media Kit: {creator_name} ({niche})",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BUILD AGENCY SYSTEM
+# Full productized agency offer: packages, SOPs, onboarding, pitch deck.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def build_agency_system(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Build a complete productized agency or freelance service system.
+    Creates: service packages, SOPs, client onboarding docs, pricing, and pitch.
+    """
+    agency_name = params.get("agency_name", "")
+    service_type = params.get("service_type", "")  # social media management | SEO | copywriting | ads | web design | etc
+    target_client = params.get("target_client", "small business owners")
+    team_size = params.get("team_size", "solo")  # solo | small team | scaling
+    monthly_target = params.get("monthly_target", "")
+    differentiator = params.get("differentiator", "")
+
+    if not service_type:
+        return {"error": "Provide 'service_type'"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an agency business consultant who has helped hundreds of freelancers productize "
+                    "their services into scalable agencies. You write complete, implementable business systems. "
+                    "Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Build a complete agency system for:\n"
+                    f"Agency name: {agency_name or 'TBD'}\n"
+                    f"Service: {service_type}\n"
+                    f"Target client: {target_client}\n"
+                    f"Team size: {team_size}\n"
+                    f"Monthly revenue target: {monthly_target or 'not specified'}\n"
+                    f"Differentiator: {differentiator or 'to be developed'}\n\n"
+                    "Return ONLY a JSON object:\n"
+                    "{\n"
+                    '  "agency_name": "suggested name if not provided",\n'
+                    '  "positioning": "one-sentence positioning statement",\n'
+                    '  "packages": [\n'
+                    '    {"name": "Starter", "price": "$X/mo", "deliverables": ["..."], "hours_per_client": X, "max_clients": X},\n'
+                    '    {"name": "Growth", "price": "$X/mo", "deliverables": ["..."], "hours_per_client": X, "max_clients": X},\n'
+                    '    {"name": "Premium", "price": "$X/mo", "deliverables": ["..."], "hours_per_client": X, "max_clients": X}\n'
+                    '  ],\n'
+                    '  "revenue_model": {"clients_to_hit_target": X, "recommended_package": "...", "upsell_path": "..."},\n'
+                    '  "client_onboarding_sop": ["step-by-step first 30 days with a new client"],\n'
+                    '  "service_delivery_sop": ["weekly repeatable workflow"],\n'
+                    '  "client_acquisition": ["top 3 channels to find clients with specific tactics"],\n'
+                    '  "pitch_script": "30-second verbal pitch",\n'
+                    '  "proposal_structure": ["sections to include in a proposal"],\n'
+                    '  "tools_needed": ["software/tools to run this agency"],\n'
+                    '  "first_client_action_plan": "exactly how to get first client in 14 days"\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=3500,
+        temperature=0.6,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("packages"):
+        data = {"service_type": service_type, "raw_output": raw}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "agency_systems")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in service_type.lower())[:40]
+    file_path = os.path.join(save_dir, f"agency_{slug}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "service_type": service_type,
+        "agency_name": data.get("agency_name", agency_name),
+        "positioning": data.get("positioning", ""),
+        "packages": data.get("packages", []),
+        "revenue_model": data.get("revenue_model", {}),
+        "first_client_action_plan": data.get("first_client_action_plan", ""),
+        "data": data,
+        "file_path": file_path,
+        "preview": f"[Agency System] {service_type} | {len(data.get('packages', []))} packages | {monthly_target or 'unlimited'} target",
+        "title": f"Agency System: {data.get('agency_name', service_type)}",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CREATE VIP DAY OFFER
+# Design a high-ticket intensive/VIP day offer for consultants and coaches.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_vip_day_offer(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Design a complete VIP Day or intensive offer.
+    High-ticket: $500-$5,000 for one focused day of deep work with a client.
+    """
+    your_expertise = params.get("your_expertise", "")
+    vip_focus = params.get("vip_focus", "")  # what gets done in the day: strategy | implementation | review | training
+    target_client = params.get("target_client", "business owners")
+    price_target = params.get("price_target", "$1,500")
+    format_type = params.get("format_type", "virtual")  # virtual | in-person | hybrid | async
+    deliverables = params.get("deliverables", [])  # what the client leaves with
+
+    if not your_expertise:
+        return {"error": "Provide 'your_expertise'"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    deliverables_str = ", ".join(deliverables) if deliverables else "to be defined"
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a high-ticket offer architect who helps coaches and consultants package "
+                    "their expertise into premium VIP Day offers that command $1,000-$10,000. "
+                    "You understand the psychology of high-ticket buyers and what makes them say yes."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Design a complete VIP Day offer for:\n"
+                    f"Expertise: {your_expertise}\n"
+                    f"Day focus: {vip_focus or 'comprehensive strategy + implementation'}\n"
+                    f"Target client: {target_client}\n"
+                    f"Price target: {price_target}\n"
+                    f"Format: {format_type}\n"
+                    f"Client deliverables: {deliverables_str}\n\n"
+                    "Create:\n"
+                    "1. THE OFFER NAME (memorable, outcome-focused)\n"
+                    "2. THE PROMISE (what transformation happens in one day)\n"
+                    "3. THE AGENDA (hour-by-hour breakdown of the day)\n"
+                    "4. WHAT THEY RECEIVE (tangible deliverables + recordings + follow-up)\n"
+                    "5. PRE-WORK (what client prepares beforehand to maximize the day)\n"
+                    "6. PRICING STRATEGY (how to present the price, anchoring, payment options)\n"
+                    "7. SALES PAGE COPY (headline + subheadline + 3 bullets + CTA)\n"
+                    "8. THE APPLICATION FORM (5 questions to qualify prospects)\n"
+                    "9. OBJECTION HANDLERS (top 3 objections + responses)\n"
+                    "10. UPSELL PATH (what to offer after the VIP Day)\n\n"
+                    "Make everything specific and actionable. No generic templates."
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=3500,
+        temperature=0.75,
+    )
+
+    offer_content = resp.get("content", "")
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "vip_offers")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in your_expertise.lower())[:40]
+    file_path = os.path.join(save_dir, f"vip_day_{slug}.md")
+    _safe_write(file_path, f"# VIP Day Offer: {your_expertise}\nPrice: {price_target}\n\n{offer_content}")
+
+    return {
+        "success": True,
+        "your_expertise": your_expertise,
+        "price_target": price_target,
+        "format_type": format_type,
+        "offer": offer_content,
+        "file_path": file_path,
+        "preview": f"[VIP Day Offer] {your_expertise} | {price_target} | {format_type}",
+        "title": f"VIP Day Offer: {your_expertise} ({price_target})",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RANK AND RENT PACK
+# Build a local SEO rank-and-rent site package.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def rank_and_rent_pack(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Build a complete rank-and-rent local SEO package.
+    Creates: niche selection, keyword list, site content, and pitch to local businesses.
+    """
+    niche = params.get("niche", "")  # plumber | electrician | roofer | dentist | etc
+    city = params.get("city", "")
+    monthly_rent_target = params.get("monthly_rent_target", "$500")
+    competition_level = params.get("competition_level", "medium")  # low | medium | high
+
+    if not niche or not city:
+        return {"error": "Provide 'niche' and 'city'"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a local SEO expert specializing in rank-and-rent websites. "
+                    "You know how to pick profitable niches, rank fast, and sell leads to local businesses. "
+                    "Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Build a rank-and-rent package for:\n"
+                    f"Niche: {niche}\n"
+                    f"City: {city}\n"
+                    f"Monthly rent target: {monthly_rent_target}\n"
+                    f"Competition: {competition_level}\n\n"
+                    "Return ONLY a JSON object:\n"
+                    "{\n"
+                    '  "site_name": "suggested domain name",\n'
+                    '  "target_keywords": [\n'
+                    '    {"keyword": "...", "monthly_searches": "est.", "difficulty": "low/med/high", "intent": "transactional/informational"}\n'
+                    "  ],\n"
+                    '  "homepage_content": {\n'
+                    '    "title_tag": "...",\n'
+                    '    "meta_description": "...",\n'
+                    '    "h1": "...",\n'
+                    '    "hero_paragraph": "...",\n'
+                    '    "services_section": ["service 1", "service 2", "service 3"],\n'
+                    '    "trust_signals": ["..."],\n'
+                    '    "cta": "..."\n'
+                    '  },\n'
+                    '  "supporting_pages": [\n'
+                    '    {"page_title": "...", "target_keyword": "...", "content_brief": "..."}\n'
+                    "  ],\n"
+                    '  "link_building_plan": ["3 quick wins for local backlinks"],\n'
+                    '  "time_to_rank": "estimated weeks to reach page 1",\n'
+                    '  "lead_value": "estimated $ per lead in this niche",\n'
+                    '  "business_pitch": "word-for-word pitch email to send to local {niche} businesses",\n'
+                    '  "pitch_subject": "email subject line for the pitch",\n'
+                    '  "rental_terms": "suggested contract structure",\n'
+                    '  "scaling_plan": "how to build 5-10 of these sites"\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=3000,
+        temperature=0.6,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("target_keywords"):
+        data = {"niche": niche, "city": city, "raw_output": raw}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "rank_and_rent")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = f"{niche}-{city}".lower().replace(" ", "-")[:40]
+    file_path = os.path.join(save_dir, f"rnr_{slug}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "niche": niche,
+        "city": city,
+        "monthly_rent_target": monthly_rent_target,
+        "site_name": data.get("site_name", ""),
+        "target_keywords": data.get("target_keywords", []),
+        "homepage_content": data.get("homepage_content", {}),
+        "business_pitch": data.get("business_pitch", ""),
+        "lead_value": data.get("lead_value", ""),
+        "time_to_rank": data.get("time_to_rank", ""),
+        "scaling_plan": data.get("scaling_plan", ""),
+        "data": data,
+        "file_path": file_path,
+        "preview": f"[Rank & Rent] {niche} in {city} | {monthly_rent_target}/mo target",
+        "title": f"Rank & Rent: {niche} in {city}",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WRITE GRANT
+# Write complete grant applications for creative, business, or research projects.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def write_grant(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Write a complete grant application.
+    Supports: artist grants, small business grants, creative projects, research, nonprofits.
+    """
+    grant_name = params.get("grant_name", "")
+    grant_type = params.get("grant_type", "creative")  # creative | small_business | research | nonprofit | tech | education
+    project_title = params.get("project_title", "")
+    project_description = params.get("project_description", "")
+    applicant_name = params.get("applicant_name", "")
+    amount_requested = params.get("amount_requested", "")
+    grant_requirements = params.get("grant_requirements", "")  # specific questions or requirements from the grantor
+    word_limit = int(params.get("word_limit", 1000))
+
+    if not project_description and not project_title:
+        return {"error": "Provide 'project_description' and 'project_title'"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a grant writer with a 70%+ success rate who has secured millions in funding "
+                    "for artists, businesses, and nonprofits. You know how to align project goals with "
+                    "grantor priorities, tell compelling stories, and demonstrate measurable impact. "
+                    "Write complete, compelling grant narratives — not templates."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Write a complete grant application for:\n"
+                    f"Grant: {grant_name or 'general grant application'}\n"
+                    f"Type: {grant_type}\n"
+                    f"Project: {project_title}\n"
+                    f"Description: {project_description}\n"
+                    f"Applicant: {applicant_name or 'applicant'}\n"
+                    f"Amount requested: {amount_requested or 'maximum available'}\n"
+                    f"Grant requirements/questions: {grant_requirements or 'standard format'}\n"
+                    f"Word limit: approximately {word_limit} words per section\n\n"
+                    "Write the complete application including:\n"
+                    "1. PROJECT NARRATIVE (the heart of the application - tell the story compellingly)\n"
+                    "2. STATEMENT OF NEED (why this project matters, what problem it solves)\n"
+                    "3. PROJECT GOALS AND OBJECTIVES (SMART goals with measurable outcomes)\n"
+                    "4. METHODOLOGY (how exactly it will be executed, timeline)\n"
+                    "5. EVALUATION PLAN (how success will be measured)\n"
+                    "6. ORGANIZATIONAL CAPACITY (why this applicant is the right choice)\n"
+                    "7. BUDGET NARRATIVE (how the money will be used, justification)\n"
+                    "8. SUSTAINABILITY PLAN (what happens after the grant period)\n"
+                    "9. EXECUTIVE SUMMARY (under 200 words, suitable for cover page)\n\n"
+                    "Write in a professional, compelling voice. Every dollar must be justified. "
+                    "Show passion AND competence."
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=5000,
+        temperature=0.65,
+    )
+
+    grant_content = resp.get("content", "")
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "grants")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (project_title or "grant").lower())[:40]
+    file_path = os.path.join(save_dir, f"grant_{slug}.md")
+    header = (
+        f"# Grant Application: {project_title}\n"
+        f"Grant: {grant_name}\n"
+        f"Amount: {amount_requested}\n"
+        f"Applicant: {applicant_name}\n\n"
+    )
+    _safe_write(file_path, header + grant_content)
+
+    return {
+        "success": True,
+        "grant_name": grant_name,
+        "project_title": project_title,
+        "amount_requested": amount_requested,
+        "grant_type": grant_type,
+        "application": grant_content,
+        "file_path": file_path,
+        "preview": f"[Grant Application] {project_title} | {amount_requested} | {grant_type}",
+        "title": f"Grant: {project_title}",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CREATE UPSELL SEQUENCE
+# Post-purchase upsell email sequence + offer stack.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def create_upsell_sequence(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Create a post-purchase upsell email sequence and offer stack.
+    Increases revenue per customer without acquiring new buyers.
+    """
+    initial_product = params.get("initial_product", "")
+    initial_price = params.get("initial_price", "")
+    upsell_products = params.get("upsell_products", [])  # existing products/services to upsell
+    customer_type = params.get("customer_type", "")  # who just bought
+    sequence_length = int(params.get("sequence_length", 5))  # number of emails
+    brand_voice = params.get("brand_voice", "warm and professional")
+
+    if not initial_product:
+        return {"error": "Provide 'initial_product' - what the customer just bought"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    upsells_str = ", ".join(upsell_products) if upsell_products else "complementary products/services"
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an email marketing strategist who specializes in post-purchase sequences. "
+                    "You understand buyer psychology: someone who just bought is the most likely to buy again. "
+                    "Write sequences that delight, deliver value, and naturally lead to the next offer. "
+                    "Never be pushy — always be helpful."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Create a {sequence_length}-email post-purchase upsell sequence for:\n"
+                    f"Initial purchase: {initial_product} at {initial_price or 'unspecified price'}\n"
+                    f"Customer type: {customer_type or 'customer who just purchased'}\n"
+                    f"Upsell opportunities: {upsells_str}\n"
+                    f"Brand voice: {brand_voice}\n\n"
+                    "For each email provide:\n"
+                    "- Send timing (immediately | day 1 | day 3 | day 7 | etc)\n"
+                    "- Subject line (and 1 A/B variant)\n"
+                    "- Preview text\n"
+                    "- Full email body\n"
+                    "- CTA with offer details\n"
+                    "- Purpose (deliver value / build relationship / soft offer / hard offer / last chance)\n\n"
+                    "Also provide:\n"
+                    "- OFFER STACK: diagram of what to pitch when (immediate OTO, day 3 offer, week 2 offer)\n"
+                    "- BUMP OFFER: what to offer on the thank-you page immediately after purchase\n"
+                    "- ABANDONED UPSELL: 1 email for people who clicked but didn't buy the upsell"
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=4000,
+        temperature=0.7,
+    )
+
+    sequence_content = resp.get("content", "")
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "upsell_sequences")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in initial_product.lower())[:40]
+    file_path = os.path.join(save_dir, f"upsell_{slug}.md")
+    _safe_write(file_path, f"# Upsell Sequence: {initial_product}\n\n{sequence_content}")
+
+    return {
+        "success": True,
+        "initial_product": initial_product,
+        "initial_price": initial_price,
+        "sequence_length": sequence_length,
+        "sequence": sequence_content,
+        "file_path": file_path,
+        "preview": f"[Upsell Sequence] {initial_product} | {sequence_length} emails | goal: maximize revenue per buyer",
+        "title": f"Upsell Sequence: {initial_product}",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INSTAGRAM CONTENT PACK
+# Full Instagram content package: captions, hashtags, reel scripts, story prompts.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def instagram_content_pack(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate a complete Instagram content pack.
+    Includes: feed captions, reel scripts, story prompts, hashtag sets, and bio copy.
+    """
+    niche = params.get("niche", "")
+    brand_name = params.get("brand_name", "")
+    theme = params.get("theme", "")  # a campaign or weekly theme
+    post_count = int(params.get("post_count", 7))  # posts to generate
+    reel_count = int(params.get("reel_count", 3))
+    tone = params.get("tone", "authentic and engaging")
+    goal = params.get("goal", "grow following and drive sales")
+    product_to_promote = params.get("product_to_promote", "")
+    content_pillars = params.get("content_pillars", [])  # education | entertainment | inspiration | promotion | behind-the-scenes
+
+    if not niche:
+        return {"error": "Provide 'niche'"}
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    pillars_str = ", ".join(content_pillars) if content_pillars else "education, inspiration, promotion, authenticity"
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an Instagram growth strategist and copywriter who creates content that goes viral "
+                    "and converts followers to buyers. You understand the algorithm, hooks, and what makes "
+                    "people stop scrolling. Write real, usable content — not placeholders."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Create a complete Instagram content pack for:\n"
+                    f"Niche: {niche}\n"
+                    f"Brand: {brand_name or 'the creator'}\n"
+                    f"Theme: {theme or 'general content'}\n"
+                    f"Product to promote: {product_to_promote or 'not specified'}\n"
+                    f"Tone: {tone}\n"
+                    f"Goal: {goal}\n"
+                    f"Content pillars: {pillars_str}\n\n"
+                    f"Generate:\n"
+                    f"1. {post_count} FEED POST CAPTIONS with:\n"
+                    "   - Opening hook (first line that stops the scroll)\n"
+                    "   - Full caption body (150-300 words)\n"
+                    "   - CTA\n"
+                    "   - 15-20 hashtags (mix of sizes)\n"
+                    "   - Image description (what to post)\n"
+                    "   - Best time to post\n\n"
+                    f"2. {reel_count} REEL SCRIPTS with:\n"
+                    "   - Hook (first 3 seconds)\n"
+                    "   - Full script with visual directions [in brackets]\n"
+                    "   - Text overlays\n"
+                    "   - Music suggestion\n"
+                    "   - Caption + hashtags\n\n"
+                    "3. 5 STORY SEQUENCES (3-5 slides each) for engagement:\n"
+                    "   - Poll story | Question story | Behind-the-scenes | Promo | Value share\n\n"
+                    "4. PROFILE BIO (2 versions: sales-focused + personality-focused)\n\n"
+                    "5. HASHTAG STRATEGY: 3 sets — niche (5 tags), mid-range (5 tags), broad (5 tags)"
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=5000,
+        temperature=0.8,
+    )
+
+    content = resp.get("content", "")
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "instagram_packs")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (niche + "-" + (theme or "content")).lower())[:40]
+    ts = datetime.datetime.now().strftime("%Y%m%d")
+    file_path = os.path.join(save_dir, f"ig_pack_{slug}_{ts}.md")
+    header = f"# Instagram Content Pack\nNiche: {niche} | Theme: {theme or 'General'} | {post_count} posts + {reel_count} reels\n\n"
+    _safe_write(file_path, header + content)
+
+    return {
+        "success": True,
+        "niche": niche,
+        "theme": theme,
+        "post_count": post_count,
+        "reel_count": reel_count,
+        "content": content,
+        "file_path": file_path,
+        "preview": f"[Instagram Pack] {niche} | {post_count} posts | {reel_count} reels | {theme or 'general'}",
+        "title": f"Instagram Content Pack: {niche} ({theme or 'General'})",
+    }
+
+

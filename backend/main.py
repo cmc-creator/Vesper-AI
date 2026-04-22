@@ -119,6 +119,10 @@ try:
         publish_to_beehiiv, google_calendar, export_to_pdf, stripe_payment_link,
         revenue_goals, process_meeting_notes, social_scheduler,
         hue_control, pandora_control,
+        discovery_call_script, write_bid, ab_test_generator, affiliate_research,
+        project_launcher, income_gap_analyzer, youtube_thumbnail, create_media_kit,
+        build_agency_system, create_vip_day_offer, rank_and_rent_pack,
+        write_grant, create_upsell_sequence, instagram_content_pack,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -207,6 +211,20 @@ except Exception as _tc_err:
     async def social_scheduler(p, **kw): return {"error": "tools_creative not loaded"}
     async def hue_control(p, **kw): return {"error": "tools_creative not loaded"}
     async def pandora_control(p, **kw): return {"error": "tools_creative not loaded"}
+    async def discovery_call_script(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_bid(p, **kw): return {"error": "tools_creative not loaded"}
+    async def ab_test_generator(p, **kw): return {"error": "tools_creative not loaded"}
+    async def affiliate_research(p, **kw): return {"error": "tools_creative not loaded"}
+    async def project_launcher(p, **kw): return {"error": "tools_creative not loaded"}
+    async def income_gap_analyzer(p, **kw): return {"error": "tools_creative not loaded"}
+    async def youtube_thumbnail(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_media_kit(p, **kw): return {"error": "tools_creative not loaded"}
+    async def build_agency_system(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_vip_day_offer(p, **kw): return {"error": "tools_creative not loaded"}
+    async def rank_and_rent_pack(p, **kw): return {"error": "tools_creative not loaded"}
+    async def write_grant(p, **kw): return {"error": "tools_creative not loaded"}
+    async def create_upsell_sequence(p, **kw): return {"error": "tools_creative not loaded"}
+    async def instagram_content_pack(p, **kw): return {"error": "tools_creative not loaded"}
 
 try:
     from google_sheets import google_sheets_tool
@@ -1997,6 +2015,20 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `post_to_twitter` — post tweets via Twitter/X API v2
 - `hue_control` — control Philips Hue smart lights (list, on/off, brightness, color, scenes: focus/relax/energize/reading/nightlight/romance)
 - `pandora_control` — control the Pandora web player (open, play, pause, skip, thumbs_up/like, thumbs_down/dislike, station) — requires DESKTOP_CONTROL_ENABLED=true
+- `discovery_call_script` — **CLOSE HIGH-TICKET CLIENTS.** Generate a complete discovery call script: opening, qualifying questions, pain amplification, pitch bridge, objection handlers, and 3-attempt close sequence. Params: service, target_client, price_point, duration_minutes, objections, style.
+- `write_bid` — **WIN FREELANCE JOBS.** Write a custom bid/proposal for a specific Upwork, Fiverr, Freelancer, or direct job posting. Includes hook opening, proof, solution, CTA, follow-up template, and shortened version. Params: job_description, platform, job_title, your_rate, your_skills, portfolio_items.
+- `ab_test_generator` — **IMPROVE EVERY CONVERSION RATE.** Generate A/B test variants for headlines, subject lines, CTAs, pricing, or ad copy. Returns variants with angles, predicted lift, test priority, and winner prediction. Params: element_type, original, product, audience, goal, variants.
+- `affiliate_research` — **FIND PASSIVE INCOME PROGRAMS.** Research high-commission affiliate programs in any niche. Returns commission rates, EPC, cookie duration, approval difficulty, income estimates, and content ideas. Params: niche, content_type, focus.
+- `project_launcher` — **LAUNCH A PRODUCT IN ONE SHOT.** Creates the complete launch package: product spec, full sales page, landing page, Gumroad listing, and checklist. Use instead of calling 4 separate tools. Params: product_name, product_type, target_audience, price, transformation.
+- `income_gap_analyzer` — **CLOSE THE INCOME GAP.** Analyzes current vs goal income and produces a 30-day action plan, fastest path to cash, streams to add/scale/drop, and specific tasks Vesper can do NOW. Params: current_monthly, goal_monthly, available_hours, skills, assets, timeline_days.
+- `youtube_thumbnail` — **MAXIMIZE YOUTUBE CTR.** Generates thumbnail concepts with visual descriptions, DALL-E prompts, text overlays, color schemes, and A/B test plan. Also generates optimized title variants. Params: video_topic, channel_niche, target_emotion, style.
+- `create_media_kit` — **GET BRAND DEALS.** Full media kit/sponsorship package: audience profile, platform stats, content packages, rate card, cold pitch email, follow-up email, and Instagram DM one-liner. Params: creator_name, niche, platforms, audience_stats, rates.
+- `build_agency_system` — **BUILD A PRODUCTIZED AGENCY.** Complete agency system: 3 service tiers with pricing, revenue model, client onboarding SOP, service delivery workflow, acquisition channels, pitch script, and first-client 14-day action plan. Params: service_type, target_client, monthly_target.
+- `create_vip_day_offer` — **HIGH-TICKET INTENSIVE OFFER ($500-$5,000).** Designs the complete VIP Day: offer name, transformation promise, hour-by-hour agenda, deliverables, pricing strategy, sales page copy, application form, objection handlers, and upsell path. Params: your_expertise, price_target, format_type.
+- `rank_and_rent_pack` — **LOCAL SEO PASSIVE INCOME.** Builds a complete rank-and-rent site package: domain suggestion, target keywords, homepage content, supporting pages, link building plan, and pitch email to local businesses. Params: niche, city, monthly_rent_target.
+- `write_grant` — **FREE MONEY FOR PROJECTS.** Writes complete grant applications: project narrative, statement of need, SMART goals, methodology, evaluation plan, budget narrative, sustainability plan, and executive summary. Params: project_title, project_description, grant_type, amount_requested, grant_requirements.
+- `create_upsell_sequence` — **MORE MONEY FROM EXISTING BUYERS.** Post-purchase email sequence that maximizes revenue per customer: timed emails, bump offer for thank-you page, complete offer stack, and abandoned-upsell follow-up. Params: initial_product, upsell_products, sequence_length.
+- `instagram_content_pack` — **DOMINATE INSTAGRAM.** Full content pack: feed captions with scroll-stopping hooks and hashtags, Reel scripts with visual directions, 5 Story sequences, bio copy (2 versions), and 3-tier hashtag strategy. Params: niche, post_count, reel_count, theme, product_to_promote.
 - `stripe_create_invoice` — create + auto-send Stripe invoice to a client
 - `stripe_create_payment_link` — generate a Stripe payment link to share
 - `stripe_list_payments` — pull recent Stripe payment history and revenue totals
@@ -7014,6 +7046,21 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "hue_control", "description": "Control Philips Hue smart lights. List lights, turn on/off, set brightness/color, apply scenes (focus/relax/energize/reading/nightlight/romance), control by room. Requires HUE_BRIDGE_IP + HUE_USER env vars.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "list | rooms | on | off | toggle | set | scene"}, "light_id": {"type": "string", "description": "ID of specific light (from action=list)"}, "room": {"type": "string", "description": "Room name or ID (from action=rooms)"}, "brightness": {"type": "number", "description": "0–254"}, "color": {"type": "string", "description": "red | orange | yellow | green | cyan | blue | purple | pink | warm | neutral | cool | daylight"}, "scene": {"type": "string", "description": "focus | relax | energize | reading | nightlight | romance | off"}, "on": {"type": "boolean"}}, "required": ["action"]}},
             {"name": "create_webinar_funnel", "description": "Design a complete webinar funnel — registration page copy, pre-webinar email sequence, full slide outline with speaker notes, offer stack, and 3-email follow-up sequence.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "offer": {"type": "string"}, "offer_price": {"type": "string"}, "target_audience": {"type": "string"}, "duration_minutes": {"type": "number"}, "webinar_type": {"type": "string", "description": "live | evergreen | hybrid"}, "platform": {"type": "string"}}, "required": ["topic"]}},
 
+            {"name": "discovery_call_script", "description": "Generate a complete sales call script for closing high-ticket consulting/coaching clients. Includes qualifying questions, pain amplification, pitch bridge, objection handlers, and 3-attempt close sequence. Use before any high-value sales conversation.", "input_schema": {"type": "object", "properties": {"service": {"type": "string", "description": "what you're selling on the call"}, "target_client": {"type": "string"}, "price_point": {"type": "string"}, "duration_minutes": {"type": "number"}, "objections": {"type": "array", "items": {"type": "string"}}, "style": {"type": "string", "description": "conversational | consultative | challenger"}}, "required": ["service"]}},
+            {"name": "write_bid", "description": "Write a custom, winning bid or proposal for a specific Upwork, Fiverr, Freelancer, or direct freelance job posting. Addresses the client's specific ask, shows proof, and ends with a strong CTA. Also provides a follow-up message.", "input_schema": {"type": "object", "properties": {"job_title": {"type": "string"}, "job_description": {"type": "string", "description": "paste the full job posting here"}, "platform": {"type": "string", "description": "upwork | fiverr | freelancer | direct"}, "your_rate": {"type": "string"}, "your_skills": {"type": "array", "items": {"type": "string"}}, "portfolio_items": {"type": "array", "items": {"type": "string"}}, "bid_style": {"type": "string", "description": "hook-problem-solution | value-first | story"}}, "required": ["job_description"]}},
+            {"name": "ab_test_generator", "description": "Generate A/B test variants for any conversion element: headlines, email subject lines, CTAs, pricing pages, ad copy, or landing page heroes. Returns variants with angle, predicted lift, and testing notes. Direct revenue impact.", "input_schema": {"type": "object", "properties": {"element_type": {"type": "string", "description": "headline | subject_line | cta | pricing | ad_copy | landing_page_hero | sales_page_header"}, "original": {"type": "string", "description": "current copy to improve (or leave blank to write fresh)"}, "product": {"type": "string"}, "audience": {"type": "string"}, "goal": {"type": "string", "description": "increase clicks | increase signups | increase purchases | reduce churn"}, "variants": {"type": "number", "description": "number of variants to generate (default 5)"}, "angles": {"type": "array", "items": {"type": "string"}, "description": "specific angles to test"}}, "required": ["element_type"]}},
+            {"name": "affiliate_research", "description": "Research high-commission affiliate programs in any niche. Returns program names, networks, commission rates, cookie duration, EPC estimates, approval difficulty, and a content strategy. Use before creating affiliate content.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "content_type": {"type": "string", "description": "blog | youtube | email | social | course"}, "audience_size": {"type": "string"}, "focus": {"type": "string", "description": "high_commission | recurring | easy_approval | high_ticket | beginner"}}, "required": ["niche"]}},
+            {"name": "project_launcher", "description": "Launch a complete digital product in ONE shot. Creates product spec, full sales page, opt-in landing page, Gumroad listing, and launch checklist. Use instead of calling 4 separate tools. Best for digital products, ebooks, templates, courses, coaching.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "product_type": {"type": "string", "description": "ebook | template | course | coaching | swipe_file | tool | service"}, "target_audience": {"type": "string"}, "price": {"type": "string"}, "niche": {"type": "string"}, "transformation": {"type": "string", "description": "what the buyer gets/becomes"}, "launch_date": {"type": "string"}}, "required": ["product_name"]}},
+            {"name": "income_gap_analyzer", "description": "Analyze the gap between current income and revenue goals. Returns fastest path to close the gap, 30-day action plan, income streams to add/scale/drop, and specific tasks Vesper can do RIGHT NOW. Use when CC needs to make more money.", "input_schema": {"type": "object", "properties": {"current_monthly": {"type": "number", "description": "current monthly income in dollars"}, "goal_monthly": {"type": "number", "description": "monthly income target"}, "active_streams": {"type": "array", "items": {"type": "string"}, "description": "current income sources"}, "available_hours": {"type": "number", "description": "hours per week CC can work"}, "skills": {"type": "array", "items": {"type": "string"}}, "assets": {"type": "array", "items": {"type": "string"}, "description": "existing products, audiences, accounts"}, "timeline_days": {"type": "number"}}, "required": ["goal_monthly"]}},
+            {"name": "youtube_thumbnail", "description": "Generate YouTube thumbnail concepts with DALL-E prompts, text overlays, color schemes, and 5+ title variants optimized for CTR. Also provides A/B test plan and best posting time. Use whenever creating YouTube content.", "input_schema": {"type": "object", "properties": {"video_topic": {"type": "string"}, "channel_niche": {"type": "string"}, "target_emotion": {"type": "string", "description": "curiosity | shock | inspiration | fear | desire"}, "style": {"type": "string", "description": "text-heavy | face-dominant | minimal | infographic | dramatic"}, "current_title": {"type": "string"}, "competitors": {"type": "array", "items": {"type": "string"}}}, "required": ["video_topic"]}},
+            {"name": "create_media_kit", "description": "Generate a complete media kit and sponsorship package for brand partnerships. Includes about section, audience profile, content packages, rate card, cold pitch email, and DM pitch. Essential for landing brand deals.", "input_schema": {"type": "object", "properties": {"creator_name": {"type": "string"}, "niche": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}, "description": "youtube | instagram | podcast | newsletter | blog | tiktok"}, "audience_stats": {"type": "object", "description": "e.g. {youtube: '10k subs', newsletter: '2k subscribers'}"}, "past_partners": {"type": "array", "items": {"type": "string"}}, "target_brands": {"type": "array", "items": {"type": "string"}}, "rates": {"type": "object"}, "unique_angle": {"type": "string"}}, "required": ["niche"]}},
+            {"name": "build_agency_system", "description": "Build a complete productized agency or freelance service system: 3 service packages with pricing, client acquisition channels, onboarding SOP, service delivery SOP, pitch script, and a 14-day plan to land the first client.", "input_schema": {"type": "object", "properties": {"agency_name": {"type": "string"}, "service_type": {"type": "string", "description": "social media management | SEO | copywriting | ads | web design | etc"}, "target_client": {"type": "string"}, "team_size": {"type": "string", "description": "solo | small team | scaling"}, "monthly_target": {"type": "string"}, "differentiator": {"type": "string"}}, "required": ["service_type"]}},
+            {"name": "create_vip_day_offer", "description": "Design a premium VIP Day or intensive offer: $500-$5,000 for one focused day of deep work with a client. Creates the offer name, agenda, deliverables, sales copy, application form, objection handlers, and upsell path.", "input_schema": {"type": "object", "properties": {"your_expertise": {"type": "string"}, "vip_focus": {"type": "string", "description": "strategy | implementation | review | training"}, "target_client": {"type": "string"}, "price_target": {"type": "string", "description": "e.g. $1,500 or $3,000"}, "format_type": {"type": "string", "description": "virtual | in-person | hybrid | async"}, "deliverables": {"type": "array", "items": {"type": "string"}}}, "required": ["your_expertise"]}},
+            {"name": "rank_and_rent_pack", "description": "Build a complete rank-and-rent local SEO package: domain suggestion, target keywords, full homepage content, supporting page briefs, link-building plan, and a word-for-word pitch email to local businesses.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string", "description": "local business type e.g. plumber, roofer, dentist"}, "city": {"type": "string"}, "monthly_rent_target": {"type": "string"}, "competition_level": {"type": "string", "description": "low | medium | high"}}, "required": ["niche", "city"]}},
+            {"name": "write_grant", "description": "Write a complete grant application: project narrative, statement of need, SMART goals, methodology, evaluation plan, budget narrative, and executive summary. Supports artist, small business, research, nonprofit, and tech grants.", "input_schema": {"type": "object", "properties": {"grant_name": {"type": "string"}, "grant_type": {"type": "string", "description": "creative | small_business | research | nonprofit | tech | education"}, "project_title": {"type": "string"}, "project_description": {"type": "string"}, "applicant_name": {"type": "string"}, "amount_requested": {"type": "string"}, "grant_requirements": {"type": "string", "description": "specific questions or requirements from the grantor"}, "word_limit": {"type": "number"}}, "required": ["project_title", "project_description"]}},
+            {"name": "create_upsell_sequence", "description": "Create a post-purchase upsell email sequence to maximize revenue per customer. Includes timing, subject lines, full email bodies, bump offer for thank-you page, offer stack, and an abandoned upsell recovery email.", "input_schema": {"type": "object", "properties": {"initial_product": {"type": "string", "description": "what the customer just bought"}, "initial_price": {"type": "string"}, "upsell_products": {"type": "array", "items": {"type": "string"}, "description": "products or services to upsell"}, "customer_type": {"type": "string"}, "sequence_length": {"type": "number", "description": "number of emails (default 5)"}, "brand_voice": {"type": "string"}}, "required": ["initial_product"]}},
+            {"name": "instagram_content_pack", "description": "Generate a complete Instagram content pack: feed post captions with hooks and hashtags, reel scripts with visual directions, story sequences, bio copy variants, and hashtag strategy sets. Use for any Instagram content needs.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "brand_name": {"type": "string"}, "theme": {"type": "string", "description": "campaign or weekly theme"}, "post_count": {"type": "number", "description": "number of feed posts (default 7)"}, "reel_count": {"type": "number", "description": "number of reels (default 3)"}, "tone": {"type": "string"}, "goal": {"type": "string"}, "product_to_promote": {"type": "string"}, "content_pillars": {"type": "array", "items": {"type": "string"}, "description": "education | entertainment | inspiration | promotion | behind-the-scenes"}}, "required": ["niche"]}},
+
             {
                 "name": "monitor_site",
                 "description": "Check a website for changes by comparing current content to a previous snapshot. Returns diff and change summary.",
@@ -8928,6 +8975,49 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "pandora_control":
                     tool_result = await pandora_control(tool_input)
 
+                elif tool_name == "discovery_call_script":
+                    tool_result = await discovery_call_script(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("discovery_call_script", tool_result)
+                elif tool_name == "write_bid":
+                    tool_result = await write_bid(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("bid", tool_result)
+                elif tool_name == "ab_test_generator":
+                    tool_result = await ab_test_generator(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("ab_test", tool_result)
+                elif tool_name == "affiliate_research":
+                    tool_result = await affiliate_research(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("affiliate_research", tool_result)
+                elif tool_name == "project_launcher":
+                    tool_result = await project_launcher(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("launch_package", tool_result)
+                elif tool_name == "income_gap_analyzer":
+                    tool_result = await income_gap_analyzer(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("income_analysis", tool_result)
+                elif tool_name == "youtube_thumbnail":
+                    tool_result = await youtube_thumbnail(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("youtube_thumbnail", tool_result)
+                elif tool_name == "create_media_kit":
+                    tool_result = await create_media_kit(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("media_kit", tool_result)
+                elif tool_name == "build_agency_system":
+                    tool_result = await build_agency_system(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("agency_system", tool_result)
+                elif tool_name == "create_vip_day_offer":
+                    tool_result = await create_vip_day_offer(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("vip_day_offer", tool_result)
+                elif tool_name == "rank_and_rent_pack":
+                    tool_result = await rank_and_rent_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("rank_and_rent", tool_result)
+                elif tool_name == "write_grant":
+                    tool_result = await write_grant(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("grant", tool_result)
+                elif tool_name == "create_upsell_sequence":
+                    tool_result = await create_upsell_sequence(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("upsell_sequence", tool_result)
+                elif tool_name == "instagram_content_pack":
+                    tool_result = await instagram_content_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    if tool_result.get("success"): _push_creation_to_suite("instagram_pack", tool_result)
+
                 elif tool_name == "push_to_creative_suite":
                     _ptcs_id = str(uuid.uuid4())[:8]
                     memory_db.save_creation(
@@ -10151,6 +10241,22 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "write_cold_dm", "description": "Write a high-converting 3-message cold DM sequence for LinkedIn, Instagram, or Twitter with personalization and objection handlers.", "input_schema": {"type": "object", "properties": {"platform": {"type": "string"}, "service": {"type": "string"}, "target": {"type": "string"}, "num_messages": {"type": "number"}, "tone": {"type": "string"}, "personalization_hook": {"type": "string"}, "cta": {"type": "string"}}, "required": ["service"]}},
                 {"name": "create_sop", "description": "Write a complete professional Standard Operating Procedure document. High-value consulting deliverable.", "input_schema": {"type": "object", "properties": {"process_name": {"type": "string"}, "department": {"type": "string"}, "description": {"type": "string"}, "owner_role": {"type": "string"}, "tools_used": {"type": "array", "items": {"type": "string"}}, "frequency": {"type": "string"}, "for_client": {"type": "string"}}, "required": ["process_name"]}},
                 {"name": "create_webinar_funnel", "description": "Design a complete webinar funnel — registration page, email sequences, slide outline, offer stack, and follow-up sequence.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "offer": {"type": "string"}, "offer_price": {"type": "string"}, "target_audience": {"type": "string"}, "duration_minutes": {"type": "number"}, "webinar_type": {"type": "string"}, "platform": {"type": "string"}}, "required": ["topic"]}},
+
+                {"name": "discovery_call_script", "description": "Generate a complete sales call script for closing high-ticket clients. Includes qualifying questions, pain amplification, pitch bridge, objection handlers, and close sequence.", "input_schema": {"type": "object", "properties": {"service": {"type": "string"}, "target_client": {"type": "string"}, "price_point": {"type": "string"}, "duration_minutes": {"type": "number"}, "objections": {"type": "array", "items": {"type": "string"}}, "style": {"type": "string"}}, "required": ["service"]}},
+                {"name": "write_bid", "description": "Write a custom winning bid/proposal for a specific Upwork, Fiverr, Freelancer, or direct freelance job posting.", "input_schema": {"type": "object", "properties": {"job_title": {"type": "string"}, "job_description": {"type": "string"}, "platform": {"type": "string"}, "your_rate": {"type": "string"}, "your_skills": {"type": "array", "items": {"type": "string"}}, "portfolio_items": {"type": "array", "items": {"type": "string"}}, "bid_style": {"type": "string"}}, "required": ["job_description"]}},
+                {"name": "ab_test_generator", "description": "Generate A/B test variants for any conversion element: headlines, subject lines, CTAs, pricing, or ad copy. Returns variants with angles and predicted lift.", "input_schema": {"type": "object", "properties": {"element_type": {"type": "string"}, "original": {"type": "string"}, "product": {"type": "string"}, "audience": {"type": "string"}, "goal": {"type": "string"}, "variants": {"type": "number"}, "angles": {"type": "array", "items": {"type": "string"}}}, "required": ["element_type"]}},
+                {"name": "affiliate_research", "description": "Research high-commission affiliate programs in any niche. Returns commission rates, EPC, cookie duration, approval difficulty, and income projections.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "content_type": {"type": "string"}, "audience_size": {"type": "string"}, "focus": {"type": "string"}}, "required": ["niche"]}},
+                {"name": "project_launcher", "description": "Launch a complete digital product in ONE shot: product spec, sales page, landing page, Gumroad listing, and launch checklist.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "product_type": {"type": "string"}, "target_audience": {"type": "string"}, "price": {"type": "string"}, "niche": {"type": "string"}, "transformation": {"type": "string"}, "launch_date": {"type": "string"}}, "required": ["product_name"]}},
+                {"name": "income_gap_analyzer", "description": "Analyze the gap between current and goal income. Returns fastest path to cash, 30-day plan, income streams to add/scale/drop, and tasks Vesper can do RIGHT NOW.", "input_schema": {"type": "object", "properties": {"current_monthly": {"type": "number"}, "goal_monthly": {"type": "number"}, "active_streams": {"type": "array", "items": {"type": "string"}}, "available_hours": {"type": "number"}, "skills": {"type": "array", "items": {"type": "string"}}, "assets": {"type": "array", "items": {"type": "string"}}, "timeline_days": {"type": "number"}}, "required": ["goal_monthly"]}},
+                {"name": "youtube_thumbnail", "description": "Generate YouTube thumbnail concepts with DALL-E prompts, text overlays, color schemes, and optimized title variants. Includes A/B test plan.", "input_schema": {"type": "object", "properties": {"video_topic": {"type": "string"}, "channel_niche": {"type": "string"}, "target_emotion": {"type": "string"}, "style": {"type": "string"}, "current_title": {"type": "string"}, "competitors": {"type": "array", "items": {"type": "string"}}}, "required": ["video_topic"]}},
+                {"name": "create_media_kit", "description": "Generate a complete media kit for brand sponsorships: audience profile, platform stats, content packages, rate card, pitch email, and DM pitch.", "input_schema": {"type": "object", "properties": {"creator_name": {"type": "string"}, "niche": {"type": "string"}, "platforms": {"type": "array", "items": {"type": "string"}}, "audience_stats": {"type": "object"}, "past_partners": {"type": "array", "items": {"type": "string"}}, "target_brands": {"type": "array", "items": {"type": "string"}}, "rates": {"type": "object"}, "unique_angle": {"type": "string"}}, "required": ["niche"]}},
+                {"name": "build_agency_system", "description": "Build a complete productized agency: 3-tier packages, revenue model, client onboarding SOP, acquisition channels, pitch script, and 14-day first-client plan.", "input_schema": {"type": "object", "properties": {"agency_name": {"type": "string"}, "service_type": {"type": "string"}, "target_client": {"type": "string"}, "team_size": {"type": "string"}, "monthly_target": {"type": "string"}, "differentiator": {"type": "string"}}, "required": ["service_type"]}},
+                {"name": "create_vip_day_offer", "description": "Design a premium VIP Day intensive offer ($500-$5,000): offer name, agenda, deliverables, pricing strategy, sales copy, application form, objection handlers, and upsell path.", "input_schema": {"type": "object", "properties": {"your_expertise": {"type": "string"}, "vip_focus": {"type": "string"}, "target_client": {"type": "string"}, "price_target": {"type": "string"}, "format_type": {"type": "string"}, "deliverables": {"type": "array", "items": {"type": "string"}}}, "required": ["your_expertise"]}},
+                {"name": "rank_and_rent_pack", "description": "Build a complete local SEO rank-and-rent site package: domain suggestion, keywords, homepage content, supporting pages, link-building plan, and pitch email to local businesses.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "city": {"type": "string"}, "monthly_rent_target": {"type": "string"}, "competition_level": {"type": "string"}}, "required": ["niche", "city"]}},
+                {"name": "write_grant", "description": "Write a complete grant application: project narrative, statement of need, SMART goals, methodology, budget narrative, and executive summary.", "input_schema": {"type": "object", "properties": {"grant_name": {"type": "string"}, "grant_type": {"type": "string"}, "project_title": {"type": "string"}, "project_description": {"type": "string"}, "applicant_name": {"type": "string"}, "amount_requested": {"type": "string"}, "grant_requirements": {"type": "string"}, "word_limit": {"type": "number"}}, "required": ["project_title", "project_description"]}},
+                {"name": "create_upsell_sequence", "description": "Create a post-purchase upsell email sequence to maximize revenue per customer. Includes timing, subject lines, email bodies, bump offer, offer stack, and abandoned-upsell recovery.", "input_schema": {"type": "object", "properties": {"initial_product": {"type": "string"}, "initial_price": {"type": "string"}, "upsell_products": {"type": "array", "items": {"type": "string"}}, "customer_type": {"type": "string"}, "sequence_length": {"type": "number"}, "brand_voice": {"type": "string"}}, "required": ["initial_product"]}},
+                {"name": "instagram_content_pack", "description": "Generate a complete Instagram content pack: feed captions with hooks and hashtags, reel scripts, story sequences, bio copy, and hashtag strategy.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "brand_name": {"type": "string"}, "theme": {"type": "string"}, "post_count": {"type": "number"}, "reel_count": {"type": "number"}, "tone": {"type": "string"}, "goal": {"type": "string"}, "product_to_promote": {"type": "string"}, "content_pillars": {"type": "array", "items": {"type": "string"}}}, "required": ["niche"]}},
+
                 {"name": "vesper_research", "description": "Deep research on any topic — browses sources, synthesizes findings, saves to knowledge vault.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "depth": {"type": "string"}, "purpose": {"type": "string"}, "output_format": {"type": "string"}, "save_to_vault": {"type": "boolean"}}, "required": ["topic"]}},
                 {"name": "vesper_learn_skill", "description": "Generate a structured week-by-week learning plan to master any skill with resources and practice projects.", "input_schema": {"type": "object", "properties": {"skill": {"type": "string"}, "current_level": {"type": "string"}, "goal": {"type": "string"}, "timeline_weeks": {"type": "number"}, "learning_style": {"type": "string"}}, "required": ["skill"]}},
                 {"name": "read_and_summarize", "description": "Fetch any URL, extract key insights and action items, save reading notes to knowledge vault.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "focus": {"type": "string"}, "output_style": {"type": "string"}, "save_notes": {"type": "boolean"}, "tag": {"type": "string"}}, "required": ["url"]}},
@@ -10867,6 +10973,50 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await hue_control(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "pandora_control":
                         tool_result = await pandora_control(tool_input)
+
+                    elif tool_name == "discovery_call_script":
+                        tool_result = await discovery_call_script(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("discovery_call_script", tool_result)
+                    elif tool_name == "write_bid":
+                        tool_result = await write_bid(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("bid", tool_result)
+                    elif tool_name == "ab_test_generator":
+                        tool_result = await ab_test_generator(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("ab_test", tool_result)
+                    elif tool_name == "affiliate_research":
+                        tool_result = await affiliate_research(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("affiliate_research", tool_result)
+                    elif tool_name == "project_launcher":
+                        tool_result = await project_launcher(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("launch_package", tool_result)
+                    elif tool_name == "income_gap_analyzer":
+                        tool_result = await income_gap_analyzer(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("income_analysis", tool_result)
+                    elif tool_name == "youtube_thumbnail":
+                        tool_result = await youtube_thumbnail(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("youtube_thumbnail", tool_result)
+                    elif tool_name == "create_media_kit":
+                        tool_result = await create_media_kit(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("media_kit", tool_result)
+                    elif tool_name == "build_agency_system":
+                        tool_result = await build_agency_system(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("agency_system", tool_result)
+                    elif tool_name == "create_vip_day_offer":
+                        tool_result = await create_vip_day_offer(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("vip_day_offer", tool_result)
+                    elif tool_name == "rank_and_rent_pack":
+                        tool_result = await rank_and_rent_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("rank_and_rent", tool_result)
+                    elif tool_name == "write_grant":
+                        tool_result = await write_grant(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("grant", tool_result)
+                    elif tool_name == "create_upsell_sequence":
+                        tool_result = await create_upsell_sequence(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("upsell_sequence", tool_result)
+                    elif tool_name == "instagram_content_pack":
+                        tool_result = await instagram_content_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                        if tool_result.get("success"): _push_creation_to_suite("instagram_pack", tool_result)
+
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(
