@@ -1689,6 +1689,7 @@ button:active,
     height: 100dvh;
     min-height: unset;
     overflow: hidden;
+    grid-template-columns: 1fr;
   }
 
   .app-shell.launch-mode {
@@ -1710,6 +1711,7 @@ button:active,
     align-items: stretch;
     width: 100%;
     max-width: 100%;
+    overflow: hidden;
   }
 
   /* Chat panel fills the viewport — chat IS the focus on mobile */
@@ -1819,6 +1821,7 @@ button:active,
     height: 100dvh;
     min-height: unset;
     overflow: hidden;
+    grid-template-columns: 1fr;
   }
 
   .app-shell.launch-mode {
@@ -1835,6 +1838,8 @@ button:active,
   /* Chat panel edge-to-edge on small phones */
   .content-grid {
     grid-template-rows: 1fr;
+    overflow: hidden;
+    min-height: unset;
   }
 
   .chat-panel {
