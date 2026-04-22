@@ -1686,7 +1686,9 @@ button:active,
     gap: 6px;
     width: 100%;
     box-sizing: border-box;
-    overflow-x: hidden;
+    height: 100dvh;
+    min-height: unset;
+    overflow: hidden;
   }
 
   .app-shell.launch-mode {
@@ -1702,22 +1704,28 @@ button:active,
 
   /* Content fills the full width — no wasted space */
   .content-grid {
-    min-height: calc(100svh - 12px);
-    height: calc(100svh - 12px);
+    height: 100%;
+    min-height: unset;
+    align-items: stretch;
     width: 100%;
     max-width: 100%;
   }
 
   /* Chat panel fills the viewport — chat IS the focus on mobile */
   .chat-panel {
-    min-height: calc(100svh - 12px);
-    height: calc(100svh - 12px);
+    height: 100%;
+    min-height: unset;
     border-radius: 16px;
     padding: 10px 10px 8px;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
     overflow: hidden;
+  }
+
+  /* Resize handle not useful on mobile — reclaim the space */
+  .chat-resize-handle {
+    display: none;
   }
 
   /* Compact face strip — Vesper's face inline above chat on mobile */
@@ -1762,7 +1770,7 @@ button:active,
 
   /* Chat window takes the remaining viewport after face strip */
   .chat-window {
-    max-height: calc(100svh - 270px);
+    max-height: calc(100dvh - 270px);
     flex: 1;
   }
 
@@ -1806,7 +1814,9 @@ button:active,
     gap: 4px;
     width: 100%;
     box-sizing: border-box;
-    overflow-x: hidden;
+    height: 100dvh;
+    min-height: unset;
+    overflow: hidden;
   }
 
   .app-shell.launch-mode {
@@ -1822,8 +1832,8 @@ button:active,
 
   /* Chat panel edge-to-edge on small phones */
   .chat-panel {
-    min-height: calc(100dvh - 8px);
-    height: calc(100dvh - 8px);
+    height: 100%;
+    min-height: unset;
     border-radius: 12px;
     padding: 8px 8px 6px;
     overflow: hidden;
