@@ -1682,14 +1682,17 @@ button:active,
 
 @media (max-width: 768px) {
   .app-shell {
+    position: fixed;
+    inset: 0;
     padding: 6px;
     gap: 6px;
-    width: 100%;
-    box-sizing: border-box;
-    height: 100dvh;
+    width: auto;
+    height: auto;
     min-height: unset;
     overflow: hidden;
     grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    box-sizing: border-box;
   }
 
   .app-shell.launch-mode {
@@ -1814,14 +1817,17 @@ button:active,
 /* ─── Small phones (< 480px) ─── */
 @media (max-width: 480px) {
   .app-shell {
+    position: fixed;
+    inset: 0;
     padding: 4px;
     gap: 4px;
-    width: 100%;
-    box-sizing: border-box;
-    height: 100dvh;
+    width: auto;
+    height: auto;
     min-height: unset;
     overflow: hidden;
     grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    box-sizing: border-box;
   }
 
   .app-shell.launch-mode {
