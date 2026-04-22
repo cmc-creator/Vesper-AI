@@ -15682,6 +15682,43 @@ async def _google_calendar_find_free(params: dict) -> dict:
 
 # ── Google Workspace Status ──────────────────────────────────────────────────
 
+@app.get("/api/gumroad/debug")
+async def gumroad_debug():
+    """Check if GUMROAD_ACCESS_TOKEN env var is set and if the API accepts it."""
+    key = os.getenv("GUMROAD_ACCESS_TOKEN", "")
+    if not key:
+        return {"token_set": False, "error": "GUMROAD_ACCESS_TOKEN env var is NOT set"}
+    masked = key[:6] + "..." + key[-4:] if len(key) > 10 else "***"
+    # Test the token by hitting Gumroad's /user endpoint
+    try:
+        import requests as _req
+        r = _req.get(
+            "https://api.gumroad.com/v2/user",
+            headers={"Authorization": f"Bearer {key}"},
+            timeout=10,
+        )
+        if r.status_code == 200:
+            data = r.json()
+            user = data.get("user", {})
+            return {
+                "token_set": True,
+                "token_preview": masked,
+                "api_connected": True,
+                "gumroad_name": user.get("name"),
+                "gumroad_email": user.get("email"),
+            }
+        else:
+            return {
+                "token_set": True,
+                "token_preview": masked,
+                "api_connected": False,
+                "http_status": r.status_code,
+                "error": r.text[:300],
+            }
+    except Exception as _e:
+        return {"token_set": True, "token_preview": masked, "api_connected": False, "error": str(_e)[:300]}
+
+
 @app.get("/api/google/status")
 async def google_workspace_status():
     """Check if Google service account is configured and working."""
