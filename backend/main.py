@@ -118,7 +118,7 @@ try:
         crm_contact, create_contract, read_email_inbox, schedule_task, read_analytics,
         publish_to_beehiiv, google_calendar, export_to_pdf, stripe_payment_link,
         revenue_goals, process_meeting_notes, social_scheduler,
-        hue_control,
+        hue_control, pandora_control,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -206,6 +206,7 @@ except Exception as _tc_err:
     async def process_meeting_notes(p, **kw): return {"error": "tools_creative not loaded"}
     async def social_scheduler(p, **kw): return {"error": "tools_creative not loaded"}
     async def hue_control(p, **kw): return {"error": "tools_creative not loaded"}
+    async def pandora_control(p, **kw): return {"error": "tools_creative not loaded"}
 
 # Firebase (optional)
 try:
@@ -1932,6 +1933,7 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `post_to_linkedin` — publish posts to LinkedIn (thought leadership, client updates)
 - `post_to_twitter` — post tweets via Twitter/X API v2
 - `hue_control` — control Philips Hue smart lights (list, on/off, brightness, color, scenes: focus/relax/energize/reading/nightlight/romance)
+- `pandora_control` — control the Pandora web player (open, play, pause, skip, thumbs_up/like, thumbs_down/dislike, station) — requires DESKTOP_CONTROL_ENABLED=true
 - `stripe_create_invoice` — create + auto-send Stripe invoice to a client
 - `stripe_create_payment_link` — generate a Stripe payment link to share
 - `stripe_list_payments` — pull recent Stripe payment history and revenue totals
@@ -8614,6 +8616,8 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
 
                 elif tool_name == "hue_control":
                     tool_result = await hue_control(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "pandora_control":
+                    tool_result = await pandora_control(tool_input)
 
                 elif tool_name == "push_to_creative_suite":
                     _ptcs_id = str(uuid.uuid4())[:8]
@@ -10518,6 +10522,8 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await social_scheduler(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "hue_control":
                         tool_result = await hue_control(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "pandora_control":
+                        tool_result = await pandora_control(tool_input)
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(

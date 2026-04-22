@@ -8239,3 +8239,155 @@ async def hue_control(params: dict, ai_router=None, TaskType=None) -> dict:
         return {"error": f"hue_control error: {str(e)}"}
 
 
+# ── PANDORA CONTROL ────────────────────────────────────────────────────────────
+async def pandora_control(params: dict, **kwargs) -> dict:
+    """Control the Pandora web player via desktop automation.
+
+    Requires DESKTOP_CONTROL_ENABLED=true in .env.
+    Uses system media keys for play/pause/skip (no window focus required).
+    Uses pygetwindow + keyboard for thumbs when window is available.
+
+    Actions:
+        open        — open pandora.com (or a station URL) in the default browser
+        toggle      — play / pause (media key, works without focus)
+        play        — same as toggle (sends media playpause key)
+        pause       — same as toggle
+        skip / next — skip to the next track (media nexttrack key)
+        thumbs_up   — like the current song (shift+up in focused Pandora window)
+        like        — alias for thumbs_up
+        thumbs_down — dislike / skip and ban song (shift+down)
+        dislike     — alias for thumbs_down
+        station     — open a specific station by name (searches pandora.com/station/...)
+
+    Optional params:
+        station     (str) — station name or URL for 'open' and 'station' actions
+    """
+    import os as _os
+    import subprocess as _sp
+
+    if _os.getenv("DESKTOP_CONTROL_ENABLED", "").lower() not in ("true", "1", "yes"):
+        return {
+            "error": (
+                "Set DESKTOP_CONTROL_ENABLED=true in your .env (or Railway env vars) "
+                "to enable Pandora control. This only works when the backend is running "
+                "on the same machine as your desktop."
+            )
+        }
+
+    try:
+        import pyautogui as _pag
+        import time as _t
+    except ImportError:
+        return {"error": "Run: pip install pyautogui pygetwindow — then restart backend"}
+
+    _pag.FAILSAFE = True
+    action = params.get("action", "toggle").lower().strip()
+    station = params.get("station", "")
+
+    # ── Helper: try to focus the Pandora browser window ──────────────────────
+    def _focus_pandora() -> bool:
+        """Return True if we successfully focused a Pandora window."""
+        try:
+            import pygetwindow as _pgw
+            wins = [w for w in _pgw.getAllWindows() if "pandora" in (w.title or "").lower()]
+            if wins:
+                wins[0].activate()
+                _t.sleep(0.6)
+                return True
+        except Exception:
+            pass
+        return False
+
+    # ── open ─────────────────────────────────────────────────────────────────
+    if action == "open":
+        url = station if station.startswith("http") else "https://www.pandora.com"
+        if station and not station.startswith("http"):
+            # Build a search URL so Pandora can find the station
+            import urllib.parse as _up
+            url = f"https://www.pandora.com/search/{_up.quote(station)}/stations"
+        _sp.Popen(["cmd", "/c", "start", "", url], shell=False)
+        return {
+            "success": True,
+            "action": "open",
+            "url": url,
+            "message": f"Opening Pandora{' - ' + station if station else ''} in your browser.",
+            "preview": f"[Pandora] Opening {'station: ' + station if station else 'pandora.com'}",
+        }
+
+    # ── station ───────────────────────────────────────────────────────────────
+    if action == "station":
+        if not station:
+            return {"error": "Provide 'station' param with the station name, e.g. 'Chill Hits' or 'The Weeknd'."}
+        import urllib.parse as _up
+        url = f"https://www.pandora.com/search/{_up.quote(station)}/stations"
+        _sp.Popen(["cmd", "/c", "start", "", url], shell=False)
+        return {
+            "success": True,
+            "action": "station",
+            "station": station,
+            "message": f"Opening Pandora station search for '{station}'. Click the station to start playing.",
+            "preview": f"[Pandora] Opening station: {station}",
+        }
+
+    # ── play / pause / toggle ─────────────────────────────────────────────────
+    if action in ("toggle", "play", "pause"):
+        try:
+            _pag.press("playpause")
+        except Exception:
+            # Fallback: focus Pandora window and send spacebar
+            _focus_pandora()
+            _pag.press("space")
+        labels = {"play": "▶ Told Pandora to play", "pause": "⏸ Told Pandora to pause", "toggle": "▶/⏸ Pandora play/pause toggled"}
+        return {
+            "success": True,
+            "action": action,
+            "message": labels[action],
+            "preview": f"[Pandora] {labels[action]}",
+        }
+
+    # ── skip / next ───────────────────────────────────────────────────────────
+    if action in ("skip", "next"):
+        try:
+            _pag.press("nexttrack")
+        except Exception:
+            _focus_pandora()
+            _pag.hotkey("shift", "right")
+        return {
+            "success": True,
+            "action": "skip",
+            "message": "⏭ Skipping to next track.",
+            "preview": "[Pandora] Skipped to next track",
+        }
+
+    # ── thumbs_up / like ─────────────────────────────────────────────────────
+    if action in ("thumbs_up", "like"):
+        focused = _focus_pandora()
+        _pag.hotkey("shift", "up")
+        return {
+            "success": True,
+            "action": "thumbs_up",
+            "message": "👍 Thumbs up sent — Pandora will play more songs like this.",
+            "preview": "[Pandora] 👍 Thumbs up",
+            "note": "Worked best if Pandora window was focused." if not focused else "Pandora window focused.",
+        }
+
+    # ── thumbs_down / dislike ─────────────────────────────────────────────────
+    if action in ("thumbs_down", "dislike"):
+        focused = _focus_pandora()
+        _pag.hotkey("shift", "down")
+        return {
+            "success": True,
+            "action": "thumbs_down",
+            "message": "👎 Thumbs down sent — Pandora will skip this song and not play it again.",
+            "preview": "[Pandora] 👎 Thumbs down + skip",
+            "note": "Worked best if Pandora window was focused." if not focused else "Pandora window focused.",
+        }
+
+    return {
+        "error": (
+            f"Unknown action '{action}'. "
+            "Use: open | toggle | play | pause | skip | next | thumbs_up | like | thumbs_down | dislike | station"
+        )
+    }
+
+
