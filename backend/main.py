@@ -6503,12 +6503,13 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             },
             {
                 "name": "create_google_sheet",
-                "description": "Create a new Google Spreadsheet with optional column headers. Use this for data tracking, budgets, project plans, analytics, etc.",
+                "description": "Create a simple Google Spreadsheet with optional headers and initial data rows. For complex multi-tab spreadsheets with lots of data, use google_sheets with action=build instead.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
                         "title": {"type": "string", "description": "Spreadsheet title"},
-                        "headers": {"type": "array", "items": {"type": "string"}, "description": "Optional column headers (e.g., ['Name', 'Email', 'Status'])"}
+                        "headers": {"type": "array", "items": {"type": "string"}, "description": "Optional column headers (e.g., ['Name', 'Email', 'Status'])"},
+                        "rows": {"type": "array", "items": {"type": "array"}, "description": "Optional initial data rows (array of arrays)"}
                     },
                     "required": ["title"]
                 }
@@ -6540,13 +6541,27 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             },
             {
                 "name": "google_sheets",
-                "description": "Full Google Sheets control: create spreadsheets, read/write/update/clear data, manage tabs (list/add/rename), delete rows, format headers, and search for values. Use this for any spreadsheet work beyond basic append.",
+                "description": "Full Google Sheets control. Use action=build for ANY complex, multi-tab, or pre-populated spreadsheet — it creates, fills, formats headers, and freezes rows in ONE call. Use action=create for simple blank sheets. Other actions: read/append/update/clear/get_info/list_tabs/add_tab/rename_tab/delete_rows/format_headers/find.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "action": {"type": "string", "description": "create | read | append | update | clear | get_info | list_tabs | add_tab | rename_tab | delete_rows | format_headers | find"},
-                        "sheet_id": {"type": "string", "description": "Spreadsheet ID (from URL or prior create result)"},
-                        "title": {"type": "string", "description": "Spreadsheet title (for action=create)"},
+                        "action": {"type": "string", "description": "build | create | read | append | update | clear | get_info | list_tabs | add_tab | rename_tab | delete_rows | format_headers | find"},
+                        "sheet_id": {"type": "string", "description": "Spreadsheet ID (from URL or prior create/build result)"},
+                        "title": {"type": "string", "description": "Spreadsheet title (for action=create or build)"},
+                        "tabs": {
+                            "type": "array",
+                            "description": "Tab definitions for action=build. Each tab: {name, headers (list of strings), rows (list of lists), bg_color (dark|blue|green|teal|purple|light|none), format (bool, default true)}",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name":     {"type": "string"},
+                                    "headers":  {"type": "array", "items": {"type": "string"}},
+                                    "rows":     {"type": "array", "items": {"type": "array"}},
+                                    "bg_color": {"type": "string"},
+                                    "format":   {"type": "boolean"}
+                                }
+                            }
+                        },
                         "tab_name": {"type": "string", "description": "Worksheet tab name"},
                         "new_name": {"type": "string", "description": "New tab name (for action=rename_tab)"},
                         "range": {"type": "string", "description": "A1 notation range, e.g. Sheet1!A1:D10"},
@@ -6554,7 +6569,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         "rows": {"type": "array", "items": {"type": "array"}, "description": "Rows of data (array of arrays, for append/update)"},
                         "values": {"type": "array", "items": {"type": "array"}, "description": "Values to write (for action=update)"},
                         "row_numbers": {"type": "array", "items": {"type": "integer"}, "description": "1-based row numbers to delete (for action=delete_rows)"},
-                        "bg_color": {"type": "string", "description": "Header background: dark | blue | green | light | none (for action=format_headers)"},
+                        "bg_color": {"type": "string", "description": "Header background: dark | blue | green | teal | purple | light | none (for action=format_headers)"},
                         "query": {"type": "string", "description": "Search text (for action=find)"}
                     },
                     "required": ["action"]
@@ -8504,14 +8519,23 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await _google_calendar_find_free(tool_input)
 
                 elif tool_name == "create_google_sheet":
-                    tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
-                
+                    _cgs_rows = tool_input.get("rows", [])
+                    if _cgs_rows:
+                        # Use google_sheets build so headers + rows are written in one shot
+                        tool_result = await google_sheets_tool({
+                            "action": "build",
+                            "title": tool_input.get("title", "Untitled"),
+                            "tabs": [{"name": "Sheet1", "headers": tool_input.get("headers", []), "rows": _cgs_rows}]
+                        })
+                    else:
+                        tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
+
                 elif tool_name == "read_google_sheet":
                     tool_result = await google_sheets_read(tool_input.get("sheet_id", ""), range=tool_input.get("range", "Sheet1"))
-                
+
                 elif tool_name == "update_google_sheet":
                     tool_result = await google_sheets_append(tool_input.get("sheet_id", ""), {"rows": tool_input.get("rows", []), "range": tool_input.get("range", "Sheet1")})
-                
+
                 elif tool_name == "google_calendar_events":
                     tool_result = await google_calendar_list(calendar_id=tool_input.get("calendar_id", "primary"), max_results=tool_input.get("max_results", 20))
                 
@@ -9993,9 +10017,9 @@ async def chat_stream(chat: ChatMessage):
                 _gcred_id = getattr(_creds, "service_account_email", None) or "OAuth"
                 _is_sa = hasattr(_creds, "service_account_email")
                 if _is_sa:
-                    google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). You have `create_google_doc`, `google_sheets_create`, and `google_drive_save_file` tools available and WORKING. When CC asks you to create a doc, spreadsheet, or save anything — YOU MUST CALL THE TOOL. Do NOT write placeholder text like '[Link to Doc]' or '[see tool output above]'. Do NOT invent or summarize what the tool result 'would be'. CALL THE TOOL — the real result comes back automatically. Then include the actual webViewLink from the real tool result in your response. If a tool returns an error, report it honestly. CRITICAL FOR CHAPTERS: When `write_chapter` returns, you MUST paste the FULL chapter content from the `manuscript` or `content` field directly into your chat response — do NOT just give a link. CC reads the chapter in chat. Format it with the chapter title on its own line, then the full text. Then add the Drive link at the end for her records. Example format: \n---\n**Chapter N: [Title]**\n\n[full chapter text here, all paragraphs]\n\n---\n📂 [Saved to Drive]([drive_link])\n"
+                    google_context = f"\n\n**GOOGLE WORKSPACE:** CONNECTED via service account ({_gcred_id}). You have `create_google_doc`, `google_sheets` (action=build for complex/multi-tab sheets, action=create for simple blanks), and `google_drive_save_file` tools available and WORKING. For ANY spreadsheet with actual data, ALWAYS use `google_sheets` with action=build — pass a 'tabs' array with headers AND rows so the sheet is fully populated, never blank. Do NOT write placeholder text like '[Link to Doc]' or '[see tool output above]'. Do NOT invent or summarize what the tool result 'would be'. CALL THE TOOL — the real result comes back automatically. Then include the actual webViewLink from the real tool result in your response. If a tool returns an error, report it honestly. CRITICAL FOR CHAPTERS: When `write_chapter` returns, you MUST paste the FULL chapter content from the `manuscript` or `content` field directly into your chat response — do NOT just give a link. CC reads the chapter in chat. Format it with the chapter title on its own line, then the full text. Then add the Drive link at the end for her records. Example format: \n---\n**Chapter N: [Title]**\n\n[full chapter text here, all paragraphs]\n\n---\n📂 [Saved to Drive]([drive_link])\n"
                 else:
-                    google_context = "\n\n**GOOGLE WORKSPACE:** CONNECTED via OAuth (CC's own account). You MUST call `create_google_doc`, `google_sheets_create`, or `google_drive_save_file` tools directly — never write placeholder output. The real webViewLink comes from the actual tool result."
+                    google_context = "\n\n**GOOGLE WORKSPACE:** CONNECTED via OAuth (CC's own account). You MUST call `create_google_doc`, `google_sheets` (action=build for complex/multi-tab sheets, action=create for simple ones), or `google_drive_save_file` tools directly — never write placeholder output. For complex spreadsheets, use google_sheets with action=build and include all headers AND rows in the tabs array so the sheet is fully populated. The real webViewLink comes from the actual tool result."
             except Exception:
                 google_context = "\n\n**GOOGLE WORKSPACE:** NOT CONNECTED on this server. If CC asks about Google tools, tell her the service account credentials need to be configured on this deployment. Don't claim you can't access Google in general — it works when properly configured."
             
@@ -10456,7 +10480,15 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     elif tool_name == "google_calendar_find_free":
                         tool_result = await _google_calendar_find_free(tool_input)
                     elif tool_name == "create_google_sheet":
-                        tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
+                        _cgs2_rows = tool_input.get("rows", [])
+                        if _cgs2_rows:
+                            tool_result = await google_sheets_tool({
+                                "action": "build",
+                                "title": tool_input.get("title", "Untitled"),
+                                "tabs": [{"name": "Sheet1", "headers": tool_input.get("headers", []), "rows": _cgs2_rows}]
+                            })
+                        else:
+                            tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
                     elif tool_name == "read_google_sheet":
                         tool_result = await google_sheets_read(tool_input.get("sheet_id", ""), range=tool_input.get("range", "Sheet1"))
                     elif tool_name == "update_google_sheet":
