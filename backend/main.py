@@ -215,6 +215,27 @@ except Exception as _gs_err:
     print(f"[WARN] google_sheets failed to load: {_gs_err}")
     async def google_sheets_tool(p, **kw): return {"error": "google_sheets module not loaded"}
 
+try:
+    from google_docs import google_docs_tool
+    print("[OK] google_docs loaded")
+except Exception as _gd_err:
+    print(f"[WARN] google_docs failed to load: {_gd_err}")
+    async def google_docs_tool(p, **kw): return {"error": "google_docs module not loaded"}
+
+try:
+    from google_slides import google_slides_tool
+    print("[OK] google_slides loaded")
+except Exception as _gsl_err:
+    print(f"[WARN] google_slides failed to load: {_gsl_err}")
+    async def google_slides_tool(p, **kw): return {"error": "google_slides module not loaded"}
+
+try:
+    from gmail import gmail_tool
+    print("[OK] gmail loaded")
+except Exception as _gmail_err:
+    print(f"[WARN] gmail failed to load: {_gmail_err}")
+    async def gmail_tool(p, **kw): return {"error": "gmail module not loaded"}
+
 # Firebase (optional)
 try:
     import firebase_utils
@@ -6499,6 +6520,77 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
+                "name": "google_docs",
+                "description": "Full Google Docs control: create documents with markdown content, read text, append content, UPDATE (replace all content), find-and-replace text, insert headings, rename, and export as PDF/DOCX/TXT. Use this for any document creation or editing task.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "create | read | append | update | replace_text | insert_heading | rename | get_url | export"},
+                        "doc_id": {"type": "string", "description": "Document ID (from URL or prior create result)"},
+                        "title": {"type": "string", "description": "Document title (for create/rename)"},
+                        "content": {"type": "string", "description": "Document content, markdown supported (for create/update/append)"},
+                        "text": {"type": "string", "description": "Text to append (for append action)"},
+                        "old_text": {"type": "string", "description": "Text to find (for replace_text)"},
+                        "new_text": {"type": "string", "description": "Replacement text (for replace_text)"},
+                        "match_case": {"type": "boolean", "description": "Case-sensitive replace (default false)"},
+                        "level": {"type": "string", "description": "Heading level: 1, 2, or 3 (for insert_heading)"},
+                        "format": {"type": "string", "description": "Export format: pdf | docx | txt | odt | html (for export)"}
+                    },
+                    "required": ["action"]
+                }
+            },
+            {
+                "name": "google_slides",
+                "description": "Full Google Slides control: create presentations, add slides with title+body, find-and-replace text, set backgrounds, add text boxes, duplicate or delete slides, and export as PDF/PPTX. Use for any presentation or pitch deck task.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "create | get_info | add_slide | update_text | delete_slide | duplicate_slide | add_text_box | set_background | rename | export"},
+                        "presentation_id": {"type": "string", "description": "Presentation ID (from URL or prior create result)"},
+                        "title": {"type": "string", "description": "Presentation or slide title"},
+                        "slide_title": {"type": "string", "description": "Title text for the first slide (for create)"},
+                        "slide_body": {"type": "string", "description": "Body/subtitle text for the first slide (for create)"},
+                        "body": {"type": "string", "description": "Body text for a new slide (for add_slide)"},
+                        "index": {"type": "integer", "description": "0-based slide index (for delete_slide, duplicate_slide, set_background, add_text_box)"},
+                        "insert_at": {"type": "integer", "description": "0-based position to insert slide (for add_slide; default=append)"},
+                        "old_text": {"type": "string", "description": "Text to find (for update_text)"},
+                        "new_text": {"type": "string", "description": "Replacement text (for update_text)"},
+                        "text": {"type": "string", "description": "Text content (for add_text_box)"},
+                        "x": {"type": "number", "description": "X position in inches (for add_text_box, default 0.5)"},
+                        "y": {"type": "number", "description": "Y position in inches (for add_text_box, default 1.0)"},
+                        "width": {"type": "number", "description": "Width in inches (for add_text_box, default 9.0)"},
+                        "height": {"type": "number", "description": "Height in inches (for add_text_box, default 1.0)"},
+                        "font_size": {"type": "integer", "description": "Font size in pts (for add_text_box, default 18)"},
+                        "bold": {"type": "boolean", "description": "Bold text (for add_text_box)"},
+                        "color": {"type": "string", "description": "Background color name or #hex (for set_background): white | black | dark | navy | blue | teal | green | purple | red | grey | light"},
+                        "format": {"type": "string", "description": "Export format: pdf | pptx | odp (for export)"}
+                    },
+                    "required": ["action"]
+                }
+            },
+            {
+                "name": "gmail",
+                "description": "Read, search, and manage Gmail. List inbox, search by any Gmail query, read full message content, send emails, reply to threads, mark read/unread, trash messages, list labels. Use this to check CC's email, find messages, or send from CC's Google account.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "list | search | read | send | reply | mark_read | mark_unread | trash | list_labels | search_sender"},
+                        "message_id": {"type": "string", "description": "Gmail message ID (for read/reply/mark_read/mark_unread/trash)"},
+                        "query": {"type": "string", "description": "Gmail search query, e.g. 'from:alice subject:invoice is:unread' (for search)"},
+                        "sender": {"type": "string", "description": "Sender email address (for search_sender)"},
+                        "to": {"type": "string", "description": "Recipient email (for send)"},
+                        "subject": {"type": "string", "description": "Email subject (for send)"},
+                        "body": {"type": "string", "description": "Email body (for send/reply)"},
+                        "html": {"type": "boolean", "description": "Send body as HTML (default false)"},
+                        "cc": {"type": "string", "description": "CC address (for send)"},
+                        "max_results": {"type": "integer", "description": "Max messages to return (default 20)"},
+                        "unread_only": {"type": "boolean", "description": "Only show unread messages (for list)"},
+                        "label": {"type": "string", "description": "Gmail label/folder to list (default INBOX)"}
+                    },
+                    "required": ["action"]
+                }
+            },
+            {
                 "name": "google_calendar_events",
                 "description": "Get upcoming calendar events. Use this when CC asks about their schedule, upcoming meetings, or calendar.",
                 "input_schema": {
@@ -8249,6 +8341,12 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 
                 elif tool_name == "google_sheets":
                     tool_result = await google_sheets_tool(tool_input)
+                elif tool_name == "google_docs":
+                    tool_result = await google_docs_tool(tool_input)
+                elif tool_name == "google_slides":
+                    tool_result = await google_slides_tool(tool_input)
+                elif tool_name == "gmail":
+                    tool_result = await gmail_tool(tool_input)
 
                 elif tool_name == "create_google_sheet":
                     tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
@@ -10178,6 +10276,12 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await google_docs_append(tool_input.get("doc_id", ""), {"text": tool_input.get("text", "")})
                     elif tool_name == "google_sheets":
                         tool_result = await google_sheets_tool(tool_input)
+                    elif tool_name == "google_docs":
+                        tool_result = await google_docs_tool(tool_input)
+                    elif tool_name == "google_slides":
+                        tool_result = await google_slides_tool(tool_input)
+                    elif tool_name == "gmail":
+                        tool_result = await gmail_tool(tool_input)
                     elif tool_name == "create_google_sheet":
                         tool_result = await google_sheets_create({"title": tool_input.get("title", "Untitled"), "headers": tool_input.get("headers", [])})
                     elif tool_name == "read_google_sheet":
