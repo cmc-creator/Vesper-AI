@@ -8058,3 +8058,184 @@ async def social_scheduler(params: dict, ai_router=None, TaskType=None) -> dict:
     }
 
 
+# ── PHILIPS HUE SMART HOME ─────────────────────────────────────────────────────
+async def hue_control(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Control Philips Hue lights via the local bridge API."""
+    import os, json as _j
+    import httpx
+
+    action = params.get("action", "list")       # list | on | off | set | scene | toggle | rooms
+    light_id = params.get("light_id", "")       # "1", "2", etc. or empty for all
+    room = params.get("room", "")               # room/group name or ID
+    brightness = params.get("brightness")       # 0–254
+    color = params.get("color", "")             # "red" | "blue" | "warm" | "cool" | "purple" | hex "#rrggbb"
+    scene = params.get("scene", "")             # focus | relax | energize | reading | nightlight | off
+    on = params.get("on")                       # True / False
+
+    bridge_ip = os.environ.get("HUE_BRIDGE_IP", "")
+    hue_user = os.environ.get("HUE_USER", "")
+
+    if not bridge_ip or not hue_user:
+        return {
+            "error": "HUE_BRIDGE_IP and HUE_USER env vars are required.",
+            "setup": [
+                "1. Press the button on top of your Hue Bridge.",
+                "2. Within 30 seconds, POST to: http://<bridge-ip>/api  body: {\"devicetype\": \"vesper#ai\"}",
+                "3. Copy the 'username' from the response — that's your HUE_USER.",
+                "4. Find your bridge IP at: https://discovery.meethue.com",
+                "5. Set HUE_BRIDGE_IP=<ip> and HUE_USER=<username> in Railway env vars.",
+            ],
+        }
+
+    base = f"http://{bridge_ip}/api/{hue_user}"
+
+    # Named color → Hue/Saturation values (xy would need gamut, so hs is universal)
+    COLOR_MAP = {
+        "red":     {"hue": 0,     "sat": 254},
+        "orange":  {"hue": 5461,  "sat": 254},
+        "yellow":  {"hue": 12750, "sat": 254},
+        "green":   {"hue": 25500, "sat": 254},
+        "cyan":    {"hue": 36000, "sat": 254},
+        "blue":    {"hue": 46920, "sat": 254},
+        "purple":  {"hue": 56100, "sat": 254},
+        "pink":    {"hue": 61000, "sat": 200},
+        "warm":    {"ct": 454},   # warm white (~2200K)
+        "neutral": {"ct": 370},   # neutral white (~2700K)
+        "cool":    {"ct": 250},   # cool white (~4000K)
+        "daylight":{"ct": 153},   # daylight (~6500K)
+    }
+
+    SCENE_PRESETS = {
+        "focus":     {"bri": 254, **COLOR_MAP["cool"],   "on": True},
+        "relax":     {"bri": 144, **COLOR_MAP["warm"],   "on": True},
+        "energize":  {"bri": 254, **COLOR_MAP["cyan"],   "on": True},
+        "reading":   {"bri": 220, **COLOR_MAP["neutral"], "on": True},
+        "nightlight":{"bri": 25,  **COLOR_MAP["orange"], "on": True},
+        "romance":   {"bri": 77,  **COLOR_MAP["pink"],   "on": True},
+        "off":       {"on": False},
+    }
+
+    def _build_state(bri=None, color_name="", on_val=None) -> dict:
+        state: dict = {}
+        if on_val is not None:
+            state["on"] = on_val
+        if bri is not None:
+            state["bri"] = max(1, min(254, int(bri)))
+        if color_name:
+            c = COLOR_MAP.get(color_name.lower(), {})
+            if "ct" in c:
+                state["ct"] = c["ct"]
+            elif "hue" in c:
+                state["hue"] = c["hue"]
+                state["sat"] = c.get("sat", 200)
+        return state
+
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+
+            if action == "list":
+                lights_resp = await client.get(f"{base}/lights")
+                lights = lights_resp.json()
+                result = [
+                    {"id": lid, "name": l["name"],
+                     "on": l["state"]["on"],
+                     "bri": l["state"].get("bri", 0),
+                     "reachable": l["state"].get("reachable", False)}
+                    for lid, l in lights.items()
+                ]
+                return {
+                    "success": True,
+                    "lights": result,
+                    "count": len(result),
+                    "preview": f"[Hue: {len(result)} lights found | {sum(1 for l in result if l['on'])} on]",
+                }
+
+            if action == "rooms":
+                groups_resp = await client.get(f"{base}/groups")
+                groups = groups_resp.json()
+                rooms = [
+                    {"id": gid, "name": g["name"], "type": g.get("type"),
+                     "lights": g.get("lights", []),
+                     "on": g.get("action", {}).get("on", False)}
+                    for gid, g in groups.items()
+                    if g.get("type") in ("Room", "Zone")
+                ]
+                return {"success": True, "rooms": rooms,
+                        "preview": f"[Hue rooms: {', '.join(r['name'] for r in rooms)}]"}
+
+            if action == "scene" and scene:
+                preset = SCENE_PRESETS.get(scene.lower())
+                if not preset:
+                    return {"error": f"Unknown scene '{scene}'. Options: {list(SCENE_PRESETS.keys())}"}
+                if room:
+                    # Find group by name or id
+                    groups_resp = await client.get(f"{base}/groups")
+                    groups = groups_resp.json()
+                    group_id = room if room in groups else next(
+                        (gid for gid, g in groups.items() if g["name"].lower() == room.lower()), None)
+                    if not group_id:
+                        return {"error": f"Room '{room}' not found. Use action='rooms' to list them."}
+                    await client.put(f"{base}/groups/{group_id}/action", json=preset)
+                    return {"success": True, "scene": scene, "room": room,
+                            "preview": f"[Hue: scene '{scene}' set in {room}]"}
+                else:
+                    # Apply to all lights
+                    lights_resp = await client.get(f"{base}/lights")
+                    lights = lights_resp.json()
+                    for lid in lights:
+                        await client.put(f"{base}/lights/{lid}/state", json=preset)
+                    return {"success": True, "scene": scene,
+                            "preview": f"[Hue: scene '{scene}' set on all lights]"}
+
+            # on / off / toggle / set — build state
+            if action == "toggle":
+                # Check current state of first target light
+                if light_id:
+                    st_resp = await client.get(f"{base}/lights/{light_id}")
+                    current_on = st_resp.json().get("state", {}).get("on", False)
+                    on = not current_on
+                else:
+                    on = True   # default toggle-all to on if unknown
+                action = "set"
+
+            state = _build_state(bri=brightness, color_name=color, on_val=on)
+            if action in ("on",):
+                state["on"] = True
+            if action in ("off",):
+                state["on"] = False
+
+            if not state:
+                return {"error": "No state changes specified. Provide on/off, brightness, color, or scene."}
+
+            if room and not light_id:
+                groups_resp = await client.get(f"{base}/groups")
+                groups = groups_resp.json()
+                group_id = room if room in groups else next(
+                    (gid for gid, g in groups.items() if g["name"].lower() == room.lower()), None)
+                if not group_id:
+                    return {"error": f"Room '{room}' not found. Use action='rooms' to list them."}
+                await client.put(f"{base}/groups/{group_id}/action", json=state)
+                return {"success": True, "room": room, "state": state,
+                        "preview": f"[Hue: {room} → {state}]"}
+
+            if light_id:
+                resp = await client.put(f"{base}/lights/{light_id}/state", json=state)
+                resp_data = resp.json()
+                return {"success": True, "light_id": light_id, "state": state,
+                        "result": resp_data,
+                        "preview": f"[Hue: light {light_id} → {state}]"}
+
+            # Apply to all lights
+            lights_resp = await client.get(f"{base}/lights")
+            lights = lights_resp.json()
+            for lid in lights:
+                await client.put(f"{base}/lights/{lid}/state", json=state)
+            return {"success": True, "applied_to": len(lights), "state": state,
+                    "preview": f"[Hue: all {len(lights)} lights → {state}]"}
+
+    except httpx.ConnectError:
+        return {"error": f"Cannot reach Hue Bridge at {bridge_ip}. Make sure the bridge is on the same network and HUE_BRIDGE_IP is correct."}
+    except Exception as e:
+        return {"error": f"hue_control error: {str(e)}"}
+
+

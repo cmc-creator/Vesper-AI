@@ -40,6 +40,7 @@ import {
   Edit as EditIcon,
   Download as DownloadIcon,
   AutoFixHigh,
+  ContentPasteRounded,
   PushPin as PinIcon,
   PushPinOutlined as PinOutlinedIcon,
   HistoryRounded,
@@ -7475,6 +7476,24 @@ export default function App() {
                   disabled={suggestionsLoading}
                 >
                   {suggestionsLoading ? <CircularProgress size={20} sx={{ color: 'var(--accent)' }} /> : <AutoFixHigh fontSize="small" />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Share clipboard with Vesper" placement="top">
+                <IconButton
+                  className="ghost-button"
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      const text = await navigator.clipboard.readText();
+                      if (text && text.trim()) {
+                        setInput(prev => prev + (prev ? '\n\n' : '') + `[Clipboard: ${text.slice(0, 2000)}]`);
+                      }
+                    } catch {
+                      // Permission denied or no clipboard content — silently ignore
+                    }
+                  }}
+                >
+                  <ContentPasteRounded fontSize="small" />
                 </IconButton>
               </Tooltip>
               <VoiceInput onTranscript={handleVoiceTranscript} />

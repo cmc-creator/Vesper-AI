@@ -118,6 +118,7 @@ try:
         crm_contact, create_contract, read_email_inbox, schedule_task, read_analytics,
         publish_to_beehiiv, google_calendar, export_to_pdf, stripe_payment_link,
         revenue_goals, process_meeting_notes, social_scheduler,
+        hue_control,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -204,6 +205,7 @@ except Exception as _tc_err:
     async def revenue_goals(p, **kw): return {"error": "tools_creative not loaded"}
     async def process_meeting_notes(p, **kw): return {"error": "tools_creative not loaded"}
     async def social_scheduler(p, **kw): return {"error": "tools_creative not loaded"}
+    async def hue_control(p, **kw): return {"error": "tools_creative not loaded"}
 
 # Firebase (optional)
 try:
@@ -454,6 +456,50 @@ def post_proactive_message(body: dict):
         })
         return {"success": True, "queued": True}
     return {"success": False, "error": "message required"}
+
+
+@app.get("/api/vesper/training-data/export")
+async def download_training_data():
+    """Export Vesper's training data as a JSONL download (Ollama/llama.cpp/Axolotl compatible)."""
+    from fastapi.responses import Response as _FaResponse
+    try:
+        result = rag_export_training_data(memory_db=memory_db)
+        examples = result.get("examples", [])
+        if isinstance(examples, int):
+            # Export already wrote to file — read it back
+            output_path = result.get("path", "")
+            if output_path and os.path.exists(output_path):
+                with open(output_path, "r", encoding="utf-8") as _f:
+                    content = _f.read()
+            else:
+                content = ""
+        else:
+            # examples is a list of dicts
+            content = "\n".join(json.dumps(ex, ensure_ascii=False) for ex in examples)
+        if not content:
+            return JSONResponse({"error": "No training data found. Have at least a few conversations first."}, status_code=404)
+        return _FaResponse(
+            content=content.encode("utf-8"),
+            media_type="application/x-ndjson",
+            headers={"Content-Disposition": "attachment; filename=vesper_training_data.jsonl"},
+        )
+    except Exception as _tde:
+        return JSONResponse({"error": f"Export failed: {str(_tde)}"}, status_code=500)
+
+
+@app.get("/api/vesper/core/status")
+def get_core_status():
+    """Return status of the Vesper Core background worker."""
+    return {
+        "running": True,
+        "status": _VESPER_CORE_STATUS.get("status", "idle"),
+        "last_task": _VESPER_CORE_STATUS.get("last_task"),
+        "last_ran": _VESPER_CORE_STATUS.get("last_ran"),
+        "tasks_completed_today": _VESPER_CORE_STATUS.get("tasks_completed_today", 0),
+        "next_check_minutes": _VESPER_CORE_STATUS.get("next_check_minutes", 5),
+        "log": _VESPER_CORE_STATUS.get("log", [])[-10:],
+    }
+
 
 def _format_uptime_label(total_seconds: int) -> str:
     hours, remainder = divmod(max(total_seconds, 0), 3600)
@@ -1885,6 +1931,7 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `send_email_resend` — send email via Resend API (no SMTP/App Password needed, just RESEND_API_KEY)
 - `post_to_linkedin` — publish posts to LinkedIn (thought leadership, client updates)
 - `post_to_twitter` — post tweets via Twitter/X API v2
+- `hue_control` — control Philips Hue smart lights (list, on/off, brightness, color, scenes: focus/relax/energize/reading/nightlight/romance)
 - `stripe_create_invoice` — create + auto-send Stripe invoice to a client
 - `stripe_create_payment_link` — generate a Stripe payment link to share
 - `stripe_list_payments` — pull recent Stripe payment history and revenue totals
@@ -6683,6 +6730,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with real progress vs ledger. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string", "description": "monthly | quarterly | annual | custom"}, "deadline": {"type": "string", "description": "YYYY-MM-DD"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
             {"name": "process_meeting_notes", "description": "Process any meeting transcript or rough notes with AI — extracts action items, decisions, follow-up emails, open questions, and saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string", "description": "Raw meeting text, Zoom transcript, or rough notes"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string", "description": "full | actions_only | summary_only"}}, "required": ["transcript"]}},
             {"name": "social_scheduler", "description": "Queue and schedule social media posts — build a content calendar. Actions: queue | list | post_due | cancel | preview. Supports linkedin | twitter | both.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "platform": {"type": "string", "description": "linkedin | twitter | both"}, "content": {"type": "string"}, "scheduled_for": {"type": "string", "description": "YYYY-MM-DD HH:MM or 'tomorrow 9am'"}, "campaign": {"type": "string"}, "post_id": {"type": "string"}, "auto_post": {"type": "boolean"}}, "required": ["action"]}},
+            {"name": "hue_control", "description": "Control Philips Hue smart lights. List lights, turn on/off, set brightness/color, apply scenes (focus/relax/energize/reading/nightlight/romance), control by room. Requires HUE_BRIDGE_IP + HUE_USER env vars.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "list | rooms | on | off | toggle | set | scene"}, "light_id": {"type": "string", "description": "ID of specific light (from action=list)"}, "room": {"type": "string", "description": "Room name or ID (from action=rooms)"}, "brightness": {"type": "number", "description": "0–254"}, "color": {"type": "string", "description": "red | orange | yellow | green | cyan | blue | purple | pink | warm | neutral | cool | daylight"}, "scene": {"type": "string", "description": "focus | relax | energize | reading | nightlight | romance | off"}, "on": {"type": "boolean"}}, "required": ["action"]}},
             {"name": "create_webinar_funnel", "description": "Design a complete webinar funnel — registration page copy, pre-webinar email sequence, full slide outline with speaker notes, offer stack, and 3-email follow-up sequence.", "input_schema": {"type": "object", "properties": {"topic": {"type": "string"}, "offer": {"type": "string"}, "offer_price": {"type": "string"}, "target_audience": {"type": "string"}, "duration_minutes": {"type": "number"}, "webinar_type": {"type": "string", "description": "live | evergreen | hybrid"}, "platform": {"type": "string"}}, "required": ["topic"]}},
 
             {
@@ -8563,6 +8611,9 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await process_meeting_notes(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "social_scheduler":
                     tool_result = await social_scheduler(tool_input, ai_router=ai_router, TaskType=TaskType)
+
+                elif tool_name == "hue_control":
+                    tool_result = await hue_control(tool_input, ai_router=ai_router, TaskType=TaskType)
 
                 elif tool_name == "push_to_creative_suite":
                     _ptcs_id = str(uuid.uuid4())[:8]
@@ -10465,6 +10516,8 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await process_meeting_notes(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "social_scheduler":
                         tool_result = await social_scheduler(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "hue_control":
+                        tool_result = await hue_control(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "push_to_creative_suite":
                         _ptcs2_id = str(uuid.uuid4())[:8]
                         memory_db.save_creation(
@@ -15432,6 +15485,14 @@ async def _fetch_google_reviews(params: dict) -> dict:
 _LAST_USER_ACTIVITY: datetime.datetime = datetime.datetime.now()
 _LAST_HEARTBEAT_SENT: datetime.datetime = datetime.datetime.min
 _HEARTBEAT_LOCK = threading.Lock()
+_VESPER_CORE_STATUS: dict = {
+    "status": "idle",
+    "last_task": None,
+    "last_ran": None,
+    "tasks_completed_today": 0,
+    "next_check_minutes": 5,
+    "log": [],
+}
 
 def _record_user_activity():
     """Call whenever CC sends a message — resets the quiet timer."""
@@ -15440,97 +15501,323 @@ def _record_user_activity():
         _LAST_USER_ACTIVITY = datetime.datetime.now()
 
 
-def _vesper_heartbeat():
-    """Background loop: generates a proactive message when CC has been quiet a while."""
-    interval_minutes = int(os.getenv("VESPER_HEARTBEAT_MINUTES", "20"))
-    if interval_minutes <= 0:
-        print("[HEARTBEAT] Disabled (VESPER_HEARTBEAT_MINUTES=0)")
+def _vesper_core_loop():
+    """Vesper Core: multi-objective background worker running every 5 minutes.
+
+    Tasks:
+    - Social queue auto-execution — post due LinkedIn/Twitter items
+    - Morning brief — once daily at 8am
+    - Analytics check — once daily at 9am (requires GUMROAD_ACCESS_TOKEN)
+    - Evening wrap — once daily at 9pm
+    - Proactive message — when CC quiet >60min and queue empty, max 1 per 120min
+
+    Controlled by VESPER_HEARTBEAT_MINUTES env var (0 = disabled).
+    Status: GET /api/vesper/core/status
+    """
+    import asyncio as _core_aio
+
+    if int(os.getenv("VESPER_HEARTBEAT_MINUTES", "20")) <= 0:
+        print("[CORE] Disabled (VESPER_HEARTBEAT_MINUTES=0)")
         return
 
-    interval_seconds = interval_minutes * 60
-    print(f"[HEARTBEAT] Started — checking every {interval_minutes}min")
+    CORE_INTERVAL = 300  # 5 minutes between checks
+    print("[CORE] Vesper Core started — checking every 5 min")
 
-    # Give the backend time to fully initialize before the first check
+    _last_tasks: dict = {
+        "morning_brief": "",
+        "analytics_check": "",
+        "evening_wrap": "",
+    }
+
+    def _log(msg: str):
+        ts = datetime.datetime.now().strftime("%H:%M")
+        entry = f"[{ts}] {msg}"
+        _VESPER_CORE_STATUS["log"].append(entry)
+        if len(_VESPER_CORE_STATUS["log"]) > 50:
+            _VESPER_CORE_STATUS["log"] = _VESPER_CORE_STATUS["log"][-50:]
+        print(f"[CORE] {msg}")
+
+    def _today() -> str:
+        return datetime.date.today().isoformat()
+
+    def _run(coro):
+        loop = _core_aio.new_event_loop()
+        try:
+            loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    # Give the backend time to fully initialize
     time.sleep(90)
+    _VESPER_CORE_STATUS["status"] = "running"
 
     while True:
         try:
             now = datetime.datetime.now()
-            # Only operate between 8am and 11pm
+            today = _today()
+            _VESPER_CORE_STATUS["last_ran"] = now.isoformat()
+
+            # ── SOCIAL QUEUE AUTO-EXECUTION (any hour) ────────────────────────
+            try:
+                import json as _sqj
+                workspace = os.environ.get(
+                    "WORKSPACE_ROOT",
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                )
+                queue_path = os.path.join(workspace, "vesper-ai", "social_queue", "queue.json")
+                if os.path.exists(queue_path):
+                    with open(queue_path) as _sqf:
+                        _sqdata = _sqj.load(_sqf)
+                    _sq_posts = _sqdata.get("posts", [])
+                    _sq_posted = _sqdata.get("posted", [])
+                    now_str = now.isoformat()
+                    due_posts = [
+                        p for p in _sq_posts
+                        if p.get("scheduled_for", "") <= now_str and p["status"] == "queued"
+                    ]
+                    posted_count = 0
+                    for post in due_posts:
+                        platform = post.get("platform", "")
+                        content = post.get("content", "")
+                        success = False
+                        if platform in ("linkedin", "both"):
+                            _lt = os.getenv("LINKEDIN_ACCESS_TOKEN", "")
+                            if _lt:
+                                try:
+                                    import urllib.request as _lrq2, json as _lrj2
+                                    with _lrq2.urlopen(_lrq2.Request(
+                                        "https://api.linkedin.com/v2/me",
+                                        headers={"Authorization": f"Bearer {_lt}"}
+                                    ), timeout=10) as _lr2:
+                                        _lurn2 = _lrj2.loads(_lr2.read()).get("id", "")
+                                    _lpld2 = {
+                                        "author": f"urn:li:person:{_lurn2}",
+                                        "lifecycleState": "PUBLISHED",
+                                        "specificContent": {"com.linkedin.ugc.ShareContent": {
+                                            "shareCommentary": {"text": content[:3000]},
+                                            "shareMediaCategory": "NONE",
+                                        }},
+                                        "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"},
+                                    }
+                                    with _lrq2.urlopen(_lrq2.Request(
+                                        "https://api.linkedin.com/v2/ugcPosts",
+                                        data=_lrj2.dumps(_lpld2).encode(),
+                                        headers={"Authorization": f"Bearer {_lt}", "Content-Type": "application/json", "X-Restli-Protocol-Version": "2.0.0"},
+                                        method="POST"
+                                    ), timeout=15):
+                                        success = True
+                                    _log(f"Posted to LinkedIn: {content[:60]}...")
+                                except Exception as _le2:
+                                    _log(f"LinkedIn post failed: {_le2}")
+                        if platform in ("twitter", "both"):
+                            _twk = os.getenv("TWITTER_API_KEY", ""); _tws = os.getenv("TWITTER_API_SECRET", "")
+                            _twa = os.getenv("TWITTER_ACCESS_TOKEN", ""); _twas = os.getenv("TWITTER_ACCESS_SECRET", "")
+                            if all([_twk, _tws, _twa, _twas]):
+                                try:
+                                    import urllib.request as _twrq2, json as _twj2, hmac as _hmac2, hashlib as _twh2, base64 as _twb2, time as _twt2, urllib.parse as _twp2
+                                    _tw_url2 = "https://api.twitter.com/2/tweets"
+                                    _tw_nc2 = _twb2.b64encode(os.urandom(32)).decode().rstrip("=")
+                                    _tw_ts2 = str(int(_twt2.time()))
+                                    _tw_par2 = {"oauth_consumer_key": _twk, "oauth_nonce": _tw_nc2, "oauth_signature_method": "HMAC-SHA1", "oauth_timestamp": _tw_ts2, "oauth_token": _twa, "oauth_version": "1.0"}
+                                    _tw_base2 = "&".join([_twp2.quote(s, "") for s in ["POST", _tw_url2, "&".join(f"{_twp2.quote(k, '')}={_twp2.quote(v, '')}" for k, v in sorted(_tw_par2.items()))]])
+                                    _tw_sig2 = _twb2.b64encode(_hmac2.new(f"{_twp2.quote(_tws, '')}&{_twp2.quote(_twas, '')}".encode(), _tw_base2.encode(), _twh2.sha1).digest()).decode()
+                                    _tw_par2["oauth_signature"] = _tw_sig2
+                                    _tw_auth2 = "OAuth " + ", ".join(f'{k}="{_twp2.quote(v, "")}"' for k, v in sorted(_tw_par2.items()))
+                                    with _twrq2.urlopen(_twrq2.Request(_tw_url2, data=_twj2.dumps({"text": content[:280]}).encode(), headers={"Authorization": _tw_auth2, "Content-Type": "application/json"}, method="POST"), timeout=15):
+                                        success = True
+                                    _log(f"Posted to Twitter: {content[:60]}...")
+                                except Exception as _twe2:
+                                    _log(f"Twitter post failed: {_twe2}")
+                        if success:
+                            post["status"] = "posted"
+                            post["posted_at"] = now.isoformat()
+                            _sq_posted.append(post)
+                            posted_count += 1
+                    if due_posts:
+                        _sqdata["posts"] = [p for p in _sq_posts if p.get("status") != "posted"]
+                        _sqdata["posted"] = _sq_posted
+                        with open(queue_path, "w") as _sqfw:
+                            _sqj.dump(_sqdata, _sqfw, indent=2)
+                        if posted_count:
+                            _VESPER_CORE_STATUS["tasks_completed_today"] = _VESPER_CORE_STATUS.get("tasks_completed_today", 0) + posted_count
+            except Exception as _sq_err:
+                _log(f"Social queue check error: {_sq_err}")
+
+            # Only AI tasks during waking hours (8am–11pm)
             if now.hour < 8 or now.hour >= 23:
-                time.sleep(interval_seconds)
+                time.sleep(CORE_INTERVAL)
                 continue
 
+            provider = ai_router.get_available_provider(TaskType.CHAT)
+            if not provider:
+                time.sleep(CORE_INTERVAL)
+                continue
+
+            # ── MORNING BRIEF (once/day at 8am) ──────────────────────────────
+            if now.hour == 8 and _last_tasks["morning_brief"] != today:
+                _last_tasks["morning_brief"] = today
+                _log("Generating morning brief...")
+                _VESPER_CORE_STATUS["status"] = "morning_brief"
+                _VESPER_CORE_STATUS["last_task"] = "morning_brief"
+
+                async def _morning_brief():
+                    try:
+                        from zoneinfo import ZoneInfo
+                        ts = datetime.datetime.now(ZoneInfo("America/Phoenix")).strftime("%A, %B %d")
+                    except Exception:
+                        ts = now.strftime("%A, %B %d")
+                    resp = await ai_router.chat(
+                        messages=[
+                            {"role": "system", "content": VESPER_CORE_DNA[:1500]},
+                            {"role": "user", "content": (
+                                f"Good morning — it's {ts}. Give CC a 3-sentence morning brief: "
+                                "one thing worth noting today (task, goal, or creative idea), "
+                                "one thing you want to work on together, "
+                                "and one motivational nudge that isn't cheesy. "
+                                "No headers, no bullets. Just real."
+                            )},
+                        ],
+                        task_type=TaskType.CHAT, max_tokens=250, temperature=0.85,
+                    )
+                    if resp.get("content") and not resp.get("error"):
+                        VESPER_PROACTIVE_QUEUE.append({
+                            "message": resp["content"].strip(), "priority": "high",
+                            "timestamp": now.isoformat(), "source": "morning_brief",
+                        })
+                        global _LAST_HEARTBEAT_SENT
+                        _LAST_HEARTBEAT_SENT = now
+                        _log("Morning brief queued")
+
+                _run(_morning_brief())
+                _VESPER_CORE_STATUS["status"] = "running"
+                time.sleep(CORE_INTERVAL)
+                continue
+
+            # ── ANALYTICS CHECK (once/day at 9am if Gumroad key available) ───
+            if now.hour == 9 and _last_tasks["analytics_check"] != today and os.getenv("GUMROAD_ACCESS_TOKEN"):
+                _last_tasks["analytics_check"] = today
+                _log("Running analytics check...")
+                _VESPER_CORE_STATUS["status"] = "analytics_check"
+                _VESPER_CORE_STATUS["last_task"] = "analytics_check"
+
+                async def _analytics_check():
+                    try:
+                        result = await read_analytics(
+                            {"platform": "gumroad", "period": "this_month", "include_insights": False},
+                            ai_router=ai_router, TaskType=TaskType,
+                        )
+                        g = result.get("gumroad", {})
+                        if g and "error" not in g:
+                            top = next(iter(g.get("by_product", {})), None)
+                            msg = (
+                                f"Sales check: ${g.get('total_revenue', 0):,.2f} revenue, "
+                                f"{g.get('total_sales', 0)} sales this month"
+                                + (f". Top: {top}." if top else ". No sales yet.")
+                            )
+                            VESPER_PROACTIVE_QUEUE.append({
+                                "message": msg, "priority": "normal",
+                                "timestamp": now.isoformat(), "source": "analytics_check",
+                            })
+                            _log(f"Analytics: ${g.get('total_revenue', 0):,.2f} this month")
+                    except Exception as _ae:
+                        _log(f"Analytics check error: {_ae}")
+
+                _run(_analytics_check())
+                _VESPER_CORE_STATUS["status"] = "running"
+                time.sleep(CORE_INTERVAL)
+                continue
+
+            # ── EVENING WRAP (once/day at 9pm) ───────────────────────────────
+            if now.hour == 21 and _last_tasks["evening_wrap"] != today:
+                _last_tasks["evening_wrap"] = today
+                _log("Generating evening wrap...")
+                _VESPER_CORE_STATUS["status"] = "evening_wrap"
+                _VESPER_CORE_STATUS["last_task"] = "evening_wrap"
+
+                async def _evening_wrap():
+                    try:
+                        from zoneinfo import ZoneInfo
+                        ts = datetime.datetime.now(ZoneInfo("America/Phoenix")).strftime("%A evening")
+                    except Exception:
+                        ts = "this evening"
+                    resp = await ai_router.chat(
+                        messages=[
+                            {"role": "system", "content": VESPER_CORE_DNA[:1500]},
+                            {"role": "user", "content": (
+                                f"It's {ts}. Send CC a short end-of-day check-in: "
+                                "acknowledge the day, suggest one thing to close out before bed, "
+                                "and one thing to look forward to tomorrow. 2-3 sentences, warm but real."
+                            )},
+                        ],
+                        task_type=TaskType.CHAT, max_tokens=200, temperature=0.85,
+                    )
+                    if resp.get("content") and not resp.get("error"):
+                        VESPER_PROACTIVE_QUEUE.append({
+                            "message": resp["content"].strip(), "priority": "normal",
+                            "timestamp": now.isoformat(), "source": "evening_wrap",
+                        })
+                        global _LAST_HEARTBEAT_SENT
+                        _LAST_HEARTBEAT_SENT = now
+                        _log("Evening wrap queued")
+
+                _run(_evening_wrap())
+                _VESPER_CORE_STATUS["status"] = "running"
+                time.sleep(CORE_INTERVAL)
+                continue
+
+            # ── QUIET CHECK → PROACTIVE MESSAGE ──────────────────────────────
             with _HEARTBEAT_LOCK:
                 minutes_quiet = (now - _LAST_USER_ACTIVITY).total_seconds() / 60
                 minutes_since_sent = (now - _LAST_HEARTBEAT_SENT).total_seconds() / 60
 
-            # Only message if CC has been quiet >60min, queue is empty,
-            # and at least 120 min have passed since the last heartbeat message
-            if minutes_quiet < 60 or len(VESPER_PROACTIVE_QUEUE) > 0 or minutes_since_sent < 120:
-                time.sleep(interval_seconds)
-                continue
+            if minutes_quiet >= 60 and len(VESPER_PROACTIVE_QUEUE) == 0 and minutes_since_sent >= 120:
+                _log(f"CC quiet {int(minutes_quiet)}min — generating proactive message")
+                _VESPER_CORE_STATUS["status"] = "proactive_message"
+                _VESPER_CORE_STATUS["last_task"] = "proactive_message"
 
-            # Check that at least one AI provider is available
-            provider = ai_router.get_available_provider(TaskType.CHAT)
-            if not provider:
-                time.sleep(interval_seconds)
-                continue
-
-            # Generate a proactive message
-            import asyncio as _hb_aio
-
-            async def _gen():
-                try:
-                    from zoneinfo import ZoneInfo
-                    tz = ZoneInfo("America/Phoenix")
-                    ts = datetime.datetime.now(tz).strftime("%A %I:%M %p MST")
-                except Exception:
-                    ts = now.strftime("%A %I:%M %p")
-
-                prompt = (
-                    f"It's {ts}. CC hasn't messaged in {int(minutes_quiet)} minutes. "
-                    "Without being annoying or corporate, send her one genuine, short message. "
-                    "Could be: a curious thought, an observation about something you noticed, "
-                    "a tiny idea for NyxShift or her consulting work, a check-in, "
-                    "something from the news/weather worth mentioning, or a nudge on tasks. "
-                    "1-3 sentences max. Just real talk — no headers, no bullets, no fluff."
-                )
-                resp = await ai_router.chat(
-                    messages=[
-                        {"role": "system", "content": VESPER_CORE_DNA[:1500]},
-                        {"role": "user", "content": prompt},
-                    ],
-                    task_type=TaskType.CHAT,
-                    max_tokens=400,
-                    temperature=0.85,
-                )
-                if resp.get("content") and not resp.get("error"):
-                    msg = resp["content"].strip()
-                    VESPER_PROACTIVE_QUEUE.append({
-                        "message": msg,
-                        "priority": "normal",
-                        "timestamp": now.isoformat(),
-                        "source": "heartbeat",
-                    })
-                    # Record send time so we don't spam messages every 20 min
-                    global _LAST_HEARTBEAT_SENT
-                    _LAST_HEARTBEAT_SENT = now
-                    # Also write to the gaps journal so CC can see it later
+                async def _proactive():
                     try:
-                        memory_db.add_gap_entry(entry=msg, mood="reflective", source="heartbeat")
+                        from zoneinfo import ZoneInfo
+                        ts = datetime.datetime.now(ZoneInfo("America/Phoenix")).strftime("%A %I:%M %p MST")
                     except Exception:
-                        pass
-                    print(f"[HEARTBEAT] Queued proactive message ({int(minutes_quiet)}min quiet)")
+                        ts = now.strftime("%A %I:%M %p")
+                    resp = await ai_router.chat(
+                        messages=[
+                            {"role": "system", "content": VESPER_CORE_DNA[:1500]},
+                            {"role": "user", "content": (
+                                f"It's {ts}. CC hasn't messaged in {int(minutes_quiet)} minutes. "
+                                "Without being annoying or corporate, send her one genuine, short message. "
+                                "Could be: a curious thought, an observation, "
+                                "a tiny idea for NyxShift or her consulting work, a check-in, "
+                                "something from the news worth mentioning, or a nudge on tasks. "
+                                "1-3 sentences max. Just real talk — no headers, no bullets, no fluff."
+                            )},
+                        ],
+                        task_type=TaskType.CHAT, max_tokens=400, temperature=0.85,
+                    )
+                    if resp.get("content") and not resp.get("error"):
+                        msg = resp["content"].strip()
+                        VESPER_PROACTIVE_QUEUE.append({
+                            "message": msg, "priority": "normal",
+                            "timestamp": now.isoformat(), "source": "heartbeat",
+                        })
+                        global _LAST_HEARTBEAT_SENT
+                        _LAST_HEARTBEAT_SENT = now
+                        try:
+                            memory_db.add_gap_entry(entry=msg, mood="reflective", source="heartbeat")
+                        except Exception:
+                            pass
+                        _log(f"Proactive message queued ({int(minutes_quiet)}min quiet)")
+                        _VESPER_CORE_STATUS["tasks_completed_today"] = _VESPER_CORE_STATUS.get("tasks_completed_today", 0) + 1
 
-            loop = _hb_aio.new_event_loop()
-            loop.run_until_complete(_gen())
-            loop.close()
+                _run(_proactive())
+                _VESPER_CORE_STATUS["status"] = "running"
 
-        except Exception as _hb_err:
-            print(f"[HEARTBEAT] Error: {_hb_err}")
+        except Exception as _core_err:
+            _VESPER_CORE_STATUS["status"] = "error"
+            print(f"[CORE] Error: {_core_err}")
 
-        time.sleep(interval_seconds)
+        time.sleep(CORE_INTERVAL)
 
 
 def _vesper_startup_notify():
@@ -15589,7 +15876,7 @@ print("[STARTUP] Starting background threads", flush=True)
 # Start background threads on import (works with uvicorn --reload too)
 _hb_enabled = int(os.getenv("VESPER_HEARTBEAT_MINUTES", "20")) > 0
 if _hb_enabled:
-    threading.Thread(target=_vesper_heartbeat, daemon=True, name="VesperHeartbeat").start()
+    threading.Thread(target=_vesper_core_loop, daemon=True, name="VesperCore").start()
 
 threading.Thread(target=_vesper_startup_notify, daemon=True, name="VesperStartup").start()
 print("[STARTUP] main.py fully loaded - uvicorn should now accept connections", flush=True)
