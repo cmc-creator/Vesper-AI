@@ -12767,17 +12767,33 @@ async def app_builder(params: dict, ai_router=None, TaskType=None) -> dict:
                     builds.append(meta)
         return {"success": True, "builds": builds, "count": len(builds)}
 
-    description = params.get("description", "")
+    description = params.get("description", "") or params.get("desc", "")
     app_type = params.get("app_type", "react").lower()
-    app_name = params.get("name", "").replace(" ", "-").lower() or f"vesper-app-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    app_name_raw = params.get("name", "") or params.get("app_name", "")
+    app_name = app_name_raw.replace(" ", "-").lower() or f"vesper-app-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     features = params.get("features", [])
     price = float(params.get("price", 47.0))
-    sell_on_gumroad = params.get("sell", False)
+    sell_on_gumroad = params.get("sell", False) or params.get("sell_on_gumroad", False)
 
-    if not description:
-        return {"error": "description required - what should this app do?"}
     if not ai_router:
         return {"error": "AI router required to generate app code"}
+
+    # Auto-generate description from name/features if not provided
+    if not description:
+        if app_name_raw or features:
+            hint = app_name_raw or "this app"
+            feat_hint = f" with features: {', '.join(features)}" if features else ""
+            try:
+                gen_desc = await ai_router.chat(
+                    messages=[{"role": "user", "content": f"In 1-2 sentences, describe what a {app_type} app called '{hint}'{feat_hint} should do. Be specific and practical."}],
+                    task_type=TaskType.CHAT if TaskType else None,
+                    max_tokens=150,
+                )
+                description = gen_desc.get("content", "").strip() if isinstance(gen_desc, dict) else str(gen_desc).strip()
+            except Exception:
+                pass
+        if not description:
+            return {"error": "description required - what should this app do?"}
 
     app_dir = apps_dir / app_name
     app_dir.mkdir(parents=True, exist_ok=True)
@@ -12837,35 +12853,66 @@ async def app_builder(params: dict, ai_router=None, TaskType=None) -> dict:
     config = type_configs.get(app_type, type_configs["react"])
     features_str = ", ".join(features) if features else "all core functionality described"
 
-    # Generate all app files with AI
+    # Generate all app files with AI using FILE block format (avoids JSON escaping issues)
     prompt = (
         f"You are an expert developer. Build a complete, production-ready {config['label']} app.\n\n"
         f"App Name: {app_name}\n"
         f"Description: {description}\n"
         f"Stack: {config['stack']}\n"
-        f"Features to include: {features_str}\n"
+        f"Features to include: {features_str}\n\n"
+        f"Output EVERY file using this exact format (repeat for each file):\n"
+        f"FILE: filename\n"
+        f"```\n"
+        f"<complete file content here>\n"
+        f"```\n\n"
         f"Files to generate: {', '.join(config['files'])}\n\n"
-        f"Return a JSON object where each key is a filename and each value is the complete file content as a string. "
-        f"Generate EVERY file listed. Make the code complete, functional, and ready to run - not pseudocode or stubs. "
-        f"Include proper error handling, clean UI, and a README with setup instructions and a compelling sales description "
-        f"that could be used on Gumroad (include what the buyer gets, key features, and setup steps)."
+        f"Rules:\n"
+        f"- Output ONLY the FILE blocks, no extra commentary\n"
+        f"- Every file must be complete and runnable - no stubs or TODOs\n"
+        f"- Include proper error handling and clean UI\n"
+        f"- README.md must include: what the buyer gets, key features, setup steps, and a Gumroad sales description\n"
+        f"- Keep each file concise but functional (avoid bloated boilerplate)"
     )
 
     gen = await ai_router.chat(
         messages=[{"role": "user", "content": prompt}],
         task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=8000,
     )
     raw = gen.get("content", "") if isinstance(gen, dict) else str(gen)
 
+    # Parse FILE blocks: FILE: name\n```\ncontent\n```
     import re
-    jm = re.search(r"\{.*\}", raw, re.DOTALL)
-    if not jm:
-        return {"error": "AI did not return valid JSON file structure", "raw": raw[:500]}
+    file_pattern = re.compile(r"FILE:\s*(.+?)\n```(?:\w+)?\n([\s\S]+?)\n```", re.MULTILINE)
+    matches = list(file_pattern.finditer(raw))
 
-    try:
-        files = json.loads(jm.group())
-    except json.JSONDecodeError as e:
-        return {"error": f"JSON parse error: {e}", "raw": raw[:500]}
+    # Fallback: try JSON if no FILE blocks found
+    files = {}
+    if matches:
+        for m in matches:
+            files[m.group(1).strip()] = m.group(2)
+    else:
+        # Try JSON extraction as fallback
+        jm = re.search(r"\{[\s\S]*\}", raw)
+        if jm:
+            try:
+                files = json.loads(jm.group())
+            except json.JSONDecodeError:
+                # Last resort: try json5-style repair by truncating at last complete key
+                partial = jm.group()
+                # Find the last complete "key": "value" pair
+                last_comma = partial.rfind('",\n')
+                if last_comma > 0:
+                    try:
+                        files = json.loads(partial[:last_comma + 1] + "\n}")
+                    except Exception:
+                        pass
+
+    if not files:
+        return {
+            "error": "AI did not return parseable file content. Try again or simplify the app description.",
+            "raw_preview": raw[:800],
+        }
 
     # Write files
     written_files = []
