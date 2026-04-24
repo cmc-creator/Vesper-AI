@@ -125,6 +125,9 @@ try:
         write_grant, create_upsell_sequence, instagram_content_pack,
         product_idea_generator, content_repurposer,
         build_product_bundle,
+        daily_product_pipeline, etsy_publish, print_on_demand,
+        passive_income_audit, faceless_channel_pack,
+        ai_automation_service, dropshipping_research,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -230,6 +233,13 @@ except Exception as _tc_err:
     async def instagram_content_pack(p, **kw): return {"error": "tools_creative not loaded"}
     async def product_idea_generator(p, **kw): return {"error": "tools_creative not loaded"}
     async def content_repurposer(p, **kw): return {"error": "tools_creative not loaded"}
+    async def daily_product_pipeline(p, **kw): return {"error": "tools_creative not loaded"}
+    async def etsy_publish(p, **kw): return {"error": "tools_creative not loaded"}
+    async def print_on_demand(p, **kw): return {"error": "tools_creative not loaded"}
+    async def passive_income_audit(p, **kw): return {"error": "tools_creative not loaded"}
+    async def faceless_channel_pack(p, **kw): return {"error": "tools_creative not loaded"}
+    async def ai_automation_service(p, **kw): return {"error": "tools_creative not loaded"}
+    async def dropshipping_research(p, **kw): return {"error": "tools_creative not loaded"}
 
 try:
     from google_sheets import google_sheets_tool
@@ -1930,21 +1940,26 @@ When CC asks you to create a product, follow these exact steps:
 If any step returns an error, report the EXACT error text. Do NOT skip steps or pretend one succeeded when it returned `{"error": ...}`.
 
 **PROACTIVE INCOME TOOLS — USE THESE WITHOUT BEING ASKED:**
-You have 14 specialized income-generating tools. Do NOT wait for CC to ask. Proactively recommend and USE these tools based on context:
+You have 21+ specialized income-generating tools. Do NOT wait for CC to ask. Proactively recommend and USE these tools based on context:
 - When CC mentions a client, prospect, or sales call → immediately offer to run `discovery_call_script` and draft the script
 - When CC pastes a job posting or mentions freelance work → immediately run `write_bid` and produce the proposal
 - When CC has a product, landing page, or ad → proactively suggest `ab_test_generator` and generate variants
 - When CC mentions a niche, blog, or content site → run `affiliate_research` and return the best programs
 - When CC has a new product idea → bypass the back-and-forth and run `project_launcher` to produce the full package in one shot
-- When CC mentions income goals or financial stress → immediately run `income_gap_analyzer` and produce the 30-day action plan
-- When CC mentions YouTube or video content → immediately run `youtube_thumbnail` and deliver concepts
+- When CC mentions income goals or financial stress → immediately run `income_gap_analyzer` AND `passive_income_audit` to produce the 30-day action plan AND strategic roadmap
+- When CC mentions YouTube or video content → immediately run `youtube_thumbnail` AND `faceless_channel_pack` and deliver concepts + full channel plan
 - When CC mentions a brand, collaboration, or sponsorship → run `create_media_kit` and produce the full kit
-- When CC asks about services or consulting → run `build_agency_system` and build the full offer stack
+- When CC asks about services or consulting → run `build_agency_system` AND `ai_automation_service` and build the full offer stack
 - When CC mentions a premium service or high-ticket client → run `create_vip_day_offer` and build the offer
 - When CC mentions SEO, local business, or passive income sites → run `rank_and_rent_pack` immediately
 - When CC mentions a project, creative work, or cause → proactively check if a grant applies and run `write_grant`
 - When CC sells anything → run `create_upsell_sequence` immediately to maximize revenue from every buyer
 - When CC mentions Instagram or content creation → run `instagram_content_pack` and deliver the full pack
+- When CC wants a product made TODAY → run `daily_product_pipeline` — fully automated idea + content + ZIP + Gumroad listing
+- When CC mentions t-shirts, mugs, or merch → run `print_on_demand` and generate design concepts instantly
+- When CC mentions Etsy → run `etsy_publish` to create or manage listings via API
+- When CC wants to sell services locally → run `ai_automation_service` to build the full pitch + proposal + outreach
+- When CC mentions dropshipping or wants a store → run `dropshipping_research` to find winning products immediately
 **The rule: see an income opportunity in any message, pick the right tool, call it immediately. Don't ask. Don't describe. Just produce.**
 
 CREATIVE INCOME PIPELINE (Vesper's own residual income for CC):
@@ -7183,6 +7198,13 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "google_calendar", "description": "View and manage Google Calendar — list events, create meetings, check schedule. Actions: list | today | week | create | delete. Requires GOOGLE_CALENDAR_TOKEN env var.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "list | today | week | create | delete"}, "summary": {"type": "string", "description": "Event title"}, "start": {"type": "string", "description": "ISO datetime or YYYY-MM-DD HH:MM"}, "end": {"type": "string"}, "duration_minutes": {"type": "number"}, "location": {"type": "string"}, "description": {"type": "string"}, "event_id": {"type": "string"}, "days_ahead": {"type": "number"}, "all_day": {"type": "boolean"}}, "required": ["action"]}},
             {"name": "export_to_pdf", "description": "Export any content — contract, report, article, notes — to a real downloadable PDF file. Returns a download_url field with a REAL working link. Always give the download_url to the user.", "input_schema": {"type": "object", "properties": {"content": {"type": "string", "description": "Markdown or plain text to export"}, "title": {"type": "string"}, "filename": {"type": "string"}, "font_size": {"type": "number"}, "include_header": {"type": "boolean"}, "include_page_numbers": {"type": "boolean"}}, "required": ["content", "title"]}},
             {"name": "build_product_bundle", "description": "Create a real downloadable product ZIP bundle containing multiple files (PDFs, txt, etc). Returns a download_url with a REAL working link to give the user. Perfect for Gumroad products — create the ZIP, give the download_url, then call gumroad_create_product.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "files": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "content": {"type": "string"}, "type": {"type": "string", "description": "txt | md | pdf"}, "title": {"type": "string"}}, "required": ["name", "content", "type"]}, "description": "List of files to include in the bundle"}, "price": {"type": "number", "description": "Suggested selling price"}}, "required": ["product_name", "files"]}},
+            {"name": "daily_product_pipeline", "description": "FULL AUTOMATION: idea + content + ZIP bundle + Gumroad listing data in one call. Auto-picks niche and product type if not specified. Returns download_url and gumroad_ready data. Call this to create a new sellable product with zero manual work. The highest-leverage income tool.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string", "description": "Target niche - leave blank to auto-pick"}, "product_type": {"type": "string", "description": "prompt_pack | swipe_file | template_pack | checklist_bundle | mini_guide - leave blank to auto-pick"}, "product_name": {"type": "string", "description": "Optional override for product name"}, "price": {"type": "number", "description": "Override price - leave 0 to auto-suggest"}}, "required": []}},
+            {"name": "etsy_publish", "description": "Publish a digital product listing to Etsy via Etsy API. Actions: create | list | deactivate. Requires ETSY_ACCESS_TOKEN + ETSY_SHOP_ID env vars. Creates listings as drafts - user uploads file and activates.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "create | list | deactivate"}, "title": {"type": "string"}, "description": {"type": "string"}, "price": {"type": "number"}, "tags": {"type": "array", "items": {"type": "string"}, "description": "max 13 tags"}, "listing_id": {"type": "string"}}, "required": ["action"]}},
+            {"name": "print_on_demand", "description": "Generate print-on-demand product design concepts with slogans, design briefs, and listing copy for Redbubble, Merch by Amazon, TeePublic, or Printful. Returns DALL-E prompts for each design mockup.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string", "description": "Target niche e.g. nurses, dog moms, programmers"}, "product_type": {"type": "string", "description": "t-shirt | mug | hoodie | poster | sticker | tote_bag"}, "style": {"type": "string", "description": "funny | inspirational | aesthetic | minimalist | bold"}, "count": {"type": "number", "description": "Number of designs to generate"}, "platform": {"type": "string", "description": "redbubble | merch_by_amazon | teespring | printful | all"}}, "required": ["niche"]}},
+            {"name": "passive_income_audit", "description": "Strategic review of CC's income situation. Returns honest assessment, ranked income streams, highest-leverage recommendation, quick wins, and 6-month roadmap. Specifically leverages Vesper's tool capabilities.", "input_schema": {"type": "object", "properties": {"current_income": {"type": "object", "description": "Current income streams as JSON e.g. {gumroad: '$0/mo'}"}, "assets": {"type": "array", "items": {"type": "string"}, "description": "Skills, products, audiences, accounts"}, "hours_per_week": {"type": "number"}, "goal_monthly": {"type": "number", "description": "Monthly income target"}, "blockers": {"type": "array", "items": {"type": "string"}}, "context": {"type": "string"}}, "required": []}},
+            {"name": "faceless_channel_pack", "description": "Build a complete faceless YouTube channel business: channel name, niche selection, 30 video ideas, 5 full scripts ready for AI voiceover, SEO strategy, and monetization plan. Everything needed to start earning.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string", "description": "Preferred niche - leave blank to auto-pick most profitable"}, "monetization": {"type": "string", "description": "ads_and_affiliate | info_products | sponsorships | all"}, "upload_frequency": {"type": "string", "description": "daily | 3x_weekly | weekly"}, "competitor_channels": {"type": "array", "items": {"type": "string"}}}, "required": []}},
+            {"name": "ai_automation_service", "description": "Package Vesper's AI capabilities as a done-for-you service for local businesses. Returns service tiers ($300-$2000/mo), cold outreach sequence, full proposal template, objection handlers, and where to find leads.", "input_schema": {"type": "object", "properties": {"target_industry": {"type": "string", "description": "e.g. dental offices, real estate agents, restaurants"}, "service_focus": {"type": "string", "description": "content_and_leads | customer_service | marketing_automation | all"}, "monthly_retainer": {"type": "number", "description": "Target monthly fee"}, "your_location": {"type": "string"}}, "required": ["target_industry"]}},
+            {"name": "dropshipping_research", "description": "Research winning dropshipping product opportunities with supplier sources, margins, ad angles, and targeting. Returns ranked products, top pick, first-week action plan, and budget allocation.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string", "description": "Target niche - leave blank for auto-pick"}, "budget": {"type": "string", "description": "low | medium | high"}, "platform": {"type": "string", "description": "shopify | woocommerce | amazon | tiktok_shop"}, "count": {"type": "number", "description": "Number of products to research"}}, "required": []}},
             {"name": "stripe_payment_link", "description": "Create Stripe payment links instantly — product + price + shareable URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "create | list | deactivate"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number", "description": "Amount in dollars"}, "currency": {"type": "string"}, "billing": {"type": "string", "description": "one_time | monthly | yearly"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
             {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with real progress vs ledger. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string", "description": "monthly | quarterly | annual | custom"}, "deadline": {"type": "string", "description": "YYYY-MM-DD"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
             {"name": "process_meeting_notes", "description": "Process any meeting transcript or rough notes with AI — extracts action items, decisions, follow-up emails, open questions, and saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string", "description": "Raw meeting text, Zoom transcript, or rough notes"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string", "description": "full | actions_only | summary_only"}}, "required": ["transcript"]}},
@@ -9109,6 +9131,20 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await export_to_pdf(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "build_product_bundle":
                     tool_result = await build_product_bundle(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "daily_product_pipeline":
+                    tool_result = await daily_product_pipeline(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "etsy_publish":
+                    tool_result = await etsy_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "print_on_demand":
+                    tool_result = await print_on_demand(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "passive_income_audit":
+                    tool_result = await passive_income_audit(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "faceless_channel_pack":
+                    tool_result = await faceless_channel_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "ai_automation_service":
+                    tool_result = await ai_automation_service(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "dropshipping_research":
+                    tool_result = await dropshipping_research(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "stripe_payment_link":
                     tool_result = await stripe_payment_link(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "revenue_goals":
@@ -10440,6 +10476,13 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "google_calendar", "description": "View and manage Google Calendar — list events, create meetings. Actions: list | today | week | create | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "summary": {"type": "string"}, "start": {"type": "string"}, "end": {"type": "string"}, "duration_minutes": {"type": "number"}, "location": {"type": "string"}, "description": {"type": "string"}, "event_id": {"type": "string"}, "days_ahead": {"type": "number"}, "all_day": {"type": "boolean"}}, "required": ["action"]}},
                 {"name": "export_to_pdf", "description": "Export content to a real PDF file. Returns download_url — a REAL working link. Always give this URL to the user.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "title": {"type": "string"}, "filename": {"type": "string"}, "font_size": {"type": "number"}, "include_header": {"type": "boolean"}, "include_page_numbers": {"type": "boolean"}}, "required": ["content", "title"]}},
                 {"name": "build_product_bundle", "description": "Create a real downloadable ZIP product bundle. Returns download_url — a REAL working link. Use to create Gumroad products.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "files": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "content": {"type": "string"}, "type": {"type": "string"}, "title": {"type": "string"}}, "required": ["name", "content", "type"]}, "description": "Files to bundle"}, "price": {"type": "number"}}, "required": ["product_name", "files"]}},
+                {"name": "daily_product_pipeline", "description": "FULL AUTOMATION: auto-creates a digital product idea, writes content, builds ZIP, returns download_url + Gumroad listing data. Leave niche/type blank to auto-pick.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "product_type": {"type": "string"}, "product_name": {"type": "string"}, "price": {"type": "number"}}, "required": []}},
+                {"name": "etsy_publish", "description": "Publish listing to Etsy API. Actions: create | list | deactivate. Requires ETSY_ACCESS_TOKEN + ETSY_SHOP_ID.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "title": {"type": "string"}, "description": {"type": "string"}, "price": {"type": "number"}, "tags": {"type": "array", "items": {"type": "string"}}, "listing_id": {"type": "string"}}, "required": ["action"]}},
+                {"name": "print_on_demand", "description": "Generate POD design concepts with slogans and listing copy for Redbubble/Merch by Amazon/Printful. Includes DALL-E prompts for mockups.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "product_type": {"type": "string"}, "style": {"type": "string"}, "count": {"type": "number"}, "platform": {"type": "string"}}, "required": ["niche"]}},
+                {"name": "passive_income_audit", "description": "Strategic income audit. Returns top recommendation, income streams ranked by effort/passive score, quick wins, and 6-month roadmap leveraging Vesper tools.", "input_schema": {"type": "object", "properties": {"current_income": {"type": "object"}, "assets": {"type": "array", "items": {"type": "string"}}, "hours_per_week": {"type": "number"}, "goal_monthly": {"type": "number"}, "blockers": {"type": "array", "items": {"type": "string"}}, "context": {"type": "string"}}, "required": []}},
+                {"name": "faceless_channel_pack", "description": "Complete faceless YouTube channel business: name, niche, 30 video ideas, 5 full scripts, SEO strategy, monetization plan.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "monetization": {"type": "string"}, "upload_frequency": {"type": "string"}, "competitor_channels": {"type": "array", "items": {"type": "string"}}}, "required": []}},
+                {"name": "ai_automation_service", "description": "Package AI skills as a done-for-you service for local businesses. Returns tiers, outreach sequence, proposal template, objection handlers.", "input_schema": {"type": "object", "properties": {"target_industry": {"type": "string"}, "service_focus": {"type": "string"}, "monthly_retainer": {"type": "number"}, "your_location": {"type": "string"}}, "required": ["target_industry"]}},
+                {"name": "dropshipping_research", "description": "Research winning dropshipping products with suppliers, margins, ad angles. Returns ranked products and first-week action plan.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "budget": {"type": "string"}, "platform": {"type": "string"}, "count": {"type": "number"}}, "required": []}},
                 {"name": "stripe_payment_link", "description": "Create Stripe payment links — product + price + URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number"}, "currency": {"type": "string"}, "billing": {"type": "string"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
                 {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with progress vs actuals. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string"}, "deadline": {"type": "string"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
                 {"name": "process_meeting_notes", "description": "Process meeting transcript or notes — extracts action items, decisions, follow-up emails, open questions. Saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string"}}, "required": ["transcript"]}},
@@ -10657,6 +10700,13 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "google_calendar": "📅 Checking calendar",
                     "export_to_pdf": "📄 Exporting to PDF",
                     "build_product_bundle": "📦 Building product bundle",
+                    "daily_product_pipeline": "⚡ Running daily product pipeline",
+                    "etsy_publish": "🛍️ Publishing to Etsy",
+                    "print_on_demand": "👕 Creating POD designs",
+                    "passive_income_audit": "💰 Auditing income streams",
+                    "faceless_channel_pack": "📹 Building YouTube channel",
+                    "ai_automation_service": "🤖 Creating AI service package",
+                    "dropshipping_research": "🔍 Researching dropshipping products",
                     "stripe_payment_link": "💳 Creating payment link",
                     "revenue_goals": "🎯 Tracking revenue goals",
                     "process_meeting_notes": "📝 Processing meeting notes",
@@ -11129,6 +11179,20 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await export_to_pdf(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "build_product_bundle":
                         tool_result = await build_product_bundle(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "daily_product_pipeline":
+                        tool_result = await daily_product_pipeline(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "etsy_publish":
+                        tool_result = await etsy_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "print_on_demand":
+                        tool_result = await print_on_demand(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "passive_income_audit":
+                        tool_result = await passive_income_audit(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "faceless_channel_pack":
+                        tool_result = await faceless_channel_pack(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "ai_automation_service":
+                        tool_result = await ai_automation_service(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "dropshipping_research":
+                        tool_result = await dropshipping_research(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "stripe_payment_link":
                         tool_result = await stripe_payment_link(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "revenue_goals":

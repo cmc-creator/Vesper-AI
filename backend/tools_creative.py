@@ -10207,3 +10207,805 @@ async def content_repurposer(params: dict, ai_router, TaskType):
     }
 
 
+# =============================================================================
+# DAILY PRODUCT PIPELINE
+# Full automation: idea → content → ZIP bundle → Gumroad listing data.
+# Call daily to build a product catalog without CC doing any work.
+# =============================================================================
+
+async def daily_product_pipeline(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Complete automated product creation pipeline.
+    Picks a niche + product type, writes all file content, builds a real ZIP bundle,
+    and prepares the full Gumroad listing. Returns download_url + listing data.
+    """
+    niche = params.get("niche", "")
+    product_type = params.get("product_type", "")
+    price = float(params.get("price", 0))
+    product_name_override = params.get("product_name", "")
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    # Step 1: Generate product idea
+    idea_resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a digital product strategist. Generate profitable, fast-to-create digital product ideas. Return raw JSON only.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Generate a single digital product idea that:\n"
+                    f"- Can be created entirely with AI text generation\n"
+                    f"- Sells for $7-$47 on Gumroad\n"
+                    f"- Has clear, immediate value for the buyer\n"
+                    f"{'- Target niche: ' + niche if niche else '- Pick any profitable niche right now'}\n"
+                    f"{'- Product type: ' + product_type if product_type else '- Pick the best format'}\n"
+                    f"{'- Product name: ' + product_name_override if product_name_override else ''}\n\n"
+                    "Return ONLY this JSON:\n"
+                    "{\n"
+                    '  "product_name": "catchy product name",\n'
+                    '  "niche": "...",\n'
+                    '  "product_type": "prompt_pack|swipe_file|template_pack|checklist_bundle|mini_guide|script_pack|email_templates",\n'
+                    '  "price": 17,\n'
+                    '  "tagline": "one-sentence value proposition",\n'
+                    '  "gumroad_description": "3-paragraph sales description (no markdown)",\n'
+                    '  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],\n'
+                    '  "files": [\n'
+                    '    {"name": "filename.txt", "type": "txt", "title": "File Title", "description": "exactly what to write in this file - be specific"}\n'
+                    '  ]\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=1500,
+        temperature=0.9,
+    )
+    idea = _extract_json(idea_resp.get("content", "{}"))
+    if not idea.get("product_name"):
+        return {"error": "Failed to generate product idea", "raw": idea_resp.get("content", "")}
+
+    product_name = idea["product_name"]
+    suggested_price = float(idea.get("price", price or 17))
+    file_specs = idea.get("files", [])
+
+    # Step 2: Write content for each file
+    files_for_bundle = []
+    errors = []
+    for spec in file_specs[:6]:
+        fname = spec.get("name", "file.txt")
+        ftype = spec.get("type", "txt")
+        ftitle = spec.get("title", fname)
+        fdesc = spec.get("description", f"Content for {ftitle}")
+
+        content_resp = await ai_router.chat(
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        f"You are writing content for a paid digital product called '{product_name}'. "
+                        f"Write REAL, detailed, immediately usable content. No filler. No fluff. "
+                        f"The buyer paid money - make it worth every dollar."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Write the full content for: {ftitle}\n"
+                        f"Description: {fdesc}\n"
+                        f"Niche: {idea.get('niche', '')}\n"
+                        f"Format: {'markdown' if ftype == 'md' else 'plain text'}\n\n"
+                        f"Write at least 400 words of real, actionable, specific content."
+                    ),
+                },
+            ],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=2000,
+            temperature=0.7,
+        )
+        content = content_resp.get("content", "").strip()
+        if content:
+            files_for_bundle.append({"name": fname, "content": content, "type": ftype, "title": ftitle})
+        else:
+            errors.append(f"Failed to generate content for {fname}")
+
+    if not files_for_bundle:
+        return {"error": "No file content was generated", "idea": idea}
+
+    # Step 3: Build ZIP bundle
+    bundle_result = await build_product_bundle(
+        {"product_name": product_name, "files": files_for_bundle, "price": suggested_price},
+        ai_router=ai_router,
+        TaskType=TaskType,
+    )
+    if not bundle_result.get("success"):
+        return {"error": "Bundle creation failed", "details": bundle_result, "idea": idea}
+
+    download_url = bundle_result.get("download_url", "")
+
+    # Step 4: Prepare Gumroad listing data
+    gumroad_ready = {
+        "product_name": product_name,
+        "description": idea.get("gumroad_description", f"A {idea.get('product_type', 'digital product')} for {idea.get('niche', 'your business')}. Instant download."),
+        "price": suggested_price,
+        "tags": idea.get("tags", []),
+        "file_url": download_url,
+    }
+
+    return {
+        "success": True,
+        "product_name": product_name,
+        "niche": idea.get("niche", ""),
+        "product_type": idea.get("product_type", ""),
+        "tagline": idea.get("tagline", ""),
+        "suggested_price": suggested_price,
+        "download_url": download_url,
+        "zip_filename": bundle_result.get("zip_filename", ""),
+        "files_included": bundle_result.get("files_included", []),
+        "size_human": bundle_result.get("size_human", ""),
+        "gumroad_ready": gumroad_ready,
+        "errors": errors,
+        "preview": f"[Daily Pipeline] '{product_name}' | ${suggested_price} | {len(files_for_bundle)} files | {download_url}",
+        "note": "Give CC the download_url immediately. Then call gumroad_create_product with the gumroad_ready data to list it for sale.",
+        "next_steps": [
+            f"Download URL ready: {download_url}",
+            f"Call gumroad_create_product with gumroad_ready data to list for sale at ${suggested_price}",
+        ],
+    }
+
+
+# =============================================================================
+# ETSY PUBLISH
+# Actually POSTs a listing to Etsy via Etsy API v3.
+# Requires ETSY_ACCESS_TOKEN + ETSY_SHOP_ID in Railway env vars.
+# =============================================================================
+
+async def etsy_publish(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Publish a digital product listing to Etsy via Etsy API v3.
+    Requires ETSY_ACCESS_TOKEN, ETSY_SHOP_ID env vars.
+    Actions: create | list | deactivate
+    """
+    action = params.get("action", "create")
+    title = params.get("title", "")
+    description = params.get("description", "")
+    price = float(params.get("price", 9.99))
+    tags = params.get("tags", [])
+    quantity = int(params.get("quantity", 999))
+    listing_id = params.get("listing_id", "")
+
+    access_token = os.environ.get("ETSY_ACCESS_TOKEN", "")
+    shop_id = os.environ.get("ETSY_SHOP_ID", "")
+    api_key = os.environ.get("ETSY_API_KEY", "")
+
+    if not access_token or not shop_id:
+        return {
+            "error": "Etsy not configured",
+            "setup_required": [
+                "1. Go to etsy.com/developers - Create App - get ETSY_API_KEY",
+                "2. Complete OAuth2 flow to get ETSY_ACCESS_TOKEN and ETSY_REFRESH_TOKEN",
+                "3. Find your shop ID at etsy.com/shop/[your-shop-name] or via API",
+                "4. Add ETSY_API_KEY, ETSY_ACCESS_TOKEN, ETSY_SHOP_ID to Railway environment variables",
+            ],
+            "action_taken": "none",
+        }
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "x-api-key": api_key or access_token,
+    }
+
+    if action == "list":
+        try:
+            resp = requests.get(
+                f"https://openapi.etsy.com/v3/application/shops/{shop_id}/listings/active",
+                headers=headers,
+                timeout=15,
+            )
+            data = resp.json()
+            listings = data.get("results", [])
+            return {
+                "success": True,
+                "shop_id": shop_id,
+                "active_listings": len(listings),
+                "listings": [
+                    {"id": l.get("listing_id"), "title": l.get("title"), "price": l.get("price", {}).get("amount", 0) / 100}
+                    for l in listings[:20]
+                ],
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    if action == "deactivate" and listing_id:
+        try:
+            resp = requests.delete(
+                f"https://openapi.etsy.com/v3/application/shops/{shop_id}/listings/{listing_id}",
+                headers=headers,
+                timeout=15,
+            )
+            return {"success": resp.status_code in (200, 204), "listing_id": listing_id, "status": resp.status_code}
+        except Exception as e:
+            return {"error": str(e)}
+
+    # Create listing
+    if not title:
+        return {"error": "Provide 'title' for the listing"}
+
+    tags_clean = [t.strip()[:20] for t in tags[:13]]
+    payload = {
+        "quantity": quantity,
+        "title": title[:140],
+        "description": description[:5000],
+        "price": price,
+        "who_made": "i_did",
+        "when_made": "made_to_order",
+        "taxonomy_id": 2078,
+        "type": "download",
+        "is_digital": True,
+        "is_supply": False,
+        "tags": tags_clean,
+        "state": "draft",
+    }
+
+    try:
+        resp = requests.post(
+            f"https://openapi.etsy.com/v3/application/shops/{shop_id}/listings",
+            headers=headers,
+            json=payload,
+            timeout=15,
+        )
+        data = resp.json()
+        if resp.status_code in (200, 201):
+            lid = data.get("listing_id", "")
+            listing_url = f"https://www.etsy.com/listing/{lid}" if lid else ""
+            return {
+                "success": True,
+                "listing_id": lid,
+                "title": title,
+                "price": price,
+                "state": "draft",
+                "listing_url": listing_url,
+                "note": "Listing created as DRAFT. Go to Etsy seller dashboard to upload your digital file and activate it.",
+                "next_steps": [
+                    f"Go to https://www.etsy.com/your/shops/{shop_id}/tools/listings",
+                    f"Find '{title}' in your drafts",
+                    "Upload the digital file (ZIP from download_url)",
+                    "Activate the listing",
+                ],
+                "preview": f"[Etsy Listing] '{title}' | ${price} | DRAFT | id: {lid}",
+            }
+        return {"error": f"Etsy API error {resp.status_code}", "details": data, "title": title}
+    except Exception as e:
+        return {"error": str(e), "title": title}
+
+
+# =============================================================================
+# PRINT ON DEMAND
+# Generates POD product design briefs, slogans, and listing copy.
+# Supports Redbubble, Merch by Amazon, TeePublic, Printful.
+# =============================================================================
+
+async def print_on_demand(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Creates print-on-demand product concepts with design brief, slogan variations,
+    and listing copy for Redbubble / Merch by Amazon / TeePublic / Printful.
+    """
+    niche = params.get("niche", "")
+    product_type = params.get("product_type", "t-shirt")
+    style = params.get("style", "funny")
+    count = int(params.get("count", 5))
+    platform = params.get("platform", "redbubble")
+
+    if not niche:
+        return {"error": "Provide 'niche' - e.g. 'nurses', 'dog moms', 'programmers'"}
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a print-on-demand expert who creates viral best-selling designs. "
+                    "You know what sells on Redbubble, Merch by Amazon, and TeeSpring. "
+                    "Winning designs: specific niche, emotional resonance, clear humor or message, zero copyright risk. "
+                    "Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Create {count} print-on-demand {product_type} concepts for the '{niche}' niche.\n"
+                    f"Style: {style}\n"
+                    f"Platform: {platform}\n\n"
+                    "Return ONLY this JSON:\n"
+                    "{\n"
+                    '  "designs": [\n'
+                    '    {\n'
+                    '      "slogan": "the text on the design",\n'
+                    '      "design_description": "visual layout, colors, fonts, graphic elements",\n'
+                    '      "listing_title": "SEO-optimized listing title",\n'
+                    '      "listing_description": "full product description",\n'
+                    '      "tags": ["tag1", "tag2", "tag3"],\n'
+                    '      "price_suggestion": "$X",\n'
+                    '      "viral_potential": "low/medium/high",\n'
+                    '      "dalle_prompt": "DALL-E prompt to generate a mockup of this design"\n'
+                    '    }\n'
+                    '  ],\n'
+                    '  "platform_tips": "tips for selling on ' + platform + '",\n'
+                    '  "best_sellers_insight": "what types of designs sell best for this niche",\n'
+                    '  "pricing_strategy": "recommended pricing and why"\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=3000,
+        temperature=0.85,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("designs"):
+        data = {"niche": niche, "raw_output": raw}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "pod")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in niche.lower())[:30]
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    file_path = os.path.join(save_dir, f"pod_{slug}_{ts}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    designs = data.get("designs", [])
+
+    # Check Printful API if available
+    printful_status = None
+    if os.environ.get("PRINTFUL_API_KEY") and platform in ("printful", "all"):
+        try:
+            pf_headers = {"Authorization": f"Bearer {os.environ['PRINTFUL_API_KEY']}"}
+            ping = requests.get("https://api.printful.com/store", headers=pf_headers, timeout=10)
+            if ping.status_code == 200:
+                store = ping.json().get("result", {})
+                printful_status = {"connected": True, "store_name": store.get("name", ""), "note": "Printful connected. Upload designs via Printful dashboard using the design descriptions above."}
+        except Exception as pe:
+            printful_status = {"connected": False, "error": str(pe)}
+
+    return {
+        "success": True,
+        "niche": niche,
+        "product_type": product_type,
+        "style": style,
+        "platform": platform,
+        "designs": designs,
+        "design_count": len(designs),
+        "platform_tips": data.get("platform_tips", ""),
+        "best_sellers_insight": data.get("best_sellers_insight", ""),
+        "pricing_strategy": data.get("pricing_strategy", ""),
+        "printful": printful_status,
+        "file_path": file_path,
+        "preview": f"[Print on Demand] {niche} {product_type}s | {len(designs)} designs | {style} style",
+        "note": "Use the dalle_prompt fields with generate_image to create mockups. Share with CC for review before uploading.",
+    }
+
+
+# =============================================================================
+# PASSIVE INCOME AUDIT
+# Reviews CC's situation and recommends the highest-leverage income action.
+# =============================================================================
+
+async def passive_income_audit(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Strategic review of CC's income situation.
+    Returns a prioritized action plan focused on passive/semi-passive income
+    using Vesper's capabilities.
+    """
+    current_income = params.get("current_income", {})
+    assets = params.get("assets", [])
+    hours_per_week = int(params.get("hours_per_week", 10))
+    goal_monthly = float(params.get("goal_monthly", 3000))
+    blockers = params.get("blockers", [])
+    context = params.get("context", "")
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    income_str = json.dumps(current_income) if current_income else "no active streams specified"
+    assets_str = "\n".join(f"- {a}" for a in assets) if assets else "- Vesper AI (can create products, publish content, manage platforms)\n- Tech skills"
+    blockers_str = "\n".join(f"- {b}" for b in blockers) if blockers else "- not specified"
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a no-BS passive income strategist for solopreneurs who have an AI assistant (Vesper). "
+                    "Vesper can: create digital products, build ZIP bundles with download URLs, publish to Gumroad/Etsy, "
+                    "write YouTube scripts, create Fiverr gigs, run email campaigns, generate POD designs, and much more. "
+                    "Advice must leverage these specific capabilities. Be honest about what is truly passive vs what takes real work. "
+                    "Give ONE clear priority action - not a 50-step plan. Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Audit my income situation:\n"
+                    f"Current income: {income_str}\n"
+                    f"Available assets/resources:\n{assets_str}\n"
+                    f"Hours per week available: {hours_per_week}\n"
+                    f"Monthly income goal: ${goal_monthly:,.0f}\n"
+                    f"Current blockers:\n{blockers_str}\n"
+                    f"Additional context: {context or 'none'}\n\n"
+                    "Return ONLY this JSON:\n"
+                    "{\n"
+                    '  "honest_assessment": "2-3 sentences on the situation and realistic expectations",\n'
+                    '  "primary_recommendation": {\n'
+                    '    "action": "the single most impactful thing to do right now",\n'
+                    '    "why": "data-backed reason this beats other options",\n'
+                    '    "time_to_first_dollar": "realistic estimate",\n'
+                    '    "monthly_ceiling": "$X-$Y realistically achievable",\n'
+                    '    "vesper_can_do_right_now": ["specific Vesper tool calls to start this immediately"],\n'
+                    '    "first_step_today": "exact action to take in the next 2 hours"\n'
+                    '  },\n'
+                    '  "income_streams_ranked": [\n'
+                    '    {"stream": "...", "effort": "low/medium/high", "passive_score": "1-10", "revenue_ceiling": "$X/mo", "vesper_tools": ["tool1"]}\n'
+                    '  ],\n'
+                    '  "quick_wins": ["things that can make money in 48 hours using Vesper"],\n'
+                    '  "avoid": ["income strategies that look good but waste time"],\n'
+                    '  "6_month_roadmap": "one paragraph describing the path to the goal",\n'
+                    '  "success_metrics": ["how to know if it is working"]\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=2500,
+        temperature=0.6,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("primary_recommendation"):
+        data = {"context": context, "raw_output": raw}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "income_analysis")
+    os.makedirs(save_dir, exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    file_path = os.path.join(save_dir, f"passive_audit_{ts}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    primary = data.get("primary_recommendation", {})
+    return {
+        "success": True,
+        "honest_assessment": data.get("honest_assessment", ""),
+        "primary_recommendation": primary,
+        "income_streams_ranked": data.get("income_streams_ranked", []),
+        "quick_wins": data.get("quick_wins", []),
+        "avoid": data.get("avoid", []),
+        "roadmap": data.get("6_month_roadmap", ""),
+        "success_metrics": data.get("success_metrics", []),
+        "file_path": file_path,
+        "preview": f"[Passive Income Audit] Top rec: {primary.get('action', 'see analysis')} | {primary.get('time_to_first_dollar', '')}",
+    }
+
+
+# =============================================================================
+# FACELESS CHANNEL PACK
+# Complete faceless YouTube channel business: niche, name, 30 ideas, 5 scripts,
+# SEO strategy, monetization plan.
+# =============================================================================
+
+async def faceless_channel_pack(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Builds a complete faceless YouTube channel business from scratch.
+    Returns channel name, 30 video ideas, first 5 scripts, SEO strategy, monetization plan.
+    """
+    niche = params.get("niche", "")
+    monetization = params.get("monetization", "ads_and_affiliate")
+    upload_frequency = params.get("upload_frequency", "3x_weekly")
+    competitor_channels = params.get("competitor_channels", [])
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    comp_str = ", ".join(competitor_channels) if competitor_channels else "none specified"
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a YouTube channel strategist specializing in faceless AI-powered channels. "
+                    "You know which niches monetize fastest, how to rank videos in the first 30 days, "
+                    "and how to build passive income with AI voiceover + stock footage. "
+                    "Give complete, ready-to-execute plans with full scripts. Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Create a complete faceless YouTube channel business plan:\n"
+                    f"Preferred niche: {niche or 'auto-pick the most profitable right now'}\n"
+                    f"Monetization focus: {monetization}\n"
+                    f"Upload frequency: {upload_frequency}\n"
+                    f"Competitors to differentiate from: {comp_str}\n\n"
+                    "Return ONLY this JSON:\n"
+                    "{\n"
+                    '  "channel_name": "...",\n'
+                    '  "niche": "...",\n'
+                    '  "niche_why": "why this niche beats others right now",\n'
+                    '  "channel_description": "YouTube About section text",\n'
+                    '  "brand_voice": "how videos should sound and feel",\n'
+                    '  "content_pillars": ["pillar1", "pillar2", "pillar3"],\n'
+                    '  "video_ideas": [\n'
+                    '    {"title": "...", "hook": "opening 15 seconds script", "estimated_views": "...K-...K", "search_volume": "high/medium/low"}\n'
+                    '  ],\n'
+                    '  "first_5_scripts": [\n'
+                    '    {"title": "...", "script": "full script 600-800 words ready for AI voiceover, include [PAUSE] markers"}\n'
+                    '  ],\n'
+                    '  "seo_strategy": {"keyword_strategy": "...", "thumbnail_style": "...", "posting_time": "..."},\n'
+                    '  "monetization_plan": {\n'
+                    '    "day_1_to_30": "...", "day_31_to_90": "...",\n'
+                    '    "at_1000_subs": "...", "at_10k_subs": "...",\n'
+                    '    "revenue_streams": ["stream1", "stream2"]\n'
+                    '  },\n'
+                    '  "tools_needed": ["tool - free/paid - purpose"],\n'
+                    '  "time_per_video": "X hours with AI tools",\n'
+                    '  "realistic_timeline_to_monetization": "..."\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=5000,
+        temperature=0.8,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("channel_name"):
+        data = {"niche": niche, "raw_output": raw}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "youtube")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (data.get("niche", niche) or "auto").lower())[:30]
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    file_path = os.path.join(save_dir, f"channel_{slug}_{ts}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    script_files = []
+    for i, s in enumerate(data.get("first_5_scripts", []), 1):
+        sp = os.path.join(save_dir, f"script_{i:02d}_{slug}_{ts}.txt")
+        if _safe_write(sp, f"# {s.get('title', f'Script {i}')}\n\n{s.get('script', '')}"):
+            script_files.append(sp)
+
+    return {
+        "success": True,
+        "channel_name": data.get("channel_name", ""),
+        "niche": data.get("niche", niche),
+        "niche_why": data.get("niche_why", ""),
+        "content_pillars": data.get("content_pillars", []),
+        "video_ideas": data.get("video_ideas", []),
+        "first_5_scripts": data.get("first_5_scripts", []),
+        "seo_strategy": data.get("seo_strategy", {}),
+        "monetization_plan": data.get("monetization_plan", {}),
+        "tools_needed": data.get("tools_needed", []),
+        "realistic_timeline": data.get("realistic_timeline_to_monetization", ""),
+        "time_per_video": data.get("time_per_video", ""),
+        "file_path": file_path,
+        "script_files": script_files,
+        "preview": f"[Faceless Channel] '{data.get('channel_name', '')}' | {data.get('niche', '')} | {len(data.get('video_ideas', []))} ideas + {len(data.get('first_5_scripts', []))} full scripts",
+    }
+
+
+# =============================================================================
+# AI AUTOMATION SERVICE
+# Packages Vesper's capabilities as a done-for-you service for local businesses.
+# Includes: tiers, cold outreach, proposal, objection handlers.
+# =============================================================================
+
+async def ai_automation_service(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Creates a complete AI automation service package for selling to local businesses.
+    Returns service tiers, outreach sequence, proposal template, and objection handlers.
+    """
+    target_industry = params.get("target_industry", "")
+    service_focus = params.get("service_focus", "content_and_leads")
+    monthly_retainer = float(params.get("monthly_retainer", 500))
+    your_location = params.get("your_location", "")
+
+    if not target_industry:
+        return {"error": "Provide 'target_industry' - e.g. 'dental offices', 'real estate agents', 'restaurants'"}
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a B2B sales strategist who helps AI-equipped solopreneurs sell automation services "
+                    "to local businesses for $300-$2000/month retainers. "
+                    "Write ready-to-use business development materials. Be specific about ROI and pain points. "
+                    "Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Create a complete AI automation service package for:\n"
+                    f"Target industry: {target_industry}\n"
+                    f"Service focus: {service_focus}\n"
+                    f"Target monthly retainer: ${monthly_retainer:,.0f}\n"
+                    f"Location: {your_location or 'remote, can work with anyone'}\n\n"
+                    "Return ONLY this JSON:\n"
+                    "{\n"
+                    '  "service_name": "catchy service name",\n'
+                    '  "elevator_pitch": "one sentence that makes them want to know more",\n'
+                    '  "pain_points": ["specific problems this industry faces that AI solves"],\n'
+                    '  "service_tiers": [\n'
+                    '    {"tier": "Starter", "price": "$X/mo", "deliverables": ["..."], "time_required": "X hrs/week"},\n'
+                    '    {"tier": "Growth", "price": "$X/mo", "deliverables": ["..."], "time_required": "X hrs/week"},\n'
+                    '    {"tier": "Premium", "price": "$X/mo", "deliverables": ["..."], "time_required": "X hrs/week"}\n'
+                    '  ],\n'
+                    '  "cold_outreach_sequence": [\n'
+                    '    {"step": 1, "channel": "email/dm/phone", "day": 0, "message": "full message text"},\n'
+                    '    {"step": 2, "channel": "...", "day": 3, "message": "..."},\n'
+                    '    {"step": 3, "channel": "...", "day": 7, "message": "..."}\n'
+                    '  ],\n'
+                    '  "pitch_deck_outline": ["slide 1: ...", "slide 2: ..."],\n'
+                    '  "proposal_template": "full proposal text with [CLIENT_NAME] [BUSINESS_NAME] placeholders",\n'
+                    '  "objections_and_responses": [\n'
+                    '    {"objection": "...", "response": "..."}\n'
+                    '  ],\n'
+                    '  "pricing_justification": "how to explain the ROI to the client",\n'
+                    '  "where_to_find_leads": ["specific places to find ' + target_industry + '"]\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.CREATIVE if TaskType else None,
+        max_tokens=4000,
+        temperature=0.7,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("service_name"):
+        data = {"target_industry": target_industry, "raw_output": raw}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "services")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in target_industry.lower())[:30]
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    file_path = os.path.join(save_dir, f"service_{slug}_{ts}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    proposal = data.get("proposal_template", "")
+    proposal_file = ""
+    if proposal:
+        proposal_file = os.path.join(save_dir, f"proposal_{slug}_{ts}.txt")
+        _safe_write(proposal_file, proposal)
+
+    tiers = data.get("service_tiers", [])
+    prices = [t.get("price", "") for t in tiers]
+    price_range = f"{prices[0]} - {prices[-1]}" if len(prices) >= 2 else (prices[0] if prices else "")
+
+    return {
+        "success": True,
+        "service_name": data.get("service_name", ""),
+        "elevator_pitch": data.get("elevator_pitch", ""),
+        "target_industry": target_industry,
+        "pain_points": data.get("pain_points", []),
+        "service_tiers": tiers,
+        "price_range": price_range,
+        "cold_outreach_sequence": data.get("cold_outreach_sequence", []),
+        "pitch_deck_outline": data.get("pitch_deck_outline", []),
+        "objections_and_responses": data.get("objections_and_responses", []),
+        "pricing_justification": data.get("pricing_justification", ""),
+        "where_to_find_leads": data.get("where_to_find_leads", []),
+        "file_path": file_path,
+        "proposal_file": proposal_file,
+        "preview": f"[AI Service] '{data.get('service_name', '')}' for {target_industry} | {price_range}",
+    }
+
+
+# =============================================================================
+# DROPSHIPPING RESEARCH
+# Identifies winning dropshipping products with margins, suppliers, ad angles.
+# =============================================================================
+
+async def dropshipping_research(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Research dropshipping product opportunities.
+    Returns winning products, suppliers, margins, ad copy angles, and targeting.
+    """
+    niche = params.get("niche", "")
+    budget = params.get("budget", "low")
+    platform = params.get("platform", "shopify")
+    count = int(params.get("count", 5))
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a dropshipping expert who has run successful stores generating $10k-$100k/month. "
+                    "You know which products win on Facebook ads, TikTok, and organic search. "
+                    "You understand margins, shipping times, and supplier vetting. "
+                    "Be specific - realistic product categories, realistic numbers. Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Research {count} winning dropshipping product opportunities:\n"
+                    f"Niche: {niche or 'any high-potential niche right now'}\n"
+                    f"Ad budget: {budget}\n"
+                    f"Platform: {platform}\n\n"
+                    "Return ONLY this JSON:\n"
+                    "{\n"
+                    '  "products": [\n'
+                    '    {\n'
+                    '      "product_name": "...",\n'
+                    '      "category": "...",\n'
+                    '      "supplier_source": "AliExpress | CJ Dropshipping | Zendrop | Spocket",\n'
+                    '      "estimated_cogs": "$X-$Y",\n'
+                    '      "recommended_price": "$X",\n'
+                    '      "gross_margin": "X%",\n'
+                    '      "why_it_wins": "specific trend or pain point",\n'
+                    '      "ad_angle_1": "primary hook for ads",\n'
+                    '      "ad_angle_2": "secondary angle",\n'
+                    '      "target_audience": "Facebook/TikTok audience description",\n'
+                    '      "competition_level": "low/medium/high",\n'
+                    '      "monthly_potential": "$X-$Y/month at scale"\n'
+                    '    }\n'
+                    '  ],\n'
+                    '  "top_pick": "which product to start with and exactly why",\n'
+                    '  "store_setup_tips": "platform-specific setup advice for ' + platform + '",\n'
+                    '  "first_week_actions": ["day 1: ...", "day 2-3: ...", "day 4-7: ..."],\n'
+                    '  "budget_allocation": {"product_testing": "$X", "ads": "$X", "store_setup": "$X"},\n'
+                    '  "avoid": ["product types or niches to avoid and why"]\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=3000,
+        temperature=0.7,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("products"):
+        data = {"niche": niche, "raw_output": raw}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "dropshipping")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (niche or "general").lower())[:30]
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    file_path = os.path.join(save_dir, f"dropship_{slug}_{ts}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "niche": niche or "auto-selected",
+        "platform": platform,
+        "products": data.get("products", []),
+        "product_count": len(data.get("products", [])),
+        "top_pick": data.get("top_pick", ""),
+        "store_setup_tips": data.get("store_setup_tips", ""),
+        "first_week_actions": data.get("first_week_actions", []),
+        "budget_allocation": data.get("budget_allocation", {}),
+        "avoid": data.get("avoid", []),
+        "file_path": file_path,
+        "preview": f"[Dropshipping] {niche or 'general'} | {len(data.get('products', []))} products | top: {data.get('top_pick', '')[:80]}",
+    }
+
+
