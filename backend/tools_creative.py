@@ -10018,7 +10018,7 @@ COMPETITION DATA:
 {competition_results or '(not available)'}
 """.strip()
 
-    resp = await ai_router.complete(
+    resp = await ai_router.chat(
         messages=[
             {
                 "role": "system",
@@ -10046,7 +10046,7 @@ COMPETITION DATA:
                 ),
             },
         ],
-        task_type=TaskType.RESEARCH if TaskType else None,
+        task_type=TaskType.ANALYSIS if TaskType else None,
         max_tokens=4000,
         temperature=0.7,
     )
@@ -10158,7 +10158,7 @@ async def content_repurposer(params: dict, ai_router, TaskType):
     cta_note   = f"\nCTA TO USE: {cta}" if cta else ""
     promo_note = f"\nPRODUCT TO MENTION/PROMOTE: {product}" if product else ""
 
-    resp = await ai_router.complete(
+    resp = await ai_router.chat(
         messages=[
             {
                 "role": "system",
@@ -12511,7 +12511,7 @@ async def medium_publish(params: dict, ai_router=None, TaskType=None) -> dict:
             # Auto-generate if AI available
             if ai_router:
                 niche = params.get("niche", "entrepreneurship")
-                gen = await ai_router.complete(
+                gen = await ai_router.chat(
                     messages=[{
                         "role": "user",
                         "content": (
@@ -12523,7 +12523,7 @@ async def medium_publish(params: dict, ai_router=None, TaskType=None) -> dict:
                     }],
                     task_type=TaskType.CREATIVE if TaskType else None,
                 )
-                raw = gen.content if hasattr(gen, "content") else str(gen)
+                raw = gen.get("content", "") if isinstance(gen, dict) else str(gen)
                 import re
                 jm = re.search(r"\{.*\}", raw, re.DOTALL)
                 if jm:
@@ -12705,7 +12705,7 @@ async def revenue_report(params: dict, ai_router=None, TaskType=None) -> dict:
     if ai_router and sources:
         try:
             summary_text = json.dumps(report, indent=2)
-            gen = await ai_router.complete(
+            gen = await ai_router.chat(
                 messages=[{
                     "role": "user",
                     "content": (
@@ -12715,9 +12715,9 @@ async def revenue_report(params: dict, ai_router=None, TaskType=None) -> dict:
                         f"Be direct and specific, no fluff."
                     ),
                 }],
-                task_type=TaskType.ANALYTICAL if TaskType else None,
+                task_type=TaskType.ANALYSIS if TaskType else None,
             )
-            insight = gen.content if hasattr(gen, "content") else str(gen)
+            insight = gen.get("content", "") if isinstance(gen, dict) else str(gen)
         except Exception:
             pass
 
@@ -12851,11 +12851,11 @@ async def app_builder(params: dict, ai_router=None, TaskType=None) -> dict:
         f"that could be used on Gumroad (include what the buyer gets, key features, and setup steps)."
     )
 
-    gen = await ai_router.complete(
+    gen = await ai_router.chat(
         messages=[{"role": "user", "content": prompt}],
         task_type=TaskType.CREATIVE if TaskType else None,
     )
-    raw = gen.content if hasattr(gen, "content") else str(gen)
+    raw = gen.get("content", "") if isinstance(gen, dict) else str(gen)
 
     import re
     jm = re.search(r"\{.*\}", raw, re.DOTALL)
@@ -12996,7 +12996,7 @@ async def auto_income_pipeline(params: dict, ai_router=None, TaskType=None) -> d
     # Step 1: Pick niche + product type with AI
     if not niche or not product_type:
         try:
-            gen = await ai_router.complete(
+            gen = await ai_router.chat(
                 messages=[{
                     "role": "user",
                     "content": (
@@ -13008,9 +13008,9 @@ async def auto_income_pipeline(params: dict, ai_router=None, TaskType=None) -> d
                         "\"price\": 9.99, \"why\": \"why this will sell\"}"
                     ),
                 }],
-                task_type=TaskType.ANALYTICAL if TaskType else None,
+                task_type=TaskType.ANALYSIS if TaskType else None,
             )
-            raw = gen.content if hasattr(gen, "content") else str(gen)
+            raw = gen.get("content", "") if isinstance(gen, dict) else str(gen)
             import re
             jm = re.search(r"\{.*\}", raw, re.DOTALL)
             if jm:
@@ -13741,8 +13741,8 @@ Return JSON only (no markdown):
 }}"""
 
     try:
-        response = await ai_router.complete(
-            prompt=prompt,
+        response = await ai_router.chat(
+            messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.ANALYSIS if TaskType else None,
             max_tokens=4096,
         )
@@ -13862,8 +13862,8 @@ Write production-quality tests that:
 Return ONLY raw test code. No markdown fences, no explanations."""
 
     try:
-        response = await ai_router.complete(
-            prompt=prompt,
+        response = await ai_router.chat(
+            messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=6000,
         )
@@ -13968,8 +13968,8 @@ Generate a COMPLETE design system. Return as JSON with these exact keys:
 All values must be complete and production-ready. The CSS must work standalone."""
 
     try:
-        response = await ai_router.complete(
-            prompt=prompt,
+        response = await ai_router.chat(
+            messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=8000,
         )
@@ -14135,8 +14135,8 @@ Requirements:
 Return ONLY the complete HTML. No explanations."""
 
     try:
-        response = await ai_router.complete(
-            prompt=prompt,
+        response = await ai_router.chat(
+            messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=8000,
         )
@@ -14235,8 +14235,8 @@ Return as JSON: {{play_store: {{...}}, app_store: {{...}}, keyword_research: [{{
 Include only requested stores."""
 
     try:
-        response = await ai_router.complete(
-            prompt=prompt,
+        response = await ai_router.chat(
+            messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.ANALYSIS if TaskType else None,
             max_tokens=6000,
         )
@@ -14363,8 +14363,8 @@ Every endpoint must have:
 Write complete, runnable code. No placeholder comments."""
 
     try:
-        response = await ai_router.complete(
-            prompt=prompt,
+        response = await ai_router.chat(
+            messages=[{"role": "user", "content": prompt}],
             task_type=TaskType.CREATIVE if TaskType else None,
             max_tokens=8000,
         )
