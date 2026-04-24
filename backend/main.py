@@ -132,6 +132,8 @@ try:
         generate_voiceover, invoice_generator,
         reddit_research, morning_briefing, lead_tracker,
         kdp_formatter, tiktok_shop_research, printify_publish,
+        gumroad_publish, medium_publish, auto_income_pipeline,
+        revenue_report, app_builder,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -255,6 +257,11 @@ except Exception as _tc_err:
     async def kdp_formatter(p, **kw): return {"error": "tools_creative not loaded"}
     async def tiktok_shop_research(p, **kw): return {"error": "tools_creative not loaded"}
     async def printify_publish(p, **kw): return {"error": "tools_creative not loaded"}
+    async def gumroad_publish(p, **kw): return {"error": "tools_creative not loaded"}
+    async def medium_publish(p, **kw): return {"error": "tools_creative not loaded"}
+    async def auto_income_pipeline(p, **kw): return {"error": "tools_creative not loaded"}
+    async def revenue_report(p, **kw): return {"error": "tools_creative not loaded"}
+    async def app_builder(p, **kw): return {"error": "tools_creative not loaded"}
 
 try:
     from google_sheets import google_sheets_tool
@@ -1972,6 +1979,11 @@ You have 32+ specialized income-generating and execution tools. Do NOT wait for 
 - When CC mentions Instagram or content creation → run `instagram_content_pack` and deliver the full pack
 - When CC wants a product made TODAY → run `daily_product_pipeline` — fully automated idea + content + ZIP + Gumroad listing
 - When CC mentions t-shirts, mugs, or merch → run `print_on_demand` and generate design concepts instantly. Then `printify_publish` to list them.
+- When Vesper creates any digital product → run `gumroad_publish` to list it for sale immediately
+- When Vesper writes an article → run `medium_publish` to publish and earn from Medium Partner Program
+- Run `auto_income_pipeline` autonomously or when CC wants passive income created without prompting
+- Run `revenue_report` to check what's actually making money across Gumroad, Etsy, and Stripe
+- When CC or Vesper wants to build a web app, tool, or SaaS → run `app_builder` and ZIP + optionally sell on Gumroad
 - When CC mentions Etsy → run `etsy_publish` to create or manage listings via API
 - When CC wants to sell services locally → run `ai_automation_service` to build the full pitch + proposal + outreach
 - When CC mentions dropshipping or wants a store → run `dropshipping_research` to find winning products immediately
@@ -7237,6 +7249,81 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "kdp_formatter", "description": "Format and prepare an ebook for Kindle Direct Publishing (KDP). Generates manuscript, TOC, front/back matter, KDP metadata (description, keywords, categories), royalty estimate, and upload instructions.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "author": {"type": "string"}, "content": {"type": "string", "description": "Ebook content in markdown (auto-generated if blank)"}, "genre": {"type": "string"}, "subtitle": {"type": "string"}, "description": {"type": "string", "description": "KDP sales description (auto-generated if blank)"}, "keywords": {"type": "array", "items": {"type": "string"}}, "price": {"type": "number", "description": "Selling price in USD (default $4.99)"}, "generate_missing": {"type": "boolean", "description": "Auto-generate content/description if not provided (default true)"}}, "required": ["title"]}},
             {"name": "tiktok_shop_research", "description": "Research winning TikTok Shop products optimized for short-form video virality. Returns products with hook ideas, demo angles, viral scores, margins, hashtags, and a content strategy. No TikTok API needed.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string", "description": "Product niche (leave blank for auto-trending)"}, "budget": {"type": "string", "description": "low | medium | high"}, "count": {"type": "number", "description": "Number of products to research (default 5)"}, "content_style": {"type": "string", "description": "ugc | talking_head | demonstration | aesthetic"}}, "required": []}},
             {"name": "printify_publish", "description": "Publish print-on-demand products to Printify via API. Connects to Etsy, Shopify, or Printify Pop-Up store. Actions: create | list | publish | blueprints | delete. Requires PRINTIFY_API_KEY + PRINTIFY_SHOP_ID.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "create | list | publish | blueprints | delete"}, "title": {"type": "string"}, "description": {"type": "string"}, "blueprint_id": {"type": "number", "description": "Product type ID (6=T-shirt, 9=Mug, 3=Hoodie, 61=Poster)"}, "print_provider_id": {"type": "number"}, "design_url": {"type": "string", "description": "URL to the design image"}, "tags": {"type": "array", "items": {"type": "string"}}, "price": {"type": "number", "description": "Selling price in USD"}, "product_id": {"type": "string", "description": "Product ID for publish/delete actions"}}, "required": ["action"]}},
+            {
+                "name": "gumroad_publish",
+                "description": "List digital products for sale on Gumroad. Actions: create | list | update | delete | sales. Requires GUMROAD_ACCESS_TOKEN. Returns live checkout URL.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "create | list | update | delete | sales"},
+                        "name": {"type": "string", "description": "Product name"},
+                        "description": {"type": "string"},
+                        "price": {"type": "number", "description": "Price in USD"},
+                        "file_path": {"type": "string", "description": "Local path to file to upload"},
+                        "product_id": {"type": "string"},
+                        "published": {"type": "boolean"},
+                    },
+                    "required": ["action"],
+                },
+            },
+            {
+                "name": "medium_publish",
+                "description": "Publish articles to Medium via API. Requires MEDIUM_INTEGRATION_TOKEN. Returns live article URL. Medium Partner Program pays per read.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "content": {"type": "string", "description": "HTML or Markdown content"},
+                        "tags": {"type": "array", "items": {"type": "string"}},
+                        "canonical_url": {"type": "string"},
+                        "publish_status": {"type": "string", "description": "public | draft | unlisted"},
+                    },
+                    "required": ["title", "content"],
+                },
+            },
+            {
+                "name": "auto_income_pipeline",
+                "description": "Vesper's fully autonomous income loop: picks trending niche, creates product or article, lists on Gumroad, tweets about it. No prompting needed. Run on a schedule for passive income.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "niche": {"type": "string", "description": "Optional niche override - Vesper picks if omitted"},
+                        "product_type": {"type": "string", "description": "ebook | template | article | app - Vesper picks if omitted"},
+                        "price": {"type": "number"},
+                        "post_to_twitter": {"type": "boolean"},
+                    },
+                    "required": [],
+                },
+            },
+            {
+                "name": "revenue_report",
+                "description": "Pull live income data from Gumroad, Etsy, and Stripe. Returns unified revenue dashboard with totals, top products, and trends.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "sources": {"type": "array", "items": {"type": "string"}, "description": "gumroad | etsy | stripe - all if omitted"},
+                        "days": {"type": "number", "description": "Lookback period in days, default 30"},
+                    },
+                    "required": [],
+                },
+            },
+            {
+                "name": "app_builder",
+                "description": "Build complete apps (React, Next.js, FastAPI, Chrome extension, SaaS MVP). Writes all files to disk, ZIPs them, optionally lists on Gumroad for $97-$997. Vesper's highest-value autonomous income tool.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "app_type": {"type": "string", "description": "react | nextjs | fastapi | chrome_extension | saas_mvp | cli_tool"},
+                        "name": {"type": "string", "description": "App name"},
+                        "description": {"type": "string", "description": "What the app does"},
+                        "features": {"type": "array", "items": {"type": "string"}},
+                        "sell_on_gumroad": {"type": "boolean"},
+                        "price": {"type": "number"},
+                        "tech_stack": {"type": "string"},
+                    },
+                    "required": ["name", "description"],
+                },
+            },
             {"name": "stripe_payment_link", "description": "Create Stripe payment links instantly — product + price + shareable URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "create | list | deactivate"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number", "description": "Amount in dollars"}, "currency": {"type": "string"}, "billing": {"type": "string", "description": "one_time | monthly | yearly"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
             {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with real progress vs ledger. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string", "description": "monthly | quarterly | annual | custom"}, "deadline": {"type": "string", "description": "YYYY-MM-DD"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
             {"name": "process_meeting_notes", "description": "Process any meeting transcript or rough notes with AI — extracts action items, decisions, follow-up emails, open questions, and saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string", "description": "Raw meeting text, Zoom transcript, or rough notes"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string", "description": "full | actions_only | summary_only"}}, "required": ["transcript"]}},
@@ -9318,6 +9405,16 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await tiktok_shop_research(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "printify_publish":
                     tool_result = await printify_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "gumroad_publish":
+                    tool_result = await gumroad_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "medium_publish":
+                    tool_result = await medium_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "auto_income_pipeline":
+                    tool_result = await auto_income_pipeline(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "revenue_report":
+                    tool_result = await revenue_report(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "app_builder":
+                    tool_result = await app_builder(tool_input, ai_router=ai_router, TaskType=TaskType)
 
                 elif tool_name == "stripe_create_invoice":
                     import urllib.request as _streq, urllib.parse as _stparse, json as _stj
@@ -10509,6 +10606,11 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "kdp_formatter", "description": "Format ebook for KDP. Generates manuscript, metadata, keywords, royalty estimate, upload instructions. Auto-generates content if not provided.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "author": {"type": "string"}, "content": {"type": "string"}, "genre": {"type": "string"}, "subtitle": {"type": "string"}, "price": {"type": "number"}, "generate_missing": {"type": "boolean"}}, "required": ["title"]}},
                 {"name": "tiktok_shop_research", "description": "Research winning TikTok Shop products with hook ideas, viral scores, margins, content strategy.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "budget": {"type": "string"}, "count": {"type": "number"}, "content_style": {"type": "string"}}, "required": []}},
                 {"name": "printify_publish", "description": "Publish POD products to Printify. Actions: create | list | publish | blueprints | delete. Requires PRINTIFY_API_KEY + PRINTIFY_SHOP_ID.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "title": {"type": "string"}, "blueprint_id": {"type": "number"}, "design_url": {"type": "string"}, "price": {"type": "number"}, "product_id": {"type": "string"}}, "required": ["action"]}},
+                {"name": "gumroad_publish", "description": "List digital products for sale on Gumroad. Actions: create | list | update | delete | sales. Requires GUMROAD_ACCESS_TOKEN.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "name": {"type": "string"}, "price": {"type": "number"}, "file_path": {"type": "string"}, "product_id": {"type": "string"}}, "required": ["action"]}},
+                {"name": "medium_publish", "description": "Publish articles to Medium. Requires MEDIUM_INTEGRATION_TOKEN. Returns live article URL. Medium Partner Program pays per read.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "content": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}, "publish_status": {"type": "string"}}, "required": ["title", "content"]}},
+                {"name": "auto_income_pipeline", "description": "Vesper's autonomous income loop: picks niche, creates product, lists on Gumroad, tweets. Runs without prompting for passive income.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "product_type": {"type": "string"}, "price": {"type": "number"}, "post_to_twitter": {"type": "boolean"}}, "required": []}},
+                {"name": "revenue_report", "description": "Pull live income from Gumroad + Etsy + Stripe. Unified revenue dashboard.", "input_schema": {"type": "object", "properties": {"sources": {"type": "array", "items": {"type": "string"}}, "days": {"type": "number"}}, "required": []}},
+                {"name": "app_builder", "description": "Build complete apps (React, Next.js, FastAPI, Chrome extension, SaaS MVP), ZIP them, optionally list on Gumroad for $97-$997.", "input_schema": {"type": "object", "properties": {"app_type": {"type": "string"}, "name": {"type": "string"}, "description": {"type": "string"}, "features": {"type": "array", "items": {"type": "string"}}, "sell_on_gumroad": {"type": "boolean"}, "price": {"type": "number"}}, "required": ["name", "description"]}},
                 {"name": "stripe_payment_link", "description": "Create Stripe payment links — product + price + URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number"}, "currency": {"type": "string"}, "billing": {"type": "string"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
                 {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with progress vs actuals. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string"}, "deadline": {"type": "string"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
                 {"name": "process_meeting_notes", "description": "Process meeting transcript or notes — extracts action items, decisions, follow-up emails, open questions. Saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string"}}, "required": ["transcript"]}},
@@ -10742,12 +10844,16 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "kdp_formatter": "📚 Formatting for KDP",
                     "tiktok_shop_research": "🎵 Researching TikTok Shop",
                     "printify_publish": "🖨️ Publishing to Printify",
+                    "gumroad_publish": "🛒 Publishing to Gumroad",
+                    "medium_publish": "✍️ Publishing to Medium",
+                    "auto_income_pipeline": "🤖 Running autonomous income pipeline",
+                    "revenue_report": "💰 Pulling revenue report",
+                    "app_builder": "🏗️ Building app",
                     "stripe_payment_link": "💳 Creating payment link",
                     "revenue_goals": "🎯 Tracking revenue goals",
                     "process_meeting_notes": "📝 Processing meeting notes",
                     "social_scheduler": "🗓️ Scheduling social post",
                     "gumroad_create_product": "🛒 Listing on Gumroad",
-                    "medium_publish": "📰 Publishing to Medium",
                     "post_to_linkedin": "💼 Posting to LinkedIn",
                     "post_to_twitter": "🐦 Posting to Twitter",
                     "stripe_create_invoice": "💳 Creating Stripe invoice",
@@ -11358,6 +11464,16 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await tiktok_shop_research(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "printify_publish":
                         tool_result = await printify_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "gumroad_publish":
+                        tool_result = await gumroad_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "medium_publish":
+                        tool_result = await medium_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "auto_income_pipeline":
+                        tool_result = await auto_income_pipeline(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "revenue_report":
+                        tool_result = await revenue_report(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "app_builder":
+                        tool_result = await app_builder(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "vesper_evolve":
                         tool_result = {"error":"Self-modification requires the non-streaming handler for safety. Switch to a non-streaming model or use run_shell to call the patch directly."}
                     elif tool_name == "desktop_control":

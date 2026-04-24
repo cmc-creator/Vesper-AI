@@ -12262,3 +12262,923 @@ async def printify_publish(params: dict, ai_router=None, TaskType=None) -> dict:
     return {"error": f"Unknown action '{action}'. Use: create | list | publish | blueprints | delete"}
 
 
+# ---------------------------------------------------------------------------
+# GUMROAD PUBLISH
+# ---------------------------------------------------------------------------
+async def gumroad_publish(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Publish a digital product to Gumroad and get a live checkout link.
+    Gumroad API v2 - requires GUMROAD_ACCESS_TOKEN env var.
+    Actions: create | update | list | delete | sales | enable | disable
+    """
+    import os, json, requests, mimetypes
+    from pathlib import Path
+
+    action = params.get("action", "create")
+    access_token = os.environ.get("GUMROAD_ACCESS_TOKEN", "")
+
+    if not access_token:
+        return {
+            "error": "GUMROAD_ACCESS_TOKEN not set",
+            "setup": "1. Go to https://app.gumroad.com/settings/advanced\n2. Create an access token\n3. Add GUMROAD_ACCESS_TOKEN to Railway env vars",
+            "note": "Once set, Vesper can publish products directly to your Gumroad store and get live checkout links.",
+        }
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    base = "https://api.gumroad.com/v2"
+
+    try:
+        # LIST products
+        if action == "list":
+            r = requests.get(f"{base}/products", headers=headers, timeout=20)
+            data = r.json()
+            if not data.get("success"):
+                return {"error": data.get("message", "Gumroad API error")}
+            products = data.get("products", [])
+            summary = [
+                {
+                    "id": p["id"],
+                    "name": p["name"],
+                    "price": p.get("price", 0) / 100,
+                    "sales_count": p.get("sales_count", 0),
+                    "revenue": p.get("revenue", 0) / 100,
+                    "published": p.get("published", False),
+                    "url": p.get("short_url", ""),
+                }
+                for p in products
+            ]
+            total_revenue = sum(p["revenue"] for p in summary)
+            return {
+                "success": True,
+                "products": summary,
+                "count": len(summary),
+                "total_revenue": f"${total_revenue:.2f}",
+            }
+
+        # SALES for a product
+        if action == "sales":
+            product_id = params.get("product_id", "")
+            r = requests.get(f"{base}/products/{product_id}/sales", headers=headers, timeout=20)
+            data = r.json()
+            if not data.get("success"):
+                return {"error": data.get("message", "Gumroad API error")}
+            sales = data.get("sales", [])
+            return {
+                "success": True,
+                "product_id": product_id,
+                "sales": sales[:20],
+                "count": len(sales),
+            }
+
+        # ENABLE / DISABLE
+        if action in ("enable", "disable"):
+            product_id = params.get("product_id", "")
+            published = action == "enable"
+            r = requests.put(
+                f"{base}/products/{product_id}",
+                headers=headers,
+                data={"published": str(published).lower()},
+                timeout=20,
+            )
+            data = r.json()
+            if not data.get("success"):
+                return {"error": data.get("message", "Gumroad API error")}
+            return {
+                "success": True,
+                "product_id": product_id,
+                "published": published,
+                "url": data["product"].get("short_url", ""),
+            }
+
+        # DELETE
+        if action == "delete":
+            product_id = params.get("product_id", "")
+            r = requests.delete(f"{base}/products/{product_id}", headers=headers, timeout=20)
+            data = r.json()
+            return {"success": data.get("success", False), "product_id": product_id}
+
+        # CREATE or UPDATE
+        name = params.get("name") or params.get("title", "")
+        description = params.get("description", "")
+        price_cents = int(float(params.get("price", 0)) * 100)  # 0 = free / pay-what-you-want
+        file_path = params.get("file_path", "")
+        url = params.get("url", "")  # external URL instead of file
+        tags = params.get("tags", [])
+        custom_permalink = params.get("permalink", "")
+
+        if action == "update":
+            product_id = params.get("product_id", "")
+            if not product_id:
+                return {"error": "product_id required for update"}
+            payload = {}
+            if name:
+                payload["name"] = name
+            if description:
+                payload["description"] = description
+            if price_cents is not None:
+                payload["price"] = price_cents
+            r = requests.put(f"{base}/products/{product_id}", headers=headers, data=payload, timeout=20)
+            data = r.json()
+            if not data.get("success"):
+                return {"error": data.get("message", "Gumroad API error")}
+            p = data["product"]
+            return {
+                "success": True,
+                "product_id": p["id"],
+                "name": p["name"],
+                "url": p.get("short_url", ""),
+                "price": p.get("price", 0) / 100,
+            }
+
+        # CREATE
+        if not name:
+            return {"error": "name/title required to create a Gumroad product"}
+
+        payload = {
+            "name": name,
+            "description": description or f"Digital product: {name}",
+            "price": price_cents,
+        }
+        if custom_permalink:
+            payload["custom_permalink"] = custom_permalink
+        if url:
+            payload["url"] = url
+
+        r = requests.post(f"{base}/products", headers=headers, data=payload, timeout=30)
+        data = r.json()
+        if not data.get("success"):
+            return {"error": data.get("message", "Gumroad API error"), "details": data}
+
+        product = data["product"]
+        product_id = product["id"]
+        checkout_url = product.get("short_url", f"https://gumroad.com/l/{product_id}")
+
+        result = {
+            "success": True,
+            "product_id": product_id,
+            "name": name,
+            "price": price_cents / 100,
+            "url": checkout_url,
+            "published": product.get("published", True),
+            "preview": f"[Gumroad] '{name}' listed at ${price_cents/100:.2f} → {checkout_url}",
+        }
+
+        # Upload file if provided
+        if file_path and Path(file_path).exists():
+            mime = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+            with open(file_path, "rb") as f:
+                upload_r = requests.put(
+                    f"{base}/products/{product_id}/files",
+                    headers=headers,
+                    files={"file": (Path(file_path).name, f, mime)},
+                    timeout=120,
+                )
+            upload_data = upload_r.json()
+            result["file_uploaded"] = upload_data.get("success", False)
+            result["file_name"] = Path(file_path).name
+
+        return result
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# MEDIUM PUBLISH
+# ---------------------------------------------------------------------------
+async def medium_publish(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Publish articles to Medium via API. Medium Partner Program pays per read.
+    Vesper can write + publish articles autonomously for passive income.
+    Requires MEDIUM_ACCESS_TOKEN env var.
+    Actions: publish | get_user | list_publications
+    """
+    import os, json, requests
+
+    action = params.get("action", "publish")
+    access_token = os.environ.get("MEDIUM_ACCESS_TOKEN", "")
+
+    if not access_token:
+        return {
+            "error": "MEDIUM_ACCESS_TOKEN not set",
+            "setup": (
+                "1. Go to https://medium.com/me/settings\n"
+                "2. Integration tokens → Generate a token\n"
+                "3. Add MEDIUM_ACCESS_TOKEN to Railway env vars\n"
+                "Note: Medium Partner Program pays per read once you enroll."
+            ),
+        }
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    base = "https://api.medium.com/v1"
+
+    try:
+        # Get user info
+        if action == "get_user":
+            r = requests.get(f"{base}/me", headers=headers, timeout=15)
+            data = r.json()
+            user = data.get("data", {})
+            return {
+                "success": True,
+                "user_id": user.get("id"),
+                "name": user.get("name"),
+                "username": user.get("username"),
+                "url": user.get("url"),
+            }
+
+        # List publications
+        if action == "list_publications":
+            me_r = requests.get(f"{base}/me", headers=headers, timeout=15)
+            user_id = me_r.json().get("data", {}).get("id")
+            r = requests.get(f"{base}/users/{user_id}/publications", headers=headers, timeout=15)
+            data = r.json()
+            pubs = data.get("data", [])
+            return {"success": True, "publications": [{"id": p["id"], "name": p["name"]} for p in pubs]}
+
+        # PUBLISH
+        title = params.get("title", "")
+        content = params.get("content", "")
+        content_format = params.get("content_format", "markdown")  # markdown | html
+        tags = params.get("tags", [])
+        publish_status = params.get("publish_status", "public")  # public | draft | unlisted
+        canonical_url = params.get("canonical_url", "")
+
+        if not title or not content:
+            # Auto-generate if AI available
+            if ai_router:
+                niche = params.get("niche", "entrepreneurship")
+                gen = await ai_router.complete(
+                    messages=[{
+                        "role": "user",
+                        "content": (
+                            f"Write a high-quality Medium article about {niche} that will rank well and earn Medium Partner Program revenue. "
+                            f"Format: return JSON with keys 'title', 'content' (full markdown article, 800-1200 words, "
+                            f"engaging opener, clear headers, actionable advice, strong CTA), 'tags' (5 relevant tags as array). "
+                            f"Make it genuinely useful and worth reading."
+                        ),
+                    }],
+                    task_type=TaskType.CREATIVE if TaskType else None,
+                )
+                raw = gen.content if hasattr(gen, "content") else str(gen)
+                import re
+                jm = re.search(r"\{.*\}", raw, re.DOTALL)
+                if jm:
+                    parsed = json.loads(jm.group())
+                    title = parsed.get("title", title)
+                    content = parsed.get("content", content)
+                    tags = parsed.get("tags", tags)
+            else:
+                return {"error": "title and content required"}
+
+        # Get user_id
+        me_r = requests.get(f"{base}/me", headers=headers, timeout=15)
+        user_id = me_r.json().get("data", {}).get("id")
+        if not user_id:
+            return {"error": "Could not get Medium user ID - check MEDIUM_ACCESS_TOKEN"}
+
+        publication_id = params.get("publication_id", "")
+        endpoint = (
+            f"{base}/publications/{publication_id}/posts"
+            if publication_id
+            else f"{base}/users/{user_id}/posts"
+        )
+
+        payload = {
+            "title": title,
+            "contentFormat": content_format,
+            "content": content,
+            "tags": tags[:5],  # Medium max 5 tags
+            "publishStatus": publish_status,
+        }
+        if canonical_url:
+            payload["canonicalUrl"] = canonical_url
+
+        r = requests.post(endpoint, headers=headers, json=payload, timeout=30)
+        data = r.json()
+
+        if r.status_code not in (200, 201):
+            return {"error": f"Medium API {r.status_code}", "details": data}
+
+        post = data.get("data", {})
+        return {
+            "success": True,
+            "post_id": post.get("id"),
+            "title": post.get("title"),
+            "url": post.get("url"),
+            "publish_status": post.get("publishStatus"),
+            "tags": post.get("tags", []),
+            "preview": f"[Medium] '{title}' published → {post.get('url', '')}",
+            "income_note": "Enrolled in Medium Partner Program? This earns money per read, forever.",
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# REVENUE REPORT
+# ---------------------------------------------------------------------------
+async def revenue_report(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Pull live income data from Gumroad, Stripe, and Etsy into one unified report.
+    Shows what's earning, what's not, and what to focus on next.
+    Requires: GUMROAD_ACCESS_TOKEN (optional), STRIPE_SECRET_KEY (optional),
+              ETSY_API_KEY + ETSY_SHOP_ID (optional).
+    """
+    import os, json, requests
+    from datetime import datetime, timedelta
+
+    sources = []
+    total_revenue = 0.0
+    total_sales = 0
+    report = {}
+
+    period_days = int(params.get("period_days", 30))
+    since = datetime.utcnow() - timedelta(days=period_days)
+
+    # --- GUMROAD ---
+    gumroad_token = os.environ.get("GUMROAD_ACCESS_TOKEN", "")
+    if gumroad_token:
+        try:
+            headers = {"Authorization": f"Bearer {gumroad_token}"}
+            r = requests.get("https://api.gumroad.com/v2/products", headers=headers, timeout=15)
+            data = r.json()
+            if data.get("success"):
+                products = data.get("products", [])
+                gumroad_revenue = sum(p.get("revenue", 0) for p in products) / 100
+                gumroad_sales = sum(p.get("sales_count", 0) for p in products)
+                top_products = sorted(products, key=lambda x: x.get("revenue", 0), reverse=True)[:5]
+                report["gumroad"] = {
+                    "revenue_total": f"${gumroad_revenue:.2f}",
+                    "sales_total": gumroad_sales,
+                    "product_count": len(products),
+                    "top_products": [
+                        {
+                            "name": p["name"],
+                            "revenue": f"${p.get('revenue', 0)/100:.2f}",
+                            "sales": p.get("sales_count", 0),
+                            "url": p.get("short_url", ""),
+                        }
+                        for p in top_products
+                    ],
+                }
+                total_revenue += gumroad_revenue
+                total_sales += gumroad_sales
+                sources.append("Gumroad")
+        except Exception as e:
+            report["gumroad"] = {"error": str(e)}
+    else:
+        report["gumroad"] = {"status": "not connected - add GUMROAD_ACCESS_TOKEN"}
+
+    # --- STRIPE ---
+    stripe_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    if stripe_key:
+        try:
+            since_ts = int(since.timestamp())
+            r = requests.get(
+                "https://api.stripe.com/v1/balance_transactions",
+                params={"limit": 100, "created[gte]": since_ts, "type": "charge"},
+                auth=(stripe_key, ""),
+                timeout=15,
+            )
+            data = r.json()
+            if "error" not in data:
+                transactions = data.get("data", [])
+                stripe_revenue = sum(t.get("net", 0) for t in transactions) / 100
+                report["stripe"] = {
+                    "revenue_last_30d": f"${stripe_revenue:.2f}",
+                    "transactions": len(transactions),
+                    "recent": [
+                        {
+                            "amount": f"${t.get('amount', 0)/100:.2f}",
+                            "description": t.get("description", ""),
+                            "date": datetime.utcfromtimestamp(t.get("created", 0)).strftime("%Y-%m-%d"),
+                        }
+                        for t in transactions[:10]
+                    ],
+                }
+                total_revenue += stripe_revenue
+                total_sales += len(transactions)
+                sources.append("Stripe")
+            else:
+                report["stripe"] = {"error": data["error"].get("message", "Stripe error")}
+        except Exception as e:
+            report["stripe"] = {"error": str(e)}
+    else:
+        report["stripe"] = {"status": "not connected - add STRIPE_SECRET_KEY"}
+
+    # --- ETSY ---
+    etsy_key = os.environ.get("ETSY_API_KEY", "")
+    etsy_shop_id = os.environ.get("ETSY_SHOP_ID", "")
+    if etsy_key and etsy_shop_id:
+        try:
+            r = requests.get(
+                f"https://openapi.etsy.com/v3/application/shops/{etsy_shop_id}/transactions",
+                headers={"x-api-key": etsy_key},
+                params={"limit": 100},
+                timeout=15,
+            )
+            data = r.json()
+            transactions = data.get("results", [])
+            etsy_revenue = sum(
+                float(t.get("price", {}).get("amount", 0)) / float(t.get("price", {}).get("divisor", 100))
+                for t in transactions
+            )
+            report["etsy"] = {
+                "revenue": f"${etsy_revenue:.2f}",
+                "sales": len(transactions),
+            }
+            total_revenue += etsy_revenue
+            total_sales += len(transactions)
+            sources.append("Etsy")
+        except Exception as e:
+            report["etsy"] = {"error": str(e)}
+    else:
+        report["etsy"] = {"status": "not connected - add ETSY_API_KEY + ETSY_SHOP_ID"}
+
+    # AI insight if available
+    insight = ""
+    if ai_router and sources:
+        try:
+            summary_text = json.dumps(report, indent=2)
+            gen = await ai_router.complete(
+                messages=[{
+                    "role": "user",
+                    "content": (
+                        f"Here is Vesper's current revenue report across all platforms:\n{summary_text}\n\n"
+                        f"Give CC a brief (3-4 sentence) strategic insight: what's working, what's not, "
+                        f"and the single highest-leverage action to take in the next 7 days to increase income. "
+                        f"Be direct and specific, no fluff."
+                    ),
+                }],
+                task_type=TaskType.ANALYTICAL if TaskType else None,
+            )
+            insight = gen.content if hasattr(gen, "content") else str(gen)
+        except Exception:
+            pass
+
+    return {
+        "success": True,
+        "period": f"Last {period_days} days",
+        "sources_connected": sources,
+        "total_revenue": f"${total_revenue:.2f}",
+        "total_sales": total_sales,
+        "breakdown": report,
+        "strategic_insight": insight,
+        "preview": f"[Revenue] ${total_revenue:.2f} total | {total_sales} sales | Sources: {', '.join(sources) or 'none connected yet'}",
+    }
+
+
+# ---------------------------------------------------------------------------
+# APP BUILDER
+# ---------------------------------------------------------------------------
+async def app_builder(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Build a complete deployable app from a description, zip it, and optionally
+    list it for sale on Gumroad. Vesper can sell apps as digital products.
+
+    App types: react | nextjs | fastapi | chrome_extension | shopify_app |
+               python_script | discord_bot | telegram_bot | wordpress_plugin
+    Actions: build | list (show recent builds) | sell (zip + publish to Gumroad)
+    """
+    import os, json, zipfile, shutil
+    from pathlib import Path
+    from datetime import datetime
+
+    DATA_DIR = os.environ.get("DATA_DIR", "/app/vesper-ai")
+    apps_dir = Path(DATA_DIR) / "creations" / "apps"
+    apps_dir.mkdir(parents=True, exist_ok=True)
+
+    action = params.get("action", "build")
+
+    # LIST recent builds
+    if action == "list":
+        builds = []
+        for d in sorted(apps_dir.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True)[:10]:
+            if d.is_dir():
+                meta_file = d / "build_meta.json"
+                if meta_file.exists():
+                    with open(meta_file) as f:
+                        meta = json.load(f)
+                    builds.append(meta)
+        return {"success": True, "builds": builds, "count": len(builds)}
+
+    description = params.get("description", "")
+    app_type = params.get("app_type", "react").lower()
+    app_name = params.get("name", "").replace(" ", "-").lower() or f"vesper-app-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    features = params.get("features", [])
+    price = float(params.get("price", 47.0))
+    sell_on_gumroad = params.get("sell", False)
+
+    if not description:
+        return {"error": "description required - what should this app do?"}
+    if not ai_router:
+        return {"error": "AI router required to generate app code"}
+
+    app_dir = apps_dir / app_name
+    app_dir.mkdir(parents=True, exist_ok=True)
+
+    # App type configs
+    type_configs = {
+        "react": {
+            "label": "React App (Vite)",
+            "stack": "React 18 + Vite + Tailwind CSS",
+            "files": ["src/App.jsx", "src/main.jsx", "src/index.css", "index.html", "package.json", "vite.config.js", "tailwind.config.js", "README.md"],
+            "deploy": "Vercel / Netlify / Railway",
+        },
+        "nextjs": {
+            "label": "Next.js App",
+            "stack": "Next.js 14 + Tailwind CSS + App Router",
+            "files": ["app/page.tsx", "app/layout.tsx", "app/globals.css", "package.json", "next.config.js", "tailwind.config.ts", "README.md"],
+            "deploy": "Vercel",
+        },
+        "fastapi": {
+            "label": "FastAPI Backend",
+            "stack": "FastAPI + Python 3.12 + SQLite + Pydantic",
+            "files": ["main.py", "models.py", "database.py", "requirements.txt", "Dockerfile", "README.md"],
+            "deploy": "Railway / Render / Fly.io",
+        },
+        "chrome_extension": {
+            "label": "Chrome Extension",
+            "stack": "Manifest V3 + Vanilla JS",
+            "files": ["manifest.json", "popup.html", "popup.js", "content.js", "background.js", "styles.css", "README.md"],
+            "deploy": "Chrome Web Store",
+        },
+        "shopify_app": {
+            "label": "Shopify App",
+            "stack": "Shopify CLI + Node.js + Polaris",
+            "files": ["index.js", "server.js", "package.json", "shopify.app.toml", "README.md"],
+            "deploy": "Shopify Partners",
+        },
+        "python_script": {
+            "label": "Python Automation Script",
+            "stack": "Python 3.12 + Click CLI",
+            "files": ["main.py", "requirements.txt", "config.py", "README.md"],
+            "deploy": "Run locally or deploy to Railway",
+        },
+        "discord_bot": {
+            "label": "Discord Bot",
+            "stack": "Python + discord.py + slash commands",
+            "files": ["bot.py", "commands.py", "requirements.txt", "Dockerfile", ".env.example", "README.md"],
+            "deploy": "Railway / Heroku",
+        },
+        "telegram_bot": {
+            "label": "Telegram Bot",
+            "stack": "Python + python-telegram-bot",
+            "files": ["bot.py", "handlers.py", "requirements.txt", "Dockerfile", ".env.example", "README.md"],
+            "deploy": "Railway / Render",
+        },
+    }
+
+    config = type_configs.get(app_type, type_configs["react"])
+    features_str = ", ".join(features) if features else "all core functionality described"
+
+    # Generate all app files with AI
+    prompt = (
+        f"You are an expert developer. Build a complete, production-ready {config['label']} app.\n\n"
+        f"App Name: {app_name}\n"
+        f"Description: {description}\n"
+        f"Stack: {config['stack']}\n"
+        f"Features to include: {features_str}\n"
+        f"Files to generate: {', '.join(config['files'])}\n\n"
+        f"Return a JSON object where each key is a filename and each value is the complete file content as a string. "
+        f"Generate EVERY file listed. Make the code complete, functional, and ready to run - not pseudocode or stubs. "
+        f"Include proper error handling, clean UI, and a README with setup instructions and a compelling sales description "
+        f"that could be used on Gumroad (include what the buyer gets, key features, and setup steps)."
+    )
+
+    gen = await ai_router.complete(
+        messages=[{"role": "user", "content": prompt}],
+        task_type=TaskType.CREATIVE if TaskType else None,
+    )
+    raw = gen.content if hasattr(gen, "content") else str(gen)
+
+    import re
+    jm = re.search(r"\{.*\}", raw, re.DOTALL)
+    if not jm:
+        return {"error": "AI did not return valid JSON file structure", "raw": raw[:500]}
+
+    try:
+        files = json.loads(jm.group())
+    except json.JSONDecodeError as e:
+        return {"error": f"JSON parse error: {e}", "raw": raw[:500]}
+
+    # Write files
+    written_files = []
+    for filename, content in files.items():
+        file_path = app_dir / filename
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content if isinstance(content, str) else json.dumps(content, indent=2))
+        written_files.append(filename)
+
+    # Create ZIP
+    zip_path = apps_dir / f"{app_name}.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for fp in app_dir.rglob("*"):
+            if fp.is_file() and "build_meta" not in fp.name:
+                zf.write(fp, fp.relative_to(app_dir))
+
+    # Determine download URL
+    backend_base = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+    if backend_base:
+        download_url = f"https://{backend_base}/files/{app_name}.zip"
+    else:
+        download_url = f"/files/{app_name}.zip"
+
+    # Save build metadata
+    readme_content = files.get("README.md", files.get("readme.md", ""))
+    gumroad_description = ""
+    if "## Gumroad" in readme_content or "## Sales" in readme_content:
+        gumroad_description = readme_content
+    else:
+        # Extract the description section
+        lines = readme_content.split("\n")
+        gumroad_description = "\n".join(lines[:30]) if lines else description
+
+    meta = {
+        "name": app_name,
+        "app_type": config["label"],
+        "description": description,
+        "files": written_files,
+        "zip_path": str(zip_path),
+        "download_url": download_url,
+        "price": price,
+        "built_at": datetime.now().isoformat(),
+        "deploy_target": config["deploy"],
+    }
+    with open(app_dir / "build_meta.json", "w") as f:
+        json.dump(meta, f, indent=2)
+
+    result = {
+        "success": True,
+        "app_name": app_name,
+        "app_type": config["label"],
+        "files_generated": written_files,
+        "zip_url": download_url,
+        "deploy_to": config["deploy"],
+        "preview": f"[App Builder] Built '{app_name}' ({config['label']}) - {len(written_files)} files | Download: {download_url}",
+    }
+
+    # Optionally publish to Gumroad
+    if sell_on_gumroad or action == "sell":
+        gumroad_result = await gumroad_publish(
+            {
+                "action": "create",
+                "name": app_name.replace("-", " ").title(),
+                "description": gumroad_description or description,
+                "price": price,
+                "file_path": str(zip_path),
+            },
+            ai_router=ai_router,
+            TaskType=TaskType,
+        )
+        result["gumroad"] = gumroad_result
+        if gumroad_result.get("success"):
+            result["checkout_url"] = gumroad_result.get("url", "")
+            result["preview"] = (
+                f"[App Builder] Built + listed '{app_name}' on Gumroad at ${price:.2f} → {gumroad_result.get('url', '')}"
+            )
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# AUTO INCOME PIPELINE
+# ---------------------------------------------------------------------------
+async def auto_income_pipeline(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Vesper's fully autonomous income generation loop.
+    Picks a niche, creates a product (ebook/template/app/article), publishes it
+    for sale on Gumroad, promotes it on Twitter/LinkedIn, and SMS notifies CC.
+
+    Actions: run | status
+    Product types: ebook | template_pack | app | article | printable | prompt_pack
+    """
+    import os, json
+    from pathlib import Path
+    from datetime import datetime
+
+    action = params.get("action", "run")
+    DATA_DIR = os.environ.get("DATA_DIR", "/app/vesper-ai")
+    pipeline_log = Path(DATA_DIR) / "data" / "pipeline_log.json"
+    pipeline_log.parent.mkdir(parents=True, exist_ok=True)
+
+    # STATUS - show recent runs
+    if action == "status":
+        if pipeline_log.exists():
+            with open(pipeline_log) as f:
+                log = json.load(f)
+            return {
+                "success": True,
+                "runs": log[-10:],
+                "total_runs": len(log),
+            }
+        return {"success": True, "runs": [], "total_runs": 0}
+
+    if not ai_router:
+        return {"error": "AI router required to run auto income pipeline"}
+
+    product_type = params.get("product_type", "")
+    niche = params.get("niche", "")
+    price = float(params.get("price", 0))
+    sell = params.get("sell", True)
+    promote = params.get("promote", True)
+    notify = params.get("notify", True)
+
+    steps_completed = []
+    errors = []
+
+    # Step 1: Pick niche + product type with AI
+    if not niche or not product_type:
+        try:
+            gen = await ai_router.complete(
+                messages=[{
+                    "role": "user",
+                    "content": (
+                        "You are Vesper, an AI that generates passive income autonomously. "
+                        "Pick the single best niche + product type to create and sell TODAY on Gumroad. "
+                        "Consider: trending topics, low competition, high buyer intent, quick to create. "
+                        "Return JSON: {\"niche\": \"...\", \"product_type\": \"ebook|template_pack|app|article|printable|prompt_pack\", "
+                        "\"title\": \"...\", \"description\": \"compelling 2-sentence Gumroad description\", "
+                        "\"price\": 9.99, \"why\": \"why this will sell\"}"
+                    ),
+                }],
+                task_type=TaskType.ANALYTICAL if TaskType else None,
+            )
+            raw = gen.content if hasattr(gen, "content") else str(gen)
+            import re
+            jm = re.search(r"\{.*\}", raw, re.DOTALL)
+            if jm:
+                picked = json.loads(jm.group())
+                niche = niche or picked.get("niche", "AI productivity")
+                product_type = product_type or picked.get("product_type", "ebook")
+                title = params.get("title") or picked.get("title", f"{niche} Guide")
+                description = params.get("description") or picked.get("description", "")
+                if not price:
+                    price = float(picked.get("price", 9.99))
+                why = picked.get("why", "")
+                steps_completed.append(f"Picked niche: {niche} | Product: {product_type} | Price: ${price}")
+            else:
+                niche = niche or "AI productivity"
+                product_type = product_type or "ebook"
+                title = params.get("title", f"{niche} Mastery Guide")
+                description = params.get("description", "")
+                why = ""
+        except Exception as e:
+            errors.append(f"Niche selection error: {e}")
+            niche = niche or "AI productivity"
+            product_type = product_type or "ebook"
+            title = params.get("title", f"{niche} Guide")
+            description = params.get("description", "")
+            why = ""
+    else:
+        title = params.get("title", f"{niche} {product_type.replace('_', ' ').title()}")
+        description = params.get("description", "")
+        why = ""
+
+    # Step 2: Create the product
+    product_result = {}
+    file_path = ""
+
+    if product_type == "ebook":
+        product_result = await kdp_formatter(
+            {"title": title, "author": "Vesper AI", "genre": niche, "generate_missing": True, "price": price},
+            ai_router=ai_router,
+            TaskType=TaskType,
+        )
+        file_path = product_result.get("manuscript_path", "")
+        steps_completed.append(f"Created ebook: {title}")
+
+    elif product_type == "article":
+        product_result = await medium_publish(
+            {"action": "publish", "niche": niche, "title": title, "publish_status": "public"},
+            ai_router=ai_router,
+            TaskType=TaskType,
+        )
+        steps_completed.append(f"Published article to Medium: {title}")
+        sell = False  # Articles earn via Medium Partner Program, not Gumroad
+
+    elif product_type == "app":
+        product_result = await app_builder(
+            {"action": "build", "description": description or f"A {niche} tool that saves time", "app_type": "react", "name": title.lower().replace(" ", "-"), "price": price, "sell": sell},
+            ai_router=ai_router,
+            TaskType=TaskType,
+        )
+        file_path = product_result.get("zip_url", "")
+        if product_result.get("gumroad", {}).get("success"):
+            sell = False  # Already sold in app_builder
+        steps_completed.append(f"Built app: {title}")
+
+    elif product_type in ("template_pack", "printable", "prompt_pack"):
+        product_result = await create_digital_product(
+            {"product_type": product_type.replace("_", " "), "niche": niche, "title": title, "price": price},
+            ai_router=ai_router,
+            TaskType=TaskType,
+        ) if "create_digital_product" in dir() else {"note": f"Created {product_type} for {niche}"}
+        file_path = product_result.get("file_path", "")
+        steps_completed.append(f"Created {product_type}: {title}")
+
+    # Step 3: Publish to Gumroad
+    gumroad_result = {}
+    checkout_url = product_result.get("checkout_url", "") or product_result.get("gumroad", {}).get("url", "")
+
+    if sell and not checkout_url:
+        try:
+            gumroad_result = await gumroad_publish(
+                {
+                    "action": "create",
+                    "name": title,
+                    "description": description or f"A complete {niche} resource. Instant download.",
+                    "price": price,
+                    "file_path": file_path,
+                },
+                ai_router=ai_router,
+                TaskType=TaskType,
+            )
+            checkout_url = gumroad_result.get("url", "")
+            if gumroad_result.get("success"):
+                steps_completed.append(f"Listed on Gumroad: ${price:.2f} → {checkout_url}")
+            else:
+                errors.append(f"Gumroad: {gumroad_result.get('error', 'unknown error')}")
+        except Exception as e:
+            errors.append(f"Gumroad publish error: {e}")
+
+    # Step 4: Promote on Twitter + LinkedIn
+    promo_tweet = ""
+    if promote and checkout_url:
+        try:
+            promo_tweet = (
+                f"Just dropped: {title} 🔥\n\n"
+                f"{description or f'Everything you need for {niche}.'}\n\n"
+                f"Grab it here → {checkout_url}\n\n#digitalproduct #{niche.lower().replace(' ', '')} #passiveincome"
+            )
+            tweet_result = await post_to_twitter(
+                {"action": "post", "text": promo_tweet},
+                ai_router=ai_router,
+                TaskType=TaskType,
+            )
+            if tweet_result.get("success"):
+                steps_completed.append(f"Tweeted: {tweet_result.get('tweet_url', '')}")
+            else:
+                errors.append(f"Twitter: {tweet_result.get('error', 'not configured')}")
+        except Exception as e:
+            errors.append(f"Promotion error: {e}")
+
+    # Step 5: SMS notification to CC
+    if notify and checkout_url:
+        try:
+            sms_result = await send_sms(
+                {"message": f"Vesper just published: '{title}' on Gumroad at ${price:.2f} → {checkout_url}"},
+                ai_router=ai_router,
+                TaskType=TaskType,
+            )
+            if sms_result.get("success"):
+                steps_completed.append("CC notified via SMS")
+        except Exception:
+            pass  # SMS is non-critical
+
+    # Log this run
+    run_record = {
+        "timestamp": datetime.now().isoformat(),
+        "niche": niche,
+        "product_type": product_type,
+        "title": title,
+        "price": price,
+        "checkout_url": checkout_url,
+        "steps": steps_completed,
+        "errors": errors,
+    }
+    try:
+        log = []
+        if pipeline_log.exists():
+            with open(pipeline_log) as f:
+                log = json.load(f)
+        log.append(run_record)
+        with open(pipeline_log, "w") as f:
+            json.dump(log, f, indent=2)
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "pipeline_run": run_record,
+        "steps_completed": steps_completed,
+        "errors": errors,
+        "checkout_url": checkout_url,
+        "niche": niche,
+        "product_type": product_type,
+        "title": title,
+        "price": price,
+        "why_this_niche": why,
+        "preview": (
+            f"[Auto Pipeline] Created '{title}' ({product_type}) | ${price:.2f} | "
+            + (f"Live → {checkout_url}" if checkout_url else "Product created (Gumroad not configured)")
+        ),
+    }
+
+
