@@ -107,18 +107,26 @@ class AIRouter:
                 self.groq_client = AsyncGroq(api_key=groq_key)
                 print("[OK] Groq configured (free tier: 14k req/day)")
 
-        # Check Ollama availability
+        # Check Ollama availability — supports OLLAMA_HOST for remote instances
+        # Set OLLAMA_HOST=http://your-machine:11434 in Railway env vars to use a remote Ollama server
+        self.ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
         if OLLAMA_AVAILABLE:
             try:
-                ollama.list()
-                self.ollama_available = True
-                # Determine if Ollama is actually primary (only if no cloud providers available)
-                has_cloud = bool(self.anthropic_client or self.openai_client or self.google_client)
-                print(f"[OK] Ollama (local) available - {'FALLBACK' if has_cloud else 'PRIMARY (no cloud keys)'}")
-            except Exception:
-                print("[WARN] Ollama not available (install: https://ollama.ai)")
+                import httpx as _httpx
+                _r = _httpx.get(f"{self.ollama_host}/api/tags", timeout=5)
+                if _r.status_code == 200:
+                    self.ollama_available = True
+                    has_cloud = bool(self.anthropic_client or self.openai_client or self.google_client)
+                    print(f"[OK] Ollama available at {self.ollama_host} - {'FALLBACK' if has_cloud else 'PRIMARY (no cloud keys)'}")
+                else:
+                    print(f"[WARN] Ollama at {self.ollama_host} returned {_r.status_code}")
+            except Exception as _e:
+                if self.ollama_host != "http://localhost:11434":
+                    print(f"[WARN] Ollama not reachable at {self.ollama_host}: {_e}")
+                else:
+                    print("[WARN] Ollama not available locally (set OLLAMA_HOST to use a remote instance)")
         else:
-            print("[WARN] Ollama not available (install: https://ollama.ai)")
+            print("[WARN] Ollama not available (pip install ollama, or set OLLAMA_HOST for remote)")
         
         # Set up routing strategy after detecting environment
         self._setup_routing_strategy()
@@ -600,16 +608,21 @@ class AIRouter:
         }
     
     async def _chat_ollama(self, messages, model, max_tokens, temperature):
-        """Chat with local Ollama"""
-        response = ollama.chat(
-            model=model,
-            messages=messages,
-            options={
-                "num_predict": max_tokens,
-                "temperature": temperature
-            }
-        )
-        
+        """Chat with Ollama (local or remote via OLLAMA_HOST env var)"""
+        import asyncio
+        host = getattr(self, "ollama_host", os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/"))
+        # Run synchronous ollama.chat in a thread to avoid blocking the async event loop
+        def _sync_chat():
+            client = ollama.Client(host=host)
+            return client.chat(
+                model=model,
+                messages=messages,
+                options={
+                    "num_predict": max_tokens,
+                    "temperature": temperature
+                }
+            )
+        response = await asyncio.to_thread(_sync_chat)
         return {
             "content": response["message"]["content"],
             "provider": ModelProvider.OLLAMA.value,
