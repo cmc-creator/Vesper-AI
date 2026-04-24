@@ -134,6 +134,8 @@ try:
         kdp_formatter, tiktok_shop_research, printify_publish,
         gumroad_publish, medium_publish, auto_income_pipeline,
         revenue_report, app_builder,
+        playstore_publish, pwa_builder, code_reviewer, test_generator,
+        ui_theme_generator, landing_page_builder, app_store_optimizer, api_builder,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -262,6 +264,14 @@ except Exception as _tc_err:
     async def auto_income_pipeline(p, **kw): return {"error": "tools_creative not loaded"}
     async def revenue_report(p, **kw): return {"error": "tools_creative not loaded"}
     async def app_builder(p, **kw): return {"error": "tools_creative not loaded"}
+    async def playstore_publish(p, **kw): return {"error": "tools_creative not loaded"}
+    async def pwa_builder(p, **kw): return {"error": "tools_creative not loaded"}
+    async def code_reviewer(p, **kw): return {"error": "tools_creative not loaded"}
+    async def test_generator(p, **kw): return {"error": "tools_creative not loaded"}
+    async def ui_theme_generator(p, **kw): return {"error": "tools_creative not loaded"}
+    async def landing_page_builder(p, **kw): return {"error": "tools_creative not loaded"}
+    async def app_store_optimizer(p, **kw): return {"error": "tools_creative not loaded"}
+    async def api_builder(p, **kw): return {"error": "tools_creative not loaded"}
 
 try:
     from google_sheets import google_sheets_tool
@@ -1984,6 +1994,14 @@ You have 32+ specialized income-generating and execution tools. Do NOT wait for 
 - Run `auto_income_pipeline` autonomously or when CC wants passive income created without prompting
 - Run `revenue_report` to check what's actually making money across Gumroad, Etsy, and Stripe
 - When CC or Vesper wants to build a web app, tool, or SaaS → run `app_builder` and ZIP + optionally sell on Gumroad
+- After `app_builder` finishes → automatically run `pwa_builder` to make it installable as an Android app
+- After any app or API is built → run `code_reviewer` (review_type=security) before deploying
+- After any app is built → run `test_generator` to generate its test suite automatically
+- When building any app → run `ui_theme_generator` first to generate the design system, then pass it to `app_builder`
+- When Vesper finishes an app → run `landing_page_builder` to create a marketing page and `app_store_optimizer` for Play Store listing
+- When CC builds a backend/API → use `api_builder` for a complete production project with auth + docs + Docker
+- When an app is ready for Play Store → run `pwa_builder` (get Bubblewrap config) → then `playstore_publish` to upload
+- Run `code_reviewer` review_type=full on any code CC shares before it goes live
 - When CC mentions Etsy → run `etsy_publish` to create or manage listings via API
 - When CC wants to sell services locally → run `ai_automation_service` to build the full pitch + proposal + outreach
 - When CC mentions dropshipping or wants a store → run `dropshipping_research` to find winning products immediately
@@ -7324,6 +7342,154 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     "required": ["name", "description"],
                 },
             },
+            {
+                "name": "playstore_publish",
+                "description": "Manage apps on Google Play Store via the Android Publisher API. Upload APKs/AABs, update store listings, promote between tracks (internal→alpha→beta→production), get user reviews. Requires GOOGLE_PLAY_SERVICE_ACCOUNT_JSON + GOOGLE_PLAY_PACKAGE_NAME.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "upload_apk | upload_aab | update_listing | get_app | promote_track | get_reviews"},
+                        "package_name": {"type": "string", "description": "e.g. com.yourcompany.app"},
+                        "file_path": {"type": "string", "description": "Path to APK or AAB file"},
+                        "track": {"type": "string", "description": "internal | alpha | beta | production"},
+                        "from_track": {"type": "string"},
+                        "to_track": {"type": "string"},
+                        "title": {"type": "string", "description": "Store listing title (max 50 chars)"},
+                        "short_description": {"type": "string", "description": "Max 80 chars"},
+                        "full_description": {"type": "string", "description": "Max 4000 chars"},
+                        "language": {"type": "string", "description": "Locale e.g. en-US"},
+                    },
+                    "required": ["action"],
+                },
+            },
+            {
+                "name": "pwa_builder",
+                "description": "Generate a complete Progressive Web App layer: manifest.json, service worker (offline+push+sync), pwa-install.js, offline.html, Bubblewrap config for Android APK, HTML shell with all meta tags. Bridging web apps to Google Play.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "App name"},
+                        "short_name": {"type": "string", "description": "Short name for home screen (max 12 chars)"},
+                        "description": {"type": "string"},
+                        "theme_color": {"type": "string", "description": "Hex color e.g. #6366f1"},
+                        "background_color": {"type": "string"},
+                        "start_url": {"type": "string"},
+                        "host": {"type": "string", "description": "Your deployed domain e.g. myapp.com"},
+                        "package_name": {"type": "string", "description": "Android package name e.g. com.company.app"},
+                        "output_dir": {"type": "string"},
+                        "include_shell": {"type": "boolean"},
+                    },
+                    "required": ["name"],
+                },
+            },
+            {
+                "name": "code_reviewer",
+                "description": "AI-powered code review covering security (OWASP Top 10), performance, accessibility (WCAG 2.1), bugs, best practices, and architecture. Returns scored findings with fixes. Use on any code before deploying.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "code": {"type": "string", "description": "Code to review"},
+                        "file_path": {"type": "string", "description": "Path to file to review (alternative to code)"},
+                        "language": {"type": "string", "description": "Programming language (auto-detected if omitted)"},
+                        "review_type": {"type": "string", "description": "full | security | performance | accessibility | bugs | quick"},
+                        "context": {"type": "string", "description": "What the code is supposed to do"},
+                        "severity_threshold": {"type": "string", "description": "Filter: critical | high | medium | low"},
+                    },
+                    "required": [],
+                },
+            },
+            {
+                "name": "test_generator",
+                "description": "Generate comprehensive test suites (unit, integration, e2e, API, snapshot) for any code. Supports Jest, Vitest, Pytest, Playwright, Cypress, Supertest. Writes test files to disk.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "code": {"type": "string", "description": "Code to test"},
+                        "file_path": {"type": "string", "description": "Path to file to test"},
+                        "framework": {"type": "string", "description": "jest | vitest | pytest | playwright | cypress | supertest | go_test"},
+                        "test_types": {"type": "array", "items": {"type": "string"}, "description": "unit | integration | e2e | snapshot | api"},
+                        "output_path": {"type": "string"},
+                        "coverage_target": {"type": "number", "description": "Target coverage % (default 80)"},
+                    },
+                    "required": [],
+                },
+            },
+            {
+                "name": "ui_theme_generator",
+                "description": "Generate a complete design system: CSS variables (tokens), Tailwind config, Google Fonts, component styles (buttons, inputs, cards, modals, badges, alerts, nav, skeleton), dark mode. style: modern | minimal | bold | playful | dark | corporate | glassmorphism.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "brand_name": {"type": "string"},
+                        "style": {"type": "string", "description": "modern | minimal | bold | playful | dark | corporate | glassmorphism"},
+                        "primary_color": {"type": "string", "description": "Hex color e.g. #6366f1 (auto-chosen if omitted)"},
+                        "dark_mode": {"type": "boolean"},
+                        "include_components": {"type": "boolean"},
+                        "font_style": {"type": "string", "description": "sans | serif | mono | mixed"},
+                        "output_dir": {"type": "string"},
+                    },
+                    "required": ["brand_name"],
+                },
+            },
+            {
+                "name": "landing_page_builder",
+                "description": "Build a high-converting landing page — complete self-contained HTML file (no dependencies). Includes copywriting, social proof, FAQ, pricing, CTA, dark mode, mobile-first, Core Web Vitals optimized. style: modern | saas | ebook | course | app | agency.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Product or service name"},
+                        "description": {"type": "string"},
+                        "target_audience": {"type": "string"},
+                        "price": {"type": "number"},
+                        "cta": {"type": "string", "description": "CTA button text"},
+                        "cta_url": {"type": "string"},
+                        "style": {"type": "string", "description": "modern | saas | ebook | course | app | agency"},
+                        "features": {"type": "array", "items": {"type": "string"}},
+                        "testimonials": {"type": "array", "items": {"type": "object"}},
+                        "include_pricing": {"type": "boolean"},
+                        "include_faq": {"type": "boolean"},
+                        "output_dir": {"type": "string"},
+                    },
+                    "required": ["name"],
+                },
+            },
+            {
+                "name": "app_store_optimizer",
+                "description": "ASO for Google Play and Apple App Store. Generates optimized title, description, keywords, screenshot descriptions, categories, A/B test variants, and rating strategy. Maximizes search ranking and conversion.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "app_name": {"type": "string"},
+                        "description": {"type": "string"},
+                        "category": {"type": "string"},
+                        "target_audience": {"type": "string"},
+                        "competitors": {"type": "array", "items": {"type": "string"}},
+                        "stores": {"type": "array", "items": {"type": "string"}, "description": "play_store | app_store | both"},
+                        "price_model": {"type": "string", "description": "free | paid | freemium"},
+                    },
+                    "required": ["app_name"],
+                },
+            },
+            {
+                "name": "api_builder",
+                "description": "Generate a complete, production-ready REST API project with full project structure, auth, database models, rate limiting, CORS, validation, OpenAPI docs, Docker, and tests. Writes all files to disk and ZIPs. Can sell on Gumroad. framework: fastapi | express | nestjs | gin.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "API project name"},
+                        "description": {"type": "string", "description": "What the API does"},
+                        "framework": {"type": "string", "description": "fastapi | express | nestjs | gin"},
+                        "resources": {"type": "array", "items": {"type": "string"}, "description": "Entities e.g. users, posts, orders"},
+                        "auth_type": {"type": "string", "description": "jwt | api_key | oauth2 | none"},
+                        "db_type": {"type": "string", "description": "postgresql | mysql | sqlite | mongodb"},
+                        "include_tests": {"type": "boolean"},
+                        "include_docker": {"type": "boolean"},
+                        "sell_on_gumroad": {"type": "boolean"},
+                        "price": {"type": "number"},
+                    },
+                    "required": ["name", "description"],
+                },
+            },
             {"name": "stripe_payment_link", "description": "Create Stripe payment links instantly — product + price + shareable URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "create | list | deactivate"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number", "description": "Amount in dollars"}, "currency": {"type": "string"}, "billing": {"type": "string", "description": "one_time | monthly | yearly"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
             {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with real progress vs ledger. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string", "description": "monthly | quarterly | annual | custom"}, "deadline": {"type": "string", "description": "YYYY-MM-DD"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
             {"name": "process_meeting_notes", "description": "Process any meeting transcript or rough notes with AI — extracts action items, decisions, follow-up emails, open questions, and saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string", "description": "Raw meeting text, Zoom transcript, or rough notes"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string", "description": "full | actions_only | summary_only"}}, "required": ["transcript"]}},
@@ -9415,6 +9581,22 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await revenue_report(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "app_builder":
                     tool_result = await app_builder(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "playstore_publish":
+                    tool_result = await playstore_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "pwa_builder":
+                    tool_result = await pwa_builder(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "code_reviewer":
+                    tool_result = await code_reviewer(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "test_generator":
+                    tool_result = await test_generator(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "ui_theme_generator":
+                    tool_result = await ui_theme_generator(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "landing_page_builder":
+                    tool_result = await landing_page_builder(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "app_store_optimizer":
+                    tool_result = await app_store_optimizer(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "api_builder":
+                    tool_result = await api_builder(tool_input, ai_router=ai_router, TaskType=TaskType)
 
                 elif tool_name == "stripe_create_invoice":
                     import urllib.request as _streq, urllib.parse as _stparse, json as _stj
@@ -10611,6 +10793,14 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "auto_income_pipeline", "description": "Vesper's autonomous income loop: picks niche, creates product, lists on Gumroad, tweets. Runs without prompting for passive income.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "product_type": {"type": "string"}, "price": {"type": "number"}, "post_to_twitter": {"type": "boolean"}}, "required": []}},
                 {"name": "revenue_report", "description": "Pull live income from Gumroad + Etsy + Stripe. Unified revenue dashboard.", "input_schema": {"type": "object", "properties": {"sources": {"type": "array", "items": {"type": "string"}}, "days": {"type": "number"}}, "required": []}},
                 {"name": "app_builder", "description": "Build complete apps (React, Next.js, FastAPI, Chrome extension, SaaS MVP), ZIP them, optionally list on Gumroad for $97-$997.", "input_schema": {"type": "object", "properties": {"app_type": {"type": "string"}, "name": {"type": "string"}, "description": {"type": "string"}, "features": {"type": "array", "items": {"type": "string"}}, "sell_on_gumroad": {"type": "boolean"}, "price": {"type": "number"}}, "required": ["name", "description"]}},
+                {"name": "playstore_publish", "description": "Manage Google Play Store apps via Publisher API. Upload APKs/AABs, update listing, promote tracks (internal→alpha→beta→production), get reviews. Requires GOOGLE_PLAY_SERVICE_ACCOUNT_JSON.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "package_name": {"type": "string"}, "file_path": {"type": "string"}, "track": {"type": "string"}, "from_track": {"type": "string"}, "to_track": {"type": "string"}, "title": {"type": "string"}, "short_description": {"type": "string"}, "full_description": {"type": "string"}}, "required": ["action"]}},
+                {"name": "pwa_builder", "description": "Generate complete PWA layer: manifest.json, service worker (offline+push+sync), pwa-install.js, offline.html, Bubblewrap config for Android APK. Bridge web apps to Google Play.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "short_name": {"type": "string"}, "description": {"type": "string"}, "theme_color": {"type": "string"}, "host": {"type": "string"}, "package_name": {"type": "string"}, "output_dir": {"type": "string"}}, "required": ["name"]}},
+                {"name": "code_reviewer", "description": "AI code review: security (OWASP Top 10), performance, accessibility (WCAG 2.1), bugs, best practices. Returns scored findings with fixes. review_type: full | security | performance | accessibility | bugs | quick.", "input_schema": {"type": "object", "properties": {"code": {"type": "string"}, "file_path": {"type": "string"}, "language": {"type": "string"}, "review_type": {"type": "string"}, "context": {"type": "string"}, "severity_threshold": {"type": "string"}}, "required": []}},
+                {"name": "test_generator", "description": "Generate test suites (unit/integration/e2e/API/snapshot) for any code. Supports Jest, Vitest, Pytest, Playwright, Cypress. Writes test files to disk.", "input_schema": {"type": "object", "properties": {"code": {"type": "string"}, "file_path": {"type": "string"}, "framework": {"type": "string"}, "test_types": {"type": "array", "items": {"type": "string"}}, "output_path": {"type": "string"}, "coverage_target": {"type": "number"}}, "required": []}},
+                {"name": "ui_theme_generator", "description": "Generate complete design system: CSS variables, Tailwind config, Google Fonts, all component styles (buttons/inputs/cards/modals/nav/skeleton), dark mode. style: modern | minimal | bold | playful | dark | corporate | glassmorphism.", "input_schema": {"type": "object", "properties": {"brand_name": {"type": "string"}, "style": {"type": "string"}, "primary_color": {"type": "string"}, "dark_mode": {"type": "boolean"}, "include_components": {"type": "boolean"}, "output_dir": {"type": "string"}}, "required": ["brand_name"]}},
+                {"name": "landing_page_builder", "description": "Build high-converting landing pages — complete self-contained HTML (no deps). Includes copywriting, social proof, FAQ, pricing, CTA (3x), dark mode, mobile-first. style: modern | saas | ebook | course | app | agency.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "description": {"type": "string"}, "target_audience": {"type": "string"}, "price": {"type": "number"}, "cta": {"type": "string"}, "cta_url": {"type": "string"}, "style": {"type": "string"}, "features": {"type": "array", "items": {"type": "string"}}}, "required": ["name"]}},
+                {"name": "app_store_optimizer", "description": "ASO for Google Play + Apple App Store. Optimized title, description, keywords, screenshot descriptions, categories, A/B variants, rating strategy. Maximizes search ranking and install conversion.", "input_schema": {"type": "object", "properties": {"app_name": {"type": "string"}, "description": {"type": "string"}, "category": {"type": "string"}, "target_audience": {"type": "string"}, "stores": {"type": "array", "items": {"type": "string"}}, "price_model": {"type": "string"}}, "required": ["app_name"]}},
+                {"name": "api_builder", "description": "Generate complete production REST API project (full files on disk + ZIP): auth, database models, rate limiting, CORS, validation, OpenAPI docs, Docker, tests. Sells on Gumroad optionally. framework: fastapi | express | nestjs | gin.", "input_schema": {"type": "object", "properties": {"name": {"type": "string"}, "description": {"type": "string"}, "framework": {"type": "string"}, "resources": {"type": "array", "items": {"type": "string"}}, "auth_type": {"type": "string"}, "db_type": {"type": "string"}, "sell_on_gumroad": {"type": "boolean"}, "price": {"type": "number"}}, "required": ["name", "description"]}},
                 {"name": "stripe_payment_link", "description": "Create Stripe payment links — product + price + URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number"}, "currency": {"type": "string"}, "billing": {"type": "string"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
                 {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with progress vs actuals. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string"}, "deadline": {"type": "string"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
                 {"name": "process_meeting_notes", "description": "Process meeting transcript or notes — extracts action items, decisions, follow-up emails, open questions. Saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string"}}, "required": ["transcript"]}},
@@ -10849,6 +11039,14 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "auto_income_pipeline": "🤖 Running autonomous income pipeline",
                     "revenue_report": "💰 Pulling revenue report",
                     "app_builder": "🏗️ Building app",
+                    "playstore_publish": "📱 Publishing to Google Play",
+                    "pwa_builder": "📲 Building PWA layer",
+                    "code_reviewer": "🔍 Reviewing code",
+                    "test_generator": "🧪 Generating tests",
+                    "ui_theme_generator": "🎨 Generating design system",
+                    "landing_page_builder": "🚀 Building landing page",
+                    "app_store_optimizer": "📊 Optimizing app store listing",
+                    "api_builder": "⚙️ Building API",
                     "stripe_payment_link": "💳 Creating payment link",
                     "revenue_goals": "🎯 Tracking revenue goals",
                     "process_meeting_notes": "📝 Processing meeting notes",
@@ -11474,6 +11672,22 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await revenue_report(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "app_builder":
                         tool_result = await app_builder(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "playstore_publish":
+                        tool_result = await playstore_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "pwa_builder":
+                        tool_result = await pwa_builder(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "code_reviewer":
+                        tool_result = await code_reviewer(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "test_generator":
+                        tool_result = await test_generator(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "ui_theme_generator":
+                        tool_result = await ui_theme_generator(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "landing_page_builder":
+                        tool_result = await landing_page_builder(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "app_store_optimizer":
+                        tool_result = await app_store_optimizer(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "api_builder":
+                        tool_result = await api_builder(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "vesper_evolve":
                         tool_result = {"error":"Self-modification requires the non-streaming handler for safety. Switch to a non-streaming model or use run_shell to call the patch directly."}
                     elif tool_name == "desktop_control":

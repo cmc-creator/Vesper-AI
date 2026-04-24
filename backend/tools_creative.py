@@ -13182,3 +13182,1249 @@ async def auto_income_pipeline(params: dict, ai_router=None, TaskType=None) -> d
     }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# GOOGLE PLAY STORE PUBLISHING
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def playstore_publish(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Manage apps on Google Play via the Android Publisher API.
+    Actions: upload_apk | upload_aab | update_listing | get_app | promote_track | get_reviews
+    Requires:
+      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON  - path to service account JSON file (or JSON string)
+      GOOGLE_PLAY_PACKAGE_NAME          - e.g. com.yourcompany.app
+    """
+    import os
+    import json
+
+    action = params.get("action", "get_app")
+    package_name = params.get("package_name") or os.getenv("GOOGLE_PLAY_PACKAGE_NAME", "")
+    service_account_json = os.getenv("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", "")
+    file_path = params.get("file_path", "")
+    track = params.get("track", "internal")  # internal | alpha | beta | production
+
+    if not service_account_json:
+        return {
+            "error": "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON env var not set",
+            "setup": (
+                "1. Go to Google Play Console → Setup → API access → Link Google Cloud project "
+                "→ Create service account with 'Release manager' role → Download JSON key "
+                "→ Set GOOGLE_PLAY_SERVICE_ACCOUNT_JSON=/path/to/key.json"
+            ),
+            "docs": "https://developers.google.com/android-publisher/getting_started",
+        }
+
+    try:
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+        from googleapiclient.http import MediaFileUpload
+
+        if os.path.isfile(service_account_json):
+            credentials = service_account.Credentials.from_service_account_file(
+                service_account_json,
+                scopes=["https://www.googleapis.com/auth/androidpublisher"],
+            )
+        else:
+            sa_info = json.loads(service_account_json)
+            credentials = service_account.Credentials.from_service_account_info(
+                sa_info,
+                scopes=["https://www.googleapis.com/auth/androidpublisher"],
+            )
+
+        service = build("androidpublisher", "v3", credentials=credentials)
+
+        if not package_name:
+            return {"error": "package_name required (or set GOOGLE_PLAY_PACKAGE_NAME env var)"}
+
+        if action == "get_app":
+            edit = service.edits().insert(body={}, packageName=package_name).execute()
+            edit_id = edit["id"]
+            tracks_result = service.edits().tracks().list(
+                packageName=package_name, editId=edit_id
+            ).execute()
+            try:
+                listing = service.edits().listings().get(
+                    packageName=package_name, editId=edit_id, language="en-US"
+                ).execute()
+            except Exception:
+                listing = {}
+            service.edits().delete(packageName=package_name, editId=edit_id).execute()
+            return {
+                "package_name": package_name,
+                "tracks": tracks_result.get("tracks", []),
+                "listing": listing,
+                "console_url": f"https://play.google.com/console/developers/app/{package_name}",
+            }
+
+        elif action in ("upload_apk", "upload_aab"):
+            if not file_path or not os.path.isfile(file_path):
+                return {"error": f"file_path must point to a valid {'APK' if action == 'upload_apk' else 'AAB'} file"}
+            mime = (
+                "application/vnd.android.package-archive"
+                if action == "upload_apk"
+                else "application/octet-stream"
+            )
+            edit = service.edits().insert(body={}, packageName=package_name).execute()
+            edit_id = edit["id"]
+            media = MediaFileUpload(file_path, mime_type=mime, resumable=True)
+            if action == "upload_apk":
+                upload_result = service.edits().apks().upload(
+                    packageName=package_name, editId=edit_id, media_body=media
+                ).execute()
+            else:
+                upload_result = service.edits().bundles().upload(
+                    packageName=package_name, editId=edit_id, media_body=media
+                ).execute()
+            version_code = upload_result.get("versionCode")
+            service.edits().tracks().update(
+                packageName=package_name,
+                editId=edit_id,
+                track=track,
+                body={
+                    "track": track,
+                    "releases": [{"versionCodes": [str(version_code)], "status": "completed"}],
+                },
+            ).execute()
+            service.edits().commit(packageName=package_name, editId=edit_id).execute()
+            return {
+                "success": True,
+                "package_name": package_name,
+                "version_code": version_code,
+                "track": track,
+                "file": os.path.basename(file_path),
+                "message": f"Uploaded version {version_code} to '{track}' track.",
+                "next": "Allow 1-7 days for Google review on production. Internal/alpha tracks go live faster.",
+            }
+
+        elif action == "update_listing":
+            title = params.get("title", "")
+            short_description = params.get("short_description", "")
+            full_description = params.get("full_description", "")
+            language = params.get("language", "en-US")
+            edit = service.edits().insert(body={}, packageName=package_name).execute()
+            edit_id = edit["id"]
+            listing_body = {}
+            if title:
+                listing_body["title"] = title[:50]
+            if short_description:
+                listing_body["shortDescription"] = short_description[:80]
+            if full_description:
+                listing_body["fullDescription"] = full_description[:4000]
+            result = service.edits().listings().update(
+                packageName=package_name,
+                editId=edit_id,
+                language=language,
+                body=listing_body,
+            ).execute()
+            service.edits().commit(packageName=package_name, editId=edit_id).execute()
+            return {
+                "success": True,
+                "package_name": package_name,
+                "language": language,
+                "updated_fields": list(listing_body.keys()),
+                "listing": result,
+            }
+
+        elif action == "promote_track":
+            from_track = params.get("from_track", "internal")
+            to_track = params.get("to_track", "alpha")
+            edit = service.edits().insert(body={}, packageName=package_name).execute()
+            edit_id = edit["id"]
+            track_data = service.edits().tracks().get(
+                packageName=package_name, editId=edit_id, track=from_track
+            ).execute()
+            releases = track_data.get("releases", [])
+            if not releases:
+                service.edits().delete(packageName=package_name, editId=edit_id).execute()
+                return {"error": f"No releases found on '{from_track}' track"}
+            version_codes = releases[0].get("versionCodes", [])
+            service.edits().tracks().update(
+                packageName=package_name,
+                editId=edit_id,
+                track=to_track,
+                body={
+                    "track": to_track,
+                    "releases": [{"versionCodes": version_codes, "status": "completed"}],
+                },
+            ).execute()
+            service.edits().commit(packageName=package_name, editId=edit_id).execute()
+            return {
+                "success": True,
+                "promoted_from": from_track,
+                "promoted_to": to_track,
+                "version_codes": version_codes,
+                "message": f"Version(s) {version_codes} promoted from '{from_track}' to '{to_track}'.",
+            }
+
+        elif action == "get_reviews":
+            result = service.reviews().list(packageName=package_name).execute()
+            reviews = result.get("reviews", [])
+            formatted = []
+            for r in reviews[:20]:
+                comment = r.get("comments", [{}])[0].get("userComment", {})
+                formatted.append({
+                    "author": r.get("authorName", "Anonymous"),
+                    "rating": comment.get("starRating", 0),
+                    "text": comment.get("text", ""),
+                    "review_id": r.get("reviewId", ""),
+                })
+            avg_rating = sum(r["rating"] for r in formatted) / len(formatted) if formatted else 0
+            return {
+                "package_name": package_name,
+                "total_fetched": len(formatted),
+                "average_rating": round(avg_rating, 2),
+                "reviews": formatted,
+            }
+
+        else:
+            return {
+                "error": f"Unknown action '{action}'",
+                "valid_actions": ["upload_apk", "upload_aab", "update_listing", "get_app", "promote_track", "get_reviews"],
+            }
+
+    except ImportError:
+        return {
+            "error": "google-auth and google-api-python-client not installed",
+            "fix": "pip install google-auth google-auth-httplib2 google-api-python-client",
+        }
+    except Exception as e:
+        return {"error": str(e), "action": action, "package_name": package_name}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PWA BUILDER - Progressive Web App + Android TWA layer
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def pwa_builder(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate a complete Progressive Web App layer for any web app:
+    - manifest.json (all fields, icons, shortcuts, share target)
+    - service-worker with cache-first + offline + background sync + push
+    - pwa-install.js (install prompt, SW registration, push subscription)
+    - offline.html fallback page
+    - bubblewrap.json (Trusted Web Activity config for Android APK)
+    - HTML shell with all meta tags
+    """
+    import os
+    import json
+    from pathlib import Path
+
+    app_name = params.get("name", "My App")
+    app_short_name = params.get("short_name", app_name[:12])
+    description = params.get("description", "")
+    theme_color = params.get("theme_color", "#6366f1")
+    bg_color = params.get("background_color", "#ffffff")
+    start_url = params.get("start_url", "/")
+    output_dir = params.get("output_dir", "")
+    package_name = params.get("package_name", "")
+    host = params.get("host", "yourdomain.com")
+    include_shell = params.get("include_shell", True)
+
+    if not package_name:
+        slug = app_name.lower().replace(" ", "").replace("-", "")[:20]
+        package_name = f"com.vesper.{slug}"
+
+    if output_dir:
+        out = Path(output_dir)
+    else:
+        out = Path.home() / "Desktop" / "vesper_builds" / app_name.replace(" ", "_") / "pwa"
+    out.mkdir(parents=True, exist_ok=True)
+
+    files_created = []
+
+    # manifest.json
+    manifest = {
+        "name": app_name,
+        "short_name": app_short_name,
+        "description": description or f"{app_name} - Progressive Web App",
+        "start_url": start_url,
+        "display": "standalone",
+        "orientation": "any",
+        "theme_color": theme_color,
+        "background_color": bg_color,
+        "lang": "en",
+        "scope": "/",
+        "categories": ["productivity"],
+        "icons": [
+            {"src": f"icons/icon-{s}x{s}.png", "sizes": f"{s}x{s}", "type": "image/png", "purpose": "maskable any"}
+            for s in [72, 96, 128, 144, 152, 192, 384, 512]
+        ],
+        "screenshots": [
+            {"src": "screenshots/desktop.png", "sizes": "1280x800", "type": "image/png", "form_factor": "wide"},
+            {"src": "screenshots/mobile.png", "sizes": "390x844", "type": "image/png", "form_factor": "narrow"},
+        ],
+        "share_target": {
+            "action": "/share",
+            "method": "POST",
+            "enctype": "multipart/form-data",
+            "params": {"title": "title", "text": "text", "url": "url"},
+        },
+        "prefer_related_applications": False,
+    }
+    manifest_path = out / "manifest.json"
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+    files_created.append(str(manifest_path))
+
+    # sw.js - service worker
+    cache_name = app_short_name.lower().replace(" ", "-")
+    sw_content = f"""// {app_name} Service Worker - Generated by Vesper PWA Builder
+const CACHE_NAME = '{cache_name}-v1';
+const OFFLINE_URL = '/offline.html';
+const PRECACHE = ['/', '/index.html', '/manifest.json', OFFLINE_URL, '/icons/icon-192x192.png', '/icons/icon-512x512.png'];
+
+self.addEventListener('install', e => {{
+  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(PRECACHE)));
+  self.skipWaiting();
+}});
+
+self.addEventListener('activate', e => {{
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))));
+  self.clients.claim();
+}});
+
+self.addEventListener('fetch', e => {{
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) return;
+  if (url.pathname.startsWith('/api/')) {{
+    e.respondWith(fetch(e.request).then(r => {{ if (r.ok) caches.open(CACHE_NAME).then(c => c.put(e.request, r.clone())); return r; }}).catch(() => caches.match(e.request)));
+    return;
+  }}
+  e.respondWith(caches.match(e.request).then(cached => {{
+    if (cached) return cached;
+    return fetch(e.request).then(r => {{ if (r.ok) caches.open(CACHE_NAME).then(c => c.put(e.request, r.clone())); return r; }}).catch(() => e.request.mode === 'navigate' ? caches.match(OFFLINE_URL) : undefined);
+  }}));
+}});
+
+self.addEventListener('push', e => {{
+  const d = e.data ? e.data.json() : {{}};
+  e.waitUntil(self.registration.showNotification(d.title || '{app_name}', {{ body: d.body || '', icon: '/icons/icon-192x192.png', badge: '/icons/icon-72x72.png', data: {{ url: d.url || '/' }} }}));
+}});
+
+self.addEventListener('notificationclick', e => {{ e.notification.close(); e.waitUntil(clients.openWindow(e.notification.data.url || '/')); }});
+
+self.addEventListener('sync', e => {{ if (e.tag === 'sync-pending') e.waitUntil(syncPending()); }});
+async function syncPending() {{ /* Override to replay queued offline actions */ }}
+"""
+    sw_path = out / "sw.js"
+    with open(sw_path, "w") as f:
+        f.write(sw_content)
+    files_created.append(str(sw_path))
+
+    # pwa-install.js
+    install_js = f"""// {app_name} PWA Install Handler - Generated by Vesper
+let _prompt = null;
+if ('serviceWorker' in navigator) {{
+  window.addEventListener('load', async () => {{
+    try {{
+      const reg = await navigator.serviceWorker.register('/sw.js', {{ scope: '/' }});
+      document.addEventListener('visibilitychange', () => {{ if (!document.hidden) reg.update(); }});
+    }} catch(e) {{ console.warn('[PWA] SW registration failed:', e); }}
+  }});
+}}
+window.addEventListener('beforeinstallprompt', e => {{
+  e.preventDefault(); _prompt = e;
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) {{ btn.style.display = 'flex'; btn.onclick = promptInstall; }}
+  window.dispatchEvent(new CustomEvent('pwa-installable', {{ detail: {{ prompt: promptInstall }} }}));
+}});
+async function promptInstall() {{
+  if (!_prompt) return;
+  _prompt.prompt();
+  const choice = await _prompt.userChoice;
+  _prompt = null;
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'none';
+  window.dispatchEvent(new CustomEvent('pwa-install-result', {{ detail: choice }}));
+}}
+window.addEventListener('appinstalled', () => window.dispatchEvent(new CustomEvent('pwa-installed')));
+function isPWA() {{ return window.matchMedia('(display-mode: standalone)').matches || !!navigator.standalone; }}
+async function requestNotifications() {{
+  if (!('Notification' in window)) return {{ granted: false }};
+  const p = await Notification.requestPermission();
+  return {{ granted: p === 'granted', permission: p }};
+}}
+async function subscribePush(vapidKey) {{
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.subscribe({{ userVisibleOnly: true, applicationServerKey: _b64ToUint8(vapidKey) }});
+  return sub.toJSON();
+}}
+function _b64ToUint8(b) {{
+  const p = '='.repeat((4 - b.length % 4) % 4);
+  const raw = atob((b + p).replace(/-/g, '+').replace(/_/g, '/'));
+  return new Uint8Array([...raw].map(c => c.charCodeAt(0)));
+}}
+window.pwa = {{ promptInstall, isPWA, requestNotifications, subscribePush }};
+"""
+    install_path = out / "pwa-install.js"
+    with open(install_path, "w") as f:
+        f.write(install_js)
+    files_created.append(str(install_path))
+
+    # offline.html
+    offline_html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{app_name} - Offline</title>
+<style>*{{margin:0;padding:0;box-sizing:border-box}}body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:{bg_color};color:#1f2937}}.c{{text-align:center;padding:2rem;max-width:400px}}.i{{font-size:4rem;margin-bottom:1rem}}h1{{font-size:1.5rem;margin-bottom:.5rem;color:{theme_color}}}p{{color:#6b7280;margin-bottom:1.5rem;line-height:1.6}}button{{background:{theme_color};color:#fff;border:none;padding:.75rem 2rem;border-radius:.5rem;font-size:1rem;cursor:pointer}}</style></head>
+<body><div class="c"><div class="i">📡</div><h1>You're offline</h1><p>No internet connection. Some features are unavailable until you reconnect.</p><button onclick="location.reload()">Try Again</button></div>
+<script>window.addEventListener('online',()=>location.reload())</script></body></html>"""
+    offline_path = out / "offline.html"
+    with open(offline_path, "w") as f:
+        f.write(offline_html)
+    files_created.append(str(offline_path))
+
+    # bubblewrap.json - TWA config for Android APK
+    bubblewrap = {
+        "packageId": package_name,
+        "host": host,
+        "name": app_name,
+        "launcherName": app_short_name,
+        "display": "standalone",
+        "orientation": "any",
+        "themeColor": theme_color,
+        "backgroundColor": bg_color,
+        "startUrl": start_url,
+        "iconUrl": f"https://{host}/icons/icon-512x512.png",
+        "maskableIconUrl": f"https://{host}/icons/icon-512x512.png",
+        "appVersionCode": 1,
+        "appVersionName": "1.0.0",
+        "enableNotifications": True,
+        "shortcuts": [],
+        "generatorApp": "bubblewrap-cli",
+        "webManifestUrl": f"https://{host}/manifest.json",
+        "fallbackType": "customtabs",
+        "features": {"locationDelegation": {"enabled": True}, "playBilling": {"enabled": False}},
+        "enableSiteSettingsShortcut": True,
+        "isChromeOSOnly": False,
+        "fingerprints": [],
+        "additionalTrustedOrigins": [],
+    }
+    bw_path = out / "bubblewrap.json"
+    with open(bw_path, "w") as f:
+        json.dump(bubblewrap, f, indent=2)
+    files_created.append(str(bw_path))
+
+    # HTML shell
+    if include_shell:
+        shell_html = f"""<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="{description or app_name}"><meta name="theme-color" content="{theme_color}">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="{app_short_name}">
+<meta property="og:title" content="{app_name}"><meta property="og:description" content="{description or app_name}">
+<title>{app_name}</title>
+<link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="96x96" href="/icons/icon-96x96.png">
+<link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+<style>:root{{--theme:{theme_color}}}*{{margin:0;padding:0;box-sizing:border-box}}body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}}#app{{min-height:100vh}}#pwa-install-btn{{display:none;position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:var(--theme);color:#fff;border:none;padding:.75rem 1.5rem;border-radius:2rem;font-size:.9rem;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.2);align-items:center;gap:.5rem;z-index:9999;white-space:nowrap}}</style>
+</head><body>
+<div id="app"><!-- App mounts here --></div>
+<button id="pwa-install-btn"><span>📲</span> Install {app_short_name}</button>
+<script src="/pwa-install.js"></script>
+</body></html>"""
+        shell_path = out / "index.html"
+        with open(shell_path, "w") as f:
+            f.write(shell_html)
+        files_created.append(str(shell_path))
+
+    # assetlinks.json template for Play Store TWA verification
+    assetlinks = [{"relation": ["delegate_permission/common.handle_all_urls"], "target": {"namespace": "android_app", "package_name": package_name, "sha256_cert_fingerprints": ["YOUR_APP_SHA256_FINGERPRINT_HERE"]}}]
+    well_known = out / ".well-known"
+    well_known.mkdir(exist_ok=True)
+    al_path = well_known / "assetlinks.json"
+    with open(al_path, "w") as f:
+        json.dump(assetlinks, f, indent=2)
+    files_created.append(str(al_path))
+
+    return {
+        "success": True,
+        "app_name": app_name,
+        "package_name": package_name,
+        "output_dir": str(out),
+        "files_created": files_created,
+        "android_apk_steps": [
+            "1. Deploy app to HTTPS (required for service workers)",
+            "2. Update bubblewrap.json: set 'host' to your real domain",
+            "3. Get your APK signing fingerprint: keytool -list -v -keystore my.keystore",
+            "4. Update .well-known/assetlinks.json with your SHA256 fingerprint",
+            "5. Host assetlinks.json at https://yourdomain.com/.well-known/assetlinks.json",
+            "6. Install Bubblewrap: npm install -g @bubblewrap/cli",
+            "7. Build APK: bubblewrap build (uses bubblewrap.json)",
+            "8. Upload APK: use playstore_publish action=upload_aab",
+        ],
+        "preview": f"[PWA Builder] '{app_name}' → {len(files_created)} files. Android APK ready via Bubblewrap.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CODE REVIEWER - AI-powered code review
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def code_reviewer(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    AI-powered code review covering: security (OWASP Top 10), performance,
+    accessibility (WCAG 2.1), bugs, best practices, and architecture.
+    Provide code as a string or file_path.
+    review_type: full | security | performance | accessibility | bugs | quick
+    """
+    import os
+    import re
+    import json
+
+    code = params.get("code", "")
+    file_path = params.get("file_path", "")
+    language = params.get("language", "")
+    review_type = params.get("review_type", "full")
+    context = params.get("context", "")
+    severity_threshold = params.get("severity_threshold", "low")
+
+    if not code and file_path:
+        if not os.path.isfile(file_path):
+            return {"error": f"File not found: {file_path}"}
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            code = f.read()
+        if not language:
+            ext = os.path.splitext(file_path)[1].lower()
+            lang_map = {
+                ".py": "Python", ".js": "JavaScript", ".ts": "TypeScript",
+                ".jsx": "React JSX", ".tsx": "React TSX", ".html": "HTML",
+                ".css": "CSS", ".go": "Go", ".rs": "Rust", ".java": "Java",
+                ".cs": "C#", ".php": "PHP", ".rb": "Ruby", ".swift": "Swift",
+                ".kt": "Kotlin", ".sql": "SQL",
+            }
+            language = lang_map.get(ext, ext.lstrip(".").upper())
+
+    if not code:
+        return {"error": "Provide 'code' string or 'file_path' to review"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    max_code_length = 12000
+    code_snippet = code[:max_code_length]
+    was_truncated = len(code) > max_code_length
+
+    review_instructions = {
+        "full": "Comprehensive review: 1) Security (OWASP Top 10: injection, XSS, CSRF, broken auth, sensitive data, insecure deserialization) 2) Performance (N+1 queries, memory leaks, blocking I/O, complexity) 3) Bugs and logic errors 4) Accessibility (WCAG 2.1) 5) Code quality and best practices 6) Architecture",
+        "security": "Security-only review using OWASP Top 10. Check: SQL/command injection, XSS, CSRF, broken auth, sensitive data exposure, broken access control, security misconfiguration, vulnerable dependencies, insufficient logging.",
+        "performance": "Performance only: N+1 queries, memory leaks, O(n²)+ algorithms, blocking I/O, unnecessary network calls, render performance, caching opportunities, bundle size.",
+        "accessibility": "WCAG 2.1 AA: alt text, color contrast, keyboard navigation, ARIA labels, semantic HTML, focus management, screen reader compatibility.",
+        "bugs": "Bug hunting: logic errors, off-by-one, null/undefined references, race conditions, wrong error handling, edge cases, type mismatches, incorrect async/await.",
+        "quick": "Fast top-5 critical issues only. Be terse.",
+    }
+
+    prompt = f"""You are an expert software engineer doing a code review.
+Language: {language or "auto-detect"}
+Review type: {review_type}
+{f"Context: {context}" if context else ""}
+{"NOTE: Code truncated - review what's shown." if was_truncated else ""}
+{review_instructions.get(review_type, review_instructions["full"])}
+
+```{language.lower() if language else ""}
+{code_snippet}
+```
+
+Return JSON only (no markdown):
+{{
+  "summary": "one paragraph overall assessment",
+  "score": 85,
+  "critical_count": 0, "high_count": 0, "medium_count": 0, "low_count": 0,
+  "issues": [
+    {{
+      "severity": "critical|high|medium|low|info",
+      "category": "security|performance|bug|accessibility|best_practice|architecture",
+      "title": "short title",
+      "description": "clear explanation",
+      "location": "line X or function name",
+      "fix": "exact code fix or instructions",
+      "owasp": "A01:2021 - Broken Access Control"
+    }}
+  ],
+  "strengths": ["what is done well"],
+  "refactor_suggestions": ["larger optional improvements"],
+  "estimated_fix_time": "30 minutes"
+}}"""
+
+    try:
+        response = await ai_router.complete(
+            prompt=prompt,
+            task_type=TaskType.ANALYSIS if TaskType else None,
+            max_tokens=4096,
+        )
+        review_text = response.get("content", "") if isinstance(response, dict) else str(response)
+
+        json_match = re.search(r"\{[\s\S]*\}", review_text)
+        if json_match:
+            review_data = json.loads(json_match.group())
+        else:
+            review_data = {"summary": review_text, "issues": [], "score": None}
+
+        severity_order = ["critical", "high", "medium", "low", "info"]
+        threshold_idx = severity_order.index(severity_threshold) if severity_threshold in severity_order else 4
+        filtered = [i for i in review_data.get("issues", []) if severity_order.index(i.get("severity", "info")) <= threshold_idx]
+
+        return {
+            "success": True,
+            "file": file_path or "(inline)",
+            "language": language,
+            "review_type": review_type,
+            "score": review_data.get("score"),
+            "summary": review_data.get("summary", ""),
+            "issue_counts": {
+                "critical": review_data.get("critical_count", 0),
+                "high": review_data.get("high_count", 0),
+                "medium": review_data.get("medium_count", 0),
+                "low": review_data.get("low_count", 0),
+            },
+            "issues": filtered,
+            "strengths": review_data.get("strengths", []),
+            "refactor_suggestions": review_data.get("refactor_suggestions", []),
+            "estimated_fix_time": review_data.get("estimated_fix_time", ""),
+            "truncated": was_truncated,
+            "preview": f"[Code Review] Score: {review_data.get('score', '?')}/100 | {len(filtered)} issues | {review_data.get('critical_count', 0)} critical",
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEST GENERATOR - Generate test suites for any code
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def test_generator(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate comprehensive test suites for any code.
+    Frameworks: jest | vitest | pytest | playwright | cypress | supertest | go_test
+    test_types: unit | integration | e2e | snapshot | api (list or string)
+    Provide code as string or file_path.
+    """
+    import os
+    import re
+    from pathlib import Path
+
+    code = params.get("code", "")
+    file_path = params.get("file_path", "")
+    framework = params.get("framework", "")
+    test_types = params.get("test_types", ["unit"])
+    output_path = params.get("output_path", "")
+    language = params.get("language", "")
+    coverage_target = params.get("coverage_target", 80)
+
+    if not code and file_path:
+        if not os.path.isfile(file_path):
+            return {"error": f"File not found: {file_path}"}
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            code = f.read()
+        if not language:
+            ext = os.path.splitext(file_path)[1].lower()
+            language = {".py": "python", ".js": "javascript", ".ts": "typescript",
+                        ".jsx": "react", ".tsx": "react-ts", ".go": "go"}.get(ext, "javascript")
+
+    if not code:
+        return {"error": "Provide 'code' string or 'file_path'"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    if not framework:
+        framework = "pytest" if language == "python" else "go_test" if language == "go" else "vitest"
+
+    if isinstance(test_types, str):
+        test_types = [test_types]
+
+    fw_info = {
+        "jest": {"ext": ".test.js", "runner": "npx jest --coverage", "install": "npm install -D jest @types/jest babel-jest"},
+        "vitest": {"ext": ".test.ts", "runner": "npx vitest run --coverage", "install": "npm install -D vitest @vitest/coverage-v8"},
+        "pytest": {"ext": "_test.py", "runner": "pytest -v --cov", "install": "pip install pytest pytest-asyncio pytest-cov"},
+        "playwright": {"ext": ".spec.ts", "runner": "npx playwright test", "install": "npm install -D @playwright/test && npx playwright install"},
+        "cypress": {"ext": ".cy.ts", "runner": "npx cypress run", "install": "npm install -D cypress"},
+        "supertest": {"ext": ".test.ts", "runner": "npx jest", "install": "npm install -D supertest @types/supertest jest ts-jest"},
+        "go_test": {"ext": "_test.go", "runner": "go test ./... -cover", "install": ""},
+    }
+    fw = fw_info.get(framework, fw_info["vitest"])
+
+    prompt = f"""You are a senior test engineer. Generate a comprehensive test suite.
+Framework: {framework}
+Language: {language}
+Test types: {", ".join(test_types)}
+Coverage target: {coverage_target}%
+
+Code to test:
+```{language}
+{code[:10000]}
+```
+
+Write production-quality tests that:
+1. Test every exported function/class/endpoint
+2. Cover happy paths, error cases, and edge cases (empty, null, max values, concurrent calls)
+3. Mock all external dependencies correctly ({framework}-appropriate mocking)
+4. Have clear, descriptive test names (describe what it does, not just what it calls)
+5. Include setup/teardown where needed
+6. Aim for {coverage_target}%+ coverage
+{"7. Include realistic E2E user flows" if "e2e" in test_types else ""}
+{"8. Test all HTTP endpoints with status codes and response bodies" if "api" in test_types else ""}
+{"9. Include snapshot tests for UI components" if "snapshot" in test_types else ""}
+
+Return ONLY raw test code. No markdown fences, no explanations."""
+
+    try:
+        response = await ai_router.complete(
+            prompt=prompt,
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=6000,
+        )
+        test_code = response.get("content", "") if isinstance(response, dict) else str(response)
+        test_code = re.sub(r"^```[\w]*\n", "", test_code, flags=re.MULTILINE)
+        test_code = re.sub(r"\n```$", "", test_code, flags=re.MULTILINE).strip()
+
+        if output_path:
+            out_path = Path(output_path)
+        elif file_path:
+            p = Path(file_path)
+            out_path = p.parent / "tests" / f"{p.stem}{fw['ext']}"
+        else:
+            out_path = Path.home() / "Desktop" / "vesper_builds" / "tests" / f"generated_tests{fw['ext']}"
+
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(test_code)
+
+        test_count = len(re.findall(r"(def test_|it\(|test\(|describe\(|func Test)", test_code))
+
+        return {
+            "success": True,
+            "framework": framework,
+            "test_file": str(out_path),
+            "test_count_approx": test_count,
+            "test_types": test_types,
+            "run_command": fw["runner"],
+            "install_command": fw["install"],
+            "coverage_target": coverage_target,
+            "preview": f"[Test Generator] ~{test_count} tests ({framework}) → {out_path.name}",
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UI THEME GENERATOR - Complete design system
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def ui_theme_generator(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate a complete design system:
+    - CSS custom properties (color tokens, spacing, shadows, animation)
+    - Tailwind CSS config extension
+    - Component styles (buttons, inputs, cards, modals, badges, alerts, nav, skeleton)
+    - Google Fonts import
+    - Dark mode support
+    style: modern | minimal | bold | playful | dark | corporate | glassmorphism
+    """
+    import json
+    import re
+    from pathlib import Path
+
+    brand_name = params.get("brand_name", "App")
+    style = params.get("style", "modern")
+    primary_color = params.get("primary_color", "")
+    output_dir = params.get("output_dir", "")
+    dark_mode = params.get("dark_mode", True)
+    include_components = params.get("include_components", True)
+    font_style = params.get("font_style", "")
+
+    if output_dir:
+        out = Path(output_dir)
+    else:
+        out = Path.home() / "Desktop" / "vesper_builds" / brand_name.replace(" ", "_") / "theme"
+    out.mkdir(parents=True, exist_ok=True)
+
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    style_guides = {
+        "modern": "Clean, minimal, sophisticated. Rounded corners, subtle shadows, smooth transitions. Think Linear, Vercel, Stripe.",
+        "minimal": "Ultra-clean whitespace-heavy design. Monochrome base with one accent. Think Apple, Notion.",
+        "bold": "High contrast, strong typography, vivid colors, confident CTAs. Think Figma, Superhuman.",
+        "playful": "Fun gradients, rounded shapes, friendly colors, micro-animations. Think Duolingo, Headspace.",
+        "dark": "Dark-first UI, neon accents, glows, dark glass surfaces. Think VS Code, GitHub dark.",
+        "corporate": "Professional, trustworthy. Blues and grays, clean grid, accessible. Think Salesforce, IBM.",
+        "glassmorphism": "Frosted glass, translucent cards, blur backdrops, luminous borders.",
+    }
+
+    prompt = f"""You are a world-class UI/UX designer creating a complete design system for production.
+Brand: {brand_name}
+Style: {style} - {style_guides.get(style, style)}
+{"Primary color: " + primary_color if primary_color else "Choose ideal primary color for this style"}
+Font preference: {font_style or "auto-select best for style"}
+Dark mode: {dark_mode}
+
+Generate a COMPLETE design system. Return as JSON with these exact keys:
+
+{{
+  "google_fonts_import": "@import url('...');",
+  "css_variables": "/* full :root {{ }} block with all CSS custom properties */",
+  "dark_mode_variables": "/* @media (prefers-color-scheme: dark) {{ :root {{ }} }} */",
+  "component_css": "/* full CSS for: buttons (primary/secondary/ghost/danger/icon with all states), form inputs (text/select/textarea/checkbox/toggle with focus/error), cards, badges, alerts, modal, navbar, skeleton loader, toast notifications */",
+  "tailwind_config": {{ /* Tailwind theme.extend object */ }},
+  "color_palette": {{ "primary": {{}}, "neutral": {{}}, "semantic": {{}} }},
+  "typography": {{ "fonts": [], "scale": {{}} }},
+  "animation_css": "/* keyframes: fade-in, slide-up, scale-in, shimmer, pulse */"
+}}
+
+All values must be complete and production-ready. The CSS must work standalone."""
+
+    try:
+        response = await ai_router.complete(
+            prompt=prompt,
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=8000,
+        )
+        theme_text = response.get("content", "") if isinstance(response, dict) else str(response)
+
+        json_match = re.search(r"\{[\s\S]*\}", theme_text)
+        theme_data = {}
+        if json_match:
+            try:
+                theme_data = json.loads(json_match.group())
+            except Exception:
+                theme_data = {}
+
+        files_created = []
+
+        # theme.css - complete stylesheet
+        google_fonts = theme_data.get("google_fonts_import", "")
+        css_vars = theme_data.get("css_variables", "/* Generated design tokens */\n:root {}")
+        dark_vars = theme_data.get("dark_mode_variables", "")
+        component_css = theme_data.get("component_css", "") if include_components else ""
+        animation_css = theme_data.get("animation_css", "")
+
+        full_css = f"""/* ══════════════════════════════════════════════
+   {brand_name} Design System | Style: {style}
+   Generated by Vesper Theme Generator
+   ══════════════════════════════════════════════ */
+
+{google_fonts}
+
+{css_vars}
+
+{dark_vars}
+
+{animation_css}
+
+{component_css}
+"""
+        css_path = out / "theme.css"
+        with open(css_path, "w") as f:
+            f.write(full_css)
+        files_created.append(str(css_path))
+
+        # tailwind.config.js
+        tw_ext = theme_data.get("tailwind_config", {})
+        tw_content = f"""// {brand_name} Tailwind Config - Generated by Vesper
+/** @type {{import('tailwindcss').Config}} */
+module.exports = {{
+  content: ['./src/**/*.{{js,jsx,ts,tsx,html}}'],
+  darkMode: '{"class" if dark_mode else "media"}',
+  theme: {{
+    extend: {json.dumps(tw_ext, indent=4)}
+  }},
+  plugins: [
+    require('@tailwindcss/forms'),
+    require('@tailwindcss/typography'),
+  ],
+}};
+"""
+        tw_path = out / "tailwind.config.js"
+        with open(tw_path, "w") as f:
+            f.write(tw_content)
+        files_created.append(str(tw_path))
+
+        # colors.json
+        palette = theme_data.get("color_palette", {})
+        if palette:
+            cp_path = out / "colors.json"
+            with open(cp_path, "w") as f:
+                json.dump(palette, f, indent=2)
+            files_created.append(str(cp_path))
+
+        return {
+            "success": True,
+            "brand_name": brand_name,
+            "style": style,
+            "output_dir": str(out),
+            "files_created": files_created,
+            "color_palette": palette,
+            "preview": f"[UI Theme] '{brand_name}' {style} design system → {len(files_created)} files",
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LANDING PAGE BUILDER - High-converting landing pages
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def landing_page_builder(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Build a high-converting landing page - complete self-contained HTML file.
+    No external dependencies. Mobile-first. Includes:
+    - Copywriting (headline, subhead, benefits, social proof, FAQ, CTA)
+    - Smooth scroll animations, dark mode, Core Web Vitals optimized
+    - Email capture, pricing section, testimonials
+    style: modern | saas | ebook | course | app | agency
+    """
+    import os
+    import re
+    import zipfile
+    from pathlib import Path
+
+    product_name = params.get("name", "")
+    description = params.get("description", "")
+    target_audience = params.get("target_audience", "")
+    price = params.get("price", 0)
+    cta_text = params.get("cta", "Get Started")
+    cta_url = params.get("cta_url", "#")
+    style = params.get("style", "modern")
+    testimonials = params.get("testimonials", [])
+    features = params.get("features", [])
+    pain_points = params.get("pain_points", [])
+    output_dir = params.get("output_dir", "")
+    include_pricing = params.get("include_pricing", bool(price))
+    include_faq = params.get("include_faq", True)
+
+    if not product_name:
+        return {"error": "name required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    if output_dir:
+        out = Path(output_dir)
+    else:
+        out = Path.home() / "Desktop" / "vesper_builds" / product_name.replace(" ", "_") / "landing"
+    out.mkdir(parents=True, exist_ok=True)
+
+    prompt = f"""You are a world-class conversion copywriter and frontend developer.
+Product: {product_name}
+Description: {description}
+Target audience: {target_audience or "determine from product"}
+Price: {"$" + str(price) if price else "free or determine"}
+CTA: {cta_text} → {cta_url}
+Style: {style}
+Features: {features or "generate from description"}
+Pain points: {pain_points or "determine from audience"}
+Testimonials: {testimonials or "generate 3 realistic testimonials with names, titles, results"}
+Include pricing section: {include_pricing}
+Include FAQ: {include_faq}
+
+Generate a complete, single-file HTML landing page that:
+1. Has a killer above-the-fold headline + subheadline
+2. Addresses #1 pain point immediately
+3. Social proof (testimonials, numbers, company logos placeholder)
+4. Features/benefits section with icons (Unicode emoji OK)
+5. How it works (3 steps)
+{"6. Pricing section with value framing" if include_pricing else ""}
+{"7. FAQ section answering 5 real objections" if include_faq else ""}
+8. CTA appears 3 times throughout (top, middle, bottom)
+9. Footer
+
+Requirements:
+- Complete single-file HTML (all CSS + JS inline, no external deps)
+- Mobile-first responsive (works on 320px wide)
+- Smooth Intersection Observer animations
+- prefers-color-scheme dark mode
+- Email capture form (if no paid CTA)
+- Open Graph meta tags
+- Optimized for Core Web Vitals (no render-blocking)
+- <!-- Google Analytics --> comment placeholder
+- Clean, professional, conversion-optimized
+
+Return ONLY the complete HTML. No explanations."""
+
+    try:
+        response = await ai_router.complete(
+            prompt=prompt,
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=8000,
+        )
+        html_content = response.get("content", "") if isinstance(response, dict) else str(response)
+        html_content = re.sub(r"^```html\n", "", html_content, flags=re.MULTILINE)
+        html_content = re.sub(r"\n```$", "", html_content, flags=re.MULTILINE).strip()
+
+        out_path = out / "index.html"
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+
+        zip_path = out.parent / f"{product_name.replace(' ', '_')}_landing.zip"
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(out_path, "index.html")
+
+        file_size_kb = os.path.getsize(out_path) // 1024
+
+        return {
+            "success": True,
+            "product_name": product_name,
+            "html_file": str(out_path),
+            "zip_file": str(zip_path),
+            "file_size_kb": file_size_kb,
+            "deploy_options": {
+                "netlify_drop": "Drag zip to https://app.netlify.com/drop",
+                "vercel": "vercel deploy --prod",
+                "github_pages": "Push index.html to gh-pages branch",
+                "cloudflare_pages": "Upload via Cloudflare Pages dashboard",
+            },
+            "preview": f"[Landing Page] '{product_name}' → {file_size_kb}KB self-contained HTML",
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# APP STORE OPTIMIZER - ASO for Google Play + Apple App Store
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def app_store_optimizer(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    ASO (App Store Optimization) for Google Play and Apple App Store.
+    Generates: title, short description, full description, keywords,
+    screenshot descriptions, category, rating prompt strategy, A/B tests.
+    stores: play_store | app_store | both
+    """
+    import json
+    import re
+    from pathlib import Path
+
+    app_name = params.get("app_name", "")
+    description = params.get("description", "")
+    category = params.get("category", "")
+    target_audience = params.get("target_audience", "")
+    competitors = params.get("competitors", [])
+    current_title = params.get("current_title", "")
+    stores = params.get("stores", ["play_store", "app_store"])
+    price_model = params.get("price_model", "free")
+
+    if not app_name:
+        return {"error": "app_name required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    if isinstance(stores, str):
+        stores = [stores] if stores != "both" else ["play_store", "app_store"]
+
+    prompt = f"""You are a top ASO expert who has optimized apps with millions of downloads.
+App: {app_name}
+Category: {category or "auto-determine"}
+Description: {description}
+Target audience: {target_audience or "auto-determine"}
+Price model: {price_model}
+Competitors: {competitors or "identify top 3"}
+{"Current title to improve: " + current_title if current_title else ""}
+Stores: {", ".join(stores)}
+
+PLAY STORE limits: Title 30 chars | Short desc 80 chars | Full desc 4000 chars | Keywords in description body
+APP STORE limits: Name 30 chars | Subtitle 30 chars | Keywords field 100 chars (no spaces after commas) | Promo text 170 chars | Description 4000 chars
+
+For each store provide:
+1. Optimized title/name (primary keyword + brand, under limit)
+2. Short description / subtitle (hook, under limit)
+3. Full description:
+   - Strong opening hook (first 3 lines visible before "more")
+   - Bullet benefit list
+   - Social proof / user numbers
+   - CTA near end
+4. Keywords (Play: embedded in desc naturally; App Store: keyword field comma-separated)
+5. Screenshot descriptions (5 screenshots - what to show in each)
+6. Primary + secondary category recommendations
+7. Rating prompt strategy (when and how to ask)
+8. 2 A/B test title variations
+
+Return as JSON: {{play_store: {{...}}, app_store: {{...}}, keyword_research: [{{keyword, volume_estimate, difficulty}}], competitor_gap: "..."}}
+Include only requested stores."""
+
+    try:
+        response = await ai_router.complete(
+            prompt=prompt,
+            task_type=TaskType.ANALYSIS if TaskType else None,
+            max_tokens=6000,
+        )
+        aso_text = response.get("content", "") if isinstance(response, dict) else str(response)
+
+        json_match = re.search(r"\{[\s\S]*\}", aso_text)
+        if json_match:
+            try:
+                aso_data = json.loads(json_match.group())
+            except Exception:
+                aso_data = {"raw_output": aso_text}
+        else:
+            aso_data = {"raw_output": aso_text}
+
+        out_dir = Path.home() / "Desktop" / "vesper_builds" / app_name.replace(" ", "_")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        aso_file = out_dir / "aso_optimization.json"
+        with open(aso_file, "w") as f:
+            json.dump(aso_data, f, indent=2)
+
+        return {
+            "success": True,
+            "app_name": app_name,
+            "stores_optimized": stores,
+            "aso_data": aso_data,
+            "saved_to": str(aso_file),
+            "preview": f"[ASO Optimizer] '{app_name}' optimized for {', '.join(stores)} → saved to {aso_file.name}",
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# API BUILDER - Generate complete REST APIs
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def api_builder(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate a complete, production-ready REST API project:
+    - Full project structure with all files written to disk
+    - Auth (JWT | API key | OAuth2 | none)
+    - Database models + migrations
+    - Rate limiting, CORS, validation, error handling
+    - OpenAPI/Swagger docs
+    - Docker + docker-compose
+    - Tests
+    - ZIPs everything and optionally lists on Gumroad
+    framework: fastapi | express | nestjs | gin
+    db_type: postgresql | mysql | sqlite | mongodb
+    auth_type: jwt | api_key | oauth2 | none
+    """
+    import json
+    import re
+    import zipfile
+    from pathlib import Path
+
+    name = params.get("name", "my-api")
+    description = params.get("description", "")
+    framework = params.get("framework", "fastapi")
+    resources = params.get("resources", [])
+    auth_type = params.get("auth_type", "jwt")
+    db_type = params.get("db_type", "postgresql")
+    include_tests = params.get("include_tests", True)
+    include_docker = params.get("include_docker", True)
+    sell_on_gumroad = params.get("sell_on_gumroad", False)
+    price = params.get("price", 97)
+
+    if not description:
+        return {"error": "description required"}
+    if not ai_router:
+        return {"error": "AI router not available"}
+
+    fw_info = {
+        "fastapi": {"lang": "Python", "pkg_file": "requirements.txt"},
+        "express": {"lang": "TypeScript", "pkg_file": "package.json"},
+        "nestjs": {"lang": "TypeScript", "pkg_file": "package.json"},
+        "gin": {"lang": "Go", "pkg_file": "go.mod"},
+    }
+    fw = fw_info.get(framework, fw_info["fastapi"])
+
+    out_dir = Path.home() / "Desktop" / "vesper_builds" / name.replace(" ", "_") / "api"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    prompt = f"""You are a senior backend engineer. Generate a complete, production-ready {framework} API.
+Name: {name}
+Description: {description}
+Language: {fw["lang"]}
+Resources: {resources or "auto-determine from description"}
+Auth: {auth_type}
+Database: {db_type}
+Tests: {include_tests}
+Docker: {include_docker}
+
+For each file output exactly:
+FILE: path/to/file.ext
+```
+file content here
+```
+
+Include ALL files:
+1. Main entry point + app setup
+2. Route handlers for each resource (GET list, GET one, POST, PUT, PATCH, DELETE)
+3. Database models with relationships
+4. {"JWT auth: /auth/register, /auth/login, /auth/refresh, middleware" if auth_type == "jwt" else "API key: header X-API-Key validation middleware" if auth_type == "api_key" else "Auth setup"}
+5. Request validation (Pydantic / Zod / class-validator)
+6. Database connection + migration scripts
+7. {"tests/ directory: unit + integration tests for all endpoints" if include_tests else ""}
+8. {"Dockerfile + docker-compose.yml with {db_type}" if include_docker else ""}
+9. {fw["pkg_file"]} with all pinned dependencies
+10. .env.example
+11. README.md with full setup instructions and API reference
+12. openapi.yaml
+
+Every endpoint must have:
+- Correct HTTP status codes
+- Consistent error format: {{"success": false, "error": "message", "code": "ERROR_CODE"}}
+- Pagination for list endpoints (?page=1&limit=20, returns total/pages)
+- Input validation and sanitization (prevent injection)
+- Rate limiting: 100 req/min per IP
+- CORS headers
+- Request logging
+- GET /health endpoint
+
+Write complete, runnable code. No placeholder comments."""
+
+    try:
+        response = await ai_router.complete(
+            prompt=prompt,
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=8000,
+        )
+        content = response.get("content", "") if isinstance(response, dict) else str(response)
+
+        file_pattern = re.compile(r"FILE:\s*(.+?)\n```(?:\w+)?\n([\s\S]+?)\n```", re.MULTILINE)
+        matches = list(file_pattern.finditer(content))
+
+        files_written = []
+        if matches:
+            for match in matches:
+                file_rel = match.group(1).strip()
+                file_content = match.group(2)
+                file_path = out_dir / file_rel
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(file_content)
+                files_written.append(file_rel)
+        else:
+            fallback = out_dir / "generated_api.md"
+            with open(fallback, "w", encoding="utf-8") as f:
+                f.write(content)
+            files_written.append("generated_api.md")
+
+        zip_path = out_dir.parent / f"{name.replace(' ', '_')}_api.zip"
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for file_rel in files_written:
+                fp = out_dir / file_rel
+                if fp.exists():
+                    zf.write(fp, file_rel)
+
+        result = {
+            "success": True,
+            "name": name,
+            "framework": framework,
+            "database": db_type,
+            "auth": auth_type,
+            "files_created": files_written,
+            "output_dir": str(out_dir),
+            "zip_file": str(zip_path),
+            "file_count": len(files_written),
+            "preview": f"[API Builder] {name} ({framework}+{db_type}+{auth_type}) → {len(files_written)} files",
+        }
+
+        if sell_on_gumroad and zip_path.exists():
+            try:
+                gumroad_result = await gumroad_publish({
+                    "action": "create",
+                    "name": f"{name} - {framework.upper()} API Starter Kit",
+                    "description": f"Production-ready {framework} REST API with {auth_type} auth, {db_type}, Docker, and tests. {description}",
+                    "price": price,
+                    "file_path": str(zip_path),
+                    "published": True,
+                }, ai_router=ai_router, TaskType=TaskType)
+                result["gumroad"] = gumroad_result
+            except Exception as ge:
+                result["gumroad_error"] = str(ge)
+
+        return result
+    except Exception as e:
+        return {"error": str(e), "framework": framework}
+
+
