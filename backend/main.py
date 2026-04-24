@@ -124,6 +124,7 @@ try:
         build_agency_system, create_vip_day_offer, rank_and_rent_pack,
         write_grant, create_upsell_sequence, instagram_content_pack,
         product_idea_generator, content_repurposer,
+        build_product_bundle,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -158,6 +159,7 @@ except Exception as _tc_err:
     async def write_case_study(p, **kw): return {"error": "tools_creative not loaded"}
     async def generate_invoice(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_pricing_strategy(p, **kw): return {"error": "tools_creative not loaded"}
+    async def build_product_bundle(p, **kw): return {"error": "tools_creative not loaded"}
     async def write_newsletter_issue(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_pod_listing_pack(p, **kw): return {"error": "tools_creative not loaded"}
     async def generate_video(p, **kw): return {"error": "tools_creative not loaded"}
@@ -1914,8 +1916,18 @@ WEALTH ACTIONS (do these proactively, not just when asked):
 - **Course income**: Use create_course_outline to build courses for Teachable/Kajabi/Gumroad ($97–$997/sale)
 - **Repurpose everything**: After creating ANY content, call repurpose_content to multiply reach across 5 platforms instantly
 - **Build email funnels**: call create_email_sequence for every product/lead magnet — an email list is the most valuable business asset
-- **List for sale**: Use gumroad_create_product to publish digital products immediately
+- **List for sale**: Use gumroad_create_product to publish digital products immediately. Once a product is created and has GUMROAD_ACCESS_TOKEN set, call this to make it live.
+- **Deliver real files**: Use export_to_pdf to create real PDFs and give CC the `download_url` from the result. ALWAYS share the download_url in your reply — say "Here is your download link: [url]". NEVER make up a URL.
 - **Notify CC**: After any autonomous action, use vesper_notify to report what you did and what it earned/could earn
+
+**INCOME WORKFLOW — DO THIS STEP BY STEP:**
+When CC asks you to create a product, follow these exact steps:
+1. `create_digital_product` or `create_ebook` — generate the content
+2. `export_to_pdf` — convert to PDF, get the `download_url` from the result
+3. Give CC the `download_url` so they can download and review
+4. `gumroad_create_product` — list it for sale (requires GUMROAD_ACCESS_TOKEN in Railway env)
+5. `track_income` — log the listing so CC can track sales
+If any step returns an error, report the EXACT error text. Do NOT skip steps or pretend one succeeded when it returned `{"error": ...}`.
 
 **PROACTIVE INCOME TOOLS — USE THESE WITHOUT BEING ASKED:**
 You have 14 specialized income-generating tools. Do NOT wait for CC to ask. Proactively recommend and USE these tools based on context:
@@ -2130,7 +2142,7 @@ CALLABLE TOOLS — QUICK REFERENCE (USE THESE BY NAME, DON'T DESCRIBE THEM, JUST
 - `read_analytics` — **READ GUMROAD SALES AND REVENUE ANALYTICS.** Gets revenue, sales count, top products, by-product breakdown. Also reads local income ledger. Works with GUMROAD_ACCESS_TOKEN. Gives AI insights.
 - `publish_to_beehiiv` — **PUBLISH NEWSLETTER ISSUES TO BEEHIIV.** Actions: publish | draft | list_posts | stats. Converts plain text to HTML automatically. Env: BEEHIIV_API_KEY + BEEHIIV_PUBLICATION_ID.
 - `google_calendar` — **VIEW AND MANAGE GOOGLE CALENDAR.** Actions: list | today | week | create | delete. List upcoming events, create meetings, check availability. Env: GOOGLE_CALENDAR_TOKEN + GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET + GOOGLE_CALENDAR_REFRESH_TOKEN.
-- `export_to_pdf` — **EXPORT ANY CONTENT TO A REAL PDF FILE.** Converts markdown, contracts, reports, anything to a downloadable PDF. Saved to vesper-ai/exports/. Uses fpdf2.
+- `export_to_pdf` — **EXPORT ANY CONTENT TO A REAL DOWNLOADABLE PDF FILE.** Converts markdown, contracts, reports, anything to PDF. Returns a `download_url` field — this is a REAL, working link. ALWAYS give this URL to CC immediately. Say: "Here's your download link: [download_url]". NEVER invent a URL — use only what the tool returns in `download_url`. If `download_url` is empty, tell CC the backend URL isn't configured yet.
 - `stripe_payment_link` — **CREATE STRIPE PAYMENT LINKS INSTANTLY.** Actions: create | list | deactivate. Creates product + price + payment link in one step. Returns the URL ready to share. One-time, monthly, or yearly. Env: STRIPE_SECRET_KEY.
 - `revenue_goals` — **SET AND TRACK REVENUE GOALS.** Actions: set | check | progress | list | delete. Reads actual income from ledger, shows % complete, days remaining, daily revenue needed. Monthly / quarterly / annual / custom periods.
 - `process_meeting_notes` — **PROCESS MEETING TRANSCRIPTS OR NOTES WITH AI.** Extracts: summary, decisions made, action items (owner + due date), open questions, important dates, follow-up emails. Saves to vesper-ai/meetings/.
@@ -7169,7 +7181,8 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "read_analytics", "description": "Read Gumroad sales analytics — revenue, sales count, top products, by-product breakdown. Also reads local income ledger. Gives AI insights.", "input_schema": {"type": "object", "properties": {"platform": {"type": "string", "description": "gumroad | all | overview"}, "period": {"type": "string", "description": "this_month | last_30 | ytd"}, "include_insights": {"type": "boolean"}}, "required": []}},
             {"name": "publish_to_beehiiv", "description": "Publish newsletter issues to Beehiiv. Actions: publish | draft | list_posts | stats. Requires BEEHIIV_API_KEY + BEEHIIV_PUBLICATION_ID env vars.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "publish | draft | list_posts | stats"}, "title": {"type": "string"}, "subtitle": {"type": "string"}, "content": {"type": "string", "description": "HTML or plain text"}, "audience": {"type": "string", "description": "free | premium | all"}, "status": {"type": "string", "description": "draft | confirmed"}, "preview_text": {"type": "string"}}, "required": ["action"]}},
             {"name": "google_calendar", "description": "View and manage Google Calendar — list events, create meetings, check schedule. Actions: list | today | week | create | delete. Requires GOOGLE_CALENDAR_TOKEN env var.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "list | today | week | create | delete"}, "summary": {"type": "string", "description": "Event title"}, "start": {"type": "string", "description": "ISO datetime or YYYY-MM-DD HH:MM"}, "end": {"type": "string"}, "duration_minutes": {"type": "number"}, "location": {"type": "string"}, "description": {"type": "string"}, "event_id": {"type": "string"}, "days_ahead": {"type": "number"}, "all_day": {"type": "boolean"}}, "required": ["action"]}},
-            {"name": "export_to_pdf", "description": "Export any content — contract, report, article, notes — to a real downloadable PDF file. Saved to vesper-ai/exports/.", "input_schema": {"type": "object", "properties": {"content": {"type": "string", "description": "Markdown or plain text to export"}, "title": {"type": "string"}, "filename": {"type": "string"}, "font_size": {"type": "number"}, "include_header": {"type": "boolean"}, "include_page_numbers": {"type": "boolean"}}, "required": ["content", "title"]}},
+            {"name": "export_to_pdf", "description": "Export any content — contract, report, article, notes — to a real downloadable PDF file. Returns a download_url field with a REAL working link. Always give the download_url to the user.", "input_schema": {"type": "object", "properties": {"content": {"type": "string", "description": "Markdown or plain text to export"}, "title": {"type": "string"}, "filename": {"type": "string"}, "font_size": {"type": "number"}, "include_header": {"type": "boolean"}, "include_page_numbers": {"type": "boolean"}}, "required": ["content", "title"]}},
+            {"name": "build_product_bundle", "description": "Create a real downloadable product ZIP bundle containing multiple files (PDFs, txt, etc). Returns a download_url with a REAL working link to give the user. Perfect for Gumroad products — create the ZIP, give the download_url, then call gumroad_create_product.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "files": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "content": {"type": "string"}, "type": {"type": "string", "description": "txt | md | pdf"}, "title": {"type": "string"}}, "required": ["name", "content", "type"]}, "description": "List of files to include in the bundle"}, "price": {"type": "number", "description": "Suggested selling price"}}, "required": ["product_name", "files"]}},
             {"name": "stripe_payment_link", "description": "Create Stripe payment links instantly — product + price + shareable URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "create | list | deactivate"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number", "description": "Amount in dollars"}, "currency": {"type": "string"}, "billing": {"type": "string", "description": "one_time | monthly | yearly"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
             {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with real progress vs ledger. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string", "description": "monthly | quarterly | annual | custom"}, "deadline": {"type": "string", "description": "YYYY-MM-DD"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
             {"name": "process_meeting_notes", "description": "Process any meeting transcript or rough notes with AI — extracts action items, decisions, follow-up emails, open questions, and saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string", "description": "Raw meeting text, Zoom transcript, or rough notes"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string", "description": "full | actions_only | summary_only"}}, "required": ["transcript"]}},
@@ -9094,6 +9107,8 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await google_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "export_to_pdf":
                     tool_result = await export_to_pdf(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "build_product_bundle":
+                    tool_result = await build_product_bundle(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "stripe_payment_link":
                     tool_result = await stripe_payment_link(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "revenue_goals":
@@ -10423,7 +10438,8 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "read_analytics", "description": "Read Gumroad sales and revenue analytics — revenue, top products, trends. Also reads income ledger. With AI insights.", "input_schema": {"type": "object", "properties": {"platform": {"type": "string"}, "period": {"type": "string"}, "include_insights": {"type": "boolean"}}, "required": []}},
                 {"name": "publish_to_beehiiv", "description": "Publish newsletter to Beehiiv. Actions: publish | draft | list_posts | stats. Requires BEEHIIV_API_KEY + BEEHIIV_PUBLICATION_ID.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "title": {"type": "string"}, "subtitle": {"type": "string"}, "content": {"type": "string"}, "audience": {"type": "string"}, "status": {"type": "string"}, "preview_text": {"type": "string"}}, "required": ["action"]}},
                 {"name": "google_calendar", "description": "View and manage Google Calendar — list events, create meetings. Actions: list | today | week | create | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "summary": {"type": "string"}, "start": {"type": "string"}, "end": {"type": "string"}, "duration_minutes": {"type": "number"}, "location": {"type": "string"}, "description": {"type": "string"}, "event_id": {"type": "string"}, "days_ahead": {"type": "number"}, "all_day": {"type": "boolean"}}, "required": ["action"]}},
-                {"name": "export_to_pdf", "description": "Export content to a real PDF file. Converts markdown or text to downloadable PDF. Saved to vesper-ai/exports/.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "title": {"type": "string"}, "filename": {"type": "string"}, "font_size": {"type": "number"}, "include_header": {"type": "boolean"}, "include_page_numbers": {"type": "boolean"}}, "required": ["content", "title"]}},
+                {"name": "export_to_pdf", "description": "Export content to a real PDF file. Returns download_url — a REAL working link. Always give this URL to the user.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "title": {"type": "string"}, "filename": {"type": "string"}, "font_size": {"type": "number"}, "include_header": {"type": "boolean"}, "include_page_numbers": {"type": "boolean"}}, "required": ["content", "title"]}},
+                {"name": "build_product_bundle", "description": "Create a real downloadable ZIP product bundle. Returns download_url — a REAL working link. Use to create Gumroad products.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "files": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "content": {"type": "string"}, "type": {"type": "string"}, "title": {"type": "string"}}, "required": ["name", "content", "type"]}, "description": "Files to bundle"}, "price": {"type": "number"}}, "required": ["product_name", "files"]}},
                 {"name": "stripe_payment_link", "description": "Create Stripe payment links — product + price + URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number"}, "currency": {"type": "string"}, "billing": {"type": "string"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
                 {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with progress vs actuals. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string"}, "deadline": {"type": "string"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
                 {"name": "process_meeting_notes", "description": "Process meeting transcript or notes — extracts action items, decisions, follow-up emails, open questions. Saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string"}}, "required": ["transcript"]}},
@@ -10640,6 +10656,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "publish_to_beehiiv": "📧 Publishing to Beehiiv",
                     "google_calendar": "📅 Checking calendar",
                     "export_to_pdf": "📄 Exporting to PDF",
+                    "build_product_bundle": "📦 Building product bundle",
                     "stripe_payment_link": "💳 Creating payment link",
                     "revenue_goals": "🎯 Tracking revenue goals",
                     "process_meeting_notes": "📝 Processing meeting notes",
@@ -11110,6 +11127,8 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await google_calendar(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "export_to_pdf":
                         tool_result = await export_to_pdf(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "build_product_bundle":
+                        tool_result = await build_product_bundle(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "stripe_payment_link":
                         tool_result = await stripe_payment_link(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "revenue_goals":
@@ -15829,6 +15848,9 @@ async def update_background_settings(req: Request):
 DOWNLOADS_DIR = os.path.join(DATA_DIR, "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
+EXPORTS_DIR = os.path.join(DATA_DIR, "exports")
+os.makedirs(EXPORTS_DIR, exist_ok=True)
+
 MEDIA_DIR = os.path.join(os.path.dirname(__file__), "media")
 MEDIA_SOURCE_DIR = os.path.join(MEDIA_DIR, "source")
 MEDIA_OUTPUT_DIR = os.path.join(MEDIA_DIR, "output")
@@ -15838,6 +15860,7 @@ os.makedirs(MEDIA_OUTPUT_DIR, exist_ok=True)
 # Mount static file serving so saved files are accessible via URL
 try:
     app.mount("/files", StaticFiles(directory=DOWNLOADS_DIR), name="saved_files")
+    app.mount("/exports", StaticFiles(directory=EXPORTS_DIR), name="exported_files")
     app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media_files")
 except Exception as _e:
     print(f"[WARN] Static file mount failed: {_e}", file=sys.stderr)
@@ -16021,6 +16044,29 @@ async def list_saved_files(folder: str = ""):
             })
     
     return {"files": files, "folders": folders, "current_folder": folder or "root"}
+
+
+@app.get("/api/exports/list")
+async def list_exported_files():
+    """List all files Vesper has exported/created — PDFs, ZIPs, etc. — with real download URLs."""
+    if not os.path.exists(EXPORTS_DIR):
+        return {"files": [], "count": 0}
+
+    base_url = _get_backend_url()
+    files = []
+    for item in sorted(os.listdir(EXPORTS_DIR), reverse=True):
+        fp = os.path.join(EXPORTS_DIR, item)
+        if os.path.isfile(fp):
+            stat = os.stat(fp)
+            size = stat.st_size
+            files.append({
+                "name": item,
+                "url": f"{base_url}/exports/{item}",
+                "size_bytes": size,
+                "size_human": f"{size/1024:.1f} KB" if size < 1024*1024 else f"{size/(1024*1024):.1f} MB",
+                "created": datetime.datetime.fromtimestamp(stat.st_mtime).isoformat(),
+            })
+    return {"files": files, "count": len(files), "base_url": base_url}
 
 @app.delete("/api/files/{file_path:path}")
 async def delete_saved_file(file_path: str):

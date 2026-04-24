@@ -27,6 +27,17 @@ def _safe_write(path: str, content: str) -> bool:
         return False
 
 
+def _make_export_url(filename: str) -> str:
+    """Construct a publicly accessible download URL for an exported file."""
+    railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+    if railway_domain:
+        base = f"https://{railway_domain}"
+    else:
+        port = os.environ.get("PORT", "8000")
+        base = f"http://localhost:{port}"
+    return f"{base}/exports/{filename}"
+
+
 def _extract_json(text: str) -> dict:
     """Robustly parse JSON from AI output — handles code fences, extra prose."""
     # Strip markdown code fences (```json ... ``` or ``` ... ```)
@@ -7537,8 +7548,118 @@ async def export_to_pdf(params: dict, ai_router=None, TaskType=None) -> dict:
         "success": True,
         "title": title,
         "file_path": fp,
+        "filename": os.path.basename(fp),
         "method": method,
+        "download_url": _make_export_url(os.path.basename(fp)),
         "preview": f"[PDF exported: '{title}' → {os.path.basename(fp)}]",
+        "note": "Share the download_url with the user so they can download the file directly.",
+    }
+
+
+# ── BUILD PRODUCT BUNDLE ───────────────────────────────────────────────────────
+async def build_product_bundle(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Create a real downloadable product ZIP bundle containing multiple files.
+    Vesper writes the content, the tool packages it, returns a real download URL.
+
+    params:
+      - product_name: str — name of the product
+      - files: list of {name: str, content: str, type: "txt"|"md"|"pdf"} — files to include
+      - price: float — suggested selling price
+    """
+    import os, re, uuid, zipfile, json
+
+    product_name = params.get("product_name", "Product")
+    files_spec = params.get("files", [])
+    price = params.get("price", 9.99)
+
+    if not files_spec:
+        return {"error": "files list is required — provide [{name, content, type}]"}
+
+    workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    export_dir = os.path.join(workspace, "vesper-ai", "exports")
+    os.makedirs(export_dir, exist_ok=True)
+
+    slug = re.sub(r"[^\w_]", "", product_name.lower().replace(" ", "_"))[:40]
+    uid = uuid.uuid4().hex[:6]
+    zip_name = f"{slug}_{uid}.zip"
+    zip_path = os.path.join(export_dir, zip_name)
+    created_files = []
+    errors = []
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for spec in files_spec:
+            fname = spec.get("name", f"file_{len(created_files)+1}")
+            content = spec.get("content", "")
+            ftype = spec.get("type", "txt").lower()
+
+            # Ensure extension
+            if not any(fname.endswith(ext) for ext in (".txt", ".md", ".pdf", ".csv", ".json")):
+                fname = f"{fname}.{ftype}"
+
+            if ftype == "pdf":
+                try:
+                    from fpdf import FPDF
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_auto_page_break(auto=True, margin=15)
+                    pdf.set_font("Helvetica", "B", 14)
+                    title_text = spec.get("title", fname.replace(".pdf", ""))
+                    pdf.multi_cell(0, 10, title_text)
+                    pdf.ln(4)
+                    pdf.set_font("Helvetica", "", 11)
+                    # Strip markdown
+                    clean = re.sub(r"#{1,6}\s+", "", content)
+                    clean = re.sub(r"\*\*(.+?)\*\*", r"\1", clean)
+                    clean = re.sub(r"\*(.+?)\*", r"\1", clean)
+                    clean = re.sub(r"`(.+?)`", r"\1", clean)
+                    for line in clean.split("\n"):
+                        stripped = line.strip()
+                        if not stripped:
+                            pdf.ln(3)
+                        else:
+                            pdf.set_x(pdf.l_margin)
+                            pdf.multi_cell(0, 6, stripped)
+                    tmp_pdf = os.path.join(export_dir, f"_tmp_{uid}_{fname}")
+                    pdf.output(tmp_pdf)
+                    zf.write(tmp_pdf, fname)
+                    os.remove(tmp_pdf)
+                    created_files.append(fname)
+                except Exception as pdf_err:
+                    # Fall back to txt
+                    fname = fname.replace(".pdf", ".txt")
+                    zf.writestr(fname, content)
+                    created_files.append(fname)
+                    errors.append(f"PDF fallback to txt for {fname}: {pdf_err}")
+            else:
+                zf.writestr(fname, content)
+                created_files.append(fname)
+
+        # Always include a README
+        readme = f"# {product_name}\n\nThank you for your purchase!\n\nFiles included:\n"
+        for f in created_files:
+            readme += f"- {f}\n"
+        readme += f"\nSuggested price: ${price:.2f}\n"
+        zf.writestr("README.txt", readme)
+
+    size = os.path.getsize(zip_path)
+    download_url = _make_export_url(zip_name)
+
+    return {
+        "success": True,
+        "product_name": product_name,
+        "zip_filename": zip_name,
+        "download_url": download_url,
+        "files_included": created_files + ["README.txt"],
+        "size_bytes": size,
+        "size_human": f"{size/1024:.1f} KB" if size < 1024*1024 else f"{size/(1024*1024):.1f} MB",
+        "suggested_price": f"${price:.2f}",
+        "next_steps": [
+            f"1. Download: {download_url}",
+            "2. Review the ZIP contents",
+            "3. Call gumroad_create_product with this product to list it for sale",
+        ],
+        "errors": errors if errors else None,
     }
 
 
