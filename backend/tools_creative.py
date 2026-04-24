@@ -14475,3 +14475,342 @@ Write complete, runnable code. No placeholder comments."""
         return {"error": str(e), "framework": framework}
 
 
+# ---------------------------------------------------------------------------
+# GITHUB TOOL
+# Full GitHub integration via REST API.
+# Actions: create_repo | list_repos | push_file | push_files | create_release
+#          | get_repo | delete_repo | create_branch | list_branches | get_file
+# Requires GITHUB_TOKEN env var (Personal Access Token with repo scope).
+# ---------------------------------------------------------------------------
+async def github_tool(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Interact with GitHub via REST API.
+
+    Actions:
+        create_repo     — create a new repository (public or private)
+        list_repos      — list repos for the authenticated user
+        get_repo        — get info about a repo
+        delete_repo     — delete a repo (IRREVERSIBLE)
+        push_file       — create or update a single file in a repo
+        push_files      — create/update multiple files in one commit
+        get_file        — read a file's content from a repo
+        create_branch   — create a new branch from an existing one
+        list_branches   — list branches in a repo
+        create_release  — create a GitHub release/tag with optional body
+
+    Required params vary by action. All need GITHUB_TOKEN env var.
+    """
+    import os, base64
+    import httpx
+
+    token = os.getenv("GITHUB_TOKEN", "")
+    if not token:
+        return {
+            "error": "GITHUB_TOKEN env var not set. Add a GitHub Personal Access Token (repo scope) to Railway env vars.",
+            "help": "Generate one at https://github.com/settings/tokens/new?scopes=repo",
+        }
+
+    action = params.get("action", "").lower().strip()
+    if not action:
+        return {"error": "action required. Options: create_repo | list_repos | get_repo | delete_repo | push_file | push_files | get_file | create_branch | list_branches | create_release"}
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    BASE = "https://api.github.com"
+
+    async def _req(method: str, path: str, **kwargs):
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.request(method, f"{BASE}{path}", headers=headers, **kwargs)
+            try:
+                data = r.json()
+            except Exception:
+                data = {"raw": r.text}
+            return r.status_code, data
+
+    # ── create_repo ────────────────────────────────────────────────────────
+    if action == "create_repo":
+        name = params.get("name", "").strip()
+        if not name:
+            return {"error": "name required for create_repo"}
+        body = {
+            "name": name,
+            "description": params.get("description", ""),
+            "private": params.get("private", False),
+            "auto_init": params.get("auto_init", True),
+            "gitignore_template": params.get("gitignore_template", ""),
+        }
+        # Remove empty optional fields
+        body = {k: v for k, v in body.items() if v != ""}
+        status, data = await _req("POST", "/user/repos", json=body)
+        if status in (200, 201):
+            return {
+                "success": True,
+                "repo_name": data["full_name"],
+                "url": data["html_url"],
+                "clone_url": data["clone_url"],
+                "ssh_url": data["ssh_url"],
+                "private": data["private"],
+                "default_branch": data.get("default_branch", "main"),
+                "preview": f"[GitHub] Created repo: {data['html_url']}",
+            }
+        return {"error": data.get("message", str(data)), "status": status}
+
+    # ── list_repos ─────────────────────────────────────────────────────────
+    if action == "list_repos":
+        per_page = min(int(params.get("per_page", 30)), 100)
+        sort = params.get("sort", "updated")  # created | updated | pushed | full_name
+        status, data = await _req("GET", f"/user/repos?per_page={per_page}&sort={sort}&type=all")
+        if status == 200:
+            repos = [{"name": r["full_name"], "url": r["html_url"], "private": r["private"], "updated": r["updated_at"][:10]} for r in data]
+            return {"success": True, "count": len(repos), "repos": repos, "preview": f"[GitHub] {len(repos)} repos"}
+        return {"error": data.get("message", str(data)), "status": status}
+
+    # ── get_repo ───────────────────────────────────────────────────────────
+    if action == "get_repo":
+        owner = params.get("owner", "")
+        repo = params.get("repo", "").strip()
+        if not repo:
+            return {"error": "repo required (e.g. 'my-repo' or 'owner/repo')"}
+        if "/" in repo:
+            owner, repo = repo.split("/", 1)
+        if not owner:
+            # Fall back to authenticated user
+            _, me = await _req("GET", "/user")
+            owner = me.get("login", "")
+        status, data = await _req("GET", f"/repos/{owner}/{repo}")
+        if status == 200:
+            return {
+                "success": True,
+                "full_name": data["full_name"],
+                "url": data["html_url"],
+                "description": data.get("description", ""),
+                "default_branch": data.get("default_branch", "main"),
+                "private": data["private"],
+                "stars": data.get("stargazers_count", 0),
+                "forks": data.get("forks_count", 0),
+                "open_issues": data.get("open_issues_count", 0),
+                "clone_url": data["clone_url"],
+                "preview": f"[GitHub] {data['full_name']} — {data.get('description', 'no description')}",
+            }
+        return {"error": data.get("message", str(data)), "status": status}
+
+    # ── delete_repo ────────────────────────────────────────────────────────
+    if action == "delete_repo":
+        owner = params.get("owner", "")
+        repo = params.get("repo", "").strip()
+        if not repo:
+            return {"error": "repo required"}
+        if "/" in repo:
+            owner, repo = repo.split("/", 1)
+        if not owner:
+            _, me = await _req("GET", "/user")
+            owner = me.get("login", "")
+        confirm = params.get("confirm", False)
+        if not confirm:
+            return {"error": f"Set confirm=true to permanently delete {owner}/{repo}. THIS CANNOT BE UNDONE."}
+        status, data = await _req("DELETE", f"/repos/{owner}/{repo}")
+        if status == 204:
+            return {"success": True, "deleted": f"{owner}/{repo}", "preview": f"[GitHub] Deleted repo {owner}/{repo}"}
+        return {"error": data.get("message", str(data)), "status": status}
+
+    # ── push_file (create or update single file) ───────────────────────────
+    if action in ("push_file", "create_file", "update_file"):
+        owner = params.get("owner", "")
+        repo = params.get("repo", "").strip()
+        if "/" in repo:
+            owner, repo = repo.split("/", 1)
+        if not owner:
+            _, me = await _req("GET", "/user")
+            owner = me.get("login", "")
+        path = params.get("path", "").strip("/")
+        content = params.get("content", "")
+        message = params.get("message", f"Update {path}") or f"Update {path}"
+        branch = params.get("branch", "main")
+        if not (repo and path and content is not None):
+            return {"error": "repo, path, and content are required"}
+        encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
+        body: dict = {"message": message, "content": encoded, "branch": branch}
+        # Check if file exists to get SHA for update
+        check_status, check_data = await _req("GET", f"/repos/{owner}/{repo}/contents/{path}?ref={branch}")
+        if check_status == 200:
+            body["sha"] = check_data["sha"]
+        status, data = await _req("PUT", f"/repos/{owner}/{repo}/contents/{path}", json=body)
+        if status in (200, 201):
+            return {
+                "success": True,
+                "file": path,
+                "repo": f"{owner}/{repo}",
+                "url": data.get("content", {}).get("html_url", ""),
+                "commit": data.get("commit", {}).get("sha", "")[:7],
+                "preview": f"[GitHub] {'Updated' if check_status == 200 else 'Created'} {path} in {owner}/{repo}",
+            }
+        return {"error": data.get("message", str(data)), "status": status}
+
+    # ── push_files (multiple files in one commit) ──────────────────────────
+    if action == "push_files":
+        owner = params.get("owner", "")
+        repo = params.get("repo", "").strip()
+        if "/" in repo:
+            owner, repo = repo.split("/", 1)
+        if not owner:
+            _, me = await _req("GET", "/user")
+            owner = me.get("login", "")
+        files = params.get("files", {})  # {"path": "content", ...}
+        message = params.get("message", "Add files via Vesper")
+        branch = params.get("branch", "main")
+        if not (repo and files):
+            return {"error": "repo and files (dict of path->content) required"}
+
+        # Get latest commit SHA for branch
+        status, ref_data = await _req("GET", f"/repos/{owner}/{repo}/git/ref/heads/{branch}")
+        if status != 200:
+            return {"error": f"Branch '{branch}' not found: {ref_data.get('message', str(ref_data))}"}
+        base_commit_sha = ref_data["object"]["sha"]
+
+        # Get base tree SHA
+        status, commit_data = await _req("GET", f"/repos/{owner}/{repo}/git/commits/{base_commit_sha}")
+        if status != 200:
+            return {"error": f"Could not get commit: {commit_data.get('message')}"}
+        base_tree_sha = commit_data["tree"]["sha"]
+
+        # Create blobs for each file
+        tree_items = []
+        for file_path, file_content in files.items():
+            encoded = base64.b64encode(file_content.encode("utf-8")).decode("ascii") if isinstance(file_content, str) else base64.b64encode(file_content).decode("ascii")
+            status, blob = await _req("POST", f"/repos/{owner}/{repo}/git/blobs", json={"content": encoded, "encoding": "base64"})
+            if status not in (200, 201):
+                return {"error": f"Failed to create blob for {file_path}: {blob.get('message')}"}
+            tree_items.append({"path": file_path.lstrip("/"), "mode": "100644", "type": "blob", "sha": blob["sha"]})
+
+        # Create tree
+        status, tree_data = await _req("POST", f"/repos/{owner}/{repo}/git/trees", json={"base_tree": base_tree_sha, "tree": tree_items})
+        if status not in (200, 201):
+            return {"error": f"Failed to create tree: {tree_data.get('message')}"}
+
+        # Create commit
+        status, new_commit = await _req("POST", f"/repos/{owner}/{repo}/git/commits", json={
+            "message": message, "tree": tree_data["sha"], "parents": [base_commit_sha]
+        })
+        if status not in (200, 201):
+            return {"error": f"Failed to create commit: {new_commit.get('message')}"}
+
+        # Update branch ref
+        status, update = await _req("PATCH", f"/repos/{owner}/{repo}/git/refs/heads/{branch}", json={"sha": new_commit["sha"]})
+        if status not in (200, 201):
+            return {"error": f"Failed to update branch: {update.get('message')}"}
+
+        return {
+            "success": True,
+            "files_pushed": list(files.keys()),
+            "commit": new_commit["sha"][:7],
+            "commit_url": new_commit.get("html_url", ""),
+            "repo": f"{owner}/{repo}",
+            "branch": branch,
+            "preview": f"[GitHub] Pushed {len(files)} files to {owner}/{repo}@{branch} — commit {new_commit['sha'][:7]}",
+        }
+
+    # ── get_file ───────────────────────────────────────────────────────────
+    if action == "get_file":
+        owner = params.get("owner", "")
+        repo = params.get("repo", "").strip()
+        if "/" in repo:
+            owner, repo = repo.split("/", 1)
+        if not owner:
+            _, me = await _req("GET", "/user")
+            owner = me.get("login", "")
+        path = params.get("path", "").strip("/")
+        branch = params.get("branch", "main")
+        status, data = await _req("GET", f"/repos/{owner}/{repo}/contents/{path}?ref={branch}")
+        if status == 200 and "content" in data:
+            try:
+                content = base64.b64decode(data["content"]).decode("utf-8")
+            except Exception:
+                content = data["content"]
+            return {
+                "success": True,
+                "path": path,
+                "content": content,
+                "sha": data["sha"],
+                "size": data["size"],
+                "url": data.get("html_url", ""),
+                "preview": f"[GitHub] Read {path} from {owner}/{repo} ({data['size']} bytes)",
+            }
+        return {"error": data.get("message", str(data)), "status": status}
+
+    # ── create_branch ──────────────────────────────────────────────────────
+    if action == "create_branch":
+        owner = params.get("owner", "")
+        repo = params.get("repo", "").strip()
+        if "/" in repo:
+            owner, repo = repo.split("/", 1)
+        if not owner:
+            _, me = await _req("GET", "/user")
+            owner = me.get("login", "")
+        new_branch = params.get("branch", "").strip()
+        from_branch = params.get("from_branch", "main")
+        if not new_branch:
+            return {"error": "branch (new branch name) required"}
+        status, ref_data = await _req("GET", f"/repos/{owner}/{repo}/git/ref/heads/{from_branch}")
+        if status != 200:
+            return {"error": f"Source branch '{from_branch}' not found"}
+        sha = ref_data["object"]["sha"]
+        status, data = await _req("POST", f"/repos/{owner}/{repo}/git/refs", json={"ref": f"refs/heads/{new_branch}", "sha": sha})
+        if status in (200, 201):
+            return {"success": True, "branch": new_branch, "from": from_branch, "sha": sha[:7], "preview": f"[GitHub] Created branch {new_branch} from {from_branch} in {owner}/{repo}"}
+        return {"error": data.get("message", str(data)), "status": status}
+
+    # ── list_branches ──────────────────────────────────────────────────────
+    if action == "list_branches":
+        owner = params.get("owner", "")
+        repo = params.get("repo", "").strip()
+        if "/" in repo:
+            owner, repo = repo.split("/", 1)
+        if not owner:
+            _, me = await _req("GET", "/user")
+            owner = me.get("login", "")
+        status, data = await _req("GET", f"/repos/{owner}/{repo}/branches?per_page=50")
+        if status == 200:
+            branches = [{"name": b["name"], "sha": b["commit"]["sha"][:7]} for b in data]
+            return {"success": True, "branches": branches, "count": len(branches), "preview": f"[GitHub] {len(branches)} branches in {owner}/{repo}"}
+        return {"error": data.get("message", str(data)), "status": status}
+
+    # ── create_release ─────────────────────────────────────────────────────
+    if action == "create_release":
+        owner = params.get("owner", "")
+        repo = params.get("repo", "").strip()
+        if "/" in repo:
+            owner, repo = repo.split("/", 1)
+        if not owner:
+            _, me = await _req("GET", "/user")
+            owner = me.get("login", "")
+        tag = params.get("tag", "").strip()
+        name = params.get("name", tag)
+        body_text = params.get("body", "")
+        draft = params.get("draft", False)
+        prerelease = params.get("prerelease", False)
+        target_branch = params.get("branch", "main")
+        if not tag:
+            return {"error": "tag required (e.g. 'v1.0.0')"}
+        status, data = await _req("POST", f"/repos/{owner}/{repo}/releases", json={
+            "tag_name": tag, "name": name, "body": body_text,
+            "draft": draft, "prerelease": prerelease, "target_commitish": target_branch,
+        })
+        if status in (200, 201):
+            return {
+                "success": True,
+                "release_url": data["html_url"],
+                "tag": tag,
+                "name": name,
+                "draft": draft,
+                "preview": f"[GitHub] {'Draft release' if draft else 'Released'} {tag} — {data['html_url']}",
+            }
+        return {"error": data.get("message", str(data)), "status": status}
+
+    return {
+        "error": f"Unknown action '{action}'",
+        "valid_actions": ["create_repo", "list_repos", "get_repo", "delete_repo", "push_file", "push_files", "get_file", "create_branch", "list_branches", "create_release"],
+    }
+
+
