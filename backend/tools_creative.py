@@ -10,6 +10,7 @@ Vesper generates the content. CC earns the royalties. Forever.
 import os
 import re
 import json
+import time
 import asyncio
 import requests
 import datetime
@@ -11007,5 +11008,1257 @@ async def dropshipping_research(params: dict, ai_router=None, TaskType=None) -> 
         "file_path": file_path,
         "preview": f"[Dropshipping] {niche or 'general'} | {len(data.get('products', []))} products | top: {data.get('top_pick', '')[:80]}",
     }
+
+
+# =============================================================================
+# POST TO TWITTER/X
+# Actually posts a tweet via Twitter API v2.
+# Requires TWITTER_BEARER_TOKEN + TWITTER_API_KEY + TWITTER_API_SECRET +
+# TWITTER_ACCESS_TOKEN + TWITTER_ACCESS_SECRET in Railway env vars.
+# =============================================================================
+
+async def post_to_twitter(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Post a tweet via Twitter/X API v2.
+    Actions: post | thread | schedule_check | delete
+    """
+    action = params.get("action", "post")
+    text = params.get("text", "")
+    thread = params.get("thread", [])
+    tweet_id = params.get("tweet_id", "")
+
+    api_key = os.environ.get("TWITTER_API_KEY", "")
+    api_secret = os.environ.get("TWITTER_API_SECRET", "")
+    access_token = os.environ.get("TWITTER_ACCESS_TOKEN", "")
+    access_secret = os.environ.get("TWITTER_ACCESS_SECRET", "")
+
+    if not all([api_key, api_secret, access_token, access_secret]):
+        return {
+            "error": "Twitter/X not configured",
+            "setup_required": [
+                "1. Go to developer.twitter.com → Create Project → Create App",
+                "2. Under 'User authentication settings' enable OAuth 1.0a with Read+Write",
+                "3. Generate Access Token and Access Token Secret",
+                "4. Add to Railway: TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET",
+            ],
+        }
+
+    try:
+        import hmac
+        import hashlib
+        import base64
+        import urllib.parse
+        import time
+        import secrets as _secrets
+
+        def _oauth_header(method, url, body_params=None):
+            ts = str(int(time.time()))
+            nonce = _secrets.token_hex(16)
+            oauth_params = {
+                "oauth_consumer_key": api_key,
+                "oauth_nonce": nonce,
+                "oauth_signature_method": "HMAC-SHA1",
+                "oauth_timestamp": ts,
+                "oauth_token": access_token,
+                "oauth_version": "1.0",
+            }
+            all_params = {**oauth_params, **(body_params or {})}
+            sorted_params = "&".join(
+                f"{urllib.parse.quote(k, safe='')}={urllib.parse.quote(str(v), safe='')}"
+                for k, v in sorted(all_params.items())
+            )
+            base_string = "&".join([
+                method.upper(),
+                urllib.parse.quote(url, safe=""),
+                urllib.parse.quote(sorted_params, safe=""),
+            ])
+            signing_key = f"{urllib.parse.quote(api_secret, safe='')}&{urllib.parse.quote(access_secret, safe='')}"
+            sig = base64.b64encode(
+                hmac.new(signing_key.encode("ascii"), base_string.encode("ascii"), hashlib.sha1).digest()
+            ).decode()
+            oauth_params["oauth_signature"] = sig
+            header = "OAuth " + ", ".join(
+                f'{urllib.parse.quote(k, safe="")}="{urllib.parse.quote(str(v), safe="")}"'
+                for k, v in sorted(oauth_params.items())
+            )
+            return header
+
+        post_url = "https://api.twitter.com/2/tweets"
+
+        if action == "delete" and tweet_id:
+            del_url = f"https://api.twitter.com/2/tweets/{tweet_id}"
+            auth = _oauth_header("DELETE", del_url)
+            r = requests.delete(del_url, headers={"Authorization": auth}, timeout=15)
+            return {"success": r.status_code in (200, 204), "tweet_id": tweet_id, "status": r.status_code}
+
+        if action == "thread" and thread:
+            tweets_to_post = thread
+        else:
+            if not text:
+                return {"error": "Provide 'text' for the tweet"}
+            tweets_to_post = [text]
+
+        posted = []
+        reply_to = None
+        for t in tweets_to_post:
+            payload = {"text": t[:280]}
+            if reply_to:
+                payload["reply"] = {"in_reply_to_tweet_id": reply_to}
+            auth = _oauth_header("POST", post_url, {"text": t[:280]})
+            r = requests.post(
+                post_url,
+                headers={"Authorization": auth, "Content-Type": "application/json"},
+                json=payload,
+                timeout=15,
+            )
+            data = r.json()
+            if r.status_code in (200, 201):
+                tid = data.get("data", {}).get("id", "")
+                posted.append({"tweet_id": tid, "text": t[:280], "url": f"https://twitter.com/i/web/status/{tid}"})
+                reply_to = tid
+            else:
+                posted.append({"error": data, "text": t[:280]})
+
+        return {
+            "success": any("tweet_id" in p for p in posted),
+            "posted": posted,
+            "count": len([p for p in posted if "tweet_id" in p]),
+            "preview": f"[Twitter] Posted {len(posted)} tweet(s)",
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# =============================================================================
+# POST TO LINKEDIN
+# Actually posts via LinkedIn API v2.
+# Requires LINKEDIN_ACCESS_TOKEN + LINKEDIN_PERSON_ID in Railway env vars.
+# =============================================================================
+
+async def post_to_linkedin(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Post to LinkedIn via LinkedIn API v2.
+    Actions: post | get_profile
+    """
+    action = params.get("action", "post")
+    text = params.get("text", "")
+    visibility = params.get("visibility", "PUBLIC")
+
+    access_token = os.environ.get("LINKEDIN_ACCESS_TOKEN", "")
+    person_id = os.environ.get("LINKEDIN_PERSON_ID", "")
+
+    if not access_token:
+        return {
+            "error": "LinkedIn not configured",
+            "setup_required": [
+                "1. Go to linkedin.com/developers → Create App",
+                "2. Request 'Share on LinkedIn' + 'OpenID Connect' products",
+                "3. Complete OAuth2 flow to get access token (valid 60 days)",
+                "4. Get your person URN: GET https://api.linkedin.com/v2/me with your token",
+                "5. Add to Railway: LINKEDIN_ACCESS_TOKEN, LINKEDIN_PERSON_ID (the 'id' field from /me)",
+            ],
+        }
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "X-Restli-Protocol-Version": "2.0.0",
+    }
+
+    if action == "get_profile" or not person_id:
+        try:
+            r = requests.get("https://api.linkedin.com/v2/me", headers=headers, timeout=15)
+            profile = r.json()
+            pid = profile.get("id", "")
+            return {
+                "success": r.status_code == 200,
+                "person_id": pid,
+                "name": f"{profile.get('localizedFirstName', '')} {profile.get('localizedLastName', '')}".strip(),
+                "note": f"Add LINKEDIN_PERSON_ID={pid} to Railway env vars",
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    if not text:
+        return {"error": "Provide 'text' for the post"}
+
+    payload = {
+        "author": f"urn:li:person:{person_id}",
+        "lifecycleState": "PUBLISHED",
+        "specificContent": {
+            "com.linkedin.ugc.ShareContent": {
+                "shareCommentary": {"text": text[:3000]},
+                "shareMediaCategory": "NONE",
+            }
+        },
+        "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": visibility},
+    }
+
+    try:
+        r = requests.post("https://api.linkedin.com/v2/ugcPosts", headers=headers, json=payload, timeout=15)
+        data = r.json()
+        if r.status_code in (200, 201):
+            post_id = r.headers.get("X-RestLi-Id", data.get("id", ""))
+            return {
+                "success": True,
+                "post_id": post_id,
+                "text_preview": text[:100],
+                "visibility": visibility,
+                "preview": f"[LinkedIn] Posted: {text[:80]}...",
+            }
+        return {"error": f"LinkedIn API {r.status_code}", "details": data}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# =============================================================================
+# SEND SMS
+# Twilio SMS - alert CC about sales, payments, important events.
+# Requires TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_FROM_NUMBER + CC_PHONE_NUMBER
+# =============================================================================
+
+async def send_sms(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Send an SMS via Twilio. Primarily used to alert CC.
+    """
+    to = params.get("to", os.environ.get("CC_PHONE_NUMBER", ""))
+    message = params.get("message", "")
+    from_number = os.environ.get("TWILIO_FROM_NUMBER", "")
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
+
+    if not all([account_sid, auth_token, from_number]):
+        return {
+            "error": "Twilio not configured",
+            "setup_required": [
+                "1. Go to twilio.com → Sign up (free trial gives $15 credit)",
+                "2. Get a phone number (free with trial)",
+                "3. From console: copy Account SID and Auth Token",
+                "4. Add to Railway: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER (+1XXXXXXXXXX format)",
+                "5. Optional: TWILIO_TO_NUMBER or CC_PHONE_NUMBER (your number to receive alerts)",
+            ],
+        }
+
+    if not to:
+        return {"error": "No 'to' number. Set CC_PHONE_NUMBER in Railway or pass 'to' param."}
+    if not message:
+        return {"error": "Provide 'message'"}
+
+    try:
+        r = requests.post(
+            f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json",
+            auth=(account_sid, auth_token),
+            data={"From": from_number, "To": to, "Body": message[:1600]},
+            timeout=15,
+        )
+        data = r.json()
+        if r.status_code in (200, 201):
+            return {
+                "success": True,
+                "message_sid": data.get("sid", ""),
+                "to": to,
+                "status": data.get("status", ""),
+                "preview": f"[SMS] Sent to {to}: {message[:60]}",
+            }
+        return {"error": f"Twilio error {r.status_code}", "details": data.get("message", "")}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# =============================================================================
+# GENERATE VOICEOVER
+# ElevenLabs TTS - turns scripts into MP3 audio files.
+# Requires ELEVENLABS_API_KEY in Railway env vars.
+# Falls back to a free TTS option if not configured.
+# =============================================================================
+
+async def generate_voiceover(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate an MP3 voiceover from text using ElevenLabs or free TTS fallback.
+    Perfect for faceless YouTube videos, podcasts, ads.
+    """
+    text = params.get("text", "")
+    voice = params.get("voice", "Rachel")
+    filename = params.get("filename", "")
+    stability = float(params.get("stability", 0.5))
+    similarity = float(params.get("similarity", 0.75))
+
+    if not text:
+        return {"error": "Provide 'text' to convert to speech"}
+
+    api_key = os.environ.get("ELEVENLABS_API_KEY", "")
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "audio")
+    os.makedirs(save_dir, exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (filename or voice).lower())[:30]
+    out_path = os.path.join(save_dir, f"vo_{slug}_{ts}.mp3")
+
+    if not api_key:
+        # Free fallback: Google TTS (gTTS)
+        try:
+            from gtts import gTTS
+            tts = gTTS(text=text, lang="en", slow=False)
+            tts.save(out_path)
+            base_url = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+            rel = os.path.relpath(out_path, os.path.join(os.path.dirname(__file__), "..")).replace("\\", "/")
+            download_url = f"https://{base_url}/{rel}" if base_url else out_path
+            return {
+                "success": True,
+                "engine": "gTTS (free fallback)",
+                "file_path": out_path,
+                "download_url": download_url,
+                "duration_estimate": f"~{len(text.split()) // 150} min",
+                "preview": f"[Voiceover] gTTS | {len(text)} chars | {out_path}",
+                "note": "Add ELEVENLABS_API_KEY to Railway for higher quality voices.",
+            }
+        except ImportError:
+            return {
+                "error": "No TTS engine available",
+                "setup_required": [
+                    "Option A (recommended): Add ELEVENLABS_API_KEY to Railway (elevenlabs.io - free tier available)",
+                    "Option B (free): gTTS is not installed - add 'gtts' to requirements.txt",
+                ],
+            }
+
+    # ElevenLabs - resolve voice name to ID
+    voice_ids = {
+        "rachel": "21m00Tcm4TlvDq8ikWAM",
+        "domi": "AZnzlk1XvdvUeBnXmlld",
+        "bella": "EXAVITQu4vr4xnSDxMaL",
+        "antoni": "ErXwobaYiN019PkySvjV",
+        "elli": "MF3mGyEYCl7XYWbV9V6O",
+        "josh": "TxGEqnHWrfWFTfGW9XjX",
+        "arnold": "VR6AewLTigWG4xSOukaG",
+        "adam": "pNInz6obpgDQGcFmaJgB",
+        "sam": "yoZ06aMxZJJ28mfd3POQ",
+    }
+    voice_id = voice_ids.get(voice.lower(), voice)  # allow passing raw ID too
+
+    try:
+        r = requests.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+            headers={"xi-api-key": api_key, "Content-Type": "application/json"},
+            json={
+                "text": text,
+                "model_id": "eleven_monolingual_v1",
+                "voice_settings": {"stability": stability, "similarity_boost": similarity},
+            },
+            timeout=60,
+        )
+        if r.status_code == 200:
+            with open(out_path, "wb") as f:
+                f.write(r.content)
+            base_url = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+            rel = os.path.relpath(out_path, os.path.join(os.path.dirname(__file__), "..")).replace("\\", "/")
+            download_url = f"https://{base_url}/{rel}" if base_url else out_path
+            return {
+                "success": True,
+                "engine": "ElevenLabs",
+                "voice": voice,
+                "file_path": out_path,
+                "download_url": download_url,
+                "size_bytes": len(r.content),
+                "duration_estimate": f"~{len(text.split()) // 150} min",
+                "preview": f"[Voiceover] ElevenLabs/{voice} | {len(text)} chars | {download_url}",
+            }
+        return {"error": f"ElevenLabs API {r.status_code}", "details": r.text[:300]}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# =============================================================================
+# INVOICE GENERATOR
+# Creates professional PDF invoices for clients.
+# =============================================================================
+
+async def invoice_generator(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate a professional PDF invoice.
+    """
+    client_name = params.get("client_name", "")
+    client_email = params.get("client_email", "")
+    client_address = params.get("client_address", "")
+    invoice_number = params.get("invoice_number", "")
+    issue_date = params.get("issue_date", datetime.datetime.now().strftime("%B %d, %Y"))
+    due_date = params.get("due_date", "")
+    line_items = params.get("line_items", [])
+    notes = params.get("notes", "Thank you for your business!")
+    payment_link = params.get("payment_link", "")
+    your_name = params.get("your_name", "CC")
+    your_email = params.get("your_email", os.environ.get("SENDER_EMAIL", ""))
+    currency = params.get("currency", "USD")
+    tax_rate = float(params.get("tax_rate", 0))
+
+    if not client_name:
+        return {"error": "Provide 'client_name'"}
+    if not line_items:
+        return {"error": "Provide 'line_items': [{description, quantity, unit_price}]"}
+
+    # Calculate totals
+    subtotal = sum(float(item.get("quantity", 1)) * float(item.get("unit_price", 0)) for item in line_items)
+    tax_amount = subtotal * (tax_rate / 100)
+    total = subtotal + tax_amount
+
+    if not invoice_number:
+        invoice_number = f"INV-{datetime.datetime.now().strftime('%Y%m%d-%H%M')}"
+
+    if not due_date:
+        due = datetime.datetime.now() + datetime.timedelta(days=30)
+        due_date = due.strftime("%B %d, %Y")
+
+    # Build invoice as formatted text (PDF via reportlab if available)
+    symbol = {"USD": "$", "GBP": "£", "EUR": "€", "CAD": "CA$", "AUD": "AU$"}.get(currency, "$")
+
+    lines_text = "\n".join(
+        f"  {item.get('description', 'Service'):<40} {float(item.get('quantity',1)):>6.1f} x {symbol}{float(item.get('unit_price',0)):>8.2f}  =  {symbol}{float(item.get('quantity',1))*float(item.get('unit_price',0)):>10.2f}"
+        for item in line_items
+    )
+
+    invoice_text = f"""
+INVOICE
+{'='*60}
+Invoice #:    {invoice_number}
+Issue Date:   {issue_date}
+Due Date:     {due_date}
+
+FROM:
+{your_name}
+{your_email}
+
+TO:
+{client_name}
+{client_email}
+{client_address}
+
+{'='*60}
+SERVICES / PRODUCTS
+{'='*60}
+  {'Description':<40} {'Qty':>6}   {'Unit Price':>10}   {'Total':>12}
+  {'-'*74}
+{lines_text}
+  {'-'*74}
+  {'Subtotal':>62}  {symbol}{subtotal:>10.2f}
+{f"  {'Tax (' + str(tax_rate) + '%)':>62}  {symbol}{tax_amount:>10.2f}" if tax_rate else ''}
+  {'TOTAL DUE':>62}  {symbol}{total:>10.2f}
+{'='*60}
+
+{f'PAY ONLINE: {payment_link}' if payment_link else ''}
+
+NOTES:
+{notes}
+
+Thank you!
+"""
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "exports")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in client_name.lower())[:20]
+    base_filename = f"invoice_{invoice_number}_{slug}"
+    txt_path = os.path.join(save_dir, f"{base_filename}.txt")
+    _safe_write(txt_path, invoice_text.strip())
+
+    # Try PDF generation
+    pdf_path = ""
+    download_url = ""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+
+        pdf_path = os.path.join(save_dir, f"{base_filename}.pdf")
+        doc = SimpleDocTemplate(pdf_path, pagesize=letter, rightMargin=inch, leftMargin=inch, topMargin=inch, bottomMargin=inch)
+        styles = getSampleStyleSheet()
+        story = []
+
+        story.append(Paragraph(f"<b>INVOICE #{invoice_number}</b>", styles["Title"]))
+        story.append(Spacer(1, 12))
+        story.append(Paragraph(f"<b>From:</b> {your_name} &nbsp;&nbsp; <b>To:</b> {client_name}", styles["Normal"]))
+        story.append(Paragraph(f"<b>Issue Date:</b> {issue_date} &nbsp;&nbsp; <b>Due Date:</b> {due_date}", styles["Normal"]))
+        story.append(Spacer(1, 12))
+
+        table_data = [["Description", "Qty", "Unit Price", "Total"]]
+        for item in line_items:
+            qty = float(item.get("quantity", 1))
+            up = float(item.get("unit_price", 0))
+            table_data.append([item.get("description", ""), f"{qty:.1f}", f"{symbol}{up:.2f}", f"{symbol}{qty*up:.2f}"])
+        table_data.append(["", "", "Subtotal", f"{symbol}{subtotal:.2f}"])
+        if tax_rate:
+            table_data.append(["", "", f"Tax ({tax_rate}%)", f"{symbol}{tax_amount:.2f}"])
+        table_data.append(["", "", "TOTAL DUE", f"{symbol}{total:.2f}"])
+
+        t = Table(table_data, colWidths=[3.5*inch, 0.7*inch, 1.2*inch, 1.1*inch])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a1a2e")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (-2, -1), (-1, -1), "Helvetica-Bold"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -3), [colors.white, colors.HexColor("#f5f5f5")]),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 12))
+        if payment_link:
+            story.append(Paragraph(f"<b>Pay Online:</b> {payment_link}", styles["Normal"]))
+        story.append(Paragraph(notes, styles["Normal"]))
+        doc.build(story)
+
+        base_url = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+        pdf_name = os.path.basename(pdf_path)
+        download_url = f"https://{base_url}/exports/{pdf_name}" if base_url else pdf_path
+    except Exception:
+        # Fallback: txt only
+        base_url = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+        txt_name = os.path.basename(txt_path)
+        download_url = f"https://{base_url}/exports/{txt_name}" if base_url else txt_path
+
+    return {
+        "success": True,
+        "invoice_number": invoice_number,
+        "client_name": client_name,
+        "subtotal": subtotal,
+        "tax": tax_amount,
+        "total": total,
+        "currency": currency,
+        "due_date": due_date,
+        "pdf_path": pdf_path or txt_path,
+        "download_url": download_url,
+        "preview": f"[Invoice] #{invoice_number} | {client_name} | {symbol}{total:.2f} due {due_date} | {download_url}",
+    }
+
+
+# =============================================================================
+# REDDIT RESEARCH
+# Mine Reddit for niche pain points, product gaps, buyer language.
+# Uses Reddit JSON API - no auth required for public posts.
+# =============================================================================
+
+async def reddit_research(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Research Reddit for niche pain points, product gaps, and buyer language.
+    No API key required - uses public Reddit JSON endpoint.
+    """
+    niche = params.get("niche", "")
+    subreddits = params.get("subreddits", [])
+    research_type = params.get("research_type", "pain_points")
+    post_limit = min(int(params.get("post_limit", 25)), 50)
+
+    if not niche and not subreddits:
+        return {"error": "Provide 'niche' or 'subreddits' list"}
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    headers = {"User-Agent": "VesperResearch/1.0"}
+
+    # Auto-suggest subreddits if not provided
+    if not subreddits and niche:
+        niche_lower = niche.lower().replace(" ", "")
+        subreddits = [niche_lower, f"{niche_lower}s", "entrepreneur", "sidehustle", "passive_income", "smallbusiness"]
+
+    all_posts = []
+    for sub in subreddits[:4]:
+        try:
+            r = requests.get(
+                f"https://www.reddit.com/r/{sub}/top.json?limit={post_limit}&t=month",
+                headers=headers,
+                timeout=15,
+            )
+            if r.status_code == 200:
+                posts = r.json().get("data", {}).get("children", [])
+                for p in posts:
+                    d = p.get("data", {})
+                    all_posts.append({
+                        "subreddit": d.get("subreddit", sub),
+                        "title": d.get("title", ""),
+                        "selftext": d.get("selftext", "")[:500],
+                        "score": d.get("score", 0),
+                        "num_comments": d.get("num_comments", 0),
+                        "url": f"https://reddit.com{d.get('permalink', '')}",
+                    })
+        except Exception:
+            pass
+
+    if not all_posts:
+        return {"error": f"Could not fetch posts for subreddits: {subreddits}. They may be private or not exist."}
+
+    # Sort by engagement
+    all_posts.sort(key=lambda x: x["score"] + x["num_comments"] * 3, reverse=True)
+    top_posts = all_posts[:20]
+
+    posts_summary = "\n".join(
+        f"[r/{p['subreddit']}] {p['title']} (score: {p['score']}, comments: {p['num_comments']})\n  {p['selftext'][:200]}"
+        for p in top_posts[:15]
+    )
+
+    analysis_prompts = {
+        "pain_points": "What are the top 10 pain points, frustrations, and unmet needs? What are people desperately asking for? What would they pay to solve?",
+        "product_ideas": "What digital products, tools, or services are people asking for? What gaps exist? Suggest 5 specific products with prices.",
+        "buyer_language": "Extract exact phrases, words, and language people use to describe their problems. This is for copywriting.",
+        "competitor_analysis": "What solutions are people using? What do they complain about with existing solutions?",
+        "content_ideas": "What questions keep coming up? What topics get the most engagement? Suggest 10 content ideas.",
+    }
+
+    prompt = analysis_prompts.get(research_type, analysis_prompts["pain_points"])
+
+    resp = await ai_router.chat(
+        messages=[
+            {"role": "system", "content": "You are a market researcher analyzing Reddit posts to find product opportunities and buyer psychology. Be specific and actionable. Return raw JSON only."},
+            {"role": "user", "content": f"Niche: {niche}\nSubreddits analyzed: {', '.join([p['subreddit'] for p in top_posts[:5]])}\n\nTop posts:\n{posts_summary}\n\n{prompt}\n\nReturn JSON: {{\"insights\": [\"...\"], \"top_pain_points\": [\"...\"], \"product_opportunities\": [{{\"idea\": \"...\", \"price\": \"$X\", \"why\": \"...\"}}], \"buyer_language\": [\"exact phrases from posts\"], \"hot_topics\": [\"...\"], \"summary\": \"2-sentence takeaway\"}}"},
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=2000,
+        temperature=0.5,
+    )
+
+    analysis = _extract_json(resp.get("content", "{}"))
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "research")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (niche or "reddit").lower())[:30]
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    file_path = os.path.join(save_dir, f"reddit_{slug}_{ts}.json")
+    _safe_write(file_path, json.dumps({"posts": top_posts, "analysis": analysis}, indent=2))
+
+    return {
+        "success": True,
+        "niche": niche,
+        "subreddits": list(set(p["subreddit"] for p in top_posts)),
+        "posts_analyzed": len(top_posts),
+        "research_type": research_type,
+        "insights": analysis.get("insights", []),
+        "top_pain_points": analysis.get("top_pain_points", []),
+        "product_opportunities": analysis.get("product_opportunities", []),
+        "buyer_language": analysis.get("buyer_language", []),
+        "hot_topics": analysis.get("hot_topics", []),
+        "summary": analysis.get("summary", ""),
+        "top_posts": top_posts[:5],
+        "file_path": file_path,
+        "preview": f"[Reddit Research] {niche} | {len(top_posts)} posts | {len(analysis.get('product_opportunities', []))} product ideas",
+    }
+
+
+# =============================================================================
+# MORNING BRIEFING
+# Daily summary: income, tasks, top opportunity, news.
+# Call once every morning.
+# =============================================================================
+
+async def morning_briefing(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Generate CC's daily morning briefing.
+    Covers: income status, top priority, Vesper recommendation for the day.
+    """
+    include_news = params.get("include_news", True)
+    focus = params.get("focus", "")
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    today = datetime.datetime.now()
+    day_name = today.strftime("%A, %B %d, %Y")
+    hour = today.hour
+    greeting = "Good morning" if hour < 12 else ("Good afternoon" if hour < 17 else "Good evening")
+
+    # Gather context: check what income tools/files exist
+    exports_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "exports")
+    creations_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations")
+    recent_files = []
+    for root, dirs, files in os.walk(creations_dir):
+        for f in files:
+            fp = os.path.join(root, f)
+            try:
+                mtime = os.path.getmtime(fp)
+                if (time.time() - mtime) < 86400 * 7:
+                    recent_files.append(f)
+            except Exception:
+                pass
+
+    recent_summary = ", ".join(recent_files[-10:]) if recent_files else "nothing new in the last 7 days"
+
+    news_context = ""
+    if include_news:
+        try:
+            r = requests.get(
+                "https://www.reddit.com/r/entrepreneur+sidehustle+passive_income/top.json?limit=5&t=day",
+                headers={"User-Agent": "VesperBriefing/1.0"},
+                timeout=10,
+            )
+            if r.status_code == 200:
+                posts = r.json().get("data", {}).get("children", [])
+                news_context = "Today's trending entrepreneur topics:\n" + "\n".join(
+                    f"- {p['data']['title']}" for p in posts[:5]
+                )
+        except Exception:
+            pass
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are Vesper, CC's AI chief of staff. Generate her morning briefing. "
+                    "Be direct, motivating, specific. No fluff. Reference what tools you have available. "
+                    "Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Date: {day_name}\n"
+                    f"Focus area today: {focus or 'income generation'}\n"
+                    f"Recent Vesper activity (last 7 days): {recent_summary}\n"
+                    f"{news_context}\n\n"
+                    "Generate morning briefing JSON:\n"
+                    "{\n"
+                    '  "greeting": "personal greeting",\n'
+                    '  "daily_focus": "single most important thing to accomplish today",\n'
+                    '  "top_opportunity": "best income opportunity to act on TODAY with a specific Vesper tool call",\n'
+                    '  "vesper_suggestion": "one specific action Vesper will take proactively today",\n'
+                    '  "quick_wins": ["3 things that take <30 min and move the needle"],\n'
+                    '  "momentum_note": "one encouraging sentence based on recent activity",\n'
+                    '  "market_pulse": "one sentence on what is trending in the entrepreneurship space today",\n'
+                    '  "reminder": "one thing to not forget today"\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=1000,
+        temperature=0.7,
+    )
+
+    data = _extract_json(resp.get("content", "{}"))
+
+    return {
+        "success": True,
+        "date": day_name,
+        "greeting": f"{greeting}, CC! {data.get('greeting', '')}",
+        "daily_focus": data.get("daily_focus", ""),
+        "top_opportunity": data.get("top_opportunity", ""),
+        "vesper_suggestion": data.get("vesper_suggestion", ""),
+        "quick_wins": data.get("quick_wins", []),
+        "momentum_note": data.get("momentum_note", ""),
+        "market_pulse": data.get("market_pulse", ""),
+        "reminder": data.get("reminder", ""),
+        "preview": f"[Morning Briefing] {day_name} | Focus: {data.get('daily_focus', '')}",
+    }
+
+
+# =============================================================================
+# LEAD TRACKER
+# Simple CRM for tracking prospects and clients.
+# Stores in a local JSON file in vesper-ai/data/.
+# =============================================================================
+
+async def lead_tracker(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Simple CRM for tracking leads, prospects, and clients.
+    Actions: add | update | list | get | delete | follow_ups_due | notes
+    """
+    action = params.get("action", "list")
+    lead_id = params.get("lead_id", "")
+    name = params.get("name", "")
+    company = params.get("company", "")
+    email = params.get("email", "")
+    phone = params.get("phone", "")
+    status = params.get("status", "new")
+    value = params.get("value", 0)
+    notes = params.get("notes", "")
+    follow_up_date = params.get("follow_up_date", "")
+    source = params.get("source", "")
+
+    data_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "data")
+    os.makedirs(data_dir, exist_ok=True)
+    crm_file = os.path.join(data_dir, "leads.json")
+
+    def _load():
+        if os.path.exists(crm_file):
+            try:
+                with open(crm_file) as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {}
+
+    def _save(data):
+        with open(crm_file, "w") as f:
+            json.dump(data, f, indent=2)
+
+    leads = _load()
+
+    if action == "add":
+        if not name:
+            return {"error": "Provide 'name' for the lead"}
+        lid = lead_id or f"lead_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+        leads[lid] = {
+            "id": lid, "name": name, "company": company, "email": email,
+            "phone": phone, "status": status, "value": float(value),
+            "notes": [{"date": datetime.datetime.now().isoformat(), "text": notes}] if notes else [],
+            "follow_up_date": follow_up_date, "source": source,
+            "created": datetime.datetime.now().isoformat(),
+            "updated": datetime.datetime.now().isoformat(),
+        }
+        _save(leads)
+        return {"success": True, "action": "added", "lead_id": lid, "name": name, "preview": f"[CRM] Added lead: {name} ({company}) | Status: {status}"}
+
+    if action == "update" and lead_id:
+        if lead_id not in leads:
+            return {"error": f"Lead {lead_id} not found"}
+        lead = leads[lead_id]
+        if name: lead["name"] = name
+        if company: lead["company"] = company
+        if email: lead["email"] = email
+        if phone: lead["phone"] = phone
+        if status: lead["status"] = status
+        if value: lead["value"] = float(value)
+        if follow_up_date: lead["follow_up_date"] = follow_up_date
+        if notes:
+            lead.setdefault("notes", []).append({"date": datetime.datetime.now().isoformat(), "text": notes})
+        lead["updated"] = datetime.datetime.now().isoformat()
+        _save(leads)
+        return {"success": True, "action": "updated", "lead": lead, "preview": f"[CRM] Updated: {lead['name']} → {lead['status']}"}
+
+    if action == "delete" and lead_id:
+        removed = leads.pop(lead_id, None)
+        if removed:
+            _save(leads)
+            return {"success": True, "action": "deleted", "name": removed.get("name", lead_id)}
+        return {"error": f"Lead {lead_id} not found"}
+
+    if action == "get" and lead_id:
+        lead = leads.get(lead_id)
+        if not lead:
+            return {"error": f"Lead {lead_id} not found"}
+        return {"success": True, "lead": lead}
+
+    if action == "follow_ups_due":
+        today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+        due = [l for l in leads.values() if l.get("follow_up_date", "") <= today_str and l.get("follow_up_date")]
+        due.sort(key=lambda x: x.get("follow_up_date", ""))
+        return {"success": True, "follow_ups_due": len(due), "leads": due, "preview": f"[CRM] {len(due)} follow-ups due today or overdue"}
+
+    if action == "notes" and lead_id:
+        lead = leads.get(lead_id)
+        if not lead:
+            return {"error": f"Lead {lead_id} not found"}
+        if notes:
+            lead.setdefault("notes", []).append({"date": datetime.datetime.now().isoformat(), "text": notes})
+            lead["updated"] = datetime.datetime.now().isoformat()
+            _save(leads)
+        return {"success": True, "lead_id": lead_id, "name": lead["name"], "notes": lead.get("notes", [])}
+
+    # Default: list
+    all_leads = list(leads.values())
+    if status and status != "all":
+        all_leads = [l for l in all_leads if l.get("status") == status]
+    all_leads.sort(key=lambda x: x.get("updated", ""), reverse=True)
+    pipeline_value = sum(l.get("value", 0) for l in leads.values())
+    status_counts = {}
+    for l in leads.values():
+        s = l.get("status", "new")
+        status_counts[s] = status_counts.get(s, 0) + 1
+
+    return {
+        "success": True,
+        "total_leads": len(leads),
+        "pipeline_value": pipeline_value,
+        "status_breakdown": status_counts,
+        "leads": all_leads[:20],
+        "preview": f"[CRM] {len(leads)} leads | Pipeline: ${pipeline_value:,.0f} | {status_counts}",
+    }
+
+
+# =============================================================================
+# KDP FORMATTER
+# Formats content into Kindle Direct Publishing ready structure.
+# =============================================================================
+
+async def kdp_formatter(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Format and prepare an ebook for Kindle Direct Publishing (KDP).
+    Returns a structured manuscript with front/back matter and upload instructions.
+    """
+    title = params.get("title", "")
+    author = params.get("author", "CC")
+    content = params.get("content", "")
+    genre = params.get("genre", "nonfiction")
+    subtitle = params.get("subtitle", "")
+    description = params.get("description", "")
+    keywords = params.get("keywords", [])
+    price = float(params.get("price", 4.99))
+    generate_missing = params.get("generate_missing", True)
+
+    if not title:
+        return {"error": "Provide 'title'"}
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    if not content and generate_missing:
+        gen_resp = await ai_router.chat(
+            messages=[
+                {"role": "system", "content": "You are a professional ebook author. Write complete, high-quality ebook content."},
+                {"role": "user", "content": f"Write a complete ebook outline and first 3 chapters for:\nTitle: {title}\nSubtitle: {subtitle}\nGenre: {genre}\n\nInclude: Introduction, 3 full chapters (800+ words each), Conclusion. Use markdown formatting."},
+            ],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=4000,
+            temperature=0.7,
+        )
+        content = gen_resp.get("content", "")
+
+    if not description and generate_missing:
+        desc_resp = await ai_router.chat(
+            messages=[
+                {"role": "system", "content": "Write compelling Amazon/KDP book descriptions that drive sales. Return JSON only."},
+                {"role": "user", "content": f"Write KDP metadata for:\nTitle: {title}\nSubtitle: {subtitle}\nGenre: {genre}\nContent preview: {content[:500]}\n\nReturn JSON: {{\"description\": \"150-word sales description\", \"short_description\": \"45-word blurb\", \"keywords\": [\"7 best keywords\"], \"categories\": [\"primary KDP category\", \"secondary KDP category\"], \"bisac_codes\": [\"BISAC code\"]}}"},
+            ],
+            task_type=TaskType.CREATIVE if TaskType else None,
+            max_tokens=800,
+            temperature=0.6,
+        )
+        meta = _extract_json(desc_resp.get("content", "{}"))
+        description = meta.get("description", description)
+        if not keywords:
+            keywords = meta.get("keywords", [])
+
+    # Build complete manuscript
+    royalty_70 = price * 0.70
+    royalty_35 = price * 0.35
+
+    manuscript = f"""# {title}
+{'**' + subtitle + '**' if subtitle else ''}
+
+*By {author}*
+
+---
+
+## Copyright
+
+Copyright © {datetime.datetime.now().year} {author}. All rights reserved.
+No part of this publication may be reproduced without prior written permission.
+
+---
+
+## Table of Contents
+
+*(Generated from chapter headings below)*
+
+---
+
+{content}
+
+---
+
+## About the Author
+
+{author} is an entrepreneur and creator passionate about helping others achieve their goals.
+
+---
+
+## Also by {author}
+
+*More titles available at: [your Gumroad/website URL]*
+
+---
+*Published via Kindle Direct Publishing*
+"""
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "kdp")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in title.lower())[:40]
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    manuscript_path = os.path.join(save_dir, f"{slug}_{ts}_manuscript.md")
+    _safe_write(manuscript_path, manuscript)
+
+    metadata_path = os.path.join(save_dir, f"{slug}_{ts}_kdp_metadata.txt")
+    metadata_text = f"""KDP UPLOAD CHECKLIST - {title}
+{'='*50}
+Title: {title}
+Subtitle: {subtitle}
+Author: {author}
+Genre/Category: {genre}
+Price: ${price:.2f}
+  70% royalty (if $2.99-$9.99): ${royalty_70:.2f}/sale
+  35% royalty: ${royalty_35:.2f}/sale
+
+DESCRIPTION (paste into KDP):
+{description}
+
+KEYWORDS (add all 7):
+{chr(10).join(f'  {i+1}. {kw}' for i, kw in enumerate(keywords[:7]))}
+
+UPLOAD STEPS:
+1. Go to kdp.amazon.com
+2. Create New Title → Kindle eBook
+3. Paste title, subtitle, author
+4. Paste description in Book Description
+5. Add keywords above
+6. Select categories
+7. Set price to ${price:.2f}
+8. Convert manuscript.md to .docx or .epub (use Calibre - free)
+9. Upload the converted file
+10. Publish!
+
+MANUSCRIPT FILE: {manuscript_path}
+"""
+    _safe_write(metadata_path, metadata_text)
+
+    return {
+        "success": True,
+        "title": title,
+        "author": author,
+        "genre": genre,
+        "price": price,
+        "royalty_70_pct": royalty_70,
+        "royalty_35_pct": royalty_35,
+        "description": description,
+        "keywords": keywords[:7],
+        "manuscript_path": manuscript_path,
+        "metadata_path": metadata_path,
+        "word_count_estimate": len(content.split()),
+        "upload_steps": [
+            "1. Convert manuscript.md to .epub or .docx using Calibre (free)",
+            "2. Go to kdp.amazon.com → Create New Title → Kindle eBook",
+            "3. Use the metadata file for all fields",
+            f"4. Set price to ${price:.2f} for 70% royalty",
+            "5. Submit for review (usually approved in 24-72 hrs)",
+        ],
+        "preview": f"[KDP] '{title}' by {author} | ${price:.2f} | ${royalty_70:.2f}/sale | Manuscript ready",
+    }
+
+
+# =============================================================================
+# TIKTOK SHOP RESEARCH
+# Research winning TikTok Shop products - different from regular dropshipping.
+# =============================================================================
+
+async def tiktok_shop_research(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Research winning TikTok Shop product opportunities.
+    Returns products optimized for TikTok's algorithm and shop feature.
+    """
+    niche = params.get("niche", "")
+    budget = params.get("budget", "low")
+    count = int(params.get("count", 5))
+    content_style = params.get("content_style", "ugc")
+
+    if not ai_router:
+        return {"error": "ai_router not available"}
+
+    resp = await ai_router.chat(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a TikTok Shop expert who understands viral product marketing and the TikTok algorithm. "
+                    "TikTok Shop is different from regular dropshipping - products need to work in short-form video, "
+                    "have WOW factor, solve visible problems, and convert from a 30-second clip. "
+                    "You know which products go viral and generate 6-7 figures on TikTok Shop. Return raw JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Research {count} winning TikTok Shop products:\n"
+                    f"Niche: {niche or 'any high-viral-potential niche right now'}\n"
+                    f"Budget: {budget}\n"
+                    f"Content style: {content_style} (ugc | talking_head | demonstration | aesthetic)\n\n"
+                    "Return ONLY this JSON:\n"
+                    "{\n"
+                    '  "products": [\n'
+                    '    {\n'
+                    '      "product_name": "...",\n'
+                    '      "why_it_works_on_tiktok": "specific reason this format wins",\n'
+                    '      "hook_idea": "first 3 seconds of the video - the hook",\n'
+                    '      "demo_angle": "how to show the product in action",\n'
+                    '      "supplier_source": "AliExpress | CJdropshipping | Zendrop | US supplier",\n'
+                    '      "cogs": "$X-$Y",\n'
+                    '      "sell_price": "$X",\n'
+                    '      "margin": "X%",\n'
+                    '      "viral_score": "1-10",\n'
+                    '      "target_hashtags": ["#tag1", "#tag2"],\n'
+                    '      "monthly_potential": "$X-$Y on TikTok Shop"\n'
+                    '    }\n'
+                    '  ],\n'
+                    '  "top_pick": "which one to start with and exact first video idea",\n'
+                    '  "tiktok_shop_setup": "how to get approved as a TikTok Shop seller",\n'
+                    '  "content_strategy": "posting cadence and content mix for growth",\n'
+                    '  "affiliate_opportunity": "how to recruit TikTok creators to sell for you",\n'
+                    '  "first_week_plan": ["day 1:", "day 2-3:", "day 4-7:"]\n'
+                    "}"
+                ),
+            },
+        ],
+        task_type=TaskType.ANALYSIS if TaskType else None,
+        max_tokens=3000,
+        temperature=0.75,
+    )
+
+    raw = resp.get("content", "{}")
+    data = _extract_json(raw)
+    if not data.get("products"):
+        data = {"niche": niche, "raw_output": raw}
+
+    save_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "creations", "tiktok_shop")
+    os.makedirs(save_dir, exist_ok=True)
+    slug = "".join(c if c.isalnum() or c == "-" else "-" for c in (niche or "general").lower())[:30]
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    file_path = os.path.join(save_dir, f"tiktok_{slug}_{ts}.json")
+    _safe_write(file_path, json.dumps(data, indent=2))
+
+    return {
+        "success": True,
+        "niche": niche or "auto-selected",
+        "products": data.get("products", []),
+        "product_count": len(data.get("products", [])),
+        "top_pick": data.get("top_pick", ""),
+        "tiktok_shop_setup": data.get("tiktok_shop_setup", ""),
+        "content_strategy": data.get("content_strategy", ""),
+        "affiliate_opportunity": data.get("affiliate_opportunity", ""),
+        "first_week_plan": data.get("first_week_plan", []),
+        "file_path": file_path,
+        "preview": f"[TikTok Shop] {niche or 'general'} | {len(data.get('products', []))} products | top: {data.get('top_pick', '')[:80]}",
+    }
+
+
+# =============================================================================
+# PRINTIFY PUBLISH
+# Publishes print-on-demand products directly to Printify via API.
+# Requires PRINTIFY_API_KEY + PRINTIFY_SHOP_ID in Railway env vars.
+# =============================================================================
+
+async def printify_publish(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Publish a print-on-demand product to Printify via API.
+    Actions: create | list | publish | blueprints | delete
+    """
+    action = params.get("action", "list")
+    title = params.get("title", "")
+    description = params.get("description", "")
+    blueprint_id = int(params.get("blueprint_id", 6))  # 6 = Unisex Softstyle T-Shirt
+    print_provider_id = int(params.get("print_provider_id", 99))  # Monster Digital
+    design_url = params.get("design_url", "")
+    tags = params.get("tags", [])
+    price_cents = int(float(params.get("price", 29.99)) * 100)
+    product_id = params.get("product_id", "")
+
+    api_key = os.environ.get("PRINTIFY_API_KEY", "")
+    shop_id = os.environ.get("PRINTIFY_SHOP_ID", "")
+
+    if not api_key:
+        return {
+            "error": "Printify not configured",
+            "setup_required": [
+                "1. Go to printify.com → Sign up free",
+                "2. Connect a sales channel (Etsy, Shopify, WooCommerce, or Printify Pop-Up Store)",
+                "3. Go to My Profile → Connections → Generate API Token",
+                "4. Get Shop ID: GET https://api.printify.com/v1/shops.json with your token",
+                "5. Add to Railway: PRINTIFY_API_KEY, PRINTIFY_SHOP_ID",
+            ],
+        }
+
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    base = "https://api.printify.com/v1"
+
+    if action == "blueprints":
+        try:
+            r = requests.get(f"{base}/catalog/blueprints.json", headers=headers, timeout=15)
+            blueprints = r.json()[:20] if isinstance(r.json(), list) else r.json().get("data", [])[:20]
+            return {
+                "success": True,
+                "blueprints": [{"id": b.get("id"), "title": b.get("title")} for b in blueprints],
+                "note": "Use blueprint_id in create action. Popular: 6=T-shirt, 9=Mug, 3=Hoodie, 61=Poster",
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    if not shop_id:
+        try:
+            r = requests.get(f"{base}/shops.json", headers=headers, timeout=15)
+            shops = r.json()
+            if shops:
+                return {
+                    "shops": shops,
+                    "note": f"Add PRINTIFY_SHOP_ID={shops[0].get('id')} to Railway env vars, then retry",
+                }
+        except Exception as e:
+            return {"error": str(e)}
+
+    if action == "list":
+        try:
+            r = requests.get(f"{base}/shops/{shop_id}/products.json", headers=headers, timeout=15)
+            data = r.json()
+            products = data.get("data", [])
+            return {
+                "success": True,
+                "shop_id": shop_id,
+                "product_count": len(products),
+                "products": [{"id": p.get("id"), "title": p.get("title"), "visible": p.get("visible")} for p in products[:20]],
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    if action == "publish" and product_id:
+        try:
+            payload = {"title": True, "description": True, "images": True, "variants": True, "tags": True}
+            r = requests.post(f"{base}/shops/{shop_id}/products/{product_id}/publish.json", headers=headers, json=payload, timeout=15)
+            return {"success": r.status_code in (200, 204), "product_id": product_id, "status": r.status_code}
+        except Exception as e:
+            return {"error": str(e)}
+
+    if action == "delete" and product_id:
+        try:
+            r = requests.delete(f"{base}/shops/{shop_id}/products/{product_id}.json", headers=headers, timeout=15)
+            return {"success": r.status_code in (200, 204), "product_id": product_id}
+        except Exception as e:
+            return {"error": str(e)}
+
+    if action == "create":
+        if not title:
+            return {"error": "Provide 'title' for the product"}
+        if not design_url:
+            return {"error": "Provide 'design_url' - URL to the design image (use generate_image first to get a URL)"}
+
+        payload = {
+            "title": title,
+            "description": description or f"High quality {title}. Perfect gift idea.",
+            "blueprint_id": blueprint_id,
+            "print_provider_id": print_provider_id,
+            "variants": [
+                {"id": 40174, "price": price_cents, "is_enabled": True},
+                {"id": 40175, "price": price_cents, "is_enabled": True},
+                {"id": 40176, "price": price_cents, "is_enabled": True},
+            ],
+            "print_areas": [
+                {
+                    "variant_ids": [40174, 40175, 40176],
+                    "placeholders": [
+                        {"position": "front", "images": [{"id": "", "x": 0.5, "y": 0.5, "scale": 1, "angle": 0, "src": design_url}]}
+                    ],
+                }
+            ],
+            "tags": tags[:10],
+        }
+
+        try:
+            r = requests.post(f"{base}/shops/{shop_id}/products.json", headers=headers, json=payload, timeout=30)
+            data = r.json()
+            if r.status_code in (200, 201):
+                pid = data.get("id", "")
+                return {
+                    "success": True,
+                    "product_id": pid,
+                    "title": title,
+                    "price": price_cents / 100,
+                    "note": "Product created in Printify. Call printify_publish with this product_id to make it live.",
+                    "next_step": f"Call printify_publish with action='publish' and product_id='{pid}'",
+                    "preview": f"[Printify] Created '{title}' | ${price_cents/100:.2f} | id: {pid}",
+                }
+            return {"error": f"Printify API {r.status_code}", "details": data}
+        except Exception as e:
+            return {"error": str(e)}
+
+    return {"error": f"Unknown action '{action}'. Use: create | list | publish | blueprints | delete"}
 
 

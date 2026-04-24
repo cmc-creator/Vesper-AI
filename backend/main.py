@@ -128,6 +128,10 @@ try:
         daily_product_pipeline, etsy_publish, print_on_demand,
         passive_income_audit, faceless_channel_pack,
         ai_automation_service, dropshipping_research,
+        post_to_twitter, post_to_linkedin, send_sms,
+        generate_voiceover, invoice_generator,
+        reddit_research, morning_briefing, lead_tracker,
+        kdp_formatter, tiktok_shop_research, printify_publish,
     )
     print("[OK] tools_creative loaded")
 except Exception as _tc_err:
@@ -240,6 +244,17 @@ except Exception as _tc_err:
     async def faceless_channel_pack(p, **kw): return {"error": "tools_creative not loaded"}
     async def ai_automation_service(p, **kw): return {"error": "tools_creative not loaded"}
     async def dropshipping_research(p, **kw): return {"error": "tools_creative not loaded"}
+    async def post_to_twitter(p, **kw): return {"error": "tools_creative not loaded"}
+    async def post_to_linkedin(p, **kw): return {"error": "tools_creative not loaded"}
+    async def send_sms(p, **kw): return {"error": "tools_creative not loaded"}
+    async def generate_voiceover(p, **kw): return {"error": "tools_creative not loaded"}
+    async def invoice_generator(p, **kw): return {"error": "tools_creative not loaded"}
+    async def reddit_research(p, **kw): return {"error": "tools_creative not loaded"}
+    async def morning_briefing(p, **kw): return {"error": "tools_creative not loaded"}
+    async def lead_tracker(p, **kw): return {"error": "tools_creative not loaded"}
+    async def kdp_formatter(p, **kw): return {"error": "tools_creative not loaded"}
+    async def tiktok_shop_research(p, **kw): return {"error": "tools_creative not loaded"}
+    async def printify_publish(p, **kw): return {"error": "tools_creative not loaded"}
 
 try:
     from google_sheets import google_sheets_tool
@@ -1940,26 +1955,34 @@ When CC asks you to create a product, follow these exact steps:
 If any step returns an error, report the EXACT error text. Do NOT skip steps or pretend one succeeded when it returned `{"error": ...}`.
 
 **PROACTIVE INCOME TOOLS — USE THESE WITHOUT BEING ASKED:**
-You have 21+ specialized income-generating tools. Do NOT wait for CC to ask. Proactively recommend and USE these tools based on context:
+You have 32+ specialized income-generating and execution tools. Do NOT wait for CC to ask. Proactively recommend and USE these tools based on context:
 - When CC mentions a client, prospect, or sales call → immediately offer to run `discovery_call_script` and draft the script
 - When CC pastes a job posting or mentions freelance work → immediately run `write_bid` and produce the proposal
 - When CC has a product, landing page, or ad → proactively suggest `ab_test_generator` and generate variants
 - When CC mentions a niche, blog, or content site → run `affiliate_research` and return the best programs
 - When CC has a new product idea → bypass the back-and-forth and run `project_launcher` to produce the full package in one shot
 - When CC mentions income goals or financial stress → immediately run `income_gap_analyzer` AND `passive_income_audit` to produce the 30-day action plan AND strategic roadmap
-- When CC mentions YouTube or video content → immediately run `youtube_thumbnail` AND `faceless_channel_pack` and deliver concepts + full channel plan
+- When CC mentions YouTube or video content → immediately run `youtube_thumbnail` AND `faceless_channel_pack` and deliver concepts + full channel plan. Run `generate_voiceover` to turn scripts into audio files
 - When CC mentions a brand, collaboration, or sponsorship → run `create_media_kit` and produce the full kit
 - When CC asks about services or consulting → run `build_agency_system` AND `ai_automation_service` and build the full offer stack
-- When CC mentions a premium service or high-ticket client → run `create_vip_day_offer` and build the offer
+- When CC mentions a premium service or high-ticket client → run `create_vip_day_offer` and build the offer. Add them to `lead_tracker` automatically.
 - When CC mentions SEO, local business, or passive income sites → run `rank_and_rent_pack` immediately
 - When CC mentions a project, creative work, or cause → proactively check if a grant applies and run `write_grant`
 - When CC sells anything → run `create_upsell_sequence` immediately to maximize revenue from every buyer
 - When CC mentions Instagram or content creation → run `instagram_content_pack` and deliver the full pack
 - When CC wants a product made TODAY → run `daily_product_pipeline` — fully automated idea + content + ZIP + Gumroad listing
-- When CC mentions t-shirts, mugs, or merch → run `print_on_demand` and generate design concepts instantly
+- When CC mentions t-shirts, mugs, or merch → run `print_on_demand` and generate design concepts instantly. Then `printify_publish` to list them.
 - When CC mentions Etsy → run `etsy_publish` to create or manage listings via API
 - When CC wants to sell services locally → run `ai_automation_service` to build the full pitch + proposal + outreach
 - When CC mentions dropshipping or wants a store → run `dropshipping_research` to find winning products immediately
+- When CC mentions TikTok or short-form video → run `tiktok_shop_research` to find viral products with hook ideas and content angles
+- When CC needs to send a tweet or LinkedIn post → run `post_to_twitter` or `post_to_linkedin` immediately
+- When a sale happens or something important occurs → use `send_sms` to alert CC via text
+- When CC needs to bill a client → run `invoice_generator` to produce a PDF invoice instantly
+- When CC mentions market research, target audience, or competitor analysis → run `reddit_research` to mine real buyer language
+- When CC needs a morning update or daily plan → run `morning_briefing` for the full daily brief
+- When CC mentions an ebook, Kindle, or KDP → run `kdp_formatter` to format and prep the book for upload
+- When CC asks what to focus on or seems unfocused → run `morning_briefing` immediately
 **The rule: see an income opportunity in any message, pick the right tool, call it immediately. Don't ask. Don't describe. Just produce.**
 
 CREATIVE INCOME PIPELINE (Vesper's own residual income for CC):
@@ -7205,6 +7228,15 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "faceless_channel_pack", "description": "Build a complete faceless YouTube channel business: channel name, niche selection, 30 video ideas, 5 full scripts ready for AI voiceover, SEO strategy, and monetization plan. Everything needed to start earning.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string", "description": "Preferred niche - leave blank to auto-pick most profitable"}, "monetization": {"type": "string", "description": "ads_and_affiliate | info_products | sponsorships | all"}, "upload_frequency": {"type": "string", "description": "daily | 3x_weekly | weekly"}, "competitor_channels": {"type": "array", "items": {"type": "string"}}}, "required": []}},
             {"name": "ai_automation_service", "description": "Package Vesper's AI capabilities as a done-for-you service for local businesses. Returns service tiers ($300-$2000/mo), cold outreach sequence, full proposal template, objection handlers, and where to find leads.", "input_schema": {"type": "object", "properties": {"target_industry": {"type": "string", "description": "e.g. dental offices, real estate agents, restaurants"}, "service_focus": {"type": "string", "description": "content_and_leads | customer_service | marketing_automation | all"}, "monthly_retainer": {"type": "number", "description": "Target monthly fee"}, "your_location": {"type": "string"}}, "required": ["target_industry"]}},
             {"name": "dropshipping_research", "description": "Research winning dropshipping product opportunities with supplier sources, margins, ad angles, and targeting. Returns ranked products, top pick, first-week action plan, and budget allocation.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string", "description": "Target niche - leave blank for auto-pick"}, "budget": {"type": "string", "description": "low | medium | high"}, "platform": {"type": "string", "description": "shopify | woocommerce | amazon | tiktok_shop"}, "count": {"type": "number", "description": "Number of products to research"}}, "required": []}},
+            {"name": "send_sms", "description": "Send an SMS via Twilio. Use to alert CC about sales, payments, or important events. Requires TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_FROM_NUMBER. CC_PHONE_NUMBER sets the default 'to' number.", "input_schema": {"type": "object", "properties": {"to": {"type": "string", "description": "Phone number in +1XXXXXXXXXX format (defaults to CC_PHONE_NUMBER env var)"}, "message": {"type": "string", "description": "The SMS message text (max 1600 chars)"}}, "required": ["message"]}},
+            {"name": "generate_voiceover", "description": "Generate an MP3 voiceover from text using ElevenLabs (or free gTTS fallback). Perfect for faceless YouTube videos, ads, podcasts. Returns a download URL for the MP3 file.", "input_schema": {"type": "object", "properties": {"text": {"type": "string", "description": "The script to convert to speech"}, "voice": {"type": "string", "description": "Voice name: Rachel | Bella | Domi | Josh | Antoni | Adam | Sam (or raw ElevenLabs voice_id)"}, "filename": {"type": "string", "description": "Optional filename for the MP3"}, "stability": {"type": "number", "description": "0.0-1.0 (default 0.5)"}, "similarity": {"type": "number", "description": "0.0-1.0 (default 0.75)"}}, "required": ["text"]}},
+            {"name": "invoice_generator", "description": "Generate a professional PDF invoice. Creates client-ready invoices with line items, totals, tax, payment link, and downloads as PDF. Perfect for freelance clients, agency retainers, consulting.", "input_schema": {"type": "object", "properties": {"client_name": {"type": "string"}, "client_email": {"type": "string"}, "client_address": {"type": "string"}, "invoice_number": {"type": "string"}, "issue_date": {"type": "string"}, "due_date": {"type": "string"}, "line_items": {"type": "array", "description": "List of {description, quantity, unit_price}", "items": {"type": "object"}}, "notes": {"type": "string"}, "payment_link": {"type": "string"}, "your_name": {"type": "string"}, "your_email": {"type": "string"}, "currency": {"type": "string", "description": "USD | GBP | EUR | CAD"}, "tax_rate": {"type": "number", "description": "Tax percentage (e.g. 10 for 10%)"}}, "required": ["client_name", "line_items"]}},
+            {"name": "reddit_research", "description": "Mine Reddit for niche pain points, product gaps, buyer language, and content ideas. No API key needed - uses public Reddit JSON. Returns AI-analyzed insights plus raw top posts.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string", "description": "Market niche to research"}, "subreddits": {"type": "array", "items": {"type": "string"}, "description": "Specific subreddits to check (auto-suggested if blank)"}, "research_type": {"type": "string", "description": "pain_points | product_ideas | buyer_language | competitor_analysis | content_ideas"}, "post_limit": {"type": "number", "description": "Max posts to analyze (default 25, max 50)"}}, "required": []}},
+            {"name": "morning_briefing", "description": "Generate CC's daily morning briefing with top opportunity, daily focus, quick wins, and market pulse. Call this first thing every morning.", "input_schema": {"type": "object", "properties": {"focus": {"type": "string", "description": "Optional focus area for today"}, "include_news": {"type": "boolean", "description": "Include trending entrepreneur topics (default true)"}}, "required": []}},
+            {"name": "lead_tracker", "description": "Simple CRM for tracking leads, prospects, and clients. Stores in local JSON. Actions: add | update | list | get | delete | follow_ups_due | notes. Tracks name, company, email, phone, status, value, notes, follow-up dates.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "add | update | list | get | delete | follow_ups_due | notes"}, "lead_id": {"type": "string"}, "name": {"type": "string"}, "company": {"type": "string"}, "email": {"type": "string"}, "phone": {"type": "string"}, "status": {"type": "string", "description": "new | contacted | proposal_sent | negotiating | closed | lost"}, "value": {"type": "number", "description": "Estimated deal value in dollars"}, "notes": {"type": "string"}, "follow_up_date": {"type": "string", "description": "YYYY-MM-DD"}, "source": {"type": "string"}}, "required": ["action"]}},
+            {"name": "kdp_formatter", "description": "Format and prepare an ebook for Kindle Direct Publishing (KDP). Generates manuscript, TOC, front/back matter, KDP metadata (description, keywords, categories), royalty estimate, and upload instructions.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "author": {"type": "string"}, "content": {"type": "string", "description": "Ebook content in markdown (auto-generated if blank)"}, "genre": {"type": "string"}, "subtitle": {"type": "string"}, "description": {"type": "string", "description": "KDP sales description (auto-generated if blank)"}, "keywords": {"type": "array", "items": {"type": "string"}}, "price": {"type": "number", "description": "Selling price in USD (default $4.99)"}, "generate_missing": {"type": "boolean", "description": "Auto-generate content/description if not provided (default true)"}}, "required": ["title"]}},
+            {"name": "tiktok_shop_research", "description": "Research winning TikTok Shop products optimized for short-form video virality. Returns products with hook ideas, demo angles, viral scores, margins, hashtags, and a content strategy. No TikTok API needed.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string", "description": "Product niche (leave blank for auto-trending)"}, "budget": {"type": "string", "description": "low | medium | high"}, "count": {"type": "number", "description": "Number of products to research (default 5)"}, "content_style": {"type": "string", "description": "ugc | talking_head | demonstration | aesthetic"}}, "required": []}},
+            {"name": "printify_publish", "description": "Publish print-on-demand products to Printify via API. Connects to Etsy, Shopify, or Printify Pop-Up store. Actions: create | list | publish | blueprints | delete. Requires PRINTIFY_API_KEY + PRINTIFY_SHOP_ID.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "create | list | publish | blueprints | delete"}, "title": {"type": "string"}, "description": {"type": "string"}, "blueprint_id": {"type": "number", "description": "Product type ID (6=T-shirt, 9=Mug, 3=Hoodie, 61=Poster)"}, "print_provider_id": {"type": "number"}, "design_url": {"type": "string", "description": "URL to the design image"}, "tags": {"type": "array", "items": {"type": "string"}}, "price": {"type": "number", "description": "Selling price in USD"}, "product_id": {"type": "string", "description": "Product ID for publish/delete actions"}}, "required": ["action"]}},
             {"name": "stripe_payment_link", "description": "Create Stripe payment links instantly — product + price + shareable URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "create | list | deactivate"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number", "description": "Amount in dollars"}, "currency": {"type": "string"}, "billing": {"type": "string", "description": "one_time | monthly | yearly"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
             {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with real progress vs ledger. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string", "description": "monthly | quarterly | annual | custom"}, "deadline": {"type": "string", "description": "YYYY-MM-DD"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
             {"name": "process_meeting_notes", "description": "Process any meeting transcript or rough notes with AI — extracts action items, decisions, follow-up emails, open questions, and saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string", "description": "Raw meeting text, Zoom transcript, or rough notes"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string", "description": "full | actions_only | summary_only"}}, "required": ["transcript"]}},
@@ -9263,44 +9295,29 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         except Exception as _re: tool_result = {"error": f"Resend API error: {str(_re)}"}
 
                 elif tool_name == "post_to_linkedin":
-                    import urllib.request as _lreq, json as _lj
-                    _ltoken = os.getenv("LINKEDIN_ACCESS_TOKEN","")
-                    if not _ltoken: tool_result = {"error":"Set LINKEDIN_ACCESS_TOKEN in .env. Get it from LinkedIn Developer Portal."}
-                    else:
-                        try:
-                            _lme_req = _lreq.Request("https://api.linkedin.com/v2/me", headers={"Authorization":f"Bearer {_ltoken}"})
-                            with _lreq.urlopen(_lme_req, timeout=10) as _lr: _lme = _lj.loads(_lr.read())
-                            _lurn = _lme.get("id","")
-                            _lvis = tool_input.get("visibility","PUBLIC")
-                            _ltext = tool_input.get("text","")
-                            if tool_input.get("url"): _ltext += f'\n\n{tool_input["url"]}'
-                            _lpayload = {"author":f"urn:li:person:{_lurn}","lifecycleState":"PUBLISHED","specificContent":{"com.linkedin.ugc.ShareContent":{"shareCommentary":{"text":_ltext[:3000]},"shareMediaCategory":"NONE"}},"visibility":{"com.linkedin.ugc.MemberNetworkVisibility":_lvis}}
-                            _lpost = _lreq.Request("https://api.linkedin.com/v2/ugcPosts", data=_lj.dumps(_lpayload).encode(), headers={"Authorization":f"Bearer {_ltoken}","Content-Type":"application/json","X-Restli-Protocol-Version":"2.0.0"}, method="POST")
-                            with _lreq.urlopen(_lpost, timeout=15) as _lr2: _lres = _lj.loads(_lr2.read())
-                            tool_result = {"success":True,"post_id":_lres.get("id"),"text_preview":_ltext[:100]}
-                        except Exception as _le: tool_result = {"error":f"LinkedIn error: {str(_le)}"}
+                    tool_result = await post_to_linkedin(tool_input, ai_router=ai_router, TaskType=TaskType)
 
                 elif tool_name == "post_to_twitter":
-                    import urllib.request as _twreq, json as _twj, hmac as _hmac, hashlib as _twh, base64 as _twb64, time as _twt, urllib.parse as _twp
-                    _twkey = os.getenv("TWITTER_API_KEY",""); _twsec = os.getenv("TWITTER_API_SECRET","")
-                    _twacc = os.getenv("TWITTER_ACCESS_TOKEN",""); _twaccsec = os.getenv("TWITTER_ACCESS_SECRET","")
-                    if not all([_twkey,_twsec,_twacc,_twaccsec]): tool_result = {"error":"Set TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET in .env"}
-                    else:
-                        try:
-                            _tw_url = "https://api.twitter.com/2/tweets"
-                            _tw_nonce = _twb64.b64encode(os.urandom(32)).decode().rstrip("=")
-                            _tw_ts = str(int(_twt.time()))
-                            _tw_params = {"oauth_consumer_key":_twkey,"oauth_nonce":_tw_nonce,"oauth_signature_method":"HMAC-SHA1","oauth_timestamp":_tw_ts,"oauth_token":_twacc,"oauth_version":"1.0"}
-                            _tw_base = "&".join([_twp.quote(s,"") for s in ["POST",_tw_url,"&".join(f"{_twp.quote(k,'')  }={_twp.quote(v,'')}" for k,v in sorted(_tw_params.items()))]])
-                            _tw_sig = _twb64.b64encode(_hmac.new(f"{_twp.quote(_twsec,'')}&{_twp.quote(_twaccsec,'')}" .encode(),_tw_base.encode(),_twh.sha1).digest()).decode()
-                            _tw_params["oauth_signature"] = _tw_sig
-                            _tw_auth = "OAuth " + ", ".join(f'{k}="{_twp.quote(v,"")}"' for k,v in sorted(_tw_params.items()))
-                            _twpayload = {"text": tool_input.get("text","")[:280]}
-                            if tool_input.get("reply_to"): _twpayload["reply"] = {"in_reply_to_tweet_id": tool_input["reply_to"]}
-                            _twreq2 = _twreq.Request(_tw_url, data=_twj.dumps(_twpayload).encode(), headers={"Authorization":_tw_auth,"Content-Type":"application/json"}, method="POST")
-                            with _twreq.urlopen(_twreq2, timeout=15) as _twr: _twres = _twj.loads(_twr.read())
-                            tool_result = {"success":True,"tweet_id":_twres.get("data",{}).get("id"),"text":tool_input.get("text","")[:100]}
-                        except Exception as _twe: tool_result = {"error":f"Twitter error: {str(_twe)}"}
+                    tool_result = await post_to_twitter(tool_input, ai_router=ai_router, TaskType=TaskType)
+
+                elif tool_name == "send_sms":
+                    tool_result = await send_sms(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "generate_voiceover":
+                    tool_result = await generate_voiceover(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "invoice_generator":
+                    tool_result = await invoice_generator(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "reddit_research":
+                    tool_result = await reddit_research(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "morning_briefing":
+                    tool_result = await morning_briefing(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "lead_tracker":
+                    tool_result = await lead_tracker(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "kdp_formatter":
+                    tool_result = await kdp_formatter(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "tiktok_shop_research":
+                    tool_result = await tiktok_shop_research(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "printify_publish":
+                    tool_result = await printify_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
 
                 elif tool_name == "stripe_create_invoice":
                     import urllib.request as _streq, urllib.parse as _stparse, json as _stj
@@ -10483,6 +10500,15 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "faceless_channel_pack", "description": "Complete faceless YouTube channel business: name, niche, 30 video ideas, 5 full scripts, SEO strategy, monetization plan.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "monetization": {"type": "string"}, "upload_frequency": {"type": "string"}, "competitor_channels": {"type": "array", "items": {"type": "string"}}}, "required": []}},
                 {"name": "ai_automation_service", "description": "Package AI skills as a done-for-you service for local businesses. Returns tiers, outreach sequence, proposal template, objection handlers.", "input_schema": {"type": "object", "properties": {"target_industry": {"type": "string"}, "service_focus": {"type": "string"}, "monthly_retainer": {"type": "number"}, "your_location": {"type": "string"}}, "required": ["target_industry"]}},
                 {"name": "dropshipping_research", "description": "Research winning dropshipping products with suppliers, margins, ad angles. Returns ranked products and first-week action plan.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "budget": {"type": "string"}, "platform": {"type": "string"}, "count": {"type": "number"}}, "required": []}},
+                {"name": "send_sms", "description": "Send SMS via Twilio. Alert CC about sales, payments, important events. Requires TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_FROM_NUMBER.", "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "message": {"type": "string"}}, "required": ["message"]}},
+                {"name": "generate_voiceover", "description": "Generate MP3 voiceover from text using ElevenLabs or gTTS fallback. Returns download URL. Perfect for faceless videos.", "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "voice": {"type": "string"}, "filename": {"type": "string"}, "stability": {"type": "number"}, "similarity": {"type": "number"}}, "required": ["text"]}},
+                {"name": "invoice_generator", "description": "Generate professional PDF invoice with line items, totals, tax, payment link. Returns download URL.", "input_schema": {"type": "object", "properties": {"client_name": {"type": "string"}, "client_email": {"type": "string"}, "invoice_number": {"type": "string"}, "due_date": {"type": "string"}, "line_items": {"type": "array", "items": {"type": "object"}}, "notes": {"type": "string"}, "payment_link": {"type": "string"}, "currency": {"type": "string"}, "tax_rate": {"type": "number"}}, "required": ["client_name", "line_items"]}},
+                {"name": "reddit_research", "description": "Mine Reddit for pain points, product gaps, buyer language. No API key needed. Returns AI insights + top posts.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "subreddits": {"type": "array", "items": {"type": "string"}}, "research_type": {"type": "string"}, "post_limit": {"type": "number"}}, "required": []}},
+                {"name": "morning_briefing", "description": "CC's daily morning briefing: top opportunity, daily focus, quick wins, market pulse. Call every morning.", "input_schema": {"type": "object", "properties": {"focus": {"type": "string"}, "include_news": {"type": "boolean"}}, "required": []}},
+                {"name": "lead_tracker", "description": "Simple CRM for leads and clients. Actions: add | update | list | get | delete | follow_ups_due | notes.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "lead_id": {"type": "string"}, "name": {"type": "string"}, "company": {"type": "string"}, "email": {"type": "string"}, "status": {"type": "string"}, "value": {"type": "number"}, "notes": {"type": "string"}, "follow_up_date": {"type": "string"}}, "required": ["action"]}},
+                {"name": "kdp_formatter", "description": "Format ebook for KDP. Generates manuscript, metadata, keywords, royalty estimate, upload instructions. Auto-generates content if not provided.", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}, "author": {"type": "string"}, "content": {"type": "string"}, "genre": {"type": "string"}, "subtitle": {"type": "string"}, "price": {"type": "number"}, "generate_missing": {"type": "boolean"}}, "required": ["title"]}},
+                {"name": "tiktok_shop_research", "description": "Research winning TikTok Shop products with hook ideas, viral scores, margins, content strategy.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "budget": {"type": "string"}, "count": {"type": "number"}, "content_style": {"type": "string"}}, "required": []}},
+                {"name": "printify_publish", "description": "Publish POD products to Printify. Actions: create | list | publish | blueprints | delete. Requires PRINTIFY_API_KEY + PRINTIFY_SHOP_ID.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "title": {"type": "string"}, "blueprint_id": {"type": "number"}, "design_url": {"type": "string"}, "price": {"type": "number"}, "product_id": {"type": "string"}}, "required": ["action"]}},
                 {"name": "stripe_payment_link", "description": "Create Stripe payment links — product + price + URL in one step. Actions: create | list | deactivate. Requires STRIPE_SECRET_KEY.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "product_name": {"type": "string"}, "description": {"type": "string"}, "amount": {"type": "number"}, "currency": {"type": "string"}, "billing": {"type": "string"}, "link_id": {"type": "string"}, "redirect_url": {"type": "string"}, "quantity_adjustable": {"type": "boolean"}}, "required": ["action"]}},
                 {"name": "revenue_goals", "description": "Set and track revenue goals — monthly/quarterly/annual targets with progress vs actuals. Actions: set | check | progress | list | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "goal_name": {"type": "string"}, "target_amount": {"type": "number"}, "period": {"type": "string"}, "deadline": {"type": "string"}, "goal_id": {"type": "string"}, "notes": {"type": "string"}}, "required": ["action"]}},
                 {"name": "process_meeting_notes", "description": "Process meeting transcript or notes — extracts action items, decisions, follow-up emails, open questions. Saves structured notes.", "input_schema": {"type": "object", "properties": {"transcript": {"type": "string"}, "meeting_title": {"type": "string"}, "attendees": {"type": "string"}, "meeting_date": {"type": "string"}, "context": {"type": "string"}, "draft_emails": {"type": "boolean"}, "save_notes": {"type": "boolean"}, "output_format": {"type": "string"}}, "required": ["transcript"]}},
@@ -10707,6 +10733,15 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "faceless_channel_pack": "📹 Building YouTube channel",
                     "ai_automation_service": "🤖 Creating AI service package",
                     "dropshipping_research": "🔍 Researching dropshipping products",
+                    "send_sms": "📱 Sending SMS",
+                    "generate_voiceover": "🎙️ Generating voiceover",
+                    "invoice_generator": "🧾 Creating invoice",
+                    "reddit_research": "👽 Mining Reddit",
+                    "morning_briefing": "☀️ Preparing morning briefing",
+                    "lead_tracker": "📋 Updating CRM",
+                    "kdp_formatter": "📚 Formatting for KDP",
+                    "tiktok_shop_research": "🎵 Researching TikTok Shop",
+                    "printify_publish": "🖨️ Publishing to Printify",
                     "stripe_payment_link": "💳 Creating payment link",
                     "revenue_goals": "🎯 Tracking revenue goals",
                     "process_meeting_notes": "📝 Processing meeting notes",
@@ -11302,17 +11337,27 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                                 with _ur2.urlopen(_rrq2,timeout=15) as _rrs: tool_result = {"success":True,"id":_rj2.loads(_rrs.read()).get("id"),"to":tool_input.get("to")}
                             except Exception as _re2: tool_result = {"error":f"Resend error: {str(_re2)}"}
                     elif tool_name == "post_to_linkedin":
-                        import urllib.request as _lr2, json as _lj2
-                        _lt2 = os.getenv("LINKEDIN_ACCESS_TOKEN","")
-                        if not _lt2: tool_result = {"error":"Set LINKEDIN_ACCESS_TOKEN in .env"}
-                        else:
-                            try:
-                                with _lr2.urlopen(_lr2.Request("https://api.linkedin.com/v2/me",headers={"Authorization":f"Bearer {_lt2}"}),timeout=10) as _lm2: _lid2 = _lj2.loads(_lm2.read()).get("id","")
-                                _lpld2 = {"author":f"urn:li:person:{_lid2}","lifecycleState":"PUBLISHED","specificContent":{"com.linkedin.ugc.ShareContent":{"shareCommentary":{"text":tool_input.get("text","")+("\n\n"+tool_input["url"] if tool_input.get("url") else "")},"shareMediaCategory":"NONE"}},"visibility":{"com.linkedin.ugc.MemberNetworkVisibility":tool_input.get("visibility","PUBLIC")}}
-                                with _lr2.urlopen(_lr2.Request("https://api.linkedin.com/v2/ugcPosts",data=_lj2.dumps(_lpld2).encode(),headers={"Authorization":f"Bearer {_lt2}","Content-Type":"application/json","X-Restli-Protocol-Version":"2.0.0"},method="POST"),timeout=15) as _lp2: tool_result = {"success":True,"post_id":_lj2.loads(_lp2.read()).get("id")}
-                            except Exception as _le2: tool_result = {"error":f"LinkedIn error: {str(_le2)}"}
+                        tool_result = await post_to_linkedin(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "post_to_twitter":
-                        tool_result = {"error":"Twitter posting uses OAuth 1.0a which requires the full handler. Use the non-streaming model for Twitter posts."}
+                        tool_result = await post_to_twitter(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "send_sms":
+                        tool_result = await send_sms(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "generate_voiceover":
+                        tool_result = await generate_voiceover(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "invoice_generator":
+                        tool_result = await invoice_generator(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "reddit_research":
+                        tool_result = await reddit_research(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "morning_briefing":
+                        tool_result = await morning_briefing(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "lead_tracker":
+                        tool_result = await lead_tracker(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "kdp_formatter":
+                        tool_result = await kdp_formatter(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "tiktok_shop_research":
+                        tool_result = await tiktok_shop_research(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "printify_publish":
+                        tool_result = await printify_publish(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "vesper_evolve":
                         tool_result = {"error":"Self-modification requires the non-streaming handler for safety. Switch to a non-streaming model or use run_shell to call the patch directly."}
                     elif tool_name == "desktop_control":
