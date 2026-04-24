@@ -196,7 +196,7 @@ class AIRouter:
             ModelProvider.GROQ: "llama-3.3-70b-versatile",   # Free tier — 14k req/day, fast + smart
             ModelProvider.OPENAI: "gpt-5.4-mini",             # Current mini — fast + affordable
             ModelProvider.GOOGLE: "gemini-2.5-flash",         # Current stable free tier
-            ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20241022",  # Stable, excellent tool calling
+            ModelProvider.ANTHROPIC: "claude-3-5-sonnet-latest",  # Always latest Claude 3.5 Sonnet
             ModelProvider.OLLAMA: "llama3.2:latest"           # Free local
         }
     
@@ -422,8 +422,39 @@ class AIRouter:
             "tool_calls": tool_calls
         }
     
+    def _sanitize_messages_for_openai(self, messages):
+        """Strip Anthropic-format tool_use/tool_result blocks so OpenAI/Groq don't choke.
+        When Claude handles a tool call, it writes tool_use blocks into the history.
+        If we then fall back to another provider with that history intact, they fail with 400.
+        This strips those blocks and converts the messages to plain text."""
+        sanitized = []
+        for m in messages:
+            role = m.get("role")
+            content = m.get("content")
+            if isinstance(content, list):
+                # Extract only plain text blocks; drop tool_use and tool_result blocks
+                text_parts = []
+                for block in content:
+                    if not isinstance(block, dict):
+                        text_parts.append(str(block))
+                    elif block.get("type") == "text":
+                        text_parts.append(block.get("text", ""))
+                    elif block.get("type") == "tool_use":
+                        # Summarize what tool was called so context isn't totally lost
+                        text_parts.append(f"[Called tool: {block.get('name', 'unknown')}]")
+                    elif block.get("type") == "tool_result":
+                        result_content = block.get("content", "")
+                        if isinstance(result_content, list):
+                            result_content = " ".join(b.get("text", "") for b in result_content if isinstance(b, dict))
+                        text_parts.append(f"[Tool result: {result_content}]")
+                content = " ".join(text_parts).strip() or "[empty]"
+            if role and content is not None:
+                sanitized.append({"role": role, "content": content})
+        return sanitized
+
     async def _chat_openai(self, messages, model, tools, max_tokens, temperature):
         """Chat with OpenAI GPT"""
+        messages = self._sanitize_messages_for_openai(messages)
         # o1/o3 and gpt-5.x (reasoning) models use max_completion_tokens, not max_tokens.
         # They also don't support temperature, frequency_penalty, or presence_penalty.
         is_reasoning = model.startswith(("o1", "o3", "o4", "gpt-5"))
@@ -636,6 +667,7 @@ class AIRouter:
     
     async def _chat_groq(self, messages, model, tools, max_tokens, temperature):
         """Chat with Groq (free tier: 14,400 req/day, Llama 3.3 70B)"""
+        messages = self._sanitize_messages_for_openai(messages)
         kwargs = {
             "model": model,
             "messages": messages,
