@@ -754,6 +754,12 @@ function App() {
   const [slashIdx, setSlashIdx] = useState(0);
   // Keyboard shortcuts modal
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Command palette (Ctrl+K / Cmd+K)
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [cmdQuery, setCmdQuery] = useState('');
+  const [cmdFocusIdx, setCmdFocusIdx] = useState(0);
+  // 3D bubble tilt
+  const [bubbleTilt, setBubbleTilt] = useState(null);
   const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'true') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [selectedVoiceName, setSelectedVoiceName] = useState(() => normalizeVoiceId(safeStorageGet('vesper_tts_voice', 'eleven:pFZP5JQG7iQjIQuC4Bku')));
@@ -1079,9 +1085,17 @@ export default function App() {
       const tag = document.activeElement?.tagName;
       const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
       if (e.key === 'Escape') {
+        if (cmdOpen) { setCmdOpen(false); return; }
         setShortcutsOpen(false);
         setSlashMenuOpen(false);
         setFocusMode(false);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setCmdOpen(p => !p);
+        setCmdQuery('');
+        setCmdFocusIdx(0);
         return;
       }
       if (inInput) return;
@@ -1094,7 +1108,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [cmdOpen]);
 
   // Apply theme background to body when theme changes
   useEffect(() => {
@@ -3200,6 +3214,23 @@ export default function App() {
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
+  // ── Command palette items ──────────────────────────────────────────────────
+  const ALL_COMMANDS = useMemo(() => [
+    { group: 'Actions', icon: '✦', label: 'New Conversation',     action: () => startNewChat() },
+    { group: 'Actions', icon: '⚡', label: 'Open App Builder',    action: () => { setCanvasOpen(true); } },
+    { group: 'Actions', icon: '◎', label: 'Copy Last Message',    action: () => { const last = [...messages].reverse().find(m => m.role === 'assistant'); if (last) navigator.clipboard.writeText(last.content).then(() => setToast('Copied!')); } },
+    { group: 'Actions', icon: '⌨', label: 'Keyboard Shortcuts',  action: () => { setShortcutsOpen(true); } },
+    { group: 'Actions', icon: '🎨', label: 'Open Theme Picker',   action: () => { setActiveSection('settings'); } },
+    ...NAV.map(n => ({ group: 'Navigate', icon: '→', label: n.label,  action: () => setActiveSection(n.id) })),
+    ...THEMES.map(t => ({ group: 'Theme', icon: '●', label: t.label, accent: t.accent, action: () => { setActiveTheme(t); try { localStorage.setItem('vesper_theme', t.id); } catch(_) {} setToast(`Theme: ${t.label}`); } })),
+  ], [messages]);
+
+  const filteredCommands = useMemo(() => {
+    const q = cmdQuery.toLowerCase().trim();
+    if (!q) return ALL_COMMANDS;
+    return ALL_COMMANDS.filter(c => c.label.toLowerCase().includes(q) || c.group.toLowerCase().includes(q));
+  }, [ALL_COMMANDS, cmdQuery]);
+
   const deleteThread = async (threadId, skipConfirm = false) => {
     if (!apiBase) return;
     if (!skipConfirm) {
@@ -4228,6 +4259,16 @@ export default function App() {
 
         <Box
           className="message-bubble glass-card"
+          onMouseMove={(e) => {
+            const el = e.currentTarget;
+            const rect = el.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            const rx = ((e.clientY - cy) / (rect.height / 2)) * -5;
+            const ry = ((e.clientX - cx) / (rect.width / 2)) * 5;
+            setBubbleTilt({ id: message.id, rx, ry });
+          }}
+          onMouseLeave={() => setBubbleTilt(null)}
           sx={{
             maxWidth: '85%',
             padding: '12px 16px',
@@ -4239,6 +4280,11 @@ export default function App() {
             boxShadow: isUser
               ? '0 4px 20px rgba(var(--accent-rgb), 0.18)'
               : '0 8px 32px rgba(0, 0, 0, 0.35)',
+            transform: bubbleTilt?.id === message.id
+              ? `perspective(700px) rotateX(${bubbleTilt.rx}deg) rotateY(${bubbleTilt.ry}deg) scale(1.008)`
+              : 'perspective(700px) rotateX(0deg) rotateY(0deg) scale(1)',
+            transition: bubbleTilt?.id === message.id ? 'transform 0.08s ease' : 'transform 0.35s ease',
+            willChange: 'transform',
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: isGrouped ? 0 : 0.75, gap: 1, ...(isGrouped && { display: 'none' }) }}>
@@ -7815,6 +7861,23 @@ export default function App() {
                 </Box>
               )}
               <AnimatePresence>
+                {/* Ambient background orbs */}
+                <Box key="orb1" sx={{
+                  position: 'absolute', pointerEvents: 'none', zIndex: 0,
+                  width: 320, height: 320, borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(var(--accent-rgb),0.07) 0%, transparent 70%)',
+                  top: '15%', left: '-60px',
+                  animation: 'orbFloat1 18s ease-in-out infinite',
+                  filter: 'blur(40px)',
+                }} />
+                <Box key="orb2" sx={{
+                  position: 'absolute', pointerEvents: 'none', zIndex: 0,
+                  width: 240, height: 240, borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(var(--accent-rgb),0.05) 0%, transparent 70%)',
+                  bottom: '10%', right: '-40px',
+                  animation: 'orbFloat2 22s ease-in-out infinite',
+                  filter: 'blur(50px)',
+                }} />
                 {messages.map((message, idx) => {
                   const prev = messages[idx - 1];
                   const isGrouped = prev && prev.role === message.role && !['chart','sandbox_image','weather_card'].includes(message.type);
@@ -9492,6 +9555,139 @@ export default function App() {
               }}
             >
               Install
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      {/* ─── CMD+K COMMAND PALETTE ─────────────────────────────────────── */}
+      {cmdOpen && (
+        <Box
+          onClick={() => setCmdOpen(false)}
+          sx={{
+            position: 'fixed', inset: 0, zIndex: 99999,
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(12px)',
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+            pt: '12vh',
+            animation: 'fadeIn 0.12s ease',
+          }}
+        >
+          <Box
+            onClick={(e) => e.stopPropagation()}
+            sx={{
+              width: '100%', maxWidth: 580,
+              mx: 2,
+              background: 'linear-gradient(145deg, rgba(14,18,28,0.98), rgba(8,10,18,0.99))',
+              border: '1px solid rgba(var(--accent-rgb), 0.25)',
+              borderRadius: '18px',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(var(--accent-rgb),0.12), 0 0 60px rgba(var(--accent-rgb),0.08)',
+              overflow: 'hidden',
+              animation: 'cmdSlideIn 0.15s cubic-bezier(0.22,1,0.36,1)',
+            }}
+          >
+            {/* Search input */}
+            <Box sx={{
+              display: 'flex', alignItems: 'center', gap: 1.5,
+              px: 2, py: 1.5,
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              <Typography sx={{ color: 'rgba(255,255,255,0.25)', fontSize: '1rem', lineHeight: 1, flexShrink: 0 }}>⌘</Typography>
+              <input
+                autoFocus
+                value={cmdQuery}
+                onChange={(e) => { setCmdQuery(e.target.value); setCmdFocusIdx(0); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown') { e.preventDefault(); setCmdFocusIdx(i => Math.min(i + 1, filteredCommands.length - 1)); }
+                  if (e.key === 'ArrowUp') { e.preventDefault(); setCmdFocusIdx(i => Math.max(i - 1, 0)); }
+                  if (e.key === 'Enter') {
+                    const cmd = filteredCommands[cmdFocusIdx];
+                    if (cmd) { cmd.action(); setCmdOpen(false); }
+                  }
+                  if (e.key === 'Escape') { setCmdOpen(false); }
+                }}
+                placeholder="Search commands, themes, sections…"
+                style={{
+                  flex: 1, background: 'none', border: 'none', outline: 'none',
+                  color: '#fff', fontSize: '0.95rem', fontFamily: 'inherit',
+                  letterSpacing: '0.01em',
+                }}
+              />
+              <Typography sx={{ color: 'rgba(255,255,255,0.18)', fontSize: '0.65rem', letterSpacing: '0.05em', flexShrink: 0 }}>ESC</Typography>
+            </Box>
+
+            {/* Results */}
+            <Box sx={{ maxHeight: 420, overflowY: 'auto', py: 0.75 }}>
+              {(() => {
+                let lastGroup = null;
+                return filteredCommands.map((cmd, i) => {
+                  const isActive = i === cmdFocusIdx;
+                  const showHeader = cmd.group !== lastGroup;
+                  lastGroup = cmd.group;
+                  return (
+                    <React.Fragment key={`${cmd.group}-${cmd.label}`}>
+                      {showHeader && (
+                        <Typography sx={{
+                          px: 2, pt: i === 0 ? 0.5 : 1.5, pb: 0.4,
+                          fontSize: '0.62rem', fontWeight: 700,
+                          color: 'rgba(255,255,255,0.25)',
+                          letterSpacing: '0.1em', textTransform: 'uppercase',
+                        }}>
+                          {cmd.group}
+                        </Typography>
+                      )}
+                      <Box
+                        onClick={() => { cmd.action(); setCmdOpen(false); }}
+                        onMouseEnter={() => setCmdFocusIdx(i)}
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 1.5,
+                          px: 2, py: 0.75, mx: 0.75, borderRadius: '10px',
+                          cursor: 'pointer',
+                          background: isActive ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent',
+                          border: isActive ? '1px solid rgba(var(--accent-rgb), 0.2)' : '1px solid transparent',
+                          transition: 'all 0.1s ease',
+                        }}
+                      >
+                        {cmd.accent ? (
+                          <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: cmd.accent, flexShrink: 0, boxShadow: `0 0 6px ${cmd.accent}88` }} />
+                        ) : (
+                          <Typography sx={{ fontSize: '0.8rem', color: isActive ? 'var(--accent)' : 'rgba(255,255,255,0.35)', lineHeight: 1, flexShrink: 0, width: 14, textAlign: 'center' }}>
+                            {cmd.icon}
+                          </Typography>
+                        )}
+                        <Typography sx={{ fontSize: '0.85rem', color: isActive ? '#fff' : 'rgba(255,255,255,0.72)', fontWeight: isActive ? 600 : 400, flex: 1 }}>
+                          {cmd.label}
+                        </Typography>
+                        {isActive && <Typography sx={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.04em' }}>↵</Typography>}
+                      </Box>
+                    </React.Fragment>
+                  );
+                });
+              })()}
+              {filteredCommands.length === 0 && (
+                <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.82rem' }}>No results for "{cmdQuery}"</Typography>
+                </Box>
+              )}
+            </Box>
+
+            {/* Footer hint */}
+            <Box sx={{
+              display: 'flex', gap: 2, px: 2, py: 1,
+              borderTop: '1px solid rgba(255,255,255,0.05)',
+              alignItems: 'center',
+            }}>
+              {[['↑↓', 'navigate'], ['↵', 'select'], ['esc', 'close']].map(([key, hint]) => (
+                <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ px: 0.75, py: 0.2, borderRadius: '5px', border: '1px solid rgba(255,255,255,0.12)', bgcolor: 'rgba(255,255,255,0.04)' }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>{key}</Typography>
+                  </Box>
+                  <Typography sx={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.2)' }}>{hint}</Typography>
+                </Box>
+              ))}
+              <Typography sx={{ ml: 'auto', fontSize: '0.62rem', color: 'rgba(255,255,255,0.15)', fontFamily: 'Cormorant Garamond, serif', fontStyle: 'italic' }}>
+                Vesper
+              </Typography>
             </Box>
           </Box>
         </Box>
