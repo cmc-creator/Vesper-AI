@@ -634,6 +634,54 @@ def get_core_status():
     }
 
 
+@app.get("/api/stripe/first-sale")
+async def stripe_first_sale(after: str = "", link_id: str = ""):
+    """Poll Stripe for the first successful payment after a given ISO timestamp.
+
+    Query params:
+      after    — ISO datetime string (product launched_at). Required.
+      link_id  — Stripe payment link ID (optional, for extra filter).
+    Returns:
+      { found: bool, payment?: {...} }
+    """
+    import urllib.request as _fsr, json as _fsj, datetime as _fsd
+    _sk = os.getenv("STRIPE_SECRET_KEY", "")
+    if not _sk:
+        return JSONResponse({"error": "STRIPE_SECRET_KEY not set"}, status_code=500)
+    if not after:
+        return JSONResponse({"error": "after param required"}, status_code=400)
+    try:
+        # Convert ISO string to unix timestamp
+        try:
+            _after_ts = int(_fsd.datetime.fromisoformat(after.replace("Z", "+00:00")).timestamp())
+        except Exception:
+            _after_ts = int(_fsd.datetime.utcnow().timestamp()) - 3600
+        # List recent payment intents created after the product was launched
+        _url = f"https://api.stripe.com/v1/payment_intents?limit=10&created[gte]={_after_ts}"
+        _req = _fsr.Request(_url, headers={"Authorization": f"Bearer {_sk}"})
+        with _fsr.urlopen(_req, timeout=15) as _resp:
+            _data = _fsj.loads(_resp.read())
+        _succeeded = [
+            p for p in _data.get("data", [])
+            if p.get("status") == "succeeded"
+        ]
+        if _succeeded:
+            _p = _succeeded[0]
+            return {
+                "found": True,
+                "payment": {
+                    "id": _p["id"],
+                    "amount": f"${_p['amount'] / 100:.2f}",
+                    "currency": _p.get("currency", "usd").upper(),
+                    "customer_email": _p.get("receipt_email") or _p.get("customer_email", ""),
+                    "created": str(_fsd.datetime.fromtimestamp(_p["created"])),
+                }
+            }
+        return {"found": False}
+    except Exception as _fse:
+        return JSONResponse({"error": str(_fse)}, status_code=500)
+
+
 def _format_uptime_label(total_seconds: int) -> str:
     hours, remainder = divmod(max(total_seconds, 0), 3600)
     minutes, seconds = divmod(remainder, 60)
@@ -12379,6 +12427,26 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 if tool_name == "reminders" and isinstance(tool_result, dict) and "due" in tool_result and "text" in tool_result:
                     yield f"data: {json.dumps({'type': 'visualizations', 'data': [{'type': 'reminder_card', **tool_result}]})}\n\n"
 
+                # Emit product launch card so frontend renders live buy button + doc link
+                if tool_name == "launch_product" and isinstance(tool_result, dict):
+                    _plc_stripe = tool_result.get("stripe") or {}
+                    _plc_doc = tool_result.get("google_doc") or {}
+                    _plc_card = {
+                        "type": "product_launch_card",
+                        "product_name": tool_input.get("product_name", ""),
+                        "price": tool_input.get("price", ""),
+                        "billing": tool_input.get("billing", "one_time"),
+                        "payment_url": _plc_stripe.get("payment_url", ""),
+                        "price_id": _plc_stripe.get("price_id", ""),
+                        "link_id": _plc_stripe.get("link_id", ""),
+                        "doc_url": _plc_doc.get("url", "") or _plc_doc.get("webViewLink", ""),
+                        "sales_copy": (tool_result.get("sales_copy") or "")[:800],
+                        "summary": tool_result.get("summary", ""),
+                        "launched_at": __import__("datetime").datetime.utcnow().isoformat(),
+                        "errors": tool_result.get("errors", []),
+                    }
+                    yield f"data: {json.dumps({'type': 'visualizations', 'data': [_plc_card]})}\n\n"
+
                 await asyncio.sleep(0)
                 
                 # Append tool messages for conversation context
@@ -16980,6 +17048,51 @@ def _vesper_core_loop():
 
                 _run(_morning_brief())
                 _VESPER_CORE_STATUS["status"] = "running"
+
+                # ── PRODUCT PROMOTION NUDGE ───────────────────────────────────
+                # If Stripe is configured, check for unsold products launched in last 7 days
+                _sk_promo = os.getenv("STRIPE_SECRET_KEY", "")
+                if _sk_promo:
+                    try:
+                        import urllib.request as _ppr, json as _ppj, datetime as _ppd
+                        _pp_since = int((_ppd.datetime.utcnow() - _ppd.timedelta(days=7)).timestamp())
+                        _pp_req = _ppr.Request(
+                            f"https://api.stripe.com/v1/payment_links?limit=10&created[gte]={_pp_since}",
+                            headers={"Authorization": f"Bearer {_sk_promo}"}
+                        )
+                        with _ppr.urlopen(_pp_req, timeout=15) as _ppr_resp:
+                            _pp_links = _ppj.loads(_ppr_resp.read()).get("data", [])
+                        # Filter to active links with zero payments (metadata check)
+                        _unsold = [lk for lk in _pp_links if lk.get("active")]
+                        if _unsold:
+                            _lk = _unsold[0]
+                            _lk_url = _lk.get("url", "")
+                            _lk_label = ((_lk.get("metadata") or {}).get("product_name") or "your product")
+                            async def _promo_nudge(_name=_lk_label, _url=_lk_url):
+                                resp2 = await ai_router.chat(
+                                    messages=[
+                                        {"role": "system", "content": VESPER_CORE_DNA[:1500]},
+                                        {"role": "user", "content": (
+                                            f"CC launched '{_name}' recently. No confirmed sales yet. "
+                                            "Give her a quick (2-sentence) action: one specific place to share the link today "
+                                            "(subreddit, Facebook group, Discord, newsletter, etc.) + why. "
+                                            f"Payment link: {_url}. Be direct and specific."
+                                        )},
+                                    ],
+                                    task_type=TaskType.CHAT, max_tokens=150, temperature=0.8,
+                                )
+                                if resp2.get("content") and not resp2.get("error"):
+                                    VESPER_PROACTIVE_QUEUE.append({
+                                        "message": f"Sales nudge for {_name}: {resp2['content'].strip()}",
+                                        "priority": "normal",
+                                        "timestamp": now.isoformat(),
+                                        "source": "product_promo",
+                                    })
+                                    _log(f"Product promo nudge queued for '{_name}'")
+                            _run(_promo_nudge())
+                    except Exception as _pp_err:
+                        _log(f"Product promo check error: {_pp_err}")
+
                 time.sleep(CORE_INTERVAL)
                 continue
 

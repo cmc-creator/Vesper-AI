@@ -411,6 +411,266 @@ function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview, onS
   );
 }
 
+// ─── Product Launch Card ──────────────────────────────────────────────────────
+// Rendered when Vesper runs launch_product. Shows a styled product card with
+// a live Stripe buy button, doc link, copy URL, and first-sale watcher.
+function ProductLaunchCard({ message }) {
+  const BACKEND = import.meta.env.VITE_BACKEND_URL || 'https://vesper-backend-production-b486.up.railway.app';
+  const [copied, setCopied] = React.useState(false);
+  const [watching, setWatching] = React.useState(false);
+  const [saleFound, setSaleFound] = React.useState(null);
+  const [pollCount, setPollCount] = React.useState(0);
+  const pollRef = React.useRef(null);
+
+  const paymentUrl = message.payment_url || '';
+  const docUrl = message.doc_url || '';
+  const productName = message.product_name || 'Your Product';
+  const price = message.price || '';
+  const billing = message.billing || 'one_time';
+  const salesCopy = message.sales_copy || '';
+  const launchedAt = message.launched_at || '';
+
+  const billingLabel = billing === 'monthly' ? '/mo' : billing === 'yearly' ? '/yr' : '';
+
+  function handleCopy() {
+    if (!paymentUrl) return;
+    navigator.clipboard.writeText(paymentUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function startWatching() {
+    if (watching || saleFound) return;
+    setWatching(true);
+    setPollCount(0);
+    pollRef.current = setInterval(async () => {
+      try {
+        const params = new URLSearchParams({ after: launchedAt });
+        if (message.link_id) params.set('link_id', message.link_id);
+        const res = await fetch(`${BACKEND}/api/stripe/first-sale?${params}`);
+        const data = await res.json();
+        if (data.found && data.payment) {
+          setSaleFound(data.payment);
+          setWatching(false);
+          clearInterval(pollRef.current);
+        } else {
+          setPollCount(c => c + 1);
+        }
+      } catch (_e) {
+        setPollCount(c => c + 1);
+      }
+    }, 3000);
+    // Auto-stop after 10 minutes
+    setTimeout(() => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        setWatching(false);
+      }
+    }, 600000);
+  }
+
+  React.useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  const accentGreen = '#00e676';
+  const accentCyan = 'var(--accent, #00ffff)';
+
+  if (saleFound) {
+    return (
+      <Box sx={{
+        minWidth: 300, maxWidth: 480, borderRadius: 3,
+        border: `2px solid ${accentGreen}`,
+        bgcolor: 'rgba(0,230,118,0.08)',
+        backdropFilter: 'blur(12px)',
+        p: 2.5, mb: 2,
+        boxShadow: `0 0 30px ${accentGreen}44`,
+        animation: 'pulseGreen 1.5s ease-in-out 3',
+      }}>
+        <Typography variant="caption" sx={{ color: accentGreen, fontFamily: 'monospace', letterSpacing: 1, fontSize: '0.65rem' }}>
+          VESPER · FIRST SALE DETECTED
+        </Typography>
+        <Typography variant="h5" sx={{ color: '#fff', fontWeight: 800, mt: 0.5, mb: 0.5 }}>
+          Someone just bought {productName}!
+        </Typography>
+        <Typography sx={{ color: accentGreen, fontWeight: 700, fontSize: '1.1rem', mb: 1 }}>
+          {saleFound.amount} {saleFound.currency}
+        </Typography>
+        {saleFound.customer_email && (
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', mb: 1 }}>
+            Customer: {saleFound.customer_email}
+          </Typography>
+        )}
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+          {saleFound.created}
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{
+      minWidth: 300, maxWidth: 480, borderRadius: 3,
+      border: `1px solid ${accentCyan}44`,
+      bgcolor: 'rgba(0,0,0,0.55)',
+      backdropFilter: 'blur(14px)',
+      p: 2.5, mb: 2,
+      boxShadow: `0 0 20px ${accentCyan}22`,
+    }}>
+      {/* Header */}
+      <Typography variant="caption" sx={{ color: accentCyan, fontFamily: 'monospace', letterSpacing: 1, fontSize: '0.65rem' }}>
+        VESPER · PRODUCT LAUNCHED
+      </Typography>
+
+      {/* Name + Price row */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.75, mb: 1.5, flexWrap: 'wrap' }}>
+        <Typography variant="h6" sx={{ color: '#fff', fontWeight: 800, flexGrow: 1 }}>
+          {productName}
+        </Typography>
+        {price && (
+          <Box sx={{
+            px: 1.5, py: 0.4, borderRadius: 99,
+            bgcolor: `${accentGreen}22`,
+            border: `1px solid ${accentGreen}66`,
+          }}>
+            <Typography sx={{ color: accentGreen, fontWeight: 700, fontSize: '0.95rem', lineHeight: 1.2 }}>
+              ${price}{billingLabel}
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* Sales copy preview */}
+      {salesCopy && (
+        <Typography variant="body2" sx={{
+          color: 'rgba(255,255,255,0.65)',
+          mb: 2,
+          fontSize: '0.8rem',
+          lineHeight: 1.55,
+          borderLeft: `2px solid ${accentCyan}44`,
+          pl: 1.5,
+        }}>
+          {salesCopy.length > 200 ? salesCopy.slice(0, 200) + '…' : salesCopy}
+        </Typography>
+      )}
+
+      {/* Action buttons */}
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
+        {paymentUrl && (
+          <Box
+            component="a"
+            href={paymentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              display: 'inline-flex', alignItems: 'center', gap: 0.75,
+              px: 2, py: 0.9, borderRadius: 2,
+              bgcolor: accentGreen,
+              color: '#000',
+              fontWeight: 700, fontSize: '0.85rem',
+              textDecoration: 'none',
+              transition: 'opacity 0.15s',
+              '&:hover': { opacity: 0.85 },
+            }}
+          >
+            Buy Now
+          </Box>
+        )}
+        {docUrl && (
+          <Box
+            component="a"
+            href={docUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              display: 'inline-flex', alignItems: 'center', gap: 0.75,
+              px: 2, py: 0.9, borderRadius: 2,
+              border: `1px solid ${accentCyan}66`,
+              color: accentCyan,
+              fontWeight: 600, fontSize: '0.85rem',
+              textDecoration: 'none',
+              bgcolor: 'transparent',
+              transition: 'background 0.15s',
+              '&:hover': { bgcolor: `${accentCyan}11` },
+            }}
+          >
+            Sales Doc
+          </Box>
+        )}
+        {paymentUrl && (
+          <Box
+            component="button"
+            onClick={handleCopy}
+            sx={{
+              display: 'inline-flex', alignItems: 'center', gap: 0.75,
+              px: 2, py: 0.9, borderRadius: 2,
+              border: `1px solid rgba(255,255,255,0.2)`,
+              color: copied ? accentGreen : 'rgba(255,255,255,0.65)',
+              fontWeight: 600, fontSize: '0.85rem',
+              background: 'transparent', cursor: 'pointer',
+              transition: 'color 0.2s',
+              '&:hover': { borderColor: 'rgba(255,255,255,0.4)' },
+            }}
+          >
+            {copied ? 'Copied!' : 'Copy Link'}
+          </Box>
+        )}
+      </Box>
+
+      {/* Watch for first sale */}
+      {paymentUrl && !saleFound && (
+        <Box sx={{ pt: 1.5, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+          {!watching ? (
+            <Box
+              component="button"
+              onClick={startWatching}
+              sx={{
+                display: 'inline-flex', alignItems: 'center', gap: 0.75,
+                px: 1.5, py: 0.6, borderRadius: 2,
+                border: `1px solid rgba(255,255,255,0.15)`,
+                color: 'rgba(255,255,255,0.5)',
+                fontWeight: 500, fontSize: '0.75rem',
+                background: 'transparent', cursor: 'pointer',
+                '&:hover': { color: accentCyan, borderColor: accentCyan },
+              }}
+            >
+              Watch for first sale
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{
+                width: 8, height: 8, borderRadius: '50%',
+                bgcolor: accentCyan,
+                animation: 'pulseDot 1.2s ease-in-out infinite',
+              }} />
+              <Typography variant="caption" sx={{ color: accentCyan, fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                Watching for payment... ({pollCount * 3}s)
+              </Typography>
+              <Box
+                component="button"
+                onClick={() => { setWatching(false); clearInterval(pollRef.current); }}
+                sx={{ ml: 'auto', color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.7rem' }}
+              >
+                stop
+              </Box>
+            </Box>
+          )}
+        </Box>
+      )}
+
+      {/* Errors */}
+      {message.errors && message.errors.length > 0 && (
+        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid rgba(255,100,100,0.2)' }}>
+          {message.errors.map((e, i) => (
+            <Typography key={i} variant="caption" sx={{ color: '#ff6b6b', fontSize: '0.7rem', display: 'block' }}>
+              {e}
+            </Typography>
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -1692,6 +1952,8 @@ export default function App() {
                   addLocalMessage('assistant', '', { type: 'weather_card', ...viz });
                 } else if (viz.type === 'reminder_card') {
                   addLocalMessage('assistant', '', { type: 'reminder_card', ...viz });
+                } else if (viz.type === 'product_launch_card') {
+                  addLocalMessage('assistant', '', { type: 'product_launch_card', ...viz });
                 } else if (viz.type === 'image_generation') {
                   addLocalMessage('assistant', `Here's your image ✨`, { type: 'image', imageUrl: viz.image_url, imagePrompt: viz.prompt, imageProvider: viz.provider });
                   const promptSuggestsWallpaper = /wallpaper|background/i.test(String(viz.prompt || ''));
@@ -3858,6 +4120,24 @@ export default function App() {
               )}
             </Box>
           </Box>
+        </motion.div>
+      );
+    }
+
+    // Handle Product Launch Cards
+    if (message.type === 'product_launch_card') {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+          key={message.id}
+        >
+          <Typography variant="caption" sx={{ color: 'var(--accent)', mb: 0.75, fontFamily: 'monospace', letterSpacing: 1, fontSize: '0.65rem' }}>
+            VESPER · {ts}
+          </Typography>
+          <ProductLaunchCard message={message} />
         </motion.div>
       );
     }

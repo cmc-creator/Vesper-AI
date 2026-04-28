@@ -304,6 +304,17 @@ canvas {
   animation: matrixLoad 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Product launch card animations */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+@keyframes pulseGreen {
+  0%, 100% { box-shadow: 0 0 30px #00e67644; }
+  50% { box-shadow: 0 0 60px #00e676bb; }
+}
+
 /* Enhanced neon border effect */
 .neon-border {
   box-shadow: 
