@@ -4231,22 +4231,22 @@ export default function App() {
           sx={{
             maxWidth: '85%',
             padding: '12px 16px',
-            borderRadius: '16px',
+            borderRadius: isUser ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
             background: isUser
-              ? 'linear-gradient(135deg, rgba(0, 255, 255, 0.18), rgba(0, 136, 255, 0.12))'
+              ? `linear-gradient(135deg, rgba(var(--accent-rgb), 0.22), rgba(var(--accent-rgb), 0.1))`
               : 'rgba(10, 14, 30, 0.8)',
-            border: `1px solid ${isUser ? 'rgba(0, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.12)'}`,
+            border: `1px solid ${isUser ? 'rgba(var(--accent-rgb), 0.4)' : 'rgba(255, 255, 255, 0.09)'}`,
             boxShadow: isUser
-              ? '0 0 24px rgba(0, 255, 255, 0.35)'
+              ? '0 4px 20px rgba(var(--accent-rgb), 0.18)'
               : '0 8px 32px rgba(0, 0, 0, 0.35)',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75, gap: 1 }}>
             {!isUser && <AIAvatar thinking={thinking} isSpeaking={isSpeaking} mood={thinking ? 'thinking' : 'neutral'} />}
-            <Typography variant="caption" sx={{ color: isUser ? 'rgba(255,255,255,0.8)' : 'var(--accent)', fontWeight: 700 }}>
+            <Typography variant="caption" sx={{ color: isUser ? 'rgba(255,255,255,0.7)' : 'var(--accent)', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.04em' }}>
               {isUser ? 'You' : 'Vesper'}
             </Typography>
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.67rem', transition: 'opacity 0.2s', opacity: isHovered ? 1 : 0 }}>
               {ts}
             </Typography>
             {!isUser && thinking && (
@@ -4286,11 +4286,42 @@ export default function App() {
             </Box>
           )}
 
+          <Box sx={{ lineHeight: 1.72, fontSize: '0.91rem', color: 'rgba(255,255,255,0.88)' }}>
           <ReactMarkdown
             components={{
               a: ({ href, children, ...props }) => (
-                <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }} {...props}>{children}</a>
+                <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none', borderBottom: '1px solid rgba(var(--accent-rgb),0.4)' }} {...props}>{children}</a>
               ),
+              h1: ({ children }) => (
+                <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', mt: 2, mb: 0.75, borderBottom: '1px solid rgba(var(--accent-rgb),0.2)', pb: 0.5, fontFamily: 'Cormorant Garamond, serif' }}>{children}</Typography>
+              ),
+              h2: ({ children }) => (
+                <Typography sx={{ fontSize: '1.08rem', fontWeight: 700, color: 'rgba(255,255,255,0.95)', mt: 1.5, mb: 0.5 }}>{children}</Typography>
+              ),
+              h3: ({ children }) => (
+                <Typography sx={{ fontSize: '0.97rem', fontWeight: 600, color: 'var(--accent)', mt: 1.25, mb: 0.4, letterSpacing: '0.02em' }}>{children}</Typography>
+              ),
+              blockquote: ({ children }) => (
+                <Box sx={{ borderLeft: '3px solid rgba(var(--accent-rgb),0.5)', pl: 1.5, py: 0.25, my: 1, bgcolor: 'rgba(var(--accent-rgb),0.06)', borderRadius: '0 6px 6px 0' }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontStyle: 'italic', fontSize: '0.89rem', lineHeight: 1.65 }}>{children}</Typography>
+                </Box>
+              ),
+              table: ({ children }) => (
+                <Box sx={{ overflowX: 'auto', my: 1.5, borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>{children}</table>
+                </Box>
+              ),
+              thead: ({ children }) => <thead style={{ background: 'rgba(var(--accent-rgb),0.1)' }}>{children}</thead>,
+              th: ({ children }) => <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 700, borderBottom: '1px solid rgba(var(--accent-rgb),0.25)', whiteSpace: 'nowrap' }}>{children}</th>,
+              td: ({ children }) => <td style={{ padding: '7px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.82)' }}>{children}</td>,
+              li: ({ children }) => (
+                <li style={{ marginBottom: '0.3em', lineHeight: 1.65, color: 'rgba(255,255,255,0.85)' }}>{children}</li>
+              ),
+              p: ({ children }) => (
+                <p style={{ margin: '0 0 0.75em 0', lineHeight: 1.72 }}>{children}</p>
+              ),
+              strong: ({ children }) => <strong style={{ color: '#fff', fontWeight: 700 }}>{children}</strong>,
+              em: ({ children }) => <em style={{ color: 'rgba(255,255,255,0.75)' }}>{children}</em>,
               code: ({ inline, className, children, ...props }) => {
                 const match = /language-(\w+)/.exec(className || '');
                 const codeString = String(children).replace(/\n$/, '');
@@ -4376,6 +4407,7 @@ export default function App() {
             {content}
           </ReactMarkdown>
           {isStreaming && <span className="streaming-cursor" />}
+          </Box>
         </Box>
         {/* Hover action bar */}
         {isHovered && !isUser && (
@@ -8063,7 +8095,7 @@ export default function App() {
                 inputRef={inputRef}
                 fullWidth
                 multiline
-                maxRows={3}
+                maxRows={8}
                 value={input}
                 onChange={(e) => {
                   const val = e.target.value;

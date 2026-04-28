@@ -922,6 +922,16 @@ body[data-style="lux"] {
   border: 1px solid rgba(255,255,255,0.08) !important;
   background: linear-gradient(180deg, rgba(15,18,24,0.92), rgba(10,12,18,0.94)) !important;
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255,255,255,0.06);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-bar:focus-within {
+  border-color: rgba(var(--accent-rgb), 0.45) !important;
+  box-shadow:
+    0 14px 32px rgba(0,0,0,0.38),
+    0 0 0 1px rgba(var(--accent-rgb), 0.18),
+    0 0 18px rgba(var(--accent-rgb), 0.12),
+    inset 0 1px 0 rgba(255,255,255,0.07);
 }
 
 .tools-section {
