@@ -2600,3 +2600,61 @@ body[data-style="arctic"] {
 [data-style="arctic"] ::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.68), rgba(255,255,255,0.38)) !important;
   box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.40) !important;}
+
+/* ── Vesper thinking bubble ─────────────────────────────────── */
+@keyframes vesperPulse {
+  0%, 60%, 100% { transform: translateY(0) scale(1); opacity: 0.4; }
+  30%           { transform: translateY(-5px) scale(1.15); opacity: 1; }
+}
+
+.vesper-thinking {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0;
+}
+
+.vesper-thinking span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.7);
+  animation: vesperPulse 1.35s ease-in-out infinite;
+}
+
+.vesper-thinking span:nth-child(1) { animation-delay: 0s; }
+.vesper-thinking span:nth-child(2) { animation-delay: 0.18s; }
+.vesper-thinking span:nth-child(3) { animation-delay: 0.36s; }
+
+/* ── Lux theme scrollbar (diamond-vault + marble-palace) ──── */
+[data-theme-id="diamond-vault"] ::-webkit-scrollbar,
+[data-theme-id="marble-palace"] ::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+}
+
+[data-theme-id="diamond-vault"] ::-webkit-scrollbar-track,
+[data-theme-id="marble-palace"] ::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+[data-theme-id="diamond-vault"] ::-webkit-scrollbar-thumb {
+  background: rgba(173, 214, 240, 0.28) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+
+[data-theme-id="diamond-vault"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(173, 214, 240, 0.48) !important;
+}
+
+[data-theme-id="marble-palace"] ::-webkit-scrollbar-thumb {
+  background: rgba(207, 165, 92, 0.28) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+
+[data-theme-id="marble-palace"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(207, 165, 92, 0.48) !important;
+}

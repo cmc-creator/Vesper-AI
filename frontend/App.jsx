@@ -3985,7 +3985,7 @@ export default function App() {
     }
   };
 
-  const renderMessage = (message) => {
+  const renderMessage = (message, isGrouped = false) => {
     const isUser = message.role === 'user';
     const ts = formatTime(message.timestamp || Date.now());
 
@@ -4195,7 +4195,7 @@ export default function App() {
           display: 'flex', 
           flexDirection: 'column', 
           alignItems: isUser ? 'flex-end' : 'flex-start', 
-          marginBottom: '16px',
+          marginBottom: isGrouped ? '4px' : '16px',
           position: 'relative',
         }}
         onMouseEnter={() => setHoveredMessageId(message.id)}
@@ -4241,7 +4241,7 @@ export default function App() {
               : '0 8px 32px rgba(0, 0, 0, 0.35)',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75, gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: isGrouped ? 0 : 0.75, gap: 1, ...(isGrouped && { display: 'none' }) }}>
             {!isUser && <AIAvatar thinking={thinking} isSpeaking={isSpeaking} mood={thinking ? 'thinking' : 'neutral'} />}
             <Typography variant="caption" sx={{ color: isUser ? 'rgba(255,255,255,0.7)' : 'var(--accent)', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.04em' }}>
               {isUser ? 'You' : 'Vesper'}
@@ -7815,9 +7815,11 @@ export default function App() {
                 </Box>
               )}
               <AnimatePresence>
-                {messages.map((message) => (
-                  <div key={message.id}>{renderMessage(message)}</div>
-                ))}
+                {messages.map((message, idx) => {
+                  const prev = messages[idx - 1];
+                  const isGrouped = prev && prev.role === message.role && !['chart','sandbox_image','weather_card'].includes(message.type);
+                  return <div key={message.id}>{renderMessage(message, isGrouped)}</div>;
+                })}
               </AnimatePresence>
               {loading && (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, my: 1 }}>
@@ -7846,7 +7848,7 @@ export default function App() {
                   ) : (
                     // ── Just thinking / generating text ──
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box className="typing-indicator">
+                      <Box className="vesper-thinking">
                         <span /><span /><span />
                       </Box>
                       {thinkingStatus && (
@@ -7959,21 +7961,65 @@ export default function App() {
               </Box>
             )}
 
-            {/* Vesper Proactive Greeting */}
-            {vesperGreeting && messages.length === 0 && (
-              <Box sx={{ 
-                mb: 1, px: 1.5, py: 1, 
-                bgcolor: 'rgba(0,255,255,0.06)', 
-                borderRadius: 2,
-                border: '1px solid rgba(0,255,255,0.15)',
-                animation: 'fadeIn 0.5s ease',
+            {/* Empty state welcome + suggested prompts */}
+            {messages.length === 0 && (
+              <Box sx={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', flex: 1, py: 4, px: 2, gap: 3,
+                animation: 'fadeIn 0.6s ease',
               }}>
-                <Typography variant="body2" sx={{ color: 'var(--accent)', fontStyle: 'italic', fontWeight: 500, fontSize: '0.85rem' }}>
-                  {vesperGreeting}
-                </Typography>
+                {/* Vesper wordmark */}
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography sx={{
+                    fontFamily: 'Cormorant Garamond, serif',
+                    fontSize: '2.2rem', fontWeight: 700,
+                    color: 'rgba(255,255,255,0.9)',
+                    letterSpacing: '0.06em', lineHeight: 1,
+                    mb: 0.5,
+                  }}>
+                    Vesper
+                  </Typography>
+                  {vesperGreeting ? (
+                    <Typography sx={{ color: 'var(--accent)', fontStyle: 'italic', fontSize: '0.87rem', opacity: 0.85, maxWidth: 320, lineHeight: 1.5 }}>
+                      {vesperGreeting}
+                    </Typography>
+                  ) : (
+                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.78rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      How can I help you today?
+                    </Typography>
+                  )}
+                </Box>
+
+                {/* Suggested prompts grid */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, width: '100%', maxWidth: 520 }}>
+                  {[
+                    { icon: '✦', label: 'Draft something', prompt: 'Help me write a' },
+                    { icon: '◎', label: 'Research a topic', prompt: 'Research and summarize' },
+                    { icon: '⚡', label: 'Build with code', prompt: 'Write code to' },
+                    { icon: '◈', label: 'Brainstorm ideas', prompt: 'Give me creative ideas for' },
+                  ].map(({ icon, label, prompt }) => (
+                    <Box
+                      key={label}
+                      onClick={() => setInput(prompt + ' ')}
+                      sx={{
+                        px: 1.5, py: 1.25, borderRadius: '12px',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: 'rgba(255,255,255,0.03)',
+                        cursor: 'pointer', transition: 'all 0.18s ease',
+                        '&:hover': {
+                          border: '1px solid rgba(var(--accent-rgb), 0.35)',
+                          background: 'rgba(var(--accent-rgb), 0.06)',
+                          transform: 'translateY(-1px)',
+                        },
+                      }}
+                    >
+                      <Typography sx={{ fontSize: '0.9rem', mb: 0.25, color: 'var(--accent)', lineHeight: 1 }}>{icon}</Typography>
+                      <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.75)', letterSpacing: '0.01em' }}>{label}</Typography>
+                    </Box>
+                  ))}
+                </Box>
               </Box>
             )}
-
 
 
             {/* Proactive Suggestions */}
