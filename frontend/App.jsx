@@ -760,6 +760,15 @@ function App() {
   const [cmdFocusIdx, setCmdFocusIdx] = useState(0);
   // 3D bubble tilt
   const [bubbleTilt, setBubbleTilt] = useState(null);
+  // Message reactions
+  const [messageReactions, setMessageReactions] = useState({});
+  const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
+  // In-chat search (Ctrl+F)
+  const [chatSearchOpen, setChatSearchOpen] = useState(false);
+  const [chatSearchQuery, setChatSearchQuery] = useState('');
+  const [chatSearchIdx, setChatSearchIdx] = useState(0);
+  // Send burst
+  const [sendBurst, setSendBurst] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'true') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [selectedVoiceName, setSelectedVoiceName] = useState(() => normalizeVoiceId(safeStorageGet('vesper_tts_voice', 'eleven:pFZP5JQG7iQjIQuC4Bku')));
@@ -1086,6 +1095,7 @@ export default function App() {
       const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
       if (e.key === 'Escape') {
         if (cmdOpen) { setCmdOpen(false); return; }
+        if (chatSearchOpen) { setChatSearchOpen(false); setChatSearchQuery(''); return; }
         setShortcutsOpen(false);
         setSlashMenuOpen(false);
         setFocusMode(false);
@@ -1098,6 +1108,16 @@ export default function App() {
         setCmdFocusIdx(0);
         return;
       }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        // Only intercept Ctrl+F when in the chat section
+        if (activeSection === 'chat') {
+          e.preventDefault();
+          setChatSearchOpen(p => !p);
+          setChatSearchQuery('');
+          setChatSearchIdx(0);
+          return;
+        }
+      }
       if (inInput) return;
       if (e.ctrlKey && !e.shiftKey && !e.altKey) {
         const num = parseInt(e.key);
@@ -1108,7 +1128,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [cmdOpen]);
+  }, [cmdOpen, chatSearchOpen, activeSection]);
 
   // Apply theme background to body when theme changes
   useEffect(() => {
@@ -1812,6 +1832,9 @@ export default function App() {
     setActiveToolLabel('');
     setToolHistory([]);
     bumpStat('messages');
+    // Burst particle animation on send
+    setSendBurst(true);
+    setTimeout(() => setSendBurst(false), 700);
     
     try {
       playSound('click'); // Sound on send
@@ -3214,6 +3237,38 @@ export default function App() {
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
+  // ── Chat search matches ────────────────────────────────────────────────────
+  const chatSearchMatches = useMemo(() => {
+    const q = chatSearchQuery.trim().toLowerCase();
+    if (!q || !chatSearchOpen) return [];
+    return messages.reduce((acc, msg, idx) => {
+      if (typeof msg.content === 'string' && msg.content.toLowerCase().includes(q)) acc.push(idx);
+      return acc;
+    }, []);
+  }, [chatSearchQuery, chatSearchOpen, messages]);
+
+  // Helper: wrap matching text in a highlight span
+  const highlightText = (text, query) => {
+    if (!query) return text;
+    const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+    return parts.map((part, i) =>
+      part.toLowerCase() === query.toLowerCase()
+        ? <mark key={i} style={{ background: 'rgba(var(--accent-rgb),0.45)', color: '#fff', borderRadius: '3px', padding: '0 2px' }}>{part}</mark>
+        : part
+    );
+  };
+
+  // ── Message reactions helper ───────────────────────────────────────────────
+  const REACTION_EMOJIS = ['❤️', '🔥', '✨', '🤯', '✅', '😂'];
+  const toggleReaction = (msgId, emoji) => {
+    setMessageReactions(prev => {
+      const cur = prev[msgId] || {};
+      const count = cur[emoji] || 0;
+      return { ...prev, [msgId]: { ...cur, [emoji]: count > 0 ? 0 : 1 } };
+    });
+    setReactionPickerMsgId(null);
+  };
+
   // ── Command palette items ──────────────────────────────────────────────────
   const ALL_COMMANDS = useMemo(() => [
     { group: 'Actions', icon: '✦', label: 'New Conversation',     action: () => startNewChat() },
@@ -4460,6 +4515,7 @@ export default function App() {
           <Box sx={{
             display: 'flex', gap: 0.5, mt: 0.5,
             opacity: 0, animation: 'fadeIn 0.15s ease forwards',
+            alignItems: 'center',
           }}>
             <Tooltip title="Copy message">
               <IconButton
@@ -4485,8 +4541,72 @@ export default function App() {
                 <AutoFixHigh sx={{ fontSize: 13 }} />
               </IconButton>
             </Tooltip>
+            {/* React button */}
+            <Tooltip title="React">
+              <IconButton
+                size="small"
+                onClick={() => setReactionPickerMsgId(p => p === message.id ? null : message.id)}
+                sx={{ p: 0.5, color: 'rgba(255,255,255,0.4)', '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(var(--accent-rgb),0.1)' } }}
+              >
+                <Box component="span" sx={{ fontSize: 12, lineHeight: 1 }}>🙂</Box>
+              </IconButton>
+            </Tooltip>
+            {/* Reaction picker popup */}
+            {reactionPickerMsgId === message.id && (
+              <Box sx={{
+                position: 'absolute', bottom: '110%', left: 0, zIndex: 999,
+                display: 'flex', gap: 0.4, px: 1, py: 0.75,
+                background: 'rgba(14,18,28,0.97)',
+                border: '1px solid rgba(var(--accent-rgb),0.2)',
+                borderRadius: '14px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                animation: 'cmdSlideIn 0.12s cubic-bezier(0.22,1,0.36,1)',
+              }}>
+                {REACTION_EMOJIS.map(emoji => (
+                  <Box
+                    key={emoji}
+                    onClick={() => toggleReaction(message.id, emoji)}
+                    sx={{
+                      fontSize: '1.1rem', cursor: 'pointer', lineHeight: 1, p: 0.4,
+                      borderRadius: '8px',
+                      transition: 'transform 0.1s ease',
+                      '&:hover': { transform: 'scale(1.3)', bgcolor: 'rgba(var(--accent-rgb),0.12)' },
+                    }}
+                  >{emoji}</Box>
+                ))}
+              </Box>
+            )}
           </Box>
         )}
+        {/* Reaction pills below bubble */}
+        {(() => {
+          const reacts = messageReactions[message.id] || {};
+          const active = Object.entries(reacts).filter(([,c]) => c > 0);
+          if (active.length === 0) return null;
+          return (
+            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+              {active.map(([emoji, count]) => (
+                <Box
+                  key={emoji}
+                  onClick={() => toggleReaction(message.id, emoji)}
+                  sx={{
+                    display: 'inline-flex', alignItems: 'center', gap: 0.4,
+                    px: 0.9, py: 0.2,
+                    borderRadius: '20px',
+                    background: 'rgba(var(--accent-rgb),0.12)',
+                    border: '1px solid rgba(var(--accent-rgb),0.25)',
+                    cursor: 'pointer', fontSize: '0.78rem',
+                    transition: 'all 0.15s ease',
+                    '&:hover': { background: 'rgba(var(--accent-rgb),0.22)', transform: 'scale(1.05)' },
+                  }}
+                >
+                  <span>{emoji}</span>
+                  {count > 1 && <Typography sx={{ fontSize: '0.65rem', color: 'var(--accent)', fontWeight: 700 }}>{count}</Typography>}
+                </Box>
+              ))}
+            </Box>
+          );
+        })()}
       </motion.div>
     );
   };
@@ -7860,6 +7980,54 @@ export default function App() {
                   </Typography>
                 </Box>
               )}
+
+              {/* ── In-chat search bar ─────────────────────────────── */}
+              {chatSearchOpen && (
+                <Box sx={{
+                  position: 'sticky', top: 0, zIndex: 50,
+                  display: 'flex', alignItems: 'center', gap: 1,
+                  px: 2, py: 0.9,
+                  background: 'rgba(8,10,18,0.97)',
+                  borderBottom: '1px solid rgba(var(--accent-rgb),0.18)',
+                  backdropFilter: 'blur(12px)',
+                  animation: 'searchSlideDown 0.18s cubic-bezier(0.22,1,0.36,1)',
+                }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.82rem', flexShrink: 0 }}>⌕</Typography>
+                  <input
+                    autoFocus
+                    value={chatSearchQuery}
+                    onChange={(e) => { setChatSearchQuery(e.target.value); setChatSearchIdx(0); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (chatSearchMatches.length > 0) setChatSearchIdx(i => (i + 1) % chatSearchMatches.length);
+                      }
+                      if (e.key === 'Escape') { setChatSearchOpen(false); setChatSearchQuery(''); }
+                    }}
+                    placeholder="Search in conversation…"
+                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: '#fff', fontSize: '0.85rem', fontFamily: 'inherit' }}
+                  />
+                  {chatSearchMatches.length > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                      <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
+                        {chatSearchIdx + 1} / {chatSearchMatches.length}
+                      </Typography>
+                      <IconButton size="small" onClick={() => setChatSearchIdx(i => (i - 1 + chatSearchMatches.length) % chatSearchMatches.length)} sx={{ p: 0.25, color: 'rgba(255,255,255,0.35)', '&:hover': { color: 'var(--accent)' } }}>
+                        <Box component="span" sx={{ fontSize: '0.75rem' }}>▲</Box>
+                      </IconButton>
+                      <IconButton size="small" onClick={() => setChatSearchIdx(i => (i + 1) % chatSearchMatches.length)} sx={{ p: 0.25, color: 'rgba(255,255,255,0.35)', '&:hover': { color: 'var(--accent)' } }}>
+                        <Box component="span" sx={{ fontSize: '0.75rem' }}>▼</Box>
+                      </IconButton>
+                    </Box>
+                  )}
+                  {chatSearchQuery && chatSearchMatches.length === 0 && (
+                    <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,100,100,0.7)', flexShrink: 0 }}>No matches</Typography>
+                  )}
+                  <IconButton size="small" onClick={() => { setChatSearchOpen(false); setChatSearchQuery(''); }} sx={{ p: 0.25, color: 'rgba(255,255,255,0.25)', '&:hover': { color: '#fff' }, flexShrink: 0 }}>
+                    <CloseIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Box>
+              )}
+
               <AnimatePresence>
                 {/* Ambient background orbs */}
                 <Box key="orb1" sx={{
@@ -7881,7 +8049,22 @@ export default function App() {
                 {messages.map((message, idx) => {
                   const prev = messages[idx - 1];
                   const isGrouped = prev && prev.role === message.role && !['chart','sandbox_image','weather_card'].includes(message.type);
-                  return <div key={message.id}>{renderMessage(message, isGrouped)}</div>;
+                  const isSearchMatch = chatSearchOpen && chatSearchMatches.includes(idx);
+                  const isActiveMatch = isSearchMatch && chatSearchMatches[chatSearchIdx] === idx;
+                  return (
+                    <div
+                      key={message.id}
+                      ref={isActiveMatch ? (el => { if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }) : null}
+                      style={isSearchMatch ? {
+                        outline: `2px solid ${isActiveMatch ? 'rgba(var(--accent-rgb),0.8)' : 'rgba(var(--accent-rgb),0.25)'}`,
+                        borderRadius: '16px',
+                        boxShadow: isActiveMatch ? '0 0 20px rgba(var(--accent-rgb),0.25)' : 'none',
+                        transition: 'all 0.2s ease',
+                      } : undefined}
+                    >
+                      {renderMessage(message, isGrouped)}
+                    </div>
+                  );
                 })}
               </AnimatePresence>
               {loading && (
@@ -8252,10 +8435,14 @@ export default function App() {
                 </Tooltip>
               ) : (
                 <Tooltip title="Send (Enter)" placement="top">
-                  <span>
+                  <span style={{ position: 'relative' }}>
                     <IconButton onClick={sendMessage} disabled={!input.trim()} className="cta-button" size="small">
                       <SendIcon />
                     </IconButton>
+                    {/* Send burst particles */}
+                    {sendBurst && [0,1,2,3,4,5,6,7].map(i => (
+                      <Box key={i} className={`send-particle send-particle-${i}`} />
+                    ))}
                   </span>
                 </Tooltip>
               )}
