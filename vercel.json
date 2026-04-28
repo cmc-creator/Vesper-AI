@@ -1,1 +1,9 @@
-{}
+{
+  "buildCommand": "npm install --prefix frontend --legacy-peer-deps && npm run build --prefix frontend",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "echo skip",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
