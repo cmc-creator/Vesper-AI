@@ -80,6 +80,8 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { DndContext, useDraggable, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 
@@ -675,6 +677,8 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [hoveredMessageId, setHoveredMessageId] = useState(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [userId, setUserId] = useState(null);
   const [thinking, setThinking] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -1617,6 +1621,18 @@ export default function App() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [messages]);
+
+  // Track scroll position to show/hide scroll-to-bottom button
+  useEffect(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      setShowScrollBottom(scrollHeight - scrollTop - clientHeight > 120);
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Auto-focus input when switching threads (not on every message update)
   useEffect(() => {
@@ -4167,6 +4183,9 @@ export default function App() {
       );
     }
 
+    const isStreaming = loading && !isUser && message.id === messages[messages.length - 1]?.id;
+    const isHovered = hoveredMessageId === message.id;
+
     return (
       <motion.div
         initial={{ opacity: 0, x: isUser ? 20 : -20 }}
@@ -4176,8 +4195,11 @@ export default function App() {
           display: 'flex', 
           flexDirection: 'column', 
           alignItems: isUser ? 'flex-end' : 'flex-start', 
-          marginBottom: '16px' 
+          marginBottom: '16px',
+          position: 'relative',
         }}
+        onMouseEnter={() => setHoveredMessageId(message.id)}
+        onMouseLeave={() => setHoveredMessageId(null)}
       >
         {/* Render Thoughts if present */}
         {thoughts && (
@@ -4280,42 +4302,57 @@ export default function App() {
                   }
                 };
                 const isReact = match && ['js', 'jsx', 'javascript', 'tsx', 'ts', 'react'].includes(match[1]);
-                
+
                 const openInAppBuilder = () => {
                    setCanvasAppCode(codeString);
-                   setCanvasActiveTab(1); // Switch to App Builder tab
+                   setCanvasActiveTab(1);
                    setCanvasOpen(true);
                    setToast('Code loaded into App Builder');
                    playSound('click');
                 };
 
                 return !inline && match ? (
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      p: 2,
-                      borderRadius: '10px',
-                      fontFamily: 'monospace',
-                      color: 'var(--accent)',
-                      whiteSpace: 'pre-wrap',
-                    }}
-                  >
-                    <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 4, right: 4 }}>
+                  <Box sx={{ position: 'relative', my: 1, borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    {/* Language badge + action buttons */}
+                    <Box sx={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      px: 1.5, py: 0.5,
+                      bgcolor: 'rgba(0,0,0,0.55)',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
+                        {match[1]}
+                      </Typography>
+                      <Stack direction="row" spacing={0.5}>
                         {isReact && (
-                            <Tooltip title="Preview in App Builder">
-                                <IconButton size="small" onClick={openInAppBuilder} sx={{ color: 'var(--accent)', bgcolor: 'rgba(0, 255, 255, 0.1)', '&:hover': { bgcolor: 'rgba(0, 255, 255, 0.2)' } }}>
-                                    <BoltRounded fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                        )}
-                        <Tooltip title="Copy Code">
-                            <IconButton size="small" onClick={copy} sx={{ color: 'var(--accent)' }}>
-                                <ContentCopyRounded fontSize="small" />
+                          <Tooltip title="Preview in App Builder">
+                            <IconButton size="small" onClick={openInAppBuilder} sx={{ color: 'var(--accent)', p: 0.4, '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.15)' } }}>
+                              <BoltRounded sx={{ fontSize: 14 }} />
                             </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="Copy">
+                          <IconButton size="small" onClick={copy} sx={{ color: 'rgba(255,255,255,0.5)', p: 0.4, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.08)' } }}>
+                            <ContentCopyRounded sx={{ fontSize: 14 }} />
+                          </IconButton>
                         </Tooltip>
-                    </Stack>
-                    <code className={className}>{codeString}</code>
+                      </Stack>
+                    </Box>
+                    <SyntaxHighlighter
+                      language={match[1]}
+                      style={oneDark}
+                      customStyle={{
+                        margin: 0,
+                        borderRadius: 0,
+                        fontSize: '0.8rem',
+                        lineHeight: 1.6,
+                        background: 'rgba(10,12,18,0.95)',
+                        padding: '14px 16px',
+                      }}
+                      wrapLongLines
+                    >
+                      {codeString}
+                    </SyntaxHighlighter>
                   </Box>
                 ) : (
                   <code
@@ -4325,6 +4362,7 @@ export default function App() {
                       padding: '2px 6px',
                       borderRadius: '6px',
                       fontFamily: 'monospace',
+                      fontSize: '0.85em',
                       color: 'var(--accent)',
                     }}
                     {...props}
@@ -4337,7 +4375,40 @@ export default function App() {
           >
             {content}
           </ReactMarkdown>
+          {isStreaming && <span className="streaming-cursor" />}
         </Box>
+        {/* Hover action bar */}
+        {isHovered && !isUser && (
+          <Box sx={{
+            display: 'flex', gap: 0.5, mt: 0.5,
+            opacity: 0, animation: 'fadeIn 0.15s ease forwards',
+          }}>
+            <Tooltip title="Copy message">
+              <IconButton
+                size="small"
+                onClick={async () => {
+                  try { await navigator.clipboard.writeText(content); setToast('Copied!'); } catch (e) {}
+                }}
+                sx={{ p: 0.5, color: 'rgba(255,255,255,0.4)', '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(var(--accent-rgb),0.1)' } }}
+              >
+                <ContentCopyRounded sx={{ fontSize: 13 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Regenerate">
+              <IconButton
+                size="small"
+                onClick={() => {
+                  const msgIdx = messages.findIndex(m => m.id === message.id);
+                  const prevUser = [...messages].slice(0, msgIdx).reverse().find(m => m.role === 'user');
+                  if (prevUser) { setInput(prevUser.content); setTimeout(() => sendMessage(), 50); }
+                }}
+                sx={{ p: 0.5, color: 'rgba(255,255,255,0.4)', '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(var(--accent-rgb),0.1)' } }}
+              >
+                <AutoFixHigh sx={{ fontSize: 13 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
       </motion.div>
     );
   };
@@ -7778,6 +7849,27 @@ export default function App() {
                 </Box>
               )}
               <div ref={messagesEndRef} />
+              {/* Scroll to bottom button */}
+              {showScrollBottom && (
+                <Box sx={{ position: 'sticky', bottom: 8, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 5 }}>
+                  <IconButton
+                    onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                    sx={{
+                      pointerEvents: 'auto',
+                      bgcolor: 'rgba(var(--accent-rgb), 0.15)',
+                      border: '1px solid rgba(var(--accent-rgb), 0.35)',
+                      color: 'var(--accent)',
+                      width: 30, height: 30,
+                      backdropFilter: 'blur(8px)',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.3)', transform: 'scale(1.1)' },
+                    }}
+                  >
+                    <ExpandMoreIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Box>
+              )}
             </Paper>
 
             {/* Chat Box Resize Handle */}
