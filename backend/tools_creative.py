@@ -14814,3 +14814,245 @@ async def github_tool(params: dict, ai_router=None, TaskType=None) -> dict:
     }
 
 
+# ── LAUNCH PRODUCT ─────────────────────────────────────────────────────────────
+async def launch_product(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    ONE SENTENCE TO SELLABLE PRODUCT.
+
+    Accepts a product idea + price and returns a complete launch package:
+      - Live Stripe payment link (real money, share-ready)
+      - AI-written sales page copy
+      - Google Doc created in CC's Drive with the sales page
+      - Announcement email draft (auto-sent if email_to is provided)
+
+    All in a single tool call.
+    """
+    import os, httpx, sys
+
+    product_name = params.get("product_name", "").strip()
+    description = params.get("description", "").strip()
+    price = float(params.get("price", 0) or 0)
+    billing = params.get("billing", "one_time")      # one_time | monthly | yearly
+    audience = params.get("audience", "potential customers").strip()
+    email_to = params.get("email_to", "").strip()    # send announcement to this address
+
+    if not product_name:
+        return {"error": "product_name is required"}
+    if price <= 0:
+        return {"error": "price must be greater than 0"}
+
+    billing_label = {"one_time": "one-time", "monthly": "/month", "yearly": "/year"}.get(billing, billing)
+    billing_display = {"one_time": f"${price:.2f} one-time", "monthly": f"${price:.2f}/month", "yearly": f"${price:.2f}/year"}.get(billing, f"${price:.2f}")
+
+    result: dict = {
+        "product_name": product_name,
+        "stripe": None,
+        "google_doc": None,
+        "email": None,
+        "sales_copy": "",
+        "email_draft": None,
+        "errors": [],
+    }
+
+    # ── Step 1: Generate sales copy ──────────────────────────────────────────
+    if ai_router:
+        try:
+            msgs = [{"role": "user", "content": (
+                f"Write a sharp, conversion-focused sales pitch for:\n\n"
+                f"Product: {product_name}\n"
+                f"Description: {description or product_name}\n"
+                f"Price: {billing_display}\n"
+                f"Audience: {audience}\n\n"
+                f"Format with:\n"
+                f"# [Headline — punchy benefit-driven hook]\n\n"
+                f"**Who it's for:** (2-3 sentences)\n\n"
+                f"**What you get:**\n- ...\n- ...\n- ...\n\n"
+                f"**The investment:** {billing_display}\n\n"
+                f"**Get instant access:** [PAYMENT_URL_PLACEHOLDER]\n\n"
+                f"Keep it tight. No fluff. Write like a closer, not a brochure."
+            )}]
+            tt = TaskType.CREATIVE if TaskType else None
+            copy_resp = await ai_router.chat(messages=msgs, task_type=tt)
+            result["sales_copy"] = copy_resp.get("content", "") if isinstance(copy_resp, dict) else str(copy_resp)
+        except Exception as e:
+            result["errors"].append(f"Sales copy generation: {e}")
+
+    if not result["sales_copy"]:
+        result["sales_copy"] = (
+            f"# {product_name}\n\n"
+            f"{description}\n\n"
+            f"**The investment:** {billing_display}\n\n"
+            f"**Get instant access:** [PAYMENT_URL_PLACEHOLDER]"
+        )
+
+    # ── Step 2: Stripe payment link ──────────────────────────────────────────
+    stripe_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    payment_url = ""
+    if stripe_key:
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                headers = {"Authorization": f"Bearer {stripe_key}"}
+                base = "https://api.stripe.com/v1"
+
+                prod_resp = await client.post(
+                    f"{base}/products", headers=headers,
+                    data={"name": product_name, "description": description or product_name}
+                )
+                if prod_resp.status_code != 200:
+                    result["errors"].append(f"Stripe product: {prod_resp.text[:150]}")
+                else:
+                    product_obj = prod_resp.json()
+                    price_data: dict = {
+                        "product": product_obj["id"],
+                        "unit_amount": int(price * 100),
+                        "currency": "usd",
+                    }
+                    if billing == "monthly":
+                        price_data["recurring"] = {"interval": "month"}
+                    elif billing == "yearly":
+                        price_data["recurring"] = {"interval": "year"}
+
+                    price_resp = await client.post(f"{base}/prices", headers=headers, data=price_data)
+                    if price_resp.status_code != 200:
+                        result["errors"].append(f"Stripe price: {price_resp.text[:150]}")
+                    else:
+                        stripe_price = price_resp.json()
+                        link_resp = await client.post(
+                            f"{base}/payment_links", headers=headers,
+                            data={"line_items[0][price]": stripe_price["id"], "line_items[0][quantity]": "1"}
+                        )
+                        if link_resp.status_code != 200:
+                            result["errors"].append(f"Stripe link: {link_resp.text[:150]}")
+                        else:
+                            link_obj = link_resp.json()
+                            payment_url = link_obj.get("url", "")
+                            result["stripe"] = {
+                                "success": True,
+                                "payment_url": payment_url,
+                                "product_id": product_obj["id"],
+                                "price_id": stripe_price["id"],
+                                "link_id": link_obj["id"],
+                            }
+        except Exception as e:
+            result["errors"].append(f"Stripe: {str(e)}")
+    else:
+        result["errors"].append("STRIPE_SECRET_KEY not configured — payment link skipped")
+
+    # Inject real payment URL into sales copy
+    if payment_url:
+        result["sales_copy"] = result["sales_copy"].replace("[PAYMENT_URL_PLACEHOLDER]", payment_url)
+    else:
+        result["sales_copy"] = result["sales_copy"].replace("[PAYMENT_URL_PLACEHOLDER]", "[payment link pending — add STRIPE_SECRET_KEY]")
+
+    # ── Step 3: Google Doc ────────────────────────────────────────────────────
+    # Access google_docs_create from the already-loaded main module (avoids circular import)
+    try:
+        _main = sys.modules.get("main") or sys.modules.get("__main__")
+        google_docs_create_fn = getattr(_main, "google_docs_create", None) if _main else None
+        if google_docs_create_fn:
+            doc_result = await google_docs_create_fn({
+                "title": f"{product_name} — Sales Page",
+                "content": result["sales_copy"],
+            })
+            if doc_result.get("error"):
+                result["errors"].append(f"Google Doc: {doc_result['error']}")
+            else:
+                result["google_doc"] = {
+                    "url": doc_result.get("webViewLink", ""),
+                    "doc_id": doc_result.get("documentId", ""),
+                    "title": f"{product_name} — Sales Page",
+                }
+        else:
+            result["errors"].append("Google Docs not available — GOOGLE_OAUTH_TOKEN may not be configured")
+    except Exception as e:
+        result["errors"].append(f"Google Doc: {str(e)}")
+
+    # ── Step 4: Email draft + optional send ──────────────────────────────────
+    doc_url = result["google_doc"]["url"] if result["google_doc"] else ""
+    email_subject = f"Introducing {product_name}"
+    email_body = (
+        f"Hey,\n\n"
+        f"I just launched something I think you'll love.\n\n"
+        f"{product_name}\n"
+        f"{description}\n\n"
+        f"Investment: {billing_display}\n\n"
+        f"Grab it here: {payment_url or '[payment link pending]'}\n"
+    )
+    if doc_url:
+        email_body += f"\nFull details: {doc_url}\n"
+    email_body += "\nQuestions? Just reply.\n\nThanks!"
+
+    result["email_draft"] = {
+        "subject": email_subject,
+        "body": email_body,
+        "to": email_to or "[add recipient]",
+    }
+
+    if email_to:
+        sent = False
+        resend_key = os.environ.get("RESEND_API_KEY", "")
+        brevo_key = os.environ.get("BREVO_API_KEY", "")
+        brevo_from = os.environ.get("BREVO_FROM_EMAIL", "")
+
+        if resend_key and not sent:
+            try:
+                async with httpx.AsyncClient(timeout=15) as c:
+                    resp = await c.post(
+                        "https://api.resend.com/emails",
+                        headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+                        json={"from": "onboarding@resend.dev", "to": [email_to],
+                              "subject": email_subject, "text": email_body}
+                    )
+                    if resp.status_code in (200, 201):
+                        result["email"] = {"sent": True, "via": "resend", "to": email_to}
+                        sent = True
+                    else:
+                        result["errors"].append(f"Resend: {resp.text[:100]}")
+            except Exception as e:
+                result["errors"].append(f"Resend: {e}")
+
+        if brevo_key and brevo_from and not sent:
+            try:
+                async with httpx.AsyncClient(timeout=15) as c:
+                    resp = await c.post(
+                        "https://api.brevo.com/v3/smtp/email",
+                        headers={"api-key": brevo_key, "Content-Type": "application/json"},
+                        json={"sender": {"email": brevo_from}, "to": [{"email": email_to}],
+                              "subject": email_subject, "textContent": email_body}
+                    )
+                    if resp.status_code in (200, 201, 202):
+                        result["email"] = {"sent": True, "via": "brevo", "to": email_to}
+                        sent = True
+                    else:
+                        result["errors"].append(f"Brevo: {resp.text[:100]}")
+            except Exception as e:
+                result["errors"].append(f"Brevo: {e}")
+
+        if not sent:
+            result["errors"].append("Email not sent — configure RESEND_API_KEY or BREVO_API_KEY + BREVO_FROM_EMAIL")
+
+    # ── Build summary ─────────────────────────────────────────────────────────
+    steps = []
+    if result["stripe"] and result["stripe"].get("success"):
+        steps.append(f"✅ Stripe payment link: {payment_url}")
+    else:
+        steps.append("⚠️ Stripe: configure STRIPE_SECRET_KEY to generate a live payment link")
+
+    if result["google_doc"] and result["google_doc"].get("url"):
+        steps.append(f"✅ Sales page (Google Doc): {result['google_doc']['url']}")
+    else:
+        steps.append("⚠️ Google Doc: connect Google Workspace to auto-create the sales page")
+
+    if result["email"] and result["email"].get("sent"):
+        steps.append(f"✅ Announcement email sent to {email_to}")
+    elif email_to:
+        steps.append(f"⚠️ Email to {email_to}: check RESEND_API_KEY or BREVO_API_KEY")
+    else:
+        steps.append("📋 Email draft ready — provide email_to to send the announcement")
+
+    result["summary"] = "\n".join(steps)
+    result["preview"] = (
+        f"[launch_product: '{product_name}' {billing_display} — "
+        f"{len([s for s in steps if s.startswith('✅')])} of 3 steps done]"
+    )
+    return result
