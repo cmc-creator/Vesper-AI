@@ -75,6 +75,9 @@ import {
   TrendingUp as TrendingUpIcon,
   NightsStay as NightsStayIcon,
   WbSunny as WbSunnyIcon,
+  StarRounded,
+  StarBorder as StarBorderIcon,
+  ManageSearch as ManageSearchIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -142,6 +145,30 @@ const baseTheme = createTheme({
   typography: { fontFamily: '"Inter", "Segoe UI", -apple-system, sans-serif' },
 });
 
+// ─── Section Quick-Start Prompts ─────────────────────────────────────────────
+const SECTION_QUICK_STARTS = {
+  tasks: [
+    'Break my current project into actionable tasks',
+    'What should I prioritize today?',
+    'Create a sprint plan for this week',
+  ],
+  research: [
+    'Research the latest trends in AI',
+    'Summarize recent news in tech',
+    'Compare top tools for my workflow',
+  ],
+  documents: [
+    'Summarize my recent documents',
+    'Extract key points from my files',
+    'What topics appear across my docs?',
+  ],
+  'morning-brief': [
+    'What should I focus on today?',
+    'Give me a motivational kickoff',
+    'What are my priorities this week?',
+  ],
+};
+
 // ─── Slash Command Definitions ───────────────────────────────────────────────
 const SLASH_CMD_LIST = [
   { cmd: '/task',    icon: '📋', desc: 'Quick add a task',          hint: '/task Plan sprint review' },
@@ -150,6 +177,11 @@ const SLASH_CMD_LIST = [
   { cmd: '/focus',   icon: '🎯', desc: 'Start Focus / Pomodoro mode', hint: '/focus' },
   { cmd: '/export',  icon: '📦', desc: 'Export current chat',        hint: '/export' },
   { cmd: '/stats',   icon: '📊', desc: 'View your stats',             hint: '/stats' },
+  { cmd: '/tone',    icon: '🎭', desc: 'Set response tone',          hint: '/tone casual | formal | bullet' },
+  { cmd: '/code',    icon: '💻', desc: 'Ask for code solution',      hint: '/code sort a list in Python' },
+  { cmd: '/remind',  icon: '⏰', desc: 'Set a timed reminder',       hint: '/remind in 30 min to review PR' },
+  { cmd: '/star',    icon: '⭐', desc: 'View saved messages',        hint: '/star' },
+  { cmd: '/global',  icon: '🌐', desc: 'Search all conversations',   hint: '/global neural networks' },
 ];
 
 // ─── Vesper Personality Quips ────────────────────────────────────────────────
@@ -769,6 +801,23 @@ function App() {
   const [chatSearchIdx, setChatSearchIdx] = useState(0);
   // Send burst
   const [sendBurst, setSendBurst] = useState(false);
+  // Edit user messages in-place
+  const [editingMsgId, setEditingMsgId] = useState(null);
+  const [editingMsgContent, setEditingMsgContent] = useState('');
+  // Pinned messages (per-message, persisted)
+  const [pinnedMsgIds, setPinnedMsgIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('vesper_pinned_msgs') || '{}'); } catch { return {}; }
+  });
+  // Starred / saved messages (persisted)
+  const [starredMsgs, setStarredMsgs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('vesper_starred_msgs') || '[]'); } catch { return []; }
+  });
+  const [starredPanelOpen, setStarredPanelOpen] = useState(false);
+  // Global cross-thread search
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [globalSearchResults, setGlobalSearchResults] = useState([]);
+  const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(() => safeStorageGet('vesper_tts_enabled', 'true') === 'true');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [selectedVoiceName, setSelectedVoiceName] = useState(() => normalizeVoiceId(safeStorageGet('vesper_tts_voice', 'eleven:pFZP5JQG7iQjIQuC4Bku')));
@@ -829,6 +878,12 @@ function App() {
       console.warn('Launch mode persistence failed', error);
     }
   }, [launchMode]);
+
+  // Restore draft input for the current thread
+  useEffect(() => {
+    const draft = safeStorageGet(`vesper_draft_${currentThreadId || 'new'}`, '');
+    if (draft) setInput(draft);
+  }, [currentThreadId]);
 
   // ── New features: Model Picker, Auto-speak, Export ─────────────
   const [selectedModel, setSelectedModel] = useState(() => {
@@ -1824,6 +1879,7 @@ export default function App() {
     }
     
     setInput('');
+    try { localStorage.removeItem(`vesper_draft_${currentThreadId || 'new'}`); } catch(_) {}
     setUploadedImages([]); // Clear UI immediately
     setLoading(true);
     setThinking(true);
@@ -3120,6 +3176,36 @@ export default function App() {
     } else if (cmd === '/stats') {
       setActiveSection('settings');
       showToast('📊 Stats are in your Settings tab', 'success');
+    } else if (cmd === '/tone') {
+      const tone = args || 'casual';
+      setInput(`[Please respond in a ${tone} tone] `);
+      inputRef.current?.focus();
+      setActiveSection('chat');
+    } else if (cmd === '/code') {
+      setInput(`Write code to ${args || ''}`);
+      inputRef.current?.focus();
+      setActiveSection('chat');
+    } else if (cmd === '/remind') {
+      const m = args.match(/in\s+(\d+)\s*(min|minute|hour|day)s?\s+(.*)/i);
+      if (m) {
+        const amount = parseInt(m[1]);
+        const unit = m[2].toLowerCase();
+        const text = m[3];
+        const ms = unit.startsWith('min') ? amount * 60000 : unit.startsWith('hour') ? amount * 3600000 : amount * 86400000;
+        const due = new Date(Date.now() + ms);
+        addLocalMessage('assistant', '', { type: 'reminder_card', text, due: due.toISOString() });
+        setTimeout(() => setToast(`⏰ ${text}`), Math.min(ms, 2147483647));
+        showToast(`⏰ Reminder set — fires at ${due.toLocaleTimeString()}`, 'success');
+      } else {
+        setInput('/remind in [X min/hour/day] [message]');
+        inputRef.current?.focus();
+        showToast('📖 Example: /remind in 30 min to review the PR', 'warn');
+      }
+    } else if (cmd === '/star') {
+      setStarredPanelOpen(true);
+    } else if (cmd === '/global') {
+      setGlobalSearchOpen(true);
+      if (args) { setGlobalSearchQuery(args); setTimeout(() => runGlobalSearch(args), 50); }
     }
   }, [apiBase, fetchTasks, vesperReact, exportChat, showToast]);
 
@@ -3269,6 +3355,64 @@ export default function App() {
     setReactionPickerMsgId(null);
   };
 
+  // Toggle pin individual message
+  const togglePinMessage = (message) => {
+    setPinnedMsgIds(prev => {
+      const next = { ...prev };
+      if (next[message.id]) {
+        delete next[message.id];
+        setToast('📌 Unpinned');
+      } else {
+        next[message.id] = { id: message.id, content: (message.content || '').slice(0, 200), role: message.role, ts: Date.now() };
+        setToast('📌 Message pinned to top');
+      }
+      try { localStorage.setItem('vesper_pinned_msgs', JSON.stringify(next)); } catch(_) {}
+      return next;
+    });
+  };
+
+  // Toggle star / save message
+  const toggleStarMessage = (message) => {
+    setStarredMsgs(prev => {
+      const exists = prev.find(m => m.id === message.id);
+      const next = exists
+        ? prev.filter(m => m.id !== message.id)
+        : [...prev, { id: message.id, content: (message.content || '').slice(0, 400), role: message.role, ts: Date.now() }];
+      try { localStorage.setItem('vesper_starred_msgs', JSON.stringify(next)); } catch(_) {}
+      setTimeout(() => setToast(exists ? '⭐ Unstarred' : '⭐ Saved to Starred'), 0);
+      return next;
+    });
+  };
+
+  // Edit user message: trim conversation and restore to input
+  const confirmEditMessage = (msgId, newContent) => {
+    if (!newContent.trim()) return;
+    const idx = messages.findIndex(m => m.id === msgId);
+    if (idx === -1) return;
+    setMessages(prev => prev.slice(0, idx));
+    setEditingMsgId(null);
+    setEditingMsgContent('');
+    setInput(newContent.trim());
+    setToast('✏️ Edit loaded — press Enter to resend');
+    setActiveSection('chat');
+    setTimeout(() => inputRef.current?.focus(), 80);
+  };
+
+  // Global search across all threads via backend
+  const runGlobalSearch = async (query) => {
+    if (!query.trim()) { setGlobalSearchResults([]); return; }
+    setGlobalSearchLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/api/memories/search/text?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      setGlobalSearchResults(data.results || data.memories || []);
+    } catch(e) {
+      setGlobalSearchResults([]);
+    } finally {
+      setGlobalSearchLoading(false);
+    }
+  };
+
   // ── Command palette items ──────────────────────────────────────────────────
   const ALL_COMMANDS = useMemo(() => [
     { group: 'Actions', icon: '✦', label: 'New Conversation',     action: () => startNewChat() },
@@ -3276,6 +3420,8 @@ export default function App() {
     { group: 'Actions', icon: '◎', label: 'Copy Last Message',    action: () => { const last = [...messages].reverse().find(m => m.role === 'assistant'); if (last) navigator.clipboard.writeText(last.content).then(() => setToast('Copied!')); } },
     { group: 'Actions', icon: '⌨', label: 'Keyboard Shortcuts',  action: () => { setShortcutsOpen(true); } },
     { group: 'Actions', icon: '🎨', label: 'Open Theme Picker',   action: () => { setActiveSection('settings'); } },
+    { group: 'Actions', icon: '⭐', label: 'Saved Messages',      action: () => { setStarredPanelOpen(true); } },
+    { group: 'Actions', icon: '🌐', label: 'Search All Conversations', action: () => { setGlobalSearchOpen(true); } },
     ...NAV.map(n => ({ group: 'Navigate', icon: '→', label: n.label,  action: () => setActiveSection(n.id) })),
     ...THEMES.map(t => ({ group: 'Theme', icon: '●', label: t.label, accent: t.accent, action: () => { setActiveTheme(t); try { localStorage.setItem('vesper_theme', t.id); } catch(_) {} setToast(`Theme: ${t.label}`); } })),
   ], [messages]);
@@ -4272,6 +4418,46 @@ export default function App() {
     const isStreaming = loading && !isUser && message.id === messages[messages.length - 1]?.id;
     const isHovered = hoveredMessageId === message.id;
 
+    // Inline edit mode for user messages
+    if (isUser && editingMsgId === message.id) {
+      return (
+        <motion.div
+          key={message.id}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.2 }}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginBottom: '16px' }}
+        >
+          <Box sx={{ width: '80%', maxWidth: 520 }}>
+            <TextField
+              fullWidth
+              multiline
+              maxRows={8}
+              autoFocus
+              value={editingMsgContent}
+              onChange={e => setEditingMsgContent(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEditMessage(message.id, editingMsgContent); }
+                if (e.key === 'Escape') { setEditingMsgId(null); setEditingMsgContent(''); }
+              }}
+              variant="outlined"
+              size="small"
+              InputProps={{ sx: { color: '#fff', fontSize: '0.91rem', bgcolor: 'rgba(var(--accent-rgb),0.07)', borderRadius: '12px' } }}
+            />
+            <Box sx={{ display: 'flex', gap: 0.75, mt: 0.75, justifyContent: 'flex-end' }}>
+              <Button size="small" onClick={() => { setEditingMsgId(null); setEditingMsgContent(''); }}
+                sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.72rem', textTransform: 'none' }}>Cancel</Button>
+              <Button size="small" variant="contained"
+                onClick={() => confirmEditMessage(message.id, editingMsgContent)}
+                sx={{ bgcolor: 'rgba(var(--accent-rgb),0.85)', color: '#000', fontSize: '0.72rem', textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: 'var(--accent)' } }}>
+                Resend ↑
+              </Button>
+            </Box>
+          </Box>
+        </motion.div>
+      );
+    }
+
     return (
       <motion.div
         initial={{ opacity: 0, x: isUser ? 20 : -20 }}
@@ -4551,6 +4737,20 @@ export default function App() {
                 <Box component="span" sx={{ fontSize: 12, lineHeight: 1 }}>🙂</Box>
               </IconButton>
             </Tooltip>
+            {/* Pin button */}
+            <Tooltip title={pinnedMsgIds[message.id] ? 'Unpin' : 'Pin to top'}>
+              <IconButton size="small" onClick={() => togglePinMessage(message)}
+                sx={{ p: 0.5, color: pinnedMsgIds[message.id] ? 'var(--accent)' : 'rgba(255,255,255,0.4)', '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(var(--accent-rgb),0.1)' } }}>
+                {pinnedMsgIds[message.id] ? <PinIcon sx={{ fontSize: 13 }} /> : <PinOutlinedIcon sx={{ fontSize: 13 }} />}
+              </IconButton>
+            </Tooltip>
+            {/* Star button */}
+            <Tooltip title={starredMsgs.find(m => m.id === message.id) ? 'Unstar' : 'Save to Starred'}>
+              <IconButton size="small" onClick={() => toggleStarMessage(message)}
+                sx={{ p: 0.5, color: starredMsgs.find(m => m.id === message.id) ? '#FFD700' : 'rgba(255,255,255,0.4)', '&:hover': { color: '#FFD700', bgcolor: 'rgba(255,215,0,0.08)' } }}>
+                {starredMsgs.find(m => m.id === message.id) ? <StarRounded sx={{ fontSize: 13 }} /> : <StarBorderIcon sx={{ fontSize: 13 }} />}
+              </IconButton>
+            </Tooltip>
             {/* Reaction picker popup */}
             {reactionPickerMsgId === message.id && (
               <Box sx={{
@@ -4576,6 +4776,24 @@ export default function App() {
                 ))}
               </Box>
             )}
+          </Box>
+        )}
+        {/* Hover actions for USER messages */}
+        {isHovered && isUser && (
+          <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, opacity: 0, animation: 'fadeIn 0.15s ease forwards', justifyContent: 'flex-end' }}>
+            <Tooltip title="Edit and resend">
+              <IconButton size="small"
+                onClick={() => { setEditingMsgId(message.id); setEditingMsgContent(message.content); }}
+                sx={{ p: 0.5, color: 'rgba(255,255,255,0.4)', '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(var(--accent-rgb),0.1)' } }}>
+                <EditIcon sx={{ fontSize: 13 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={starredMsgs.find(m => m.id === message.id) ? 'Unstar' : 'Save to Starred'}>
+              <IconButton size="small" onClick={() => toggleStarMessage(message)}
+                sx={{ p: 0.5, color: starredMsgs.find(m => m.id === message.id) ? '#FFD700' : 'rgba(255,255,255,0.4)', '&:hover': { color: '#FFD700', bgcolor: 'rgba(255,215,0,0.08)' } }}>
+                {starredMsgs.find(m => m.id === message.id) ? <StarRounded sx={{ fontSize: 13 }} /> : <StarBorderIcon sx={{ fontSize: 13 }} />}
+              </IconButton>
+            </Tooltip>
           </Box>
         )}
         {/* Reaction pills below bubble */}
@@ -4696,6 +4914,14 @@ export default function App() {
                   </Tooltip>
                 </Box>
               </DragHandleArea>
+            {/* Quick-start prompts for research */}
+            <Box sx={{ px: 1.5, pt: 1, pb: 0.5, display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+              {(SECTION_QUICK_STARTS.research || []).map(q => (
+                <Chip key={q} label={q} size="small"
+                  onClick={() => { setInput(q); setActiveSection('chat'); setTimeout(() => inputRef.current?.focus(), 100); }}
+                  sx={{ cursor: 'pointer', bgcolor: 'rgba(var(--accent-rgb),0.07)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(var(--accent-rgb),0.15)', fontSize: '0.68rem', height: 24, '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.18)', color: 'var(--accent)' } }} />
+              ))}
+            </Box>
             <Grid container spacing={2}>
               {/* Add Research */}
               <Grid item xs={12} md={4}>
@@ -4787,7 +5013,7 @@ export default function App() {
                           onClick={() => setSelectedResearchId(selectedResearchId === item.id ? null : item.id)}
                           sx={{ cursor: 'pointer', transition: 'all 0.2s' }}
                         >
-                          <Box>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                               {item.title || 'Untitled'}
                             </Typography>
@@ -4802,6 +5028,19 @@ export default function App() {
                               </Box>
                             )}
                           </Box>
+                          <Tooltip title="Discuss with Vesper">
+                            <IconButton size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const prompt = `Tell me about this research: "${item.title}"${item.summary ? `\n\n${item.summary}` : ''}`;
+                                setInput(prompt);
+                                setActiveSection('chat');
+                                setTimeout(() => inputRef.current?.focus(), 100);
+                              }}
+                              sx={{ color: 'rgba(var(--accent-rgb),0.6)', flexShrink: 0, '&:hover': { color: 'var(--accent)' } }}>
+                              <Box component="span" sx={{ fontSize: 14, lineHeight: 1 }}>✦</Box>
+                            </IconButton>
+                          </Tooltip>
                           {selectedResearchId === item.id && (
                             <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1, width: '100%' }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
@@ -5372,6 +5611,14 @@ export default function App() {
                 </Tooltip>
               </Box>
             </DragHandleArea>
+            {/* Quick-start prompts for tasks */}
+            <Box sx={{ px: 2, pt: 1, pb: 0.5, display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+              {(SECTION_QUICK_STARTS.tasks || []).map(q => (
+                <Chip key={q} label={q} size="small"
+                  onClick={() => { setInput(q); setActiveSection('chat'); setTimeout(() => inputRef.current?.focus(), 100); }}
+                  sx={{ cursor: 'pointer', bgcolor: 'rgba(var(--accent-rgb),0.07)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(var(--accent-rgb),0.15)', fontSize: '0.68rem', height: 24, '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.18)', color: 'var(--accent)' } }} />
+              ))}
+            </Box>
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
                 <Stack spacing={1}>
@@ -5515,6 +5762,18 @@ export default function App() {
                                 <Tooltip title="Delete task">
                                   <IconButton size="small" onClick={() => deleteTask(idx)}>
                                     <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Discuss with Vesper">
+                                  <IconButton size="small"
+                                    onClick={() => {
+                                      const prompt = `Help me with this task: "${task.title}"${task.description ? `\n\n${task.description}` : ''}`;
+                                      setInput(prompt);
+                                      setActiveSection('chat');
+                                      setTimeout(() => inputRef.current?.focus(), 100);
+                                    }}
+                                    sx={{ color: 'rgba(var(--accent-rgb),0.6)', '&:hover': { color: 'var(--accent)' } }}>
+                                    <Box component="span" sx={{ fontSize: 14, lineHeight: 1 }}>✦</Box>
                                   </IconButton>
                                 </Tooltip>
                               </Stack>
@@ -8028,6 +8287,38 @@ export default function App() {
                 </Box>
               )}
 
+              {/* ── Pinned messages panel ─────────────────────────── */}
+              {Object.keys(pinnedMsgIds).length > 0 && (
+                <Box sx={{
+                  mx: 1, mb: 1, borderRadius: 2,
+                  border: '1px solid rgba(var(--accent-rgb),0.2)',
+                  bgcolor: 'rgba(var(--accent-rgb),0.04)',
+                  backdropFilter: 'blur(8px)',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.75, borderBottom: '1px solid rgba(var(--accent-rgb),0.1)' }}>
+                    <PinIcon sx={{ fontSize: 13, color: 'var(--accent)' }} />
+                    <Typography sx={{ fontSize: '0.68rem', color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', flex: 1 }}>
+                      {Object.keys(pinnedMsgIds).length} Pinned
+                    </Typography>
+                  </Box>
+                  <Box sx={{ px: 1.5, py: 0.75, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    {Object.values(pinnedMsgIds).map(pm => (
+                      <Box key={pm.id} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                        <Typography sx={{ fontSize: '0.71rem', color: 'rgba(255,255,255,0.58)', lineHeight: 1.5, flex: 1 }}>
+                          {pm.content.slice(0, 120)}{pm.content.length > 120 ? '…' : ''}
+                        </Typography>
+                        <IconButton size="small" onClick={() => togglePinMessage(pm)}
+                          sx={{ p: 0.2, color: 'rgba(255,255,255,0.28)', '&:hover': { color: '#ff5555' }, flexShrink: 0 }}>
+                          <CloseIcon sx={{ fontSize: 11 }} />
+                        </IconButton>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
               <AnimatePresence>
                 {/* Ambient background orbs */}
                 <Box key="orb1" sx={{
@@ -8392,6 +8683,7 @@ export default function App() {
                 onChange={(e) => {
                   const val = e.target.value;
                   setInput(val);
+                  try { localStorage.setItem(`vesper_draft_${currentThreadId || 'new'}`, val); } catch(_) {}
                   if (val.match(/^\//)) {
                     const q = val.slice(1).split(' ')[0].toLowerCase();
                     setSlashQuery(q);
@@ -9742,6 +10034,98 @@ export default function App() {
               }}
             >
               Install
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      {/* ─── STARRED MESSAGES PANEL ──────────────────────────────────────── */}
+      {starredPanelOpen && (
+        <Box onClick={() => setStarredPanelOpen(false)}
+          sx={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', p: 2 }}>
+          <Box onClick={e => e.stopPropagation()}
+            sx={{ width: 380, maxHeight: '70vh', borderRadius: 3, bgcolor: 'rgba(8,11,20,0.98)', border: '1px solid rgba(var(--accent-rgb),0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: 'cmdSlideIn 0.18s cubic-bezier(0.22,1,0.36,1)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.25, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <StarRounded sx={{ color: '#FFD700', fontSize: 16, mr: 1 }} />
+              <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', color: '#fff', flex: 1 }}>Starred Messages</Typography>
+              <IconButton size="small" onClick={() => setStarredPanelOpen(false)} sx={{ color: 'rgba(255,255,255,0.35)' }}><CloseIcon sx={{ fontSize: 14 }} /></IconButton>
+            </Box>
+            <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {starredMsgs.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <StarBorderIcon sx={{ fontSize: 32, color: 'rgba(255,255,255,0.15)', mb: 1, display: 'block', mx: 'auto' }} />
+                  <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem' }}>No starred messages yet.</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem', mt: 0.5 }}>Star any message to save it here.</Typography>
+                </Box>
+              ) : [...starredMsgs].reverse().map(m => (
+                <Box key={m.id} sx={{ p: 1.25, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <Typography sx={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', mb: 0.4, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{m.role}</Typography>
+                  <Typography sx={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>{m.content.slice(0, 280)}{m.content.length > 280 ? '…' : ''}</Typography>
+                  <Box sx={{ display: 'flex', gap: 0.5, mt: 0.85 }}>
+                    <Chip label="Copy" size="small" onClick={() => navigator.clipboard.writeText(m.content).then(() => setToast('Copied!'))}
+                      sx={{ height: 20, fontSize: '0.65rem', cursor: 'pointer', bgcolor: 'rgba(var(--accent-rgb),0.1)', color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.2)' } }} />
+                    <Chip label="Unstar" size="small" onClick={() => toggleStarMessage(m)}
+                      sx={{ height: 20, fontSize: '0.65rem', cursor: 'pointer', bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)', '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' } }} />
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      {/* ─── GLOBAL SEARCH ────────────────────────────────────────────────── */}
+      {globalSearchOpen && (
+        <Box onClick={() => setGlobalSearchOpen(false)}
+          sx={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', pt: '10vh' }}>
+          <Box onClick={e => e.stopPropagation()}
+            sx={{ width: '100%', maxWidth: 580, mx: 2, borderRadius: 3, bgcolor: 'rgba(8,11,20,0.99)', border: '1px solid rgba(var(--accent-rgb),0.25)', overflow: 'hidden', animation: 'cmdSlideIn 0.15s cubic-bezier(0.22,1,0.36,1)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <ManageSearchIcon sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 18, flexShrink: 0 }} />
+              <input
+                autoFocus
+                value={globalSearchQuery}
+                onChange={e => setGlobalSearchQuery(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') runGlobalSearch(globalSearchQuery);
+                  if (e.key === 'Escape') setGlobalSearchOpen(false);
+                }}
+                placeholder="Search all conversations…"
+                style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: '#fff', fontSize: '0.92rem', fontFamily: 'inherit' }}
+              />
+              <IconButton size="small" onClick={() => runGlobalSearch(globalSearchQuery)} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.12)' } }}>
+                <ManageSearchIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+              <IconButton size="small" onClick={() => setGlobalSearchOpen(false)} sx={{ color: 'rgba(255,255,255,0.3)' }}><CloseIcon sx={{ fontSize: 14 }} /></IconButton>
+            </Box>
+            <Box sx={{ maxHeight: 420, overflowY: 'auto', p: 1.5 }}>
+              {globalSearchLoading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                  <CircularProgress size={22} sx={{ color: 'var(--accent)' }} />
+                </Box>
+              )}
+              {!globalSearchLoading && !globalSearchQuery && (
+                <Typography sx={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.79rem', textAlign: 'center', py: 3 }}>
+                  Type and press Enter to search across all your conversations
+                </Typography>
+              )}
+              {!globalSearchLoading && globalSearchQuery && globalSearchResults.length === 0 && (
+                <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem', textAlign: 'center', py: 3 }}>
+                  No results for "{globalSearchQuery}"
+                </Typography>
+              )}
+              {globalSearchResults.map((r, i) => (
+                <Box key={i}
+                  onClick={() => { if (r.thread_id) loadThread(r.thread_id); setGlobalSearchOpen(false); }}
+                  sx={{ p: 1.25, mb: 0.75, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.08)', borderColor: 'rgba(var(--accent-rgb),0.2)' } }}>
+                  <Typography sx={{ fontSize: '0.8rem', color: '#fff', fontWeight: 600, mb: 0.3 }}>
+                    {r.title || (r.text || r.content || '').slice(0, 60) || 'Memory'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.45 }}>
+                    {(r.content || r.text || '').slice(0, 160)}{(r.content || r.text || '').length > 160 ? '…' : ''}
+                  </Typography>
+                </Box>
+              ))}
             </Box>
           </Box>
         </Box>
