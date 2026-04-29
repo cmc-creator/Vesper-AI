@@ -152,6 +152,14 @@ const SECTION_QUICK_STARTS = {
     'What should I prioritize today?',
     'Create a sprint plan for this week',
   ],
+  income: [
+    'Plan my income streams for this month',
+    'Find profitable keywords in my niche',
+    'Write an SEO article about [topic]',
+    'Create a 30-day content calendar',
+    'Generate 5 digital product ideas for my audience',
+    'Analyze my income gap and suggest fixes',
+  ],
   research: [
     'Research the latest trends in AI',
     'Summarize recent news in tech',
@@ -312,30 +320,42 @@ const THEMES = [
 ];
 
 const NAV = [
-  { id: 'chat', label: 'Chat', icon: HubRounded },
-  { id: 'research', label: 'Research Tools', icon: ScienceRounded },
-  { id: 'tasks', label: 'Task Matrix', icon: ChecklistRounded },
-  { id: 'morning-brief', label: 'Morning Brief', icon: WbSunnyIcon },
-  { id: 'gaps', label: 'Memory', icon: NightsStayIcon },
-  { id: 'settings', label: 'Settings', icon: SettingsRounded },
+  { id: 'chat',         label: 'Chat',           icon: HubRounded      },
+  { id: 'income',       label: 'Money Ops',      icon: TrendingUpIcon  },
+  { id: 'tasks',        label: 'Task Matrix',    icon: ChecklistRounded },
+  { id: 'research',     label: 'Research Tools', icon: ScienceRounded  },
+  { id: 'morning-brief',label: 'Morning Brief',  icon: WbSunnyIcon     },
+  { id: 'gaps',         label: 'Memory',         icon: NightsStayIcon  },
+  { id: 'settings',     label: 'Settings',       icon: SettingsRounded },
 ];
 
 const UI_RELEASE = 'LUX-OPS R4 · 2026-04-01';
 
 // ── Proactive nudge map: tool name → suggested next actions ──────────────
 const NUDGE_MAP = {
-  generate_image:      ['Make a variation', 'Add to wallpaper', 'Apply a different style'],
-  web_search:          ['Go deeper on this', 'Save as research note', 'Summarize key points'],
-  search_web:          ['Go deeper on this', 'Save as research note', 'Summarize key points'],
-  create_task:         ['Add subtasks', 'Set a deadline', 'Mark in progress'],
-  write_seo_article:   ['Create social media posts', 'Generate a featured image', 'Push to Creative Suite'],
-  create_song:         ['Generate album art', 'Write a second verse', 'Create a remix concept'],
-  execute_python:      ['Explain this code', 'Test edge cases', 'Optimize it'],
-  vesper_read_file:    ['Edit this file', 'Summarize the key sections', 'Search for related files'],
-  vesper_write_file:   ['Run git diff', 'Commit this change', 'Test the changes'],
-  keyword_research:    ['Generate an article', 'Find competitor content', 'Build a content calendar'],
-  scrape_url:          ['Extract key data', 'Save to research notes', 'Summarize this page'],
-  create_ebook:        ['Generate a cover image', 'Create a landing page', 'Export as PDF'],
+  // Creative / income tools
+  generate_image:        ['Make a variation', 'Add to wallpaper', 'Build a product listing'],
+  write_seo_article:     ['Generate social posts', 'Publish to Medium', 'Repurpose to email'],
+  create_ebook:          ['Generate a cover image', 'Create a sales page', 'Publish on Gumroad'],
+  keyword_research:      ['Write the article now', 'Build a content calendar', 'Find affiliate angles'],
+  plan_income_stream:    ['Build the top stream now', 'Create a content calendar', 'Set a revenue goal'],
+  create_content_calendar:['Write the first article', 'Schedule to social', 'Save to Creative Suite'],
+  create_email_sequence: ['Set up the automation', 'Write a lead magnet', 'Add a Gumroad product'],
+  affiliate_research:    ['Write affiliate content', 'Build a review article', 'Find related keywords'],
+  product_idea_generator:['Build the top product', 'Create a sales page', 'Research the market'],
+  write_sales_page:      ['Generate product images', 'Build an email sequence', 'Publish on Gumroad'],
+  income_gap_analyzer:   ['Fix the biggest gap', 'Create a new income stream', 'Set a 30-day goal'],
+  create_landing_page:   ['Connect to Gumroad', 'Write a launch email', 'Build social posts'],
+  create_course_outline: ['Write the first module', 'Build a landing page', 'Set a launch date'],
+  // General tools
+  web_search:            ['Go deeper on this', 'Save as research note', 'Summarize key points'],
+  search_web:            ['Go deeper on this', 'Save as research note', 'Summarize key points'],
+  create_task:           ['Add subtasks', 'Set a deadline', 'Mark in progress'],
+  create_song:           ['Generate album art', 'Push to Creative Suite', 'Write a second verse'],
+  execute_python:        ['Explain this code', 'Test edge cases', 'Optimize it'],
+  vesper_read_file:      ['Edit this file', 'Summarize the key sections', 'Search for related files'],
+  vesper_write_file:     ['Run git diff', 'Commit this change', 'Test the changes'],
+  scrape_url:            ['Extract key data', 'Save to research notes', 'Find competitor data'],
 };
 
 // ── Voice personality per theme sound type ─────────────────────────────────
@@ -946,6 +966,7 @@ function App() {
   const [pendingNudges, setPendingNudges] = useState([]);
   const [sessionBriefing, setSessionBriefing] = useState(null);
   const [vesperXp, setVesperXp] = useState(() => { try { return JSON.parse(localStorage.getItem('vesper_xp_cache') || '{"xp":0,"level":1}'); } catch { return {xp:0, level:1}; } });
+  const [incomeStats, setIncomeStats] = useState(() => { try { return JSON.parse(localStorage.getItem('vesper_income_cache') || 'null'); } catch { return null; } });
 
   // ── Vesper Autonomy: Daily Identity + Proactive Initiative ─────
   const [vesperIdentity, setVesperIdentity] = useState(null);
@@ -1720,6 +1741,16 @@ export default function App() {
           try { localStorage.setItem('vesper_xp_cache', JSON.stringify(xd)); } catch (_) {}
         }
       } catch (e) { /* xp is best-effort */ }
+
+      // ── Fetch income summary ──────────────────────────────────────────────
+      try {
+        const isRes = await fetch(`${apiBase}/api/income/summary`);
+        if (isRes.ok) {
+          const isd = await isRes.json();
+          setIncomeStats(isd);
+          try { localStorage.setItem('vesper_income_cache', JSON.stringify(isd)); } catch (_) {}
+        }
+      } catch (e) { /* income summary is best-effort */ }
     };
     loadVesperIdentity();
   }, [apiBase]);
@@ -7463,6 +7494,15 @@ export default function App() {
               >
                 <Icon fontSize="small" />
                 <span className="nav-label">{label}</span>
+                {id === 'income' && incomeStats && incomeStats.total_est_monthly > 0 && (
+                  <span style={{
+                    marginLeft: 'auto', fontSize: '0.6rem', fontFamily: 'monospace',
+                    color: '#6bcb77', fontWeight: 700, opacity: 0.85,
+                    background: 'rgba(107,203,119,0.1)', borderRadius: 6, padding: '1px 5px',
+                  }}>
+                    ~${Math.round(incomeStats.total_est_monthly)}/mo
+                  </span>
+                )}
               </Box>
             ))}
           </Box>
@@ -8468,21 +8508,23 @@ export default function App() {
                   )}
                 </Box>
 
-                {/* Suggested prompts grid */}
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, width: '100%', maxWidth: 520 }}>
+                {/* Money-making prompt grid */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, width: '100%', maxWidth: 560 }}>
                   {[
-                    { icon: '✦', label: 'Draft something', prompt: 'Help me write a' },
-                    { icon: '◎', label: 'Research a topic', prompt: 'Research and summarize' },
-                    { icon: '⚡', label: 'Build with code', prompt: 'Write code to' },
-                    { icon: '◈', label: 'Brainstorm ideas', prompt: 'Give me creative ideas for' },
+                    { icon: '💰', label: 'Plan income',     prompt: 'Plan my income streams for this month. What are the top 3 ways to monetize my skills?' },
+                    { icon: '📈', label: 'SEO article',     prompt: 'Write an SEO article about ' },
+                    { icon: '🔑', label: 'Keywords',        prompt: 'Research profitable keywords for ' },
+                    { icon: '📅', label: 'Content plan',    prompt: 'Create a 30-day content calendar for ' },
+                    { icon: '📦', label: 'Digital product', prompt: 'Generate 5 digital product ideas for my audience. Include revenue projections.' },
+                    { icon: '✦',  label: 'Just write',      prompt: 'Help me write a ' },
                   ].map(({ icon, label, prompt }) => (
                     <Box
                       key={label}
-                      onClick={() => setInput(prompt + ' ')}
+                      onClick={() => setInput(prompt)}
                       sx={{
-                        px: 1.5, py: 1.25, borderRadius: '12px',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        background: 'rgba(255,255,255,0.03)',
+                        px: 1.5, py: 1.25, borderRadius: '10px',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                        background: 'rgba(255,255,255,0.025)',
                         cursor: 'pointer', transition: 'all 0.18s ease',
                         '&:hover': {
                           border: '1px solid rgba(var(--accent-rgb), 0.35)',
@@ -8491,10 +8533,18 @@ export default function App() {
                         },
                       }}
                     >
-                      <Typography sx={{ fontSize: '0.9rem', mb: 0.25, color: 'var(--accent)', lineHeight: 1 }}>{icon}</Typography>
-                      <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.75)', letterSpacing: '0.01em' }}>{label}</Typography>
+                      <Typography sx={{ fontSize: '0.88rem', mb: 0.15, lineHeight: 1 }}>{icon}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.01em' }}>{label}</Typography>
                     </Box>
                   ))}
+                </Box>
+                {/* Money Ops shortcut */}
+                <Box
+                  onClick={() => setActiveSection('income')}
+                  sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.7, borderRadius: '20px', border: '1px solid rgba(var(--accent-rgb), 0.2)', background: 'rgba(var(--accent-rgb), 0.04)', cursor: 'pointer', transition: 'all 0.18s', '&:hover': { background: 'rgba(var(--accent-rgb), 0.1)' } }}
+                >
+                  <TrendingUpIcon sx={{ fontSize: '0.9rem', color: 'var(--accent)', opacity: 0.7 }} />
+                  <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.04em' }}>Open Money Ops dashboard</Typography>
                 </Box>
               </Box>
             )}

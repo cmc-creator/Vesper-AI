@@ -1075,6 +1075,81 @@ async def get_income_dashboard():
         return {"error": str(e), "total_est_monthly": 0, "pipeline": [], "by_type": {}}
 
 
+# ── Income Sales Ledger ───────────────────────────────────────────────────────
+
+def _sales_file():
+    return os.path.join(DATA_DIR, "income_sales.json")
+
+def _load_sales():
+    try:
+        with open(_sales_file()) as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def _save_sales(sales):
+    with open(_sales_file(), "w") as f:
+        json.dump(sales, f, indent=2)
+
+@app.get("/api/income/sales")
+async def get_income_sales():
+    """Return all manually-logged sales from the income ledger."""
+    sales = _load_sales()
+    total = round(sum(s.get("amount", 0) for s in sales), 2)
+    return {"sales": sales, "total_earned": total, "count": len(sales)}
+
+@app.post("/api/income/log-sale")
+async def log_income_sale(request: Request):
+    """Manually log a sale to the income ledger."""
+    body = await request.json()
+    amount = float(body.get("amount", 0))
+    if amount <= 0:
+        return {"error": "amount must be > 0"}
+    sale = {
+        "id": str(int(datetime.utcnow().timestamp() * 1000)),
+        "platform": body.get("platform", "Other"),
+        "amount": amount,
+        "notes": body.get("notes", ""),
+        "creation_id": body.get("creation_id", ""),
+        "date": datetime.utcnow().isoformat(),
+    }
+    sales = _load_sales()
+    sales.insert(0, sale)
+    _save_sales(sales)
+    total = round(sum(s.get("amount", 0) for s in sales), 2)
+    return {"success": True, "sale": sale, "total_earned": total, "count": len(sales)}
+
+@app.delete("/api/income/sales/{sale_id}")
+async def delete_income_sale(sale_id: str):
+    """Delete a sale log entry."""
+    sales = _load_sales()
+    before = len(sales)
+    sales = [s for s in sales if s.get("id") != sale_id]
+    if len(sales) == before:
+        return {"error": "sale not found"}
+    _save_sales(sales)
+    return {"success": True, "count": len(sales)}
+
+@app.get("/api/income/summary")
+async def income_summary():
+    """Quick stats: total earned $, pipeline est monthly, published count."""
+    sales = _load_sales()
+    total_earned = round(sum(s.get("amount", 0) for s in sales), 2)
+    # Piggyback on dashboard for pipeline data
+    try:
+        dashboard = await get_income_dashboard()
+        return {
+            "total_earned": total_earned,
+            "total_est_monthly": dashboard.get("total_est_monthly", 0),
+            "total_est_annual": dashboard.get("total_est_annual", 0),
+            "published_count": dashboard.get("published_count", 0),
+            "draft_count": dashboard.get("draft_count", 0),
+            "sale_count": len(sales),
+        }
+    except Exception:
+        return {"total_earned": total_earned, "sale_count": len(sales)}
+
+
 # ── Gumroad Webhook — auto-log sales to income tracker ───────────────────────
 
 @app.post("/api/webhooks/gumroad")
