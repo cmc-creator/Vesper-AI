@@ -9737,7 +9737,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                                         )},
                                     ],
                                     task_type=TaskType.ANALYSIS,
-                                    max_tokens=4096,
+                                    max_tokens=8192,
                                     temperature=0.4,
                                 )
                                 return resp.get("content", "") or resp.get("error", "No output")
@@ -10448,7 +10448,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             ai_response_obj = await ai_router.chat(
                 messages=messages,
                 task_type=TaskType.CHAT,
-                max_tokens=4096,
+                max_tokens=8192,
                 temperature=0.7,
                 tools=tools,
                 preferred_provider=_loop_prov
@@ -12413,7 +12413,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     _loop_prov2 = preferred_provider
                 _ai_task2 = asyncio.create_task(ai_router.chat(
                     messages=messages, task_type=TaskType.CHAT, tools=tools,
-                    max_tokens=4096, temperature=0.7, preferred_provider=_loop_prov2
+                    max_tokens=8192, temperature=0.7, preferred_provider=_loop_prov2
                 ))
                 while not _ai_task2.done():
                     try:
@@ -12442,7 +12442,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         messages=messages,
                         task_type=TaskType.CHAT,
                         tools=tools,
-                        max_tokens=4096,
+                        max_tokens=8192,
                         temperature=0.7,
                         preferred_provider=_retry_provider,
                     )
