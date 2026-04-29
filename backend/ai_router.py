@@ -196,7 +196,7 @@ class AIRouter:
             ModelProvider.GROQ: "llama-3.3-70b-versatile",   # Free tier — 14k req/day, fast + smart
             ModelProvider.OPENAI: "gpt-5.4-mini",             # Current mini — fast + affordable
             ModelProvider.GOOGLE: "gemini-2.5-flash",         # Current stable free tier
-            ModelProvider.ANTHROPIC: "claude-3-5-sonnet-latest",  # Always latest Claude 3.5 Sonnet
+            ModelProvider.ANTHROPIC: "claude-opus-4-6",  # Claude Opus 4.6 — most capable model
             ModelProvider.OLLAMA: "llama3.2:latest"           # Free local
         }
     

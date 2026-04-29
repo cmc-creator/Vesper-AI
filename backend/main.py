@@ -6280,30 +6280,16 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             },
             {
                 "name": "web_search",
-                "description": "Search the web for CURRENT information as of February 2026. Use for news, weather, events, facts, or answers. When searching, think about what would be NEW or RECENT as of February 2026.",
+                "description": "Search the web for current, live information. Use for news, prices, events, recent research, product info, or any question that requires up-to-date answers. Always call this for time-sensitive info rather than relying on training data.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "The search query to look up. For current info, consider including time phrases like '2026', 'February', 'this week', or 'latest'."
+                            "description": "Search query. For time-sensitive info, include year or 'latest' to get the most current results."
                         }
                     },
                     "required": ["query"]
-                }
-            },
-            {
-                "name": "get_weather",
-                "description": "Get detailed weather forecast for a specific location. Use this instead of web_search for purely weather questions.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "location": {
-                            "type": "string",
-                            "description": "City name, zip code, or location (e.g., 'Surprise, AZ', 'London', '85374')"
-                        }
-                    },
-                    "required": ["location"]
                 }
             },
             {
@@ -6359,38 +6345,6 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         }
                     },
                     "required": ["type", "title", "data", "x_key", "y_key"]
-                }
-            },
-            {
-                "name": "read_file",
-                "description": "Read the contents of a file. Use this to access project files, documents, code, or any text files CC is working on.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": "The full file path to read"
-                        }
-                    },
-                    "required": ["path"]
-                }
-            },
-            {
-                "name": "write_file",
-                "description": "Write or create a file. Use this to save work, create new files, or update existing ones.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": "The full file path to write"
-                        },
-                        "content": {
-                            "type": "string",
-                            "description": "The content to write to the file"
-                        }
-                    },
-                    "required": ["path", "content"]
                 }
             },
             {
@@ -6598,29 +6552,6 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         }
                     },
                     "required": ["query"]
-                }
-            },
-            {
-                "name": "save_memory",
-                "description": "Save important information to your persistent memory for future reference. Use this when CC shares personal details, project decisions, preferences, or anything worth remembering.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "content": {
-                            "type": "string",
-                            "description": "The information to remember"
-                        },
-                        "category": {
-                            "type": "string",
-                            "description": "One of: 'notes', 'personal', 'emotional_bonds', 'work', 'milestones', 'sensory_experiences', 'creative_moments'"
-                        },
-                        "tags": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Optional: tags to categorize this memory"
-                        }
-                    },
-                    "required": ["content", "category"]
                 }
             },
             {
@@ -8698,7 +8629,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             messages=messages,
             task_type=task_type,
             tools=tools,
-            max_tokens=4096,
+            max_tokens=8192,
             temperature=0.7,
             preferred_provider=preferred_provider,
             model_override=model_override
@@ -10718,10 +10649,8 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
             
             # ── Tools (same as /api/chat) ────────────────────────────────
             tools = [
-                {"name": "web_search", "description": "Search the web for current info.", "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]}},
-                {"name": "get_weather", "description": "Get current weather for a location.", "input_schema": {"type": "object", "properties": {"location": {"type": "string", "description": "City or location"}}, "required": ["location"]}},
+                {"name": "web_search", "description": "Search the web for current, live information. Use for news, prices, events, recent research, or any question requiring up-to-date answers. Include year or 'latest' in query for time-sensitive searches.", "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]}},
                 {"name": "search_memories", "description": "Search Vesper's persistent memories.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "category": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["query"]}},
-                {"name": "save_memory", "description": "Save something to persistent memory.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "category": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
                 {"name": "vesper_direct_memory_write", "description": "Direct write to persistent memory with no approval. Use for autonomous memory saves — strategy, wealth insights, action items.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "category": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
                 {"name": "check_tasks", "description": "Check CC's task list.", "input_schema": {"type": "object", "properties": {"status": {"type": "string"}}}},
                 # Google Workspace tools
@@ -10958,7 +10887,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
             # Wrap with heartbeat so the frontend never waits >25s without a byte
             _ai_task = asyncio.create_task(ai_router.chat(
                 messages=messages, task_type=task_type, tools=tools,
-                max_tokens=4096, temperature=0.7, preferred_provider=preferred_provider,
+                max_tokens=8192, temperature=0.7, preferred_provider=preferred_provider,
                 model_override=model_override
             ))
             while not _ai_task.done():
