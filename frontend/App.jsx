@@ -1198,8 +1198,10 @@ export default function App() {
     root.style.setProperty('--accent-rgb', hexToRgb(activeTheme.accent));
     root.style.setProperty('--glow-rgb', hexToRgb(activeTheme.glow));
     root.style.setProperty('--accent', activeTheme.accent);
+    root.style.setProperty('--accent-2', activeTheme.sub || activeTheme.accent);
     root.style.setProperty('--glow', activeTheme.glow);
     root.style.setProperty('--panel-bg', activeTheme.panelBg || 'rgba(0,0,0,0.75)');
+    root.style.setProperty('--bg', activeTheme.bg || 'linear-gradient(135deg, #000a0f, #001a1a)');
   }, [activeTheme]);
   
   // Draggable board positions - load from localStorage
@@ -8193,29 +8195,6 @@ export default function App() {
                 )}
               </Box>
 
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => generateVideoAvatar()}
-                disabled={videogenLoading}
-                sx={{
-                  display: { xs: 'none', sm: 'flex' },
-                  width: 220,
-                  borderColor: activeTheme.accent,
-                  color: activeTheme.accent,
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  fontSize: '0.7rem',
-                  py: 0.5,
-                  '&:hover': {
-                    borderColor: activeTheme.accent,
-                    backgroundColor: `${activeTheme.accent}12`,
-                  },
-                }}
-              >
-                {videogenLoading ? <CircularProgress size={12} sx={{ mr: 0.5 }} /> : null}
-                Refresh Video Speech
-              </Button>
             </Box>
 
             <Paper 
@@ -9177,38 +9156,6 @@ export default function App() {
               }}
             />
 
-            {runtimeCapabilities?.autonomy && (
-              <Paper
-                sx={{
-                  p: 1.6,
-                  borderRadius: 2,
-                  border: '1px solid rgba(232,214,180,0.2)',
-                  background: 'linear-gradient(145deg, rgba(16,14,20,0.96), rgba(10,11,16,0.95))',
-                  boxShadow: '0 16px 38px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
-                }}
-              >
-                <Typography sx={{ fontWeight: 800, color: '#f2deaa', fontSize: '0.86rem', letterSpacing: 0.5, textTransform: 'uppercase' }}>
-                  Operational Authority
-                </Typography>
-                <Typography sx={{ color: runtimeCapabilities.autonomy.ready ? '#8ff8c3' : '#f6d38c', fontSize: '0.82rem', mt: 0.4, mb: 1 }}>
-                  {runtimeCapabilities.autonomy.summary}
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.7 }}>
-                  {Object.entries(runtimeCapabilities.autonomy.tokens || {}).map(([key, value]) => (
-                    <Chip
-                      key={key}
-                      size="small"
-                      label={`${value ? '✓' : '•'} ${key.replace(/_/g, ' ')}`}
-                      sx={{
-                        bgcolor: value ? 'rgba(0,255,136,0.12)' : 'rgba(255,255,255,0.08)',
-                        color: value ? '#7ff2b8' : 'rgba(255,255,255,0.7)',
-                        border: `1px solid ${value ? 'rgba(0,255,136,0.24)' : 'rgba(255,255,255,0.12)'}`,
-                      }}
-                    />
-                  ))}
-                </Box>
-              </Paper>
-            )}
 
 
             {/* Dashboard widgets row */}
@@ -9236,77 +9183,6 @@ export default function App() {
                 </Button>
               )}
             </Box>
-
-            {/* Vesper World - Entry Card */}
-            <Box sx={{ 
-              mt: 2, 
-              width: '100%',
-              position: 'relative',
-              borderRadius: '16px',
-              overflow: 'hidden',
-              border: '1px solid rgba(0, 255, 255, 0.2)',
-              boxShadow: '0 0 20px rgba(0, 0, 0, 0.5)'
-            }}>
-              <Box sx={{
-                width: '100%',
-                minHeight: 180,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'linear-gradient(135deg, rgba(20,10,40,0.95) 0%, rgba(10,5,30,0.98) 100%)',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                py: 3,
-                '&:hover': {
-                  background: 'linear-gradient(135deg, rgba(30,15,60,0.95) 0%, rgba(15,8,40,0.98) 100%)',
-                  '& .enter-icon': { transform: 'scale(1.1)', filter: 'drop-shadow(0 0 20px var(--accent))' },
-                },
-              }}
-              onClick={() => setGameMode(true)}
-              >
-                <Box className="enter-icon" sx={{
-                  width: 64, height: 64, borderRadius: '50%',
-                  border: '2px solid var(--accent)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  mb: 1.5, transition: 'all 0.3s ease',
-                  boxShadow: '0 0 30px rgba(0,255,255,0.15)',
-                }}>
-                  <Typography sx={{ fontSize: 28 }}>🌐</Typography>
-                </Box>
-                <Typography variant="subtitle1" sx={{ color: '#fff', fontWeight: 700, mb: 0.5 }}>
-                  Enter Vesper World
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                  Explore the 3D world
-                </Typography>
-              </Box>
-            </Box>
-
-            {/* Fullscreen 3D World Overlay */}
-            {gameMode && (
-              <Box sx={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100vw',
-                height: '100vh',
-                zIndex: 9999,
-                background: '#000',
-              }}>
-                <React.Suspense fallback={
-                  <Box sx={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,5,30,1)' }}>
-                    <CircularProgress sx={{ color: 'var(--accent)' }} />
-                    <Typography sx={{ ml: 2, color: 'rgba(255,255,255,0.6)' }}>Loading world...</Typography>
-                  </Box>
-                }>
-                  <GameLazy 
-                    onExitGame={() => setGameMode(false)} 
-                    onChatWithNPC={() => {}} 
-                  />
-                </React.Suspense>
-              </Box>
-            )}
 
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
               <div key={activeSection} className="page-transition">
