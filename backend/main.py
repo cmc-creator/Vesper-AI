@@ -59,6 +59,15 @@ from vesper_rag import build_rag_context, export_training_data as rag_export_tra
 from sqlalchemy.pool import NullPool
 import pandas as pd
 import time  # used by background thread functions
+
+# ── Autopilot engine ──────────────────────────────────────────────────────
+try:
+    from autopilot import engine as autopilot_engine
+    print("[STARTUP] autopilot engine imported OK", flush=True)
+except Exception as _ap_err:
+    autopilot_engine = None
+    print(f"[STARTUP] WARNING: autopilot import failed: {_ap_err}", flush=True)
+
 print("[STARTUP] all core imports done", flush=True)
 
 # ── Extended capability modules ────────────────────────────────────────────
@@ -1148,6 +1157,64 @@ async def income_summary():
         }
     except Exception:
         return {"total_earned": total_earned, "sale_count": len(sales)}
+
+
+# ── Autopilot Engine API ───────────────────────────────────────────────────────
+
+
+# ── Autopilot Engine API ───────────────────────────────────────────────────────
+
+@app.get("/api/autopilot/status")
+async def autopilot_status():
+    """Scheduler status + job summary."""
+    if not autopilot_engine:
+        return {"error": "Autopilot engine not loaded"}
+    return autopilot_engine.status()
+
+@app.get("/api/autopilot/jobs")
+async def get_autopilot_jobs():
+    """List all autopilot jobs."""
+    if not autopilot_engine:
+        return {"jobs": [], "error": "Autopilot engine not loaded"}
+    return {"jobs": autopilot_engine.list_jobs()}
+
+@app.patch("/api/autopilot/jobs/{job_id}")
+async def update_autopilot_job(job_id: str, request: Request):
+    """Update a job (enable/disable, set niche, etc.)."""
+    if not autopilot_engine:
+        return JSONResponse({"error": "Autopilot engine not loaded"}, status_code=503)
+    body = await request.json()
+    result = autopilot_engine.update_job(job_id, body)
+    if "error" in result:
+        return JSONResponse(result, status_code=404)
+    return result
+
+@app.delete("/api/autopilot/jobs/{job_id}")
+async def delete_autopilot_job(job_id: str):
+    """Delete a custom job (built-ins cannot be deleted)."""
+    if not autopilot_engine:
+        return JSONResponse({"error": "Autopilot engine not loaded"}, status_code=503)
+    result = autopilot_engine.delete_job(job_id)
+    if "error" in result:
+        return JSONResponse(result, status_code=400)
+    return result
+
+@app.post("/api/autopilot/run-now/{job_id}")
+async def run_autopilot_job_now(job_id: str):
+    """Trigger a job to run immediately in the background."""
+    if not autopilot_engine:
+        return JSONResponse({"error": "Autopilot engine not loaded"}, status_code=503)
+    result = autopilot_engine.run_now(job_id)
+    if "error" in result:
+        return JSONResponse(result, status_code=400)
+    return result
+
+@app.get("/api/autopilot/log")
+async def get_autopilot_log(limit: int = 30):
+    """Recent job run log."""
+    if not autopilot_engine:
+        return {"log": [], "error": "Autopilot engine not loaded"}
+    return {"log": autopilot_engine.get_log(limit=min(limit, 100))}
 
 
 # ── Gumroad Webhook — auto-log sales to income tracker ───────────────────────
@@ -17439,6 +17506,15 @@ if _hb_enabled:
     threading.Thread(target=_vesper_core_loop, daemon=True, name="VesperCore").start()
 
 threading.Thread(target=_vesper_startup_notify, daemon=True, name="VesperStartup").start()
+
+# Start autopilot job scheduler
+if autopilot_engine:
+    try:
+        autopilot_engine.set_ai_router(ai_router, TaskType)
+        autopilot_engine.start()
+    except Exception as _ap_start_err:
+        print(f"[STARTUP] Autopilot start error: {_ap_start_err}", flush=True)
+
 print("[STARTUP] main.py fully loaded - uvicorn should now accept connections", flush=True)
 
 

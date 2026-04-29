@@ -78,6 +78,11 @@ import {
   StarRounded,
   StarBorder as StarBorderIcon,
   ManageSearch as ManageSearchIcon,
+  AutoMode as AutoModeIcon,
+  PlayCircle as PlayCircleIcon,
+  CheckCircle as CheckCircleIcon,
+  ErrorOutline as ErrorOutlineIcon,
+  Schedule as ScheduleIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -135,6 +140,248 @@ import SetupWizard from './src/components/SetupWizard';
 // Styles
 import './App.css';
 import './src/enhancements.css';
+
+// ─── AutopilotPanel — standalone component so it has clean hooks scope ────────
+function AutopilotPanel({ apiBase, onBack, jobs, setJobs, log, setLog, loading, setLoading, running, setRunning, niches, setNiches, accentColor, setToast }) {
+  const accent = accentColor || '#00ffff';
+
+  const fetchJobs = React.useCallback(async () => {
+    try {
+      const [jr, lr] = await Promise.all([
+        fetch(`${apiBase}/api/autopilot/jobs`),
+        fetch(`${apiBase}/api/autopilot/log?limit=20`),
+      ]);
+      if (jr.ok) { const d = await jr.json(); setJobs(d.jobs || []); }
+      if (lr.ok) { const d = await lr.json(); setLog(d.log || []); }
+    } catch (e) { /* network failure */ }
+  }, [apiBase, setJobs, setLog]);
+
+  React.useEffect(() => { fetchJobs(); }, [fetchJobs]);
+
+  const toggleJob = async (job) => {
+    const updated = { enabled: !job.enabled };
+    try {
+      const r = await fetch(`${apiBase}/api/autopilot/jobs/${job.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      });
+      if (r.ok) { await fetchJobs(); setToast({ open: true, message: job.enabled ? `${job.name} paused` : `${job.name} enabled — runs on schedule`, severity: 'success' }); }
+    } catch (e) { setToast({ open: true, message: 'Failed to update job', severity: 'error' }); }
+  };
+
+  const saveNiche = async (job) => {
+    const niche = (niches[job.id] ?? job.niche) || '';
+    try {
+      const r = await fetch(`${apiBase}/api/autopilot/jobs/${job.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ niche }),
+      });
+      if (r.ok) { await fetchJobs(); setToast({ open: true, message: 'Niche saved', severity: 'success' }); }
+    } catch (e) {}
+  };
+
+  const runNow = async (job) => {
+    setRunning(prev => ({ ...prev, [job.id]: true }));
+    setToast({ open: true, message: `▶ ${job.name} started in background…`, severity: 'info' });
+    try {
+      await fetch(`${apiBase}/api/autopilot/run-now/${job.id}`, { method: 'POST' });
+      // Poll for completion: check log for new entry
+      let polls = 0;
+      const check = setInterval(async () => {
+        polls++;
+        if (polls > 60) { clearInterval(check); setRunning(prev => ({ ...prev, [job.id]: false })); return; }
+        await fetchJobs();
+        const updatedJobs = await fetch(`${apiBase}/api/autopilot/jobs`).then(r => r.json()).catch(() => null);
+        if (updatedJobs) {
+          const j = (updatedJobs.jobs || []).find(x => x.id === job.id);
+          if (j && j.last_run) {
+            clearInterval(check);
+            setRunning(prev => ({ ...prev, [job.id]: false }));
+            await fetchJobs();
+            const st = j.last_status === 'ok' ? 'success' : 'warning';
+            setToast({ open: true, message: `${job.name}: ${j.last_output || 'Done'}`, severity: st });
+          }
+        }
+      }, 3000);
+    } catch (e) {
+      setRunning(prev => ({ ...prev, [job.id]: false }));
+    }
+  };
+
+  const JOB_ICONS = { weekly_pipeline: '🏭', daily_article: '✍️', weekly_keywords: '🔑', social_drip: '📲' };
+
+  return (
+    <Box sx={{ height: '100%', overflowY: 'auto', p: { xs: 2, md: 3 }, maxWidth: 860, mx: 'auto' }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+        <IconButton onClick={onBack} size="small" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+          <ArrowBackIcon fontSize="small" />
+        </IconButton>
+        <AutoModeIcon sx={{ color: accent, fontSize: '1.4rem' }} />
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            Autopilot
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+            Vesper works while you sleep
+          </Typography>
+        </Box>
+        <Box sx={{ ml: 'auto' }}>
+          <Chip
+            label={jobs.filter(j => j.enabled).length + ' active'}
+            size="small"
+            sx={{ bgcolor: jobs.some(j => j.enabled) ? 'rgba(107,203,119,0.15)' : 'rgba(255,255,255,0.06)', color: jobs.some(j => j.enabled) ? '#6bcb77' : 'rgba(255,255,255,0.4)', fontWeight: 700, fontSize: '0.65rem' }}
+          />
+        </Box>
+      </Box>
+
+      {/* Job cards */}
+      <Stack spacing={1.5} sx={{ mb: 3 }}>
+        {jobs.map((job) => {
+          const isRunning = running[job.id];
+          const icon = JOB_ICONS[job.type] || '⚙️';
+          const currentNiche = niches[job.id] ?? job.niche ?? '';
+          return (
+            <Paper key={job.id} elevation={0} sx={{
+              p: 2.5,
+              border: `1px solid ${job.enabled ? `${accent}40` : 'rgba(255,255,255,0.07)'}`,
+              borderRadius: 2,
+              bgcolor: job.enabled ? `${accent}08` : 'rgba(255,255,255,0.02)',
+              transition: 'border-color 0.2s',
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                <Typography sx={{ fontSize: '1.5rem', lineHeight: 1, mt: 0.2 }}>{icon}</Typography>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.4 }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700, color: '#fff', fontSize: '0.95rem' }}>
+                      {job.name}
+                    </Typography>
+                    {job.enabled && (
+                      <Chip label="ON" size="small" sx={{ height: 16, fontSize: '0.55rem', bgcolor: `${accent}30`, color: accent, fontWeight: 800 }} />
+                    )}
+                  </Box>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
+                    {job.description}
+                  </Typography>
+
+                  {/* Niche input */}
+                  {job.niche !== undefined && (
+                    <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'center' }}>
+                      <TextField
+                        size="small"
+                        placeholder="Your niche (e.g. AI productivity, Etsy sellers)"
+                        value={currentNiche}
+                        onChange={e => setNiches(prev => ({ ...prev, [job.id]: e.target.value }))}
+                        sx={{
+                          flex: 1,
+                          '& .MuiInputBase-root': { fontSize: '0.75rem', bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1 },
+                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' },
+                          '& input': { color: '#fff', py: 0.8 },
+                        }}
+                      />
+                      <Button size="small" onClick={() => saveNiche(job)} sx={{ color: accent, fontSize: '0.7rem', textTransform: 'none', minWidth: 0, px: 1.5 }}>
+                        Save
+                      </Button>
+                    </Box>
+                  )}
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <ScheduleIcon sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }} />
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.65rem' }}>
+                        {job.schedule_label || 'Scheduled'}
+                      </Typography>
+                    </Box>
+
+                    {job.last_run && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {job.last_status === 'ok'
+                          ? <CheckCircleIcon sx={{ fontSize: '0.75rem', color: '#6bcb77' }} />
+                          : <ErrorOutlineIcon sx={{ fontSize: '0.75rem', color: '#ff6b6b' }} />}
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem' }}>
+                          Last: {new Date(job.last_run).toLocaleDateString()} — {job.last_output?.slice(0, 60) || ''}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+
+                {/* Controls */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, flexShrink: 0 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={!!job.enabled}
+                        onChange={() => toggleJob(job)}
+                        size="small"
+                        sx={{
+                          '& .MuiSwitch-track': { bgcolor: job.enabled ? `${accent}60` : 'rgba(255,255,255,0.1)' },
+                          '& .Mui-checked .MuiSwitch-thumb': { bgcolor: accent },
+                        }}
+                      />
+                    }
+                    label=""
+                    sx={{ m: 0 }}
+                  />
+                  <Tooltip title="Run now (single run in background)" placement="left">
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={isRunning}
+                        onClick={() => runNow(job)}
+                        sx={{ color: isRunning ? 'rgba(255,255,255,0.2)' : accent, border: `1px solid ${isRunning ? 'rgba(255,255,255,0.1)' : `${accent}40`}`, borderRadius: 1, p: 0.5 }}
+                      >
+                        {isRunning
+                          ? <CircularProgress size={14} sx={{ color: accent }} />
+                          : <PlayCircleIcon sx={{ fontSize: '1rem' }} />}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Box>
+              </Box>
+            </Paper>
+          );
+        })}
+      </Stack>
+
+      {/* Activity log */}
+      <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', letterSpacing: '0.15em', mb: 1, display: 'block' }}>
+        Activity Log
+      </Typography>
+      {log.length === 0 ? (
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>
+          No jobs have run yet. Enable a job or hit Run Now to start.
+        </Typography>
+      ) : (
+        <Stack spacing={0.5}>
+          {log.slice(0, 15).map((entry, i) => (
+            <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.2, borderRadius: 1.5, bgcolor: entry.success ? 'rgba(107,203,119,0.05)' : 'rgba(255,107,107,0.05)', border: `1px solid ${entry.success ? 'rgba(107,203,119,0.12)' : 'rgba(255,107,107,0.12)'}` }}>
+              <Typography sx={{ fontSize: '0.8rem', lineHeight: 1.4, flexShrink: 0 }}>
+                {entry.success ? '✓' : '✗'}
+              </Typography>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: entry.success ? '#6bcb77' : '#ff6b6b', fontSize: '0.7rem' }}>
+                    {entry.job_name}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.65rem' }}>
+                    {entry.ended ? new Date(entry.ended).toLocaleString() : ''}
+                  </Typography>
+                </Box>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {entry.output}
+                </Typography>
+              </Box>
+            </Box>
+          ))}
+        </Stack>
+      )}
+    </Box>
+  );
+}
+
 
 const baseTheme = createTheme({
   palette: {
@@ -322,6 +569,7 @@ const THEMES = [
 const NAV = [
   { id: 'chat',         label: 'Chat',           icon: HubRounded      },
   { id: 'income',       label: 'Money Ops',      icon: TrendingUpIcon  },
+  { id: 'autopilot',    label: 'Autopilot',      icon: AutoModeIcon    },
   { id: 'tasks',        label: 'Task Matrix',    icon: ChecklistRounded },
   { id: 'research',     label: 'Research Tools', icon: ScienceRounded  },
   { id: 'morning-brief',label: 'Morning Brief',  icon: WbSunnyIcon     },
@@ -967,6 +1215,13 @@ function App() {
   const [sessionBriefing, setSessionBriefing] = useState(null);
   const [vesperXp, setVesperXp] = useState(() => { try { return JSON.parse(localStorage.getItem('vesper_xp_cache') || '{"xp":0,"level":1}'); } catch { return {xp:0, level:1}; } });
   const [incomeStats, setIncomeStats] = useState(() => { try { return JSON.parse(localStorage.getItem('vesper_income_cache') || 'null'); } catch { return null; } });
+
+  // ── Autopilot state ──────────────────────────────────────────────────────
+  const [autopilotJobs, setAutopilotJobs] = useState([]);
+  const [autopilotLog, setAutopilotLog] = useState([]);
+  const [autopilotLoading, setAutopilotLoading] = useState(false);
+  const [autopilotRunning, setAutopilotRunning] = useState({}); // { job_id: true }
+  const [autopilotNiches, setAutopilotNiches] = useState({}); // { job_id: niche string }
 
   // ── Vesper Autonomy: Daily Identity + Proactive Initiative ─────
   const [vesperIdentity, setVesperIdentity] = useState(null);
@@ -5928,6 +6183,23 @@ export default function App() {
         return (
           <IncomeDashboard apiBase={apiBase} onBack={() => setActiveSection('chat')} />
         );
+      case 'autopilot':
+        return <AutopilotPanel
+          apiBase={apiBase}
+          onBack={() => setActiveSection('chat')}
+          jobs={autopilotJobs}
+          setJobs={setAutopilotJobs}
+          log={autopilotLog}
+          setLog={setAutopilotLog}
+          loading={autopilotLoading}
+          setLoading={setAutopilotLoading}
+          running={autopilotRunning}
+          setRunning={setAutopilotRunning}
+          niches={autopilotNiches}
+          setNiches={setAutopilotNiches}
+          accentColor={accentColor}
+          setToast={setToast}
+        />;
       case 'morning-brief':
         return (
           <MorningBrief apiBase={apiBase} onClose={() => setActiveSection('chat')} />
