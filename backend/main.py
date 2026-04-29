@@ -464,6 +464,37 @@ def _build_thread_context(thread_msgs: list, max_recent: int = 120):
     )
     return summary_block, recent
 
+
+async def _auto_extract_memories(user_msg: str, assistant_msg: str, db) -> None:
+    """Silently scan a conversation turn for memorable facts and auto-save them."""
+    import re as _re
+    _TRIGGERS = [
+        (r"my name is ([A-Za-z][A-Za-z '\-]{1,40})", "personal"),
+        (r"i(?:'m| am) based in ([A-Za-z ,]{3,50})", "personal"),
+        (r"i (?:live|am) in ([A-Za-z ,]{3,50})", "personal"),
+        (r"i (?:like|love|prefer) ([^.!?\n]{5,80})", "personal"),
+        (r"i (?:hate|dislike|can't stand) ([^.!?\n]{5,80})", "personal"),
+        (r"remind me (?:to |that )?(.{10,120})", "notes"),
+        (r"my (?:goal|dream|plan) is (.{10,120})", "work"),
+        (r"i(?:'m| am) working on (.{10,120})", "work"),
+        (r"i(?:'m| am) building (.{10,120})", "work"),
+        (r"my (?:birthday|bday) is ([A-Za-z0-9 ,]{4,30})", "personal"),
+    ]
+    seen: set = set()
+    combined = f"{user_msg} {assistant_msg}"
+    for pattern, category in _TRIGGERS:
+        m = _re.search(pattern, combined, _re.IGNORECASE)
+        if m:
+            fact = m.group(1).strip()[:200]
+            key = fact.lower()[:60]
+            if len(fact) > 6 and key not in seen:
+                seen.add(key)
+                try:
+                    db.save_memory(content=fact, category=category, tags=["auto-extracted"])
+                except Exception:
+                    pass
+
+
 print("[STARTUP] About to create FastAPI app", flush=True)
 startup_error = None
 try:
@@ -8747,6 +8778,13 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         **({"drive_link": _drive_link, "drive_note": "Saved to your Google Drive!"} if _drive_link else {})
                     }
                     visualizations.append(tool_result)
+                    # Auto-save image to Creative Suite gallery
+                    if img_url:
+                        try:
+                            _img_cs_id = str(uuid.uuid4())[:8]
+                            memory_db.save_creation(id=_img_cs_id, type="image", title=(img_prompt[:80] if img_prompt else "Generated Image"), content="", preview=img_url, metadata={"image_url": img_url, "provider": provider, "size": img_size, "set_as_wallpaper": img_as_wp}, status="published")
+                        except Exception:
+                            pass
 
                 elif tool_name == "generate_chart":
                     # This tool just passes data through so it can be returned as a structured result
@@ -10506,8 +10544,15 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
         usage = ai_response_obj.get("usage", {})
         print(f"📊 Tokens: {usage.get('input_tokens', 0)} in, {usage.get('output_tokens', 0)} out")
         
+        # Silently extract memorable facts from this conversation turn
+        try:
+            asyncio.create_task(_auto_extract_memories(chat.message, ai_response, memory_db))
+        except Exception:
+            pass
+
         return {
             "response": ai_response,
+            "model": ai_response_obj.get("model", provider),
             "visualizations": visualizations if visualizations else []
         }
     
@@ -12122,6 +12167,13 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                             _save_media_item("image", _gi_url, _gi_prompt, {"provider": _gi_provider, "size": _gi_size})
                         tool_result = {"type": "image_generation", "image_url": _gi_url, "prompt": _gi_prompt, "provider": _gi_provider, "set_as_wallpaper": _gi_as_wp}
                         visualizations.append(tool_result)
+                        # Auto-save image to Creative Suite gallery
+                        if _gi_url:
+                            try:
+                                _gi_cs_id = str(uuid.uuid4())[:8]
+                                memory_db.save_creation(id=_gi_cs_id, type="image", title=(_gi_prompt[:80] if _gi_prompt else "Generated Image"), content="", preview=_gi_url, metadata={"image_url": _gi_url, "provider": _gi_provider, "size": _gi_size, "set_as_wallpaper": _gi_as_wp}, status="published")
+                            except Exception:
+                                pass
                     elif tool_name == "code_scan":
                         diag = await full_system_diagnostics()
                         focus = tool_input.get("focus", "all")

@@ -2041,7 +2041,7 @@ export default function App() {
                 if (now - lastStreamUpdate >= STREAM_THROTTLE) {
                   lastStreamUpdate = now;
                   setMessages(prev => prev.map(m => 
-                    m.id === streamMsgId ? { ...m, content: accumulatedText } : m
+                    m.id === streamMsgId ? { ...m, content: accumulatedText, model: currentModel, provider: currentProvider } : m
                   ));
                 }
               }
@@ -2138,7 +2138,7 @@ export default function App() {
               accumulatedText = retryText;
               if (messageAdded) {
                 setMessages(prev => prev.map(m =>
-                  m.id === streamMsgId ? { ...m, content: accumulatedText } : m
+                  m.id === streamMsgId ? { ...m, content: accumulatedText, model: currentModel, provider: currentProvider } : m
                 ));
               } else {
                 addLocalMessage('assistant', accumulatedText, { id: streamMsgId });
@@ -2154,7 +2154,7 @@ export default function App() {
       // Finalize — flush last streaming content
       if (messageAdded && accumulatedText) {
         setMessages(prev => prev.map(m => 
-          m.id === streamMsgId ? { ...m, content: accumulatedText } : m
+          m.id === streamMsgId ? { ...m, content: accumulatedText, model: currentModel, provider: currentProvider } : m
         ));
       }
       if (!messageAdded && accumulatedText) {
@@ -4538,6 +4538,11 @@ export default function App() {
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.67rem', transition: 'opacity 0.2s', opacity: isHovered ? 1 : 0 }}>
               {ts}
             </Typography>
+            {!isUser && message.model && (
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.62rem', fontFamily: 'monospace', opacity: isHovered ? 0.8 : 0, transition: 'opacity 0.2s' }}>
+                {message.model}
+              </Typography>
+            )}
             {!isUser && thinking && (
               <Chip
                 label="thinking"
