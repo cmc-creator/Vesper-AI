@@ -490,7 +490,7 @@ async def _auto_extract_memories(user_msg: str, assistant_msg: str, db) -> None:
             if len(fact) > 6 and key not in seen:
                 seen.add(key)
                 try:
-                    db.save_memory(content=fact, category=category, tags=["auto-extracted"])
+                    db.add_memory(content=fact, category=category, tags=["auto-extracted"])
                 except Exception:
                     pass
 
@@ -3298,6 +3298,93 @@ async def auto_title_thread(thread_id: str):
         import traceback
         traceback.print_exc()
         return {"status": "error", "error": str(e)}
+
+
+@app.get("/api/session/briefing")
+async def session_briefing(thread_id: str = ""):
+    """Returns a short briefing about the last session — topic, last message, pending tasks."""
+    try:
+        lines = []
+
+        # Last thread recap
+        if thread_id:
+            try:
+                thread = memory_db.get_thread(thread_id)
+                if thread:
+                    msgs = thread.get("messages", [])
+                    title = thread.get("title", "")
+                    if msgs:
+                        last_user = next((m.get("content", "")[:120] for m in reversed(msgs) if m.get("role") == "user"), "")
+                        if title:
+                            lines.append(f"Last session: **{title}**.")
+                        if last_user:
+                            lines.append(f"You were asking: *\"{last_user}\"*")
+            except Exception:
+                pass
+
+        # Pending tasks
+        try:
+            all_tasks = load_tasks()
+            pending = [t for t in all_tasks if t.get("status") not in ("done", "completed", "archived")][:3]
+            if pending:
+                names = ", ".join(f"*{t.get('title', 'untitled')}*" for t in pending)
+                lines.append(f"You have {len(pending)} open task{'s' if len(pending) > 1 else ''}: {names}.")
+        except Exception:
+            pass
+
+        # Recent memory highlights
+        try:
+            recent_mems = memory_db.get_memories(limit=3)
+            if recent_mems:
+                mem_text = recent_mems[0].get("content", "")[:80]
+                if mem_text:
+                    lines.append(f"I remember: *{mem_text}*")
+        except Exception:
+            pass
+
+        return {"briefing": " ".join(lines) if lines else None}
+    except Exception as e:
+        return {"briefing": None}
+
+
+@app.get("/api/vesper/xp")
+def get_vesper_xp():
+    """Return Vesper's usage XP stats."""
+    try:
+        _xp_file = os.path.join(DATA_DIR, "vesper_xp.json")
+        if os.path.exists(_xp_file):
+            with open(_xp_file, encoding="utf-8") as _f:
+                stats = json.load(_f)
+        else:
+            stats = {"xp": 0, "level": 1, "tool_uses": 0, "messages": 0}
+        return stats
+    except Exception:
+        return {"xp": 0, "level": 1, "tool_uses": 0, "messages": 0}
+
+
+@app.post("/api/vesper/xp/increment")
+def increment_vesper_xp(data: dict = {}):
+    """Add XP for tool use or message."""
+    try:
+        _xp_file = os.path.join(DATA_DIR, "vesper_xp.json")
+        if os.path.exists(_xp_file):
+            with open(_xp_file, encoding="utf-8") as _f:
+                stats = json.load(_f)
+        else:
+            stats = {"xp": 0, "level": 1, "tool_uses": 0, "messages": 0}
+        gain = data.get("gain", 10)
+        kind = data.get("kind", "message")
+        stats["xp"] = stats.get("xp", 0) + gain
+        if kind == "tool":
+            stats["tool_uses"] = stats.get("tool_uses", 0) + 1
+        else:
+            stats["messages"] = stats.get("messages", 0) + 1
+        stats["level"] = max(1, stats["xp"] // 500 + 1)
+        with open(_xp_file, "w", encoding="utf-8") as _f:
+            json.dump(stats, _f, indent=2)
+        return stats
+    except Exception:
+        return {"xp": 0, "level": 1}
 
 
 # --- Smart Memory with Tags (Database-backed) ---

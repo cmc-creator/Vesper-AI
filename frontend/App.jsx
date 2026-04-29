@@ -322,6 +322,41 @@ const NAV = [
 
 const UI_RELEASE = 'LUX-OPS R4 · 2026-04-01';
 
+// ── Proactive nudge map: tool name → suggested next actions ──────────────
+const NUDGE_MAP = {
+  generate_image:      ['Make a variation', 'Add to wallpaper', 'Apply a different style'],
+  web_search:          ['Go deeper on this', 'Save as research note', 'Summarize key points'],
+  search_web:          ['Go deeper on this', 'Save as research note', 'Summarize key points'],
+  create_task:         ['Add subtasks', 'Set a deadline', 'Mark in progress'],
+  write_seo_article:   ['Create social media posts', 'Generate a featured image', 'Push to Creative Suite'],
+  create_song:         ['Generate album art', 'Write a second verse', 'Create a remix concept'],
+  execute_python:      ['Explain this code', 'Test edge cases', 'Optimize it'],
+  vesper_read_file:    ['Edit this file', 'Summarize the key sections', 'Search for related files'],
+  vesper_write_file:   ['Run git diff', 'Commit this change', 'Test the changes'],
+  keyword_research:    ['Generate an article', 'Find competitor content', 'Build a content calendar'],
+  scrape_url:          ['Extract key data', 'Save to research notes', 'Summarize this page'],
+  create_ebook:        ['Generate a cover image', 'Create a landing page', 'Export as PDF'],
+};
+
+// ── Voice personality per theme sound type ─────────────────────────────────
+const SOUND_VOICE_PARAMS = {
+  digital:  { stability: 0.60, similarity_boost: 0.75 },
+  synth:    { stability: 0.42, similarity_boost: 0.62 },
+  ambient:  { stability: 0.72, similarity_boost: 0.80 },
+  dark:     { stability: 0.32, similarity_boost: 0.54 },
+  nature:   { stability: 0.65, similarity_boost: 0.70 },
+  jazz:     { stability: 0.28, similarity_boost: 0.48 },
+  forest:   { stability: 0.68, similarity_boost: 0.72 },
+  ocean:    { stability: 0.70, similarity_boost: 0.76 },
+  wind:     { stability: 0.55, similarity_boost: 0.64 },
+  fire:     { stability: 0.38, similarity_boost: 0.56 },
+  cosmic:   { stability: 0.45, similarity_boost: 0.60 },
+  rain:     { stability: 0.60, similarity_boost: 0.68 },
+  bells:    { stability: 0.55, similarity_boost: 0.70 },
+  retro:    { stability: 0.50, similarity_boost: 0.65 },
+  spooky:   { stability: 0.30, similarity_boost: 0.50 },
+};
+
 // ─── Voice Persona Assigner Component ──────────────────────────────────
 function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview, onSave }) {
   const [personas, setPersonas] = React.useState(null);
@@ -871,6 +906,14 @@ function App() {
     }
   }, [launchMode]);
 
+  // ── Voice personality shifts with theme "sound" type ────────────────────
+  useEffect(() => {
+    const profile = SOUND_VOICE_PARAMS[activeTheme?.sound] || SOUND_VOICE_PARAMS.ambient;
+    setVoiceStability(profile.stability);
+    setVoiceSimilarityBoost(profile.similarity_boost);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTheme?.id]);
+
   // Restore draft input for the current thread
   useEffect(() => {
     const draft = safeStorageGet(`vesper_draft_${currentThreadId || 'new'}`, '');
@@ -897,6 +940,12 @@ function App() {
   const [activeToolLabel, setActiveToolLabel] = useState('');
   const [toolHistory, setToolHistory] = useState([]);
   const previewAudioRef = useRef(null);
+
+  // ── Wow Factors: mood, nudges, briefing, XP ──────────────────────────────
+  const [vesperMood, setVesperMood] = useState('neutral');
+  const [pendingNudges, setPendingNudges] = useState([]);
+  const [sessionBriefing, setSessionBriefing] = useState(null);
+  const [vesperXp, setVesperXp] = useState(() => { try { return JSON.parse(localStorage.getItem('vesper_xp_cache') || '{"xp":0,"level":1}'); } catch { return {xp:0, level:1}; } });
 
   // ── Vesper Autonomy: Daily Identity + Proactive Initiative ─────
   const [vesperIdentity, setVesperIdentity] = useState(null);
@@ -1651,6 +1700,26 @@ export default function App() {
           if (active) setActiveAvatarData(active);
         }
       } catch (e) {}
+
+      // ── Session briefing ──────────────────────────────────────────────────
+      try {
+        const _tid = (() => { try { return localStorage.getItem('vesper_last_thread_id') || ''; } catch { return ''; } })();
+        const briefRes = await fetch(`${apiBase}/api/session/briefing${_tid ? `?thread_id=${_tid}` : ''}`);
+        if (briefRes.ok) {
+          const bd = await briefRes.json();
+          if (bd.briefing) setSessionBriefing(bd.briefing);
+        }
+      } catch (e) { /* briefing is best-effort */ }
+
+      // ── Fetch XP ─────────────────────────────────────────────────────────
+      try {
+        const xpRes = await fetch(`${apiBase}/api/vesper/xp`);
+        if (xpRes.ok) {
+          const xd = await xpRes.json();
+          setVesperXp(xd);
+          try { localStorage.setItem('vesper_xp_cache', JSON.stringify(xd)); } catch (_) {}
+        }
+      } catch (e) { /* xp is best-effort */ }
     };
     loadVesperIdentity();
   }, [apiBase]);
@@ -2023,6 +2092,11 @@ export default function App() {
                   ? { ...t, status: data.success ? 'done' : 'error' }
                   : t
               ));
+              // Proactive nudges — suggest what to do next
+              const _nudges = NUDGE_MAP[data.tool_name];
+              if (_nudges) setPendingNudges(_nudges.slice(0, 3));
+              // Mood: working while a tool runs, happy when it completes
+              setVesperMood(data.success ? 'happy' : 'concerned');
             } else if (data.type === 'provider') {
               currentProvider = data.provider;
               currentModel = data.model;
@@ -2100,6 +2174,15 @@ export default function App() {
             } else if (data.type === 'done') {
               currentProvider = data.provider || currentProvider;
               currentModel = data.model || currentModel;
+              // Mood detection based on response content
+              const _txt = accumulatedText.toLowerCase();
+              const _exclaim = (accumulatedText.match(/!/g) || []).length;
+              if (_exclaim >= 2 || /amazing|wow|incredible|exciting|great news/i.test(_txt)) setVesperMood('excited');
+              else if (/sorry|unfortunately|error|can't|cannot|unable/i.test(_txt)) setVesperMood('concerned');
+              else if (/created|here.*image|here.*chart|generated|here you go/i.test(_txt)) setVesperMood('happy');
+              else if (/i found|searching|here.*results|according to/i.test(_txt)) setVesperMood('searching');
+              else if (accumulatedText.length > 400) setVesperMood('focused' in {} ? 'focused' : 'neutral');
+              else setVesperMood('neutral');
             } else if (data.type === 'error') {
               if (!messageAdded) {
                 addLocalMessage('assistant', data.content || 'Something went wrong.');
@@ -2190,6 +2273,11 @@ export default function App() {
       playSound('notification');
       
       fetchThreads(true); // silent — don't reset scroll position
+      // XP increment — fire and forget
+      try {
+        fetch(`${apiBase}/api/vesper/xp/increment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gain: toolHistory.length > 0 ? 25 : 10, kind: toolHistory.length > 0 ? 'tool' : 'message' }) })
+          .then(r => r.json()).then(xd => { setVesperXp(xd); try { localStorage.setItem('vesper_xp_cache', JSON.stringify(xd)); } catch (_) {} }).catch(() => {});
+      } catch (_) {}
     } catch (error) {
       if (error.name === 'AbortError') {
         console.log('🛑 Generation stopped by user');
@@ -4531,7 +4619,7 @@ export default function App() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: isGrouped ? 0 : 0.75, gap: 1, ...(isGrouped && { display: 'none' }) }}>
-            {!isUser && <AIAvatar thinking={thinking} isSpeaking={isSpeaking} mood={thinking ? 'thinking' : 'neutral'} />}
+            {!isUser && <AIAvatar thinking={thinking} isSpeaking={isSpeaking} mood={thinking ? 'thinking' : vesperMood} />}
             <Typography variant="caption" sx={{ color: isUser ? 'rgba(255,255,255,0.7)' : 'var(--accent)', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.04em' }}>
               {isUser ? 'You' : 'Vesper'}
             </Typography>
@@ -8358,6 +8446,26 @@ export default function App() {
                       How can I help you today?
                     </Typography>
                   )}
+                  {/* Session briefing card */}
+                  {sessionBriefing && (
+                    <Box sx={{ mt: 1.5, px: 2, py: 1.25, borderRadius: '10px', border: '1px solid rgba(var(--accent-rgb), 0.18)', background: 'rgba(var(--accent-rgb), 0.05)', maxWidth: 420, textAlign: 'left' }}>
+                      <Typography sx={{ fontSize: '0.67rem', color: 'var(--accent)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.5, fontFamily: 'monospace' }}>Last session</Typography>
+                      <Typography
+                        sx={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.55 }}
+                        dangerouslySetInnerHTML={{ __html: sessionBriefing.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>') }}
+                      />
+                    </Box>
+                  )}
+                  {/* XP badge */}
+                  {vesperXp.xp > 0 && (
+                    <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>LVL {vesperXp.level}</Typography>
+                      <Box sx={{ width: 80, height: 3, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                        <Box sx={{ height: '100%', borderRadius: 2, bgcolor: 'var(--accent)', width: `${Math.min(100, (vesperXp.xp % 500) / 5)}%`, transition: 'width 0.6s ease' }} />
+                      </Box>
+                      <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace' }}>{vesperXp.xp} XP</Typography>
+                    </Box>
+                  )}
                 </Box>
 
                 {/* Suggested prompts grid */}
@@ -8392,6 +8500,27 @@ export default function App() {
             )}
 
 
+            {/* Proactive nudges — tool-specific next-action suggestions */}
+            {pendingNudges.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 1, mb: 1, overflowX: 'auto', px: 1, alignItems: 'center' }}>
+                <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', flexShrink: 0 }}>next →</span>
+                {pendingNudges.map((n, i) => (
+                  <Chip
+                    key={i}
+                    label={n}
+                    size="small"
+                    onClick={() => { setInput(n); setPendingNudges([]); }}
+                    onDelete={() => setPendingNudges(prev => prev.filter((_, idx) => idx !== i))}
+                    sx={{
+                      bgcolor: 'rgba(var(--accent-rgb), 0.08)',
+                      border: '1px solid rgba(var(--accent-rgb), 0.28)',
+                      color: 'var(--accent)', fontSize: '0.7rem',
+                      '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.18)' },
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
             {/* Proactive Suggestions */}
             {suggestions.length > 0 && (
               <Box sx={{ display: 'flex', gap: 1, mb: 1, overflowX: 'auto', px: 1 }}>
