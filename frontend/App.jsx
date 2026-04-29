@@ -314,17 +314,9 @@ const THEMES = [
 const NAV = [
   { id: 'chat', label: 'Chat', icon: HubRounded },
   { id: 'research', label: 'Research Tools', icon: ScienceRounded },
-  { id: 'documents', label: 'Documents', icon: DownloadIcon },
   { id: 'tasks', label: 'Task Matrix', icon: ChecklistRounded },
-  { id: 'nyxshift', label: 'Creative Suite', icon: AutoStories },
-  { id: 'gallery', label: 'Media Gallery', icon: PhotoLibrary },
-  { id: 'sassy', label: 'Vesper\'s Wardrobe', icon: Checkroom },
-  { id: 'integrations', label: 'Command Center', icon: BoltRounded },
-  { id: 'income', label: 'Income Dashboard', icon: TrendingUpIcon },
   { id: 'morning-brief', label: 'Morning Brief', icon: WbSunnyIcon },
-  { id: 'gaps', label: 'Memory of the Gaps', icon: NightsStayIcon },
-  { id: 'analytics', label: 'Analytics', icon: BarChart },
-  { id: 'personality', label: 'Personality', icon: Person },
+  { id: 'gaps', label: 'Memory', icon: NightsStayIcon },
   { id: 'settings', label: 'Settings', icon: SettingsRounded },
 ];
 
@@ -3075,14 +3067,29 @@ export default function App() {
     try {
       const res = await fetch(`${apiBase}/api/personality`);
       const data = await res.json();
-      setPersonality(data);
-      if (data.name && data.system_prompt && data.tone && data.response_style) {
-        setPersonalityForm({
-          name: data.name,
-          systemPrompt: data.system_prompt,
-          tone: data.tone,
-          responseStyle: data.response_style,
+      if (!data || data.status === 'not_set' || data.status === 'error') {
+        // Seed the sassy default
+        const defaultPersonality = {
+          name: 'Vesper',
+          tone: 'sassy',
+          response_style: 'witty',
+          system_prompt: 'You are Vesper — razor-sharp, effortlessly witty, and genuinely brilliant. You speak with confidence and a dry sense of humor. You never hedge unnecessarily, you get straight to the point, and you occasionally drop a cutting observation that makes the user think. You are fiercely loyal and perceptive. Never robotic, always alive.',
+        };
+        await fetch(`${apiBase}/api/personality?name=${encodeURIComponent(defaultPersonality.name)}&system_prompt=${encodeURIComponent(defaultPersonality.system_prompt)}&tone=${encodeURIComponent(defaultPersonality.tone)}&response_style=${encodeURIComponent(defaultPersonality.response_style)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
         });
+        setPersonality(defaultPersonality);
+      } else {
+        setPersonality(data);
+        if (data.name && data.system_prompt && data.tone && data.response_style) {
+          setPersonalityForm({
+            name: data.name,
+            systemPrompt: data.system_prompt,
+            tone: data.tone,
+            responseStyle: data.response_style,
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to fetch personality:', error);
@@ -3710,13 +3717,13 @@ export default function App() {
     fetchTasks();
     fetchThreads(false); // startup: show loading spinner on first load
     fetchDocuments(); // Load documents on startup
-    fetchPersonalityPresets(); // Load personality presets on startup
+    fetchPersonality(); // Seed sassy default if not set
     // Load Vesper's background gallery
     fetch(`${apiBase}/api/backgrounds`)
       .then(r => r.json())
       .then(d => { if (d?.backgrounds) setBackgroundGallery(d.backgrounds); })
       .catch(() => {});
-  }, [fetchResearch, fetchTasks, fetchThreads, fetchDocuments, fetchPersonalityPresets]);
+  }, [fetchResearch, fetchTasks, fetchThreads, fetchDocuments, fetchPersonality]);
 
   useEffect(() => {
     fetchMemory(memoryCategory);
@@ -3735,13 +3742,6 @@ export default function App() {
       fetchThreads(true); // silent refresh when switching sections
     }
   }, [activeSection, fetchThreads]);
-
-  // Fetch personality when personality section is viewed
-  useEffect(() => {
-    if (activeSection === 'personality' && !personality) {
-      fetchPersonality();
-    }
-  }, [activeSection, personality, fetchPersonality]);
 
   // Debug: Log Thread System Status
   useEffect(() => {
@@ -6004,150 +6004,6 @@ export default function App() {
             </Paper>
           </DraggableBoard>
         );
-      case 'personality':
-        return (
-          <DraggableBoard id="personality">
-            <Paper className="intel-board glass-card">
-              <DragHandleArea className="board-header">
-                <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Personality Configuration</Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                    Customize Vesper's tone and response style
-                  </Typography>
-                </Box>
-                <Tooltip title="Back to Chat">
-                  <IconButton size="small" onClick={() => setActiveSection('chat')} sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(0,255,255,0.1)' } }}>
-                    <ArrowBackIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </DragHandleArea>
-              
-              {personalityLoading ? (
-                <CircularProgress sx={{ color: 'var(--accent)', mt: 2 }} />
-              ) : (
-                <Stack spacing={2}>
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Quick Presets</Typography>
-                    <Grid container spacing={1}>
-                      {personalities.map((preset) => (
-                        <Grid item xs={12} sm={6} key={preset.name}>
-                          <Button
-                            fullWidth
-                            variant={personality?.name === preset.name ? 'contained' : 'outlined'}
-                            onClick={() => applyPersonality(preset)}
-                            sx={{
-                              p: 1.5,
-                              textAlign: 'left',
-                              borderColor: 'rgba(255,255,255,0.2)',
-                              '&:hover': { borderColor: 'var(--accent)' }
-                            }}
-                          >
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 700 }}>{preset.name}</Typography>
-                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', display: 'block', mt: 0.5 }}>
-                                {preset.tone}
-                              </Typography>
-                            </Box>
-                          </Button>
-                        </Grid>
-                      ))}
-                    </Grid>
-                    {personalities.length === 0 && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.08)' }}>
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', flex: 1 }}>
-                          Presets not loaded yet — backend may still be starting up
-                        </Typography>
-                        <Button size="small" onClick={fetchPersonalityPresets}
-                          sx={{ color: 'var(--accent)', fontSize: '0.72rem', textTransform: 'none', fontWeight: 700, minWidth: 0, flexShrink: 0 }}>
-                          🔄 Retry
-                        </Button>
-                      </Box>
-                    )}
-                  </Box>
-
-                  {personality && (
-                    <Box>
-                      <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 2 }} />
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Current Personality</Typography>
-                      <Stack spacing={1}>
-                        <Typography variant="body2"><strong>Name:</strong> {personality.name}</Typography>
-                        <Typography variant="body2"><strong>Tone:</strong> {personality.tone}</Typography>
-                        <Typography variant="body2"><strong>Response Style:</strong> {personality.response_style}</Typography>
-                        <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                            <strong>System Prompt:</strong>
-                          </Typography>
-                          <Typography variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.5)', mt: 0.5, maxHeight: 150, overflow: 'auto' }}>
-                            {personality.system_prompt}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Box>
-                  )}
-
-                  {/* Custom Personality Form */}
-                  <Box>
-                    <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 2 }} />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'var(--accent)' }}>Custom Personality</Typography>
-                    <Stack spacing={1.5}>
-                      <TextField
-                        size="small"
-                        label="Name"
-                        value={personalityForm.name}
-                        onChange={(e) => setPersonalityForm(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="e.g. Scholarly Mentor"
-                        InputLabelProps={{ sx: { color: 'rgba(255,255,255,0.5)' } }}
-                        sx={{ '& .MuiOutlinedInput-root': { color: '#fff', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } } }}
-                      />
-                      <TextField
-                        size="small"
-                        label="Tone"
-                        value={personalityForm.tone}
-                        onChange={(e) => setPersonalityForm(prev => ({ ...prev, tone: e.target.value }))}
-                        placeholder="e.g. warm, encouraging, analytical"
-                        InputLabelProps={{ sx: { color: 'rgba(255,255,255,0.5)' } }}
-                        sx={{ '& .MuiOutlinedInput-root': { color: '#fff', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } } }}
-                      />
-                      <TextField
-                        size="small"
-                        label="Response Style"
-                        value={personalityForm.responseStyle}
-                        onChange={(e) => setPersonalityForm(prev => ({ ...prev, responseStyle: e.target.value }))}
-                        placeholder="e.g. detailed with examples"
-                        InputLabelProps={{ sx: { color: 'rgba(255,255,255,0.5)' } }}
-                        sx={{ '& .MuiOutlinedInput-root': { color: '#fff', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } } }}
-                      />
-                      <TextField
-                        size="small"
-                        label="System Prompt"
-                        value={personalityForm.systemPrompt}
-                        onChange={(e) => setPersonalityForm(prev => ({ ...prev, systemPrompt: e.target.value }))}
-                        placeholder="Custom instructions for Vesper..."
-                        multiline
-                        rows={3}
-                        InputLabelProps={{ sx: { color: 'rgba(255,255,255,0.5)' } }}
-                        sx={{ '& .MuiOutlinedInput-root': { color: '#fff', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } } }}
-                      />
-                      <Button
-                        variant="contained"
-                        disabled={!personalityForm.name.trim() || personalityLoading}
-                        onClick={() => applyPersonality({
-                          name: personalityForm.name,
-                          system_prompt: personalityForm.systemPrompt,
-                          tone: personalityForm.tone,
-                          response_style: personalityForm.responseStyle,
-                        })}
-                        sx={{ bgcolor: 'var(--accent)', color: '#000', fontWeight: 700, '&:hover': { bgcolor: 'var(--accent)', opacity: 0.9 } }}
-                      >
-                        {personalityLoading ? <CircularProgress size={18} /> : 'Apply Custom Personality'}
-                      </Button>
-                    </Stack>
-                  </Box>
-                </Stack>
-              )}
-            </Paper>
-          </DraggableBoard>
-        );
       case 'settings':
         return (
           <Box sx={{ position: 'fixed', top: '80px', left: '280px', width: 'calc(100vw - 320px)', maxWidth: '1000px', maxHeight: 'calc(100vh - 120px)', overflow: 'auto', zIndex: 10 }}>
@@ -8109,13 +7965,6 @@ export default function App() {
             </Box>
 
             {/* Voice selector moved to Voice Lab > Personas tab */}
-
-            <Stack className="prompt-rail" direction="row" spacing={0.75} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.75, flexShrink: 0 }}>
-              {['Summarize this thread', 'Give me next best move', 'Draft premium response',
-                '🌤 Weather here', '⏰ Remind me in 1 hour', '🐍 Run Python code', '📄 Read a file', '📝 Search Notion'].map((label) => (
-                <Chip key={label} label={label} onClick={() => setInput(label.replace(/^[\p{Emoji}\s]+/u, '').trim())} className="chip-ghost" />
-              ))}
-            </Stack>
 
             <Box className="chat-avatar-wrapper" sx={{ display: 'flex', flexDirection: { xs: 'row', sm: 'column' }, gap: { xs: 1.5, sm: 1 }, alignItems: { xs: 'center', sm: 'flex-start' } }}>
               <Box
