@@ -78,11 +78,10 @@ import {
   StarRounded,
   StarBorder as StarBorderIcon,
   ManageSearch as ManageSearchIcon,
-  AutoMode as AutoModeIcon,
-  PlayCircle as PlayCircleIcon,
-  CheckCircle as CheckCircleIcon,
-  ErrorOutline as ErrorOutlineIcon,
-  Schedule as ScheduleIcon,
+  AutoAwesome as AutoAwesomeIcon,
+  Autorenew as AutorenewIcon,
+  Bookmark as BookmarkIcon,
+  BookmarkBorder as BookmarkBorderIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -141,248 +140,6 @@ import SetupWizard from './src/components/SetupWizard';
 import './App.css';
 import './src/enhancements.css';
 
-// ─── AutopilotPanel — standalone component so it has clean hooks scope ────────
-function AutopilotPanel({ apiBase, onBack, jobs, setJobs, log, setLog, loading, setLoading, running, setRunning, niches, setNiches, accentColor, setToast }) {
-  const accent = accentColor || '#00ffff';
-
-  const fetchJobs = React.useCallback(async () => {
-    try {
-      const [jr, lr] = await Promise.all([
-        fetch(`${apiBase}/api/autopilot/jobs`),
-        fetch(`${apiBase}/api/autopilot/log?limit=20`),
-      ]);
-      if (jr.ok) { const d = await jr.json(); setJobs(d.jobs || []); }
-      if (lr.ok) { const d = await lr.json(); setLog(d.log || []); }
-    } catch (e) { /* network failure */ }
-  }, [apiBase, setJobs, setLog]);
-
-  React.useEffect(() => { fetchJobs(); }, [fetchJobs]);
-
-  const toggleJob = async (job) => {
-    const updated = { enabled: !job.enabled };
-    try {
-      const r = await fetch(`${apiBase}/api/autopilot/jobs/${job.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated),
-      });
-      if (r.ok) { await fetchJobs(); setToast({ open: true, message: job.enabled ? `${job.name} paused` : `${job.name} enabled — runs on schedule`, severity: 'success' }); }
-    } catch (e) { setToast({ open: true, message: 'Failed to update job', severity: 'error' }); }
-  };
-
-  const saveNiche = async (job) => {
-    const niche = (niches[job.id] ?? job.niche) || '';
-    try {
-      const r = await fetch(`${apiBase}/api/autopilot/jobs/${job.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ niche }),
-      });
-      if (r.ok) { await fetchJobs(); setToast({ open: true, message: 'Niche saved', severity: 'success' }); }
-    } catch (e) {}
-  };
-
-  const runNow = async (job) => {
-    setRunning(prev => ({ ...prev, [job.id]: true }));
-    setToast({ open: true, message: `▶ ${job.name} started in background…`, severity: 'info' });
-    try {
-      await fetch(`${apiBase}/api/autopilot/run-now/${job.id}`, { method: 'POST' });
-      // Poll for completion: check log for new entry
-      let polls = 0;
-      const check = setInterval(async () => {
-        polls++;
-        if (polls > 60) { clearInterval(check); setRunning(prev => ({ ...prev, [job.id]: false })); return; }
-        await fetchJobs();
-        const updatedJobs = await fetch(`${apiBase}/api/autopilot/jobs`).then(r => r.json()).catch(() => null);
-        if (updatedJobs) {
-          const j = (updatedJobs.jobs || []).find(x => x.id === job.id);
-          if (j && j.last_run) {
-            clearInterval(check);
-            setRunning(prev => ({ ...prev, [job.id]: false }));
-            await fetchJobs();
-            const st = j.last_status === 'ok' ? 'success' : 'warning';
-            setToast({ open: true, message: `${job.name}: ${j.last_output || 'Done'}`, severity: st });
-          }
-        }
-      }, 3000);
-    } catch (e) {
-      setRunning(prev => ({ ...prev, [job.id]: false }));
-    }
-  };
-
-  const JOB_ICONS = { weekly_pipeline: '🏭', daily_article: '✍️', weekly_keywords: '🔑', social_drip: '📲' };
-
-  return (
-    <Box sx={{ height: '100%', overflowY: 'auto', p: { xs: 2, md: 3 }, maxWidth: 860, mx: 'auto' }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-        <IconButton onClick={onBack} size="small" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-          <ArrowBackIcon fontSize="small" />
-        </IconButton>
-        <AutoModeIcon sx={{ color: accent, fontSize: '1.4rem' }} />
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
-            Autopilot
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-            Vesper works while you sleep
-          </Typography>
-        </Box>
-        <Box sx={{ ml: 'auto' }}>
-          <Chip
-            label={jobs.filter(j => j.enabled).length + ' active'}
-            size="small"
-            sx={{ bgcolor: jobs.some(j => j.enabled) ? 'rgba(107,203,119,0.15)' : 'rgba(255,255,255,0.06)', color: jobs.some(j => j.enabled) ? '#6bcb77' : 'rgba(255,255,255,0.4)', fontWeight: 700, fontSize: '0.65rem' }}
-          />
-        </Box>
-      </Box>
-
-      {/* Job cards */}
-      <Stack spacing={1.5} sx={{ mb: 3 }}>
-        {jobs.map((job) => {
-          const isRunning = running[job.id];
-          const icon = JOB_ICONS[job.type] || '⚙️';
-          const currentNiche = niches[job.id] ?? job.niche ?? '';
-          return (
-            <Paper key={job.id} elevation={0} sx={{
-              p: 2.5,
-              border: `1px solid ${job.enabled ? `${accent}40` : 'rgba(255,255,255,0.07)'}`,
-              borderRadius: 2,
-              bgcolor: job.enabled ? `${accent}08` : 'rgba(255,255,255,0.02)',
-              transition: 'border-color 0.2s',
-            }}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                <Typography sx={{ fontSize: '1.5rem', lineHeight: 1, mt: 0.2 }}>{icon}</Typography>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.4 }}>
-                    <Typography variant="body1" sx={{ fontWeight: 700, color: '#fff', fontSize: '0.95rem' }}>
-                      {job.name}
-                    </Typography>
-                    {job.enabled && (
-                      <Chip label="ON" size="small" sx={{ height: 16, fontSize: '0.55rem', bgcolor: `${accent}30`, color: accent, fontWeight: 800 }} />
-                    )}
-                  </Box>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
-                    {job.description}
-                  </Typography>
-
-                  {/* Niche input */}
-                  {job.niche !== undefined && (
-                    <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'center' }}>
-                      <TextField
-                        size="small"
-                        placeholder="Your niche (e.g. AI productivity, Etsy sellers)"
-                        value={currentNiche}
-                        onChange={e => setNiches(prev => ({ ...prev, [job.id]: e.target.value }))}
-                        sx={{
-                          flex: 1,
-                          '& .MuiInputBase-root': { fontSize: '0.75rem', bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1 },
-                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' },
-                          '& input': { color: '#fff', py: 0.8 },
-                        }}
-                      />
-                      <Button size="small" onClick={() => saveNiche(job)} sx={{ color: accent, fontSize: '0.7rem', textTransform: 'none', minWidth: 0, px: 1.5 }}>
-                        Save
-                      </Button>
-                    </Box>
-                  )}
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <ScheduleIcon sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }} />
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.65rem' }}>
-                        {job.schedule_label || 'Scheduled'}
-                      </Typography>
-                    </Box>
-
-                    {job.last_run && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        {job.last_status === 'ok'
-                          ? <CheckCircleIcon sx={{ fontSize: '0.75rem', color: '#6bcb77' }} />
-                          : <ErrorOutlineIcon sx={{ fontSize: '0.75rem', color: '#ff6b6b' }} />}
-                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem' }}>
-                          Last: {new Date(job.last_run).toLocaleDateString()} — {job.last_output?.slice(0, 60) || ''}
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-                </Box>
-
-                {/* Controls */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, flexShrink: 0 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={!!job.enabled}
-                        onChange={() => toggleJob(job)}
-                        size="small"
-                        sx={{
-                          '& .MuiSwitch-track': { bgcolor: job.enabled ? `${accent}60` : 'rgba(255,255,255,0.1)' },
-                          '& .Mui-checked .MuiSwitch-thumb': { bgcolor: accent },
-                        }}
-                      />
-                    }
-                    label=""
-                    sx={{ m: 0 }}
-                  />
-                  <Tooltip title="Run now (single run in background)" placement="left">
-                    <span>
-                      <IconButton
-                        size="small"
-                        disabled={isRunning}
-                        onClick={() => runNow(job)}
-                        sx={{ color: isRunning ? 'rgba(255,255,255,0.2)' : accent, border: `1px solid ${isRunning ? 'rgba(255,255,255,0.1)' : `${accent}40`}`, borderRadius: 1, p: 0.5 }}
-                      >
-                        {isRunning
-                          ? <CircularProgress size={14} sx={{ color: accent }} />
-                          : <PlayCircleIcon sx={{ fontSize: '1rem' }} />}
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </Box>
-              </Box>
-            </Paper>
-          );
-        })}
-      </Stack>
-
-      {/* Activity log */}
-      <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', letterSpacing: '0.15em', mb: 1, display: 'block' }}>
-        Activity Log
-      </Typography>
-      {log.length === 0 ? (
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>
-          No jobs have run yet. Enable a job or hit Run Now to start.
-        </Typography>
-      ) : (
-        <Stack spacing={0.5}>
-          {log.slice(0, 15).map((entry, i) => (
-            <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.2, borderRadius: 1.5, bgcolor: entry.success ? 'rgba(107,203,119,0.05)' : 'rgba(255,107,107,0.05)', border: `1px solid ${entry.success ? 'rgba(107,203,119,0.12)' : 'rgba(255,107,107,0.12)'}` }}>
-              <Typography sx={{ fontSize: '0.8rem', lineHeight: 1.4, flexShrink: 0 }}>
-                {entry.success ? '✓' : '✗'}
-              </Typography>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <Typography variant="caption" sx={{ fontWeight: 700, color: entry.success ? '#6bcb77' : '#ff6b6b', fontSize: '0.7rem' }}>
-                    {entry.job_name}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.65rem' }}>
-                    {entry.ended ? new Date(entry.ended).toLocaleString() : ''}
-                  </Typography>
-                </Box>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {entry.output}
-                </Typography>
-              </Box>
-            </Box>
-          ))}
-        </Stack>
-      )}
-    </Box>
-  );
-}
-
-
 const baseTheme = createTheme({
   palette: {
     mode: 'dark',
@@ -398,14 +155,6 @@ const SECTION_QUICK_STARTS = {
     'Break my current project into actionable tasks',
     'What should I prioritize today?',
     'Create a sprint plan for this week',
-  ],
-  income: [
-    'Plan my income streams for this month',
-    'Find profitable keywords in my niche',
-    'Write an SEO article about [topic]',
-    'Create a 30-day content calendar',
-    'Generate 5 digital product ideas for my audience',
-    'Analyze my income gap and suggest fixes',
   ],
   research: [
     'Research the latest trends in AI',
@@ -567,63 +316,17 @@ const THEMES = [
 ];
 
 const NAV = [
-  { id: 'chat',         label: 'Chat',           icon: HubRounded      },
-  { id: 'income',       label: 'Money Ops',      icon: TrendingUpIcon  },
-  { id: 'autopilot',    label: 'Autopilot',      icon: AutoModeIcon    },
-  { id: 'tasks',        label: 'Task Matrix',    icon: ChecklistRounded },
-  { id: 'research',     label: 'Research Tools', icon: ScienceRounded  },
-  { id: 'morning-brief',label: 'Morning Brief',  icon: WbSunnyIcon     },
-  { id: 'gaps',         label: 'Memory',         icon: NightsStayIcon  },
-  { id: 'settings',     label: 'Settings',       icon: SettingsRounded },
+  { id: 'chat', label: 'Chat', icon: HubRounded },
+  { id: 'research', label: 'Research Tools', icon: ScienceRounded },
+  { id: 'tasks', label: 'Task Matrix', icon: ChecklistRounded },
+  { id: 'morning-brief', label: 'Morning Brief', icon: WbSunnyIcon },
+  { id: 'sparks', label: 'Sparks', icon: AutoAwesomeIcon },
+  { id: 'vault', label: 'The Vault', icon: BookmarkIcon },
+  { id: 'gaps', label: 'Memory', icon: NightsStayIcon },
+  { id: 'settings', label: 'Settings', icon: SettingsRounded },
 ];
 
 const UI_RELEASE = 'LUX-OPS R4 · 2026-04-01';
-
-// ── Proactive nudge map: tool name → suggested next actions ──────────────
-const NUDGE_MAP = {
-  // Creative / income tools
-  generate_image:        ['Make a variation', 'Add to wallpaper', 'Build a product listing'],
-  write_seo_article:     ['Generate social posts', 'Publish to Medium', 'Repurpose to email'],
-  create_ebook:          ['Generate a cover image', 'Create a sales page', 'Publish on Gumroad'],
-  keyword_research:      ['Write the article now', 'Build a content calendar', 'Find affiliate angles'],
-  plan_income_stream:    ['Build the top stream now', 'Create a content calendar', 'Set a revenue goal'],
-  create_content_calendar:['Write the first article', 'Schedule to social', 'Save to Creative Suite'],
-  create_email_sequence: ['Set up the automation', 'Write a lead magnet', 'Add a Gumroad product'],
-  affiliate_research:    ['Write affiliate content', 'Build a review article', 'Find related keywords'],
-  product_idea_generator:['Build the top product', 'Create a sales page', 'Research the market'],
-  write_sales_page:      ['Generate product images', 'Build an email sequence', 'Publish on Gumroad'],
-  income_gap_analyzer:   ['Fix the biggest gap', 'Create a new income stream', 'Set a 30-day goal'],
-  create_landing_page:   ['Connect to Gumroad', 'Write a launch email', 'Build social posts'],
-  create_course_outline: ['Write the first module', 'Build a landing page', 'Set a launch date'],
-  // General tools
-  web_search:            ['Go deeper on this', 'Save as research note', 'Summarize key points'],
-  search_web:            ['Go deeper on this', 'Save as research note', 'Summarize key points'],
-  create_task:           ['Add subtasks', 'Set a deadline', 'Mark in progress'],
-  create_song:           ['Generate album art', 'Push to Creative Suite', 'Write a second verse'],
-  execute_python:        ['Explain this code', 'Test edge cases', 'Optimize it'],
-  vesper_read_file:      ['Edit this file', 'Summarize the key sections', 'Search for related files'],
-  vesper_write_file:     ['Run git diff', 'Commit this change', 'Test the changes'],
-  scrape_url:            ['Extract key data', 'Save to research notes', 'Find competitor data'],
-};
-
-// ── Voice personality per theme sound type ─────────────────────────────────
-const SOUND_VOICE_PARAMS = {
-  digital:  { stability: 0.60, similarity_boost: 0.75 },
-  synth:    { stability: 0.42, similarity_boost: 0.62 },
-  ambient:  { stability: 0.72, similarity_boost: 0.80 },
-  dark:     { stability: 0.32, similarity_boost: 0.54 },
-  nature:   { stability: 0.65, similarity_boost: 0.70 },
-  jazz:     { stability: 0.28, similarity_boost: 0.48 },
-  forest:   { stability: 0.68, similarity_boost: 0.72 },
-  ocean:    { stability: 0.70, similarity_boost: 0.76 },
-  wind:     { stability: 0.55, similarity_boost: 0.64 },
-  fire:     { stability: 0.38, similarity_boost: 0.56 },
-  cosmic:   { stability: 0.45, similarity_boost: 0.60 },
-  rain:     { stability: 0.60, similarity_boost: 0.68 },
-  bells:    { stability: 0.55, similarity_boost: 0.70 },
-  retro:    { stability: 0.50, similarity_boost: 0.65 },
-  spooky:   { stability: 0.30, similarity_boost: 0.50 },
-};
 
 // ─── Voice Persona Assigner Component ──────────────────────────────────
 function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview, onSave }) {
@@ -1107,6 +810,15 @@ function App() {
   const [starredMsgs, setStarredMsgs] = useState(() => {
     try { return JSON.parse(localStorage.getItem('vesper_starred_msgs') || '[]'); } catch { return []; }
   });
+  // The Vault - pinned AI responses
+  const [vaultItems, setVaultItems] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('vesper_vault') || '[]'); } catch { return []; }
+  });
+  // Sparks feature
+  const [sparks, setSparks] = useState([]);
+  const [sparksLoading, setSparksLoading] = useState(false);
+  // Vesper Reacts mood chip
+  const [vesperMood, setVesperMood] = useState(null);
   const [starredPanelOpen, setStarredPanelOpen] = useState(false);
   // Global cross-thread search
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
@@ -1174,14 +886,6 @@ function App() {
     }
   }, [launchMode]);
 
-  // ── Voice personality shifts with theme "sound" type ────────────────────
-  useEffect(() => {
-    const profile = SOUND_VOICE_PARAMS[activeTheme?.sound] || SOUND_VOICE_PARAMS.ambient;
-    setVoiceStability(profile.stability);
-    setVoiceSimilarityBoost(profile.similarity_boost);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTheme?.id]);
-
   // Restore draft input for the current thread
   useEffect(() => {
     const draft = safeStorageGet(`vesper_draft_${currentThreadId || 'new'}`, '');
@@ -1208,20 +912,6 @@ function App() {
   const [activeToolLabel, setActiveToolLabel] = useState('');
   const [toolHistory, setToolHistory] = useState([]);
   const previewAudioRef = useRef(null);
-
-  // ── Wow Factors: mood, nudges, briefing, XP ──────────────────────────────
-  const [vesperMood, setVesperMood] = useState('neutral');
-  const [pendingNudges, setPendingNudges] = useState([]);
-  const [sessionBriefing, setSessionBriefing] = useState(null);
-  const [vesperXp, setVesperXp] = useState(() => { try { return JSON.parse(localStorage.getItem('vesper_xp_cache') || '{"xp":0,"level":1}'); } catch { return {xp:0, level:1}; } });
-  const [incomeStats, setIncomeStats] = useState(() => { try { return JSON.parse(localStorage.getItem('vesper_income_cache') || 'null'); } catch { return null; } });
-
-  // ── Autopilot state ──────────────────────────────────────────────────────
-  const [autopilotJobs, setAutopilotJobs] = useState([]);
-  const [autopilotLog, setAutopilotLog] = useState([]);
-  const [autopilotLoading, setAutopilotLoading] = useState(false);
-  const [autopilotRunning, setAutopilotRunning] = useState({}); // { job_id: true }
-  const [autopilotNiches, setAutopilotNiches] = useState({}); // { job_id: niche string }
 
   // ── Vesper Autonomy: Daily Identity + Proactive Initiative ─────
   const [vesperIdentity, setVesperIdentity] = useState(null);
@@ -1976,36 +1666,6 @@ export default function App() {
           if (active) setActiveAvatarData(active);
         }
       } catch (e) {}
-
-      // ── Session briefing ──────────────────────────────────────────────────
-      try {
-        const _tid = (() => { try { return localStorage.getItem('vesper_last_thread_id') || ''; } catch { return ''; } })();
-        const briefRes = await fetch(`${apiBase}/api/session/briefing${_tid ? `?thread_id=${_tid}` : ''}`);
-        if (briefRes.ok) {
-          const bd = await briefRes.json();
-          if (bd.briefing) setSessionBriefing(bd.briefing);
-        }
-      } catch (e) { /* briefing is best-effort */ }
-
-      // ── Fetch XP ─────────────────────────────────────────────────────────
-      try {
-        const xpRes = await fetch(`${apiBase}/api/vesper/xp`);
-        if (xpRes.ok) {
-          const xd = await xpRes.json();
-          setVesperXp(xd);
-          try { localStorage.setItem('vesper_xp_cache', JSON.stringify(xd)); } catch (_) {}
-        }
-      } catch (e) { /* xp is best-effort */ }
-
-      // ── Fetch income summary ──────────────────────────────────────────────
-      try {
-        const isRes = await fetch(`${apiBase}/api/income/summary`);
-        if (isRes.ok) {
-          const isd = await isRes.json();
-          setIncomeStats(isd);
-          try { localStorage.setItem('vesper_income_cache', JSON.stringify(isd)); } catch (_) {}
-        }
-      } catch (e) { /* income summary is best-effort */ }
     };
     loadVesperIdentity();
   }, [apiBase]);
@@ -2378,11 +2038,6 @@ export default function App() {
                   ? { ...t, status: data.success ? 'done' : 'error' }
                   : t
               ));
-              // Proactive nudges — suggest what to do next
-              const _nudges = NUDGE_MAP[data.tool_name];
-              if (_nudges) setPendingNudges(_nudges.slice(0, 3));
-              // Mood: working while a tool runs, happy when it completes
-              setVesperMood(data.success ? 'happy' : 'concerned');
             } else if (data.type === 'provider') {
               currentProvider = data.provider;
               currentModel = data.model;
@@ -2401,7 +2056,7 @@ export default function App() {
                 if (now - lastStreamUpdate >= STREAM_THROTTLE) {
                   lastStreamUpdate = now;
                   setMessages(prev => prev.map(m => 
-                    m.id === streamMsgId ? { ...m, content: accumulatedText, model: currentModel, provider: currentProvider } : m
+                    m.id === streamMsgId ? { ...m, content: accumulatedText } : m
                   ));
                 }
               }
@@ -2460,15 +2115,6 @@ export default function App() {
             } else if (data.type === 'done') {
               currentProvider = data.provider || currentProvider;
               currentModel = data.model || currentModel;
-              // Mood detection based on response content
-              const _txt = accumulatedText.toLowerCase();
-              const _exclaim = (accumulatedText.match(/!/g) || []).length;
-              if (_exclaim >= 2 || /amazing|wow|incredible|exciting|great news/i.test(_txt)) setVesperMood('excited');
-              else if (/sorry|unfortunately|error|can't|cannot|unable/i.test(_txt)) setVesperMood('concerned');
-              else if (/created|here.*image|here.*chart|generated|here you go/i.test(_txt)) setVesperMood('happy');
-              else if (/i found|searching|here.*results|according to/i.test(_txt)) setVesperMood('searching');
-              else if (accumulatedText.length > 400) setVesperMood('focused' in {} ? 'focused' : 'neutral');
-              else setVesperMood('neutral');
             } else if (data.type === 'error') {
               if (!messageAdded) {
                 addLocalMessage('assistant', data.content || 'Something went wrong.');
@@ -2507,7 +2153,7 @@ export default function App() {
               accumulatedText = retryText;
               if (messageAdded) {
                 setMessages(prev => prev.map(m =>
-                  m.id === streamMsgId ? { ...m, content: accumulatedText, model: currentModel, provider: currentProvider } : m
+                  m.id === streamMsgId ? { ...m, content: accumulatedText } : m
                 ));
               } else {
                 addLocalMessage('assistant', accumulatedText, { id: streamMsgId });
@@ -2523,7 +2169,7 @@ export default function App() {
       // Finalize — flush last streaming content
       if (messageAdded && accumulatedText) {
         setMessages(prev => prev.map(m => 
-          m.id === streamMsgId ? { ...m, content: accumulatedText, model: currentModel, provider: currentProvider } : m
+          m.id === streamMsgId ? { ...m, content: accumulatedText } : m
         ));
       }
       if (!messageAdded && accumulatedText) {
@@ -2559,11 +2205,6 @@ export default function App() {
       playSound('notification');
       
       fetchThreads(true); // silent — don't reset scroll position
-      // XP increment — fire and forget
-      try {
-        fetch(`${apiBase}/api/vesper/xp/increment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gain: toolHistory.length > 0 ? 25 : 10, kind: toolHistory.length > 0 ? 'tool' : 'message' }) })
-          .then(r => r.json()).then(xd => { setVesperXp(xd); try { localStorage.setItem('vesper_xp_cache', JSON.stringify(xd)); } catch (_) {} }).catch(() => {});
-      } catch (_) {}
     } catch (error) {
       if (error.name === 'AbortError') {
         console.log('🛑 Generation stopped by user');
@@ -3767,6 +3408,89 @@ export default function App() {
     });
   };
 
+  // Add or remove message from The Vault
+  const toggleVaultItem = (message) => {
+    const itemId = message.id;
+    setVaultItems(prev => {
+      const exists = prev.find(v => v.id === itemId);
+      const next = exists
+        ? prev.filter(v => v.id !== itemId)
+        : [{
+            id: itemId,
+            content: (message.content || '').slice(0, 2000),
+            timestamp: message.timestamp || Date.now(),
+            threadTitle: currentThreadTitle || 'Untitled',
+            threadId: currentThreadId,
+          }, ...prev];
+      try { localStorage.setItem('vesper_vault', JSON.stringify(next)); } catch(_) {}
+      setTimeout(() => setToast(exists ? '🗄 Removed from Vault' : '🗄 Saved to The Vault'), 0);
+      return next;
+    });
+  };
+
+  // Mood options map for Vesper Reacts chip
+  const MOOD_MAP = {
+    chaotic:    { emoji: '⚡', color: '#ff4444', label: 'Chaotic Energy' },
+    chill:      { emoji: '🌊', color: '#44bbff', label: 'Chill Vibes' },
+    intense:    { emoji: '🔥', color: '#ff8800', label: 'Intense Focus' },
+    playful:    { emoji: '😈', color: '#cc44ff', label: 'Playful' },
+    mysterious: { emoji: '🌙', color: '#6644cc', label: 'Mysterious' },
+    savage:     { emoji: '🗡️', color: '#ff0044', label: 'Zero Filter' },
+    fierce:     { emoji: '💪', color: '#ff2266', label: 'Fierce' },
+    dreamy:     { emoji: '✨', color: '#88aaff', label: 'Dreamy' },
+    liminal:    { emoji: '🌫️', color: '#aaaacc', label: 'Liminal' },
+    focused:    { emoji: '🎯', color: '#00ccff', label: 'Focused' },
+    sardonic:   { emoji: '😏', color: '#cc8800', label: 'Sardonic' },
+  };
+
+  // Fetch Vesper's current mood from backend
+  const fetchVesperMood = useCallback(async () => {
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase}/api/vesper/mood`);
+      const data = await res.json();
+      if (data && data.mood) {
+        const meta = MOOD_MAP[data.mood] || { emoji: '⚡', color: 'var(--accent)', label: data.mood };
+        setVesperMood({ ...data, ...meta });
+      }
+    } catch(_) {}
+  }, [apiBase]);
+
+  // Fetch Sparks from recent threads + AI
+  const fetchSparks = useCallback(async () => {
+    if (!apiBase) return;
+    setSparksLoading(true);
+    setSparks([]);
+    try {
+      let threadTitles = '';
+      try {
+        const tres = await fetch(`${apiBase}/api/threads`);
+        const tdata = await tres.json();
+        const threads = tdata.threads || tdata || [];
+        threadTitles = threads.slice(0, 12).map(t => t.title).filter(Boolean).join('\n');
+      } catch(_) {}
+      const prompt = threadTitles
+        ? `Here are some recent conversation topics:\n${threadTitles}\n\nGenerate exactly 3 sharp, thought-provoking sparks based on these themes. A spark is a 1-2 sentence observation, reframe, or question that could ignite a new line of thinking. Be incisive and surprising. Reply ONLY with a JSON array: [{"spark": "...", "tag": "category"}]`
+        : `Generate exactly 3 sharp, thought-provoking sparks — a 1-2 sentence observation, reframe, or question that could ignite a new line of thinking. Be incisive and surprising. Reply ONLY with a JSON array: [{"spark": "...", "tag": "category"}]`;
+      const cres = await fetch(`${apiBase}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: prompt }),
+      });
+      const cdata = await cres.json();
+      const text = cdata.response || cdata.message || '';
+      const match = text.match(/\[[\s\S]*?\]/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        setSparks(Array.isArray(parsed) ? parsed.slice(0, 3) : []);
+      }
+    } catch(err) {
+      console.error('Sparks error:', err);
+    } finally {
+      setSparksLoading(false);
+    }
+  }, [apiBase]);
+
   // Edit user message: trim conversation and restore to input
   const confirmEditMessage = (msgId, newContent) => {
     if (!newContent.trim()) return;
@@ -4092,12 +3816,14 @@ export default function App() {
     fetchThreads(false); // startup: show loading spinner on first load
     fetchDocuments(); // Load documents on startup
     fetchPersonality(); // Seed sassy default if not set
+    fetchVesperMood(); // Load Vesper's mood for sidebar chip
+    fetchSparks(); // Pre-load Sparks on startup
     // Load Vesper's background gallery
     fetch(`${apiBase}/api/backgrounds`)
       .then(r => r.json())
       .then(d => { if (d?.backgrounds) setBackgroundGallery(d.backgrounds); })
       .catch(() => {});
-  }, [fetchResearch, fetchTasks, fetchThreads, fetchDocuments, fetchPersonality]);
+  }, [fetchResearch, fetchTasks, fetchThreads, fetchDocuments, fetchPersonality, fetchVesperMood, fetchSparks]);
 
   useEffect(() => {
     fetchMemory(memoryCategory);
@@ -4905,18 +4631,13 @@ export default function App() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: isGrouped ? 0 : 0.75, gap: 1, ...(isGrouped && { display: 'none' }) }}>
-            {!isUser && <AIAvatar thinking={thinking} isSpeaking={isSpeaking} mood={thinking ? 'thinking' : vesperMood} />}
+            {!isUser && <AIAvatar thinking={thinking} isSpeaking={isSpeaking} mood={thinking ? 'thinking' : 'neutral'} />}
             <Typography variant="caption" sx={{ color: isUser ? 'rgba(255,255,255,0.7)' : 'var(--accent)', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.04em' }}>
               {isUser ? 'You' : 'Vesper'}
             </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.67rem', transition: 'opacity 0.2s', opacity: isHovered ? 1 : 0 }}>
               {ts}
             </Typography>
-            {!isUser && message.model && (
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.62rem', fontFamily: 'monospace', opacity: isHovered ? 0.8 : 0, transition: 'opacity 0.2s' }}>
-                {message.model}
-              </Typography>
-            )}
             {!isUser && thinking && (
               <Chip
                 label="thinking"
@@ -5123,6 +4844,13 @@ export default function App() {
               <IconButton size="small" onClick={() => togglePinMessage(message)}
                 sx={{ p: 0.5, color: pinnedMsgIds[message.id] ? 'var(--accent)' : 'rgba(255,255,255,0.4)', '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(var(--accent-rgb),0.1)' } }}>
                 {pinnedMsgIds[message.id] ? <PinIcon sx={{ fontSize: 13 }} /> : <PinOutlinedIcon sx={{ fontSize: 13 }} />}
+              </IconButton>
+            </Tooltip>
+            {/* Vault button */}
+            <Tooltip title={vaultItems.find(v => v.id === message.id) ? 'Remove from Vault' : 'Save to The Vault'}>
+              <IconButton size="small" onClick={() => toggleVaultItem(message)}
+                sx={{ p: 0.5, color: vaultItems.find(v => v.id === message.id) ? '#c084fc' : 'rgba(255,255,255,0.4)', '&:hover': { color: '#c084fc', bgcolor: 'rgba(192,132,252,0.1)' } }}>
+                {vaultItems.find(v => v.id === message.id) ? <BookmarkIcon sx={{ fontSize: 13 }} /> : <BookmarkBorderIcon sx={{ fontSize: 13 }} />}
               </IconButton>
             </Tooltip>
             {/* Star button */}
@@ -6183,23 +5911,6 @@ export default function App() {
         return (
           <IncomeDashboard apiBase={apiBase} onBack={() => setActiveSection('chat')} />
         );
-      case 'autopilot':
-        return <AutopilotPanel
-          apiBase={apiBase}
-          onBack={() => setActiveSection('chat')}
-          jobs={autopilotJobs}
-          setJobs={setAutopilotJobs}
-          log={autopilotLog}
-          setLog={setAutopilotLog}
-          loading={autopilotLoading}
-          setLoading={setAutopilotLoading}
-          running={autopilotRunning}
-          setRunning={setAutopilotRunning}
-          niches={autopilotNiches}
-          setNiches={setAutopilotNiches}
-          accentColor={accentColor}
-          setToast={setToast}
-        />;
       case 'morning-brief':
         return (
           <MorningBrief apiBase={apiBase} onClose={() => setActiveSection('chat')} />
@@ -6400,6 +6111,135 @@ export default function App() {
             </Paper>
           </DraggableBoard>
         );
+      case 'sparks':
+        return (
+          <DraggableBoard id="sparks" defaultPos={{ x: 40, y: 80 }}>
+            <Paper className="intel-board glass-card" sx={{ minWidth: 420, maxWidth: 680 }}>
+              <Box className="board-header" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AutoAwesomeIcon sx={{ color: 'var(--accent)', fontSize: 18 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Sparks</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.55)' }}>
+                    Fresh provocations based on what you've been exploring
+                  </Typography>
+                </Box>
+                <Tooltip title="Regenerate Sparks">
+                  <IconButton size="small" onClick={fetchSparks} disabled={sparksLoading}
+                    sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.12)' } }}>
+                    <AutorenewIcon sx={{ fontSize: 16, animation: sparksLoading ? 'spin 1s linear infinite' : 'none' }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {sparksLoading && [0,1,2].map(i => (
+                  <Box key={i} sx={{ borderRadius: 2, height: 72, bgcolor: 'rgba(var(--accent-rgb),0.06)', border: '1px solid rgba(var(--accent-rgb),0.1)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                ))}
+                {!sparksLoading && sparks.length === 0 && (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+                      No sparks yet. Click regenerate to ignite some ideas.
+                    </Typography>
+                  </Box>
+                )}
+                {!sparksLoading && sparks.map((s, i) => (
+                  <Box key={i} sx={{
+                    p: 2, borderRadius: 2,
+                    background: 'rgba(var(--accent-rgb),0.06)',
+                    border: '1px solid rgba(var(--accent-rgb),0.15)',
+                    borderLeft: '3px solid var(--accent)',
+                    transition: 'background 0.2s',
+                    '&:hover': { background: 'rgba(var(--accent-rgb),0.1)' },
+                  }}>
+                    <Typography variant="body2" sx={{ color: '#f0f0f0', lineHeight: 1.6, mb: 1 }}>
+                      {s.spark || s.text || s}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      {s.tag && (
+                        <Chip label={s.tag} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent)', fontWeight: 700 }} />
+                      )}
+                      <Tooltip title="Take this to chat">
+                        <IconButton size="small" onClick={() => { setInput(s.spark || s.text || s); setActiveSection('chat'); }}
+                          sx={{ color: 'var(--accent)', p: 0.5, '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.15)' } }}>
+                          <AutoStories sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Paper>
+          </DraggableBoard>
+        );
+
+      case 'vault':
+        return (
+          <DraggableBoard id="vault" defaultPos={{ x: 40, y: 80 }}>
+            <Paper className="intel-board glass-card" sx={{ minWidth: 420, maxWidth: 700 }}>
+              <Box className="board-header" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <BookmarkIcon sx={{ color: '#c084fc', fontSize: 18 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>The Vault</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.55)' }}>
+                    Vesper's best kept — {vaultItems.length} saved
+                  </Typography>
+                </Box>
+                {vaultItems.length > 0 && (
+                  <Tooltip title="Export all as text">
+                    <IconButton size="small" onClick={() => {
+                      const text = vaultItems.map((v, i) => `--- ${i+1}. ${v.threadTitle} · ${new Date(v.timestamp).toLocaleDateString()} ---\n${v.content}`).join('\n\n');
+                      const blob = new Blob([text], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a'); a.href = url; a.download = 'vesper-vault.txt'; a.click();
+                      URL.revokeObjectURL(url);
+                    }} sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#c084fc' } }}>
+                      <SaveAltIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+              <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 520, overflowY: 'auto' }}>
+                {vaultItems.length === 0 && (
+                  <Box sx={{ textAlign: 'center', py: 5 }}>
+                    <BookmarkBorderIcon sx={{ fontSize: 36, color: 'rgba(255,255,255,0.15)', mb: 1.5, display: 'block', mx: 'auto' }} />
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+                      The Vault is empty. Bookmark Vesper's best responses to preserve them here.
+                    </Typography>
+                  </Box>
+                )}
+                {vaultItems.map(item => (
+                  <Box key={item.id} sx={{
+                    p: 2, borderRadius: 2,
+                    background: 'rgba(192,132,252,0.05)',
+                    border: '1px solid rgba(192,132,252,0.15)',
+                    borderLeft: '3px solid #c084fc',
+                    position: 'relative',
+                  }}>
+                    <IconButton size="small" onClick={() => toggleVaultItem({ id: item.id })}
+                      sx={{ position: 'absolute', top: 6, right: 6, color: 'rgba(255,255,255,0.3)', p: 0.4, '&:hover': { color: '#ff4444' } }}>
+                      <CloseIcon sx={{ fontSize: 12 }} />
+                    </IconButton>
+                    <Typography variant="body2" sx={{ color: '#e8e8f0', lineHeight: 1.65, mb: 1.5, pr: 3, fontStyle: 'italic' }}>
+                      "{item.content.length > 400 ? item.content.slice(0, 400) + '...' : item.content}"
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Chip label={item.threadTitle} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(192,132,252,0.12)', color: '#c084fc', fontWeight: 600, maxWidth: 160 }} />
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem' }}>
+                        {new Date(item.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </Typography>
+                      <Tooltip title="Take to chat">
+                        <IconButton size="small" onClick={() => { setInput(`Expand on this: "${item.content.slice(0,200)}"`); setActiveSection('chat'); }}
+                          sx={{ color: 'rgba(255,255,255,0.35)', p: 0.3, ml: 'auto', '&:hover': { color: '#c084fc' } }}>
+                          <AutoStories sx={{ fontSize: 13 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Paper>
+          </DraggableBoard>
+        );
+
       case 'settings':
         return (
           <Box sx={{ position: 'fixed', top: '80px', left: '280px', width: 'calc(100vw - 320px)', maxWidth: '1000px', maxHeight: 'calc(100vh - 120px)', overflow: 'auto', zIndex: 10 }}>
@@ -7752,6 +7592,28 @@ export default function App() {
             </Box>
           </Box>
 
+          {vesperMood && (
+            <Chip
+              size="small"
+              label={`${vesperMood.emoji} ${vesperMood.label}`}
+              onClick={fetchVesperMood}
+              title="Click to refresh Vesper's mood"
+              sx={{
+                mb: 1.5,
+                fontSize: '0.65rem',
+                height: 22,
+                cursor: 'pointer',
+                color: vesperMood.color || 'var(--accent)',
+                borderColor: `${vesperMood.color || 'var(--accent)'}55`,
+                bgcolor: `${vesperMood.color || 'var(--accent)'}14`,
+                border: '1px solid',
+                fontWeight: 700,
+                letterSpacing: 0.4,
+                '& .MuiChip-label': { px: 1 },
+              }}
+            />
+          )}
+
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1 }}>
             {NAV.map(({ id, label, icon: Icon }) => (
               <Box
@@ -7766,15 +7628,6 @@ export default function App() {
               >
                 <Icon fontSize="small" />
                 <span className="nav-label">{label}</span>
-                {id === 'income' && incomeStats && incomeStats.total_est_monthly > 0 && (
-                  <span style={{
-                    marginLeft: 'auto', fontSize: '0.6rem', fontFamily: 'monospace',
-                    color: '#6bcb77', fontWeight: 700, opacity: 0.85,
-                    background: 'rgba(107,203,119,0.1)', borderRadius: 6, padding: '1px 5px',
-                  }}>
-                    ~${Math.round(incomeStats.total_est_monthly)}/mo
-                  </span>
-                )}
               </Box>
             ))}
           </Box>
@@ -8758,45 +8611,23 @@ export default function App() {
                       How can I help you today?
                     </Typography>
                   )}
-                  {/* Session briefing card */}
-                  {sessionBriefing && (
-                    <Box sx={{ mt: 1.5, px: 2, py: 1.25, borderRadius: '10px', border: '1px solid rgba(var(--accent-rgb), 0.18)', background: 'rgba(var(--accent-rgb), 0.05)', maxWidth: 420, textAlign: 'left' }}>
-                      <Typography sx={{ fontSize: '0.67rem', color: 'var(--accent)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.5, fontFamily: 'monospace' }}>Last session</Typography>
-                      <Typography
-                        sx={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.55 }}
-                        dangerouslySetInnerHTML={{ __html: sessionBriefing.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>') }}
-                      />
-                    </Box>
-                  )}
-                  {/* XP badge */}
-                  {vesperXp.xp > 0 && (
-                    <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>LVL {vesperXp.level}</Typography>
-                      <Box sx={{ width: 80, height: 3, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-                        <Box sx={{ height: '100%', borderRadius: 2, bgcolor: 'var(--accent)', width: `${Math.min(100, (vesperXp.xp % 500) / 5)}%`, transition: 'width 0.6s ease' }} />
-                      </Box>
-                      <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace' }}>{vesperXp.xp} XP</Typography>
-                    </Box>
-                  )}
                 </Box>
 
-                {/* Money-making prompt grid */}
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, width: '100%', maxWidth: 560 }}>
+                {/* Suggested prompts grid */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, width: '100%', maxWidth: 520 }}>
                   {[
-                    { icon: '💰', label: 'Plan income',     prompt: 'Plan my income streams for this month. What are the top 3 ways to monetize my skills?' },
-                    { icon: '📈', label: 'SEO article',     prompt: 'Write an SEO article about ' },
-                    { icon: '🔑', label: 'Keywords',        prompt: 'Research profitable keywords for ' },
-                    { icon: '📅', label: 'Content plan',    prompt: 'Create a 30-day content calendar for ' },
-                    { icon: '📦', label: 'Digital product', prompt: 'Generate 5 digital product ideas for my audience. Include revenue projections.' },
-                    { icon: '✦',  label: 'Just write',      prompt: 'Help me write a ' },
+                    { icon: '✦', label: 'Draft something', prompt: 'Help me write a' },
+                    { icon: '◎', label: 'Research a topic', prompt: 'Research and summarize' },
+                    { icon: '⚡', label: 'Build with code', prompt: 'Write code to' },
+                    { icon: '◈', label: 'Brainstorm ideas', prompt: 'Give me creative ideas for' },
                   ].map(({ icon, label, prompt }) => (
                     <Box
                       key={label}
-                      onClick={() => setInput(prompt)}
+                      onClick={() => setInput(prompt + ' ')}
                       sx={{
-                        px: 1.5, py: 1.25, borderRadius: '10px',
-                        border: '1px solid rgba(255,255,255,0.07)',
-                        background: 'rgba(255,255,255,0.025)',
+                        px: 1.5, py: 1.25, borderRadius: '12px',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: 'rgba(255,255,255,0.03)',
                         cursor: 'pointer', transition: 'all 0.18s ease',
                         '&:hover': {
                           border: '1px solid rgba(var(--accent-rgb), 0.35)',
@@ -8805,44 +8636,15 @@ export default function App() {
                         },
                       }}
                     >
-                      <Typography sx={{ fontSize: '0.88rem', mb: 0.15, lineHeight: 1 }}>{icon}</Typography>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.01em' }}>{label}</Typography>
+                      <Typography sx={{ fontSize: '0.9rem', mb: 0.25, color: 'var(--accent)', lineHeight: 1 }}>{icon}</Typography>
+                      <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.75)', letterSpacing: '0.01em' }}>{label}</Typography>
                     </Box>
                   ))}
                 </Box>
-                {/* Money Ops shortcut */}
-                <Box
-                  onClick={() => setActiveSection('income')}
-                  sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.7, borderRadius: '20px', border: '1px solid rgba(var(--accent-rgb), 0.2)', background: 'rgba(var(--accent-rgb), 0.04)', cursor: 'pointer', transition: 'all 0.18s', '&:hover': { background: 'rgba(var(--accent-rgb), 0.1)' } }}
-                >
-                  <TrendingUpIcon sx={{ fontSize: '0.9rem', color: 'var(--accent)', opacity: 0.7 }} />
-                  <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.04em' }}>Open Money Ops dashboard</Typography>
-                </Box>
               </Box>
             )}
 
 
-            {/* Proactive nudges — tool-specific next-action suggestions */}
-            {pendingNudges.length > 0 && (
-              <Box sx={{ display: 'flex', gap: 1, mb: 1, overflowX: 'auto', px: 1, alignItems: 'center' }}>
-                <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', flexShrink: 0 }}>next →</span>
-                {pendingNudges.map((n, i) => (
-                  <Chip
-                    key={i}
-                    label={n}
-                    size="small"
-                    onClick={() => { setInput(n); setPendingNudges([]); }}
-                    onDelete={() => setPendingNudges(prev => prev.filter((_, idx) => idx !== i))}
-                    sx={{
-                      bgcolor: 'rgba(var(--accent-rgb), 0.08)',
-                      border: '1px solid rgba(var(--accent-rgb), 0.28)',
-                      color: 'var(--accent)', fontSize: '0.7rem',
-                      '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.18)' },
-                    }}
-                  />
-                ))}
-              </Box>
-            )}
             {/* Proactive Suggestions */}
             {suggestions.length > 0 && (
               <Box sx={{ display: 'flex', gap: 1, mb: 1, overflowX: 'auto', px: 1 }}>
