@@ -55,7 +55,7 @@ from ai_router import router as ai_router, TaskType, ModelProvider
 print("[STARTUP] ai_router imported OK", flush=True)
 from memory_db import db as memory_db
 print("[STARTUP] memory_db imported OK", flush=True)
-from vesper_rag import build_rag_context, export_training_data as rag_export_training_data, increment_and_check_reflection
+from vesper_rag import build_rag_context, get_always_on_memories, export_training_data as rag_export_training_data, increment_and_check_reflection
 from sqlalchemy.pool import NullPool
 import pandas as pd
 import time  # used by background thread functions
@@ -6499,6 +6499,14 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
         # Record that CC is active (resets heartbeat quiet timer)
         try:
             _record_user_activity()
+        except Exception:
+            pass
+
+        # Always-on memory block: recent saves + high-importance facts (injected regardless of keyword match)
+        try:
+            _always_on = get_always_on_memories(memory_db)
+            if _always_on:
+                enhanced_system += f"\n\n{_always_on}"
         except Exception:
             pass
 

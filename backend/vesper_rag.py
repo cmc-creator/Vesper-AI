@@ -303,7 +303,7 @@ def build_rag_context(
         return ""
 
     # Sort by score descending, deduplicate similar text
-    scored.sort(key=lambda x: x[0], reverse=True)
+    scored.sort(key=lambda x: -x[0])
 
     seen_prefixes = set()
     selected: List[Tuple[str, str]] = []
@@ -329,6 +329,78 @@ def build_rag_context(
             break
         lines.append(line)
         total_chars += len(line)
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Always-on memory injection (independent of keyword scoring)
+# ---------------------------------------------------------------------------
+
+def get_always_on_memories(memory_db, limit_recent: int = 6, limit_important: int = 5) -> str:
+    """
+    Returns a compact block of the most recent and highest-importance memories.
+    These inject regardless of query keyword relevance — Vesper always sees recent
+    saves and critical facts even when the message has no matching keywords.
+    """
+    if not memory_db:
+        return ""
+
+    items: List[Tuple[str, str, str]] = []  # (text, category, date)
+    seen_ids: set = set()
+
+    def _fmt_date(d) -> str:
+        if isinstance(d, datetime.datetime):
+            return d.strftime("%Y-%m-%d")
+        if isinstance(d, str) and d:
+            return d[:10]
+        return ""
+
+    def _mem_text(m: dict) -> str:
+        title = (m.get("title") or "").strip()
+        content = (m.get("content") or "").strip()
+        if title and content:
+            return f"{title}: {content}"
+        return title or content
+
+    # 1. Most recent memories — always inject to capture recent saves
+    try:
+        recent = memory_db.get_memories(limit=limit_recent)
+        for m in recent:
+            mid = m.get("id", "")
+            text = _mem_text(m)
+            if mid not in seen_ids and text:
+                seen_ids.add(mid)
+                items.append((_truncate(text, 220), m.get("category", "memory"), _fmt_date(m.get("created_at"))))
+    except Exception:
+        pass
+
+    # 2. High-importance memories (importance >= 8) — core facts CC always needs Vesper to know
+    try:
+        all_mems = memory_db.get_memories(limit=300)
+        important = sorted(all_mems, key=lambda x: x.get("importance", 5), reverse=True)
+        count = 0
+        for m in important:
+            if count >= limit_important:
+                break
+            if m.get("importance", 5) < 8:
+                break  # sorted, so once below 8 we're done
+            mid = m.get("id", "")
+            text = _mem_text(m)
+            if mid not in seen_ids and text:
+                seen_ids.add(mid)
+                items.append((_truncate(text, 220), m.get("category", "memory"), _fmt_date(m.get("created_at"))))
+                count += 1
+    except Exception:
+        pass
+
+    if not items:
+        return ""
+
+    lines = ["**VESPER'S ACTIVE MEMORY (always current):**"]
+    for (text, cat, date) in items:
+        date_str = f" ({date})" if date else ""
+        lines.append(f"• [{cat}]{date_str} {text}")
 
     return "\n".join(lines)
 
