@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, startTransition } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback, startTransition } from 'react';
 import {
   Box,
   TextField,
@@ -3462,16 +3462,44 @@ export default function App() {
     setSparksLoading(true);
     setSparks([]);
     try {
-      let threadTitles = '';
+      // Pull rich context: thread titles + recent memories + active tasks
+      let contextParts = [];
+
+      // Thread titles (recent conversations)
       try {
         const tres = await fetch(`${apiBase}/api/threads`);
         const tdata = await tres.json();
         const threads = tdata.threads || tdata || [];
-        threadTitles = threads.slice(0, 12).map(t => t.title).filter(Boolean).join('\n');
+        const titles = threads.slice(0, 8).map(t => t.title).filter(Boolean);
+        if (titles.length) contextParts.push(`Recent conversations:\n${titles.join('\n')}`);
       } catch(_) {}
-      const prompt = threadTitles
-        ? `Here are some recent conversation topics:\n${threadTitles}\n\nGenerate exactly 3 sharp, thought-provoking sparks based on these themes. A spark is a 1-2 sentence observation, reframe, or question that could ignite a new line of thinking. Be incisive and surprising. Reply ONLY with a JSON array: [{"spark": "...", "tag": "category"}]`
-        : `Generate exactly 3 sharp, thought-provoking sparks — a 1-2 sentence observation, reframe, or question that could ignite a new line of thinking. Be incisive and surprising. Reply ONLY with a JSON array: [{"spark": "...", "tag": "category"}]`;
+
+      // Recent memories (personal + work + goals)
+      try {
+        const mres = await fetch(`${apiBase}/api/memory?limit=12`);
+        const mdata = await mres.json();
+        const memories = mdata.memories || mdata || [];
+        const memLines = memories
+          .filter(m => m.content && m.content.length > 20)
+          .slice(0, 8)
+          .map(m => `[${m.category || 'note'}] ${m.title || m.content?.slice(0, 80)}`);
+        if (memLines.length) contextParts.push(`Things CC has told Vesper:\n${memLines.join('\n')}`);
+      } catch(_) {}
+
+      // Active tasks
+      try {
+        const tres2 = await fetch(`${apiBase}/api/tasks`);
+        const tdata2 = await tres2.json();
+        const tasks = (tdata2.tasks || tdata2 || []).filter(t => t.status !== 'done');
+        const taskLines = tasks.slice(0, 5).map(t => t.title || t.content).filter(Boolean);
+        if (taskLines.length) contextParts.push(`Active tasks:\n${taskLines.join('\n')}`);
+      } catch(_) {}
+
+      const context = contextParts.join('\n\n');
+      const prompt = context
+        ? `You are Vesper, CC's sharp AI bestie who knows her inside and out. Here's what you know about her right now:\n\n${context}\n\nGenerate exactly 3 sparks SPECIFIC to CC's actual life, goals, and situation. A spark is a 1-2 sentence observation, reframe, or provocative question that cuts to something real — not generic wisdom, but something that lands because it's true about HER. Be incisive, surprising, and personal. Reply ONLY with a JSON array: [{"spark": "...", "tag": "category"}]`
+        : `You are Vesper. Generate exactly 3 sharp, thought-provoking sparks for a 50-year-old Risk Management Director in Surprise, AZ who is building wealth and creative income on the side. A spark is a 1-2 sentence observation, reframe, or question that ignites a new line of thinking. Be incisive and surprising. Reply ONLY with a JSON array: [{"spark": "...", "tag": "category"}]`;
+
       const cres = await fetch(`${apiBase}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

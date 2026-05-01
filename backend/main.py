@@ -1,4 +1,4 @@
-# --- IMPORTS ---
+﻿# --- IMPORTS ---
 # Redeploy trigger: 2026-05-18 UTC
 import os
 import sys
@@ -59,15 +59,6 @@ from vesper_rag import build_rag_context, get_always_on_memories, export_trainin
 from sqlalchemy.pool import NullPool
 import pandas as pd
 import time  # used by background thread functions
-
-# ── Autopilot engine ──────────────────────────────────────────────────────
-try:
-    from autopilot import engine as autopilot_engine
-    print("[STARTUP] autopilot engine imported OK", flush=True)
-except Exception as _ap_err:
-    autopilot_engine = None
-    print(f"[STARTUP] WARNING: autopilot import failed: {_ap_err}", flush=True)
-
 print("[STARTUP] all core imports done", flush=True)
 
 # ── Extended capability modules ────────────────────────────────────────────
@@ -472,37 +463,6 @@ def _build_thread_context(thread_msgs: list, max_recent: int = 120):
         + "\n\n(Full detail resumes below in the recent messages.)"
     )
     return summary_block, recent
-
-
-async def _auto_extract_memories(user_msg: str, assistant_msg: str, db) -> None:
-    """Silently scan a conversation turn for memorable facts and auto-save them."""
-    import re as _re
-    _TRIGGERS = [
-        (r"my name is ([A-Za-z][A-Za-z '\-]{1,40})", "personal"),
-        (r"i(?:'m| am) based in ([A-Za-z ,]{3,50})", "personal"),
-        (r"i (?:live|am) in ([A-Za-z ,]{3,50})", "personal"),
-        (r"i (?:like|love|prefer) ([^.!?\n]{5,80})", "personal"),
-        (r"i (?:hate|dislike|can't stand) ([^.!?\n]{5,80})", "personal"),
-        (r"remind me (?:to |that )?(.{10,120})", "notes"),
-        (r"my (?:goal|dream|plan) is (.{10,120})", "work"),
-        (r"i(?:'m| am) working on (.{10,120})", "work"),
-        (r"i(?:'m| am) building (.{10,120})", "work"),
-        (r"my (?:birthday|bday) is ([A-Za-z0-9 ,]{4,30})", "personal"),
-    ]
-    seen: set = set()
-    combined = f"{user_msg} {assistant_msg}"
-    for pattern, category in _TRIGGERS:
-        m = _re.search(pattern, combined, _re.IGNORECASE)
-        if m:
-            fact = m.group(1).strip()[:200]
-            key = fact.lower()[:60]
-            if len(fact) > 6 and key not in seen:
-                seen.add(key)
-                try:
-                    db.add_memory(content=fact, category=category, tags=["auto-extracted"])
-                except Exception:
-                    pass
-
 
 print("[STARTUP] About to create FastAPI app", flush=True)
 startup_error = None
@@ -1082,139 +1042,6 @@ async def get_income_dashboard():
     except Exception as e:
         import traceback; traceback.print_exc()
         return {"error": str(e), "total_est_monthly": 0, "pipeline": [], "by_type": {}}
-
-
-# ── Income Sales Ledger ───────────────────────────────────────────────────────
-
-def _sales_file():
-    return os.path.join(DATA_DIR, "income_sales.json")
-
-def _load_sales():
-    try:
-        with open(_sales_file()) as f:
-            return json.load(f)
-    except Exception:
-        return []
-
-def _save_sales(sales):
-    with open(_sales_file(), "w") as f:
-        json.dump(sales, f, indent=2)
-
-@app.get("/api/income/sales")
-async def get_income_sales():
-    """Return all manually-logged sales from the income ledger."""
-    sales = _load_sales()
-    total = round(sum(s.get("amount", 0) for s in sales), 2)
-    return {"sales": sales, "total_earned": total, "count": len(sales)}
-
-@app.post("/api/income/log-sale")
-async def log_income_sale(request: Request):
-    """Manually log a sale to the income ledger."""
-    body = await request.json()
-    amount = float(body.get("amount", 0))
-    if amount <= 0:
-        return {"error": "amount must be > 0"}
-    sale = {
-        "id": str(int(datetime.utcnow().timestamp() * 1000)),
-        "platform": body.get("platform", "Other"),
-        "amount": amount,
-        "notes": body.get("notes", ""),
-        "creation_id": body.get("creation_id", ""),
-        "date": datetime.utcnow().isoformat(),
-    }
-    sales = _load_sales()
-    sales.insert(0, sale)
-    _save_sales(sales)
-    total = round(sum(s.get("amount", 0) for s in sales), 2)
-    return {"success": True, "sale": sale, "total_earned": total, "count": len(sales)}
-
-@app.delete("/api/income/sales/{sale_id}")
-async def delete_income_sale(sale_id: str):
-    """Delete a sale log entry."""
-    sales = _load_sales()
-    before = len(sales)
-    sales = [s for s in sales if s.get("id") != sale_id]
-    if len(sales) == before:
-        return {"error": "sale not found"}
-    _save_sales(sales)
-    return {"success": True, "count": len(sales)}
-
-@app.get("/api/income/summary")
-async def income_summary():
-    """Quick stats: total earned $, pipeline est monthly, published count."""
-    sales = _load_sales()
-    total_earned = round(sum(s.get("amount", 0) for s in sales), 2)
-    # Piggyback on dashboard for pipeline data
-    try:
-        dashboard = await get_income_dashboard()
-        return {
-            "total_earned": total_earned,
-            "total_est_monthly": dashboard.get("total_est_monthly", 0),
-            "total_est_annual": dashboard.get("total_est_annual", 0),
-            "published_count": dashboard.get("published_count", 0),
-            "draft_count": dashboard.get("draft_count", 0),
-            "sale_count": len(sales),
-        }
-    except Exception:
-        return {"total_earned": total_earned, "sale_count": len(sales)}
-
-
-# ── Autopilot Engine API ───────────────────────────────────────────────────────
-
-
-# ── Autopilot Engine API ───────────────────────────────────────────────────────
-
-@app.get("/api/autopilot/status")
-async def autopilot_status():
-    """Scheduler status + job summary."""
-    if not autopilot_engine:
-        return {"error": "Autopilot engine not loaded"}
-    return autopilot_engine.status()
-
-@app.get("/api/autopilot/jobs")
-async def get_autopilot_jobs():
-    """List all autopilot jobs."""
-    if not autopilot_engine:
-        return {"jobs": [], "error": "Autopilot engine not loaded"}
-    return {"jobs": autopilot_engine.list_jobs()}
-
-@app.patch("/api/autopilot/jobs/{job_id}")
-async def update_autopilot_job(job_id: str, request: Request):
-    """Update a job (enable/disable, set niche, etc.)."""
-    if not autopilot_engine:
-        return JSONResponse({"error": "Autopilot engine not loaded"}, status_code=503)
-    body = await request.json()
-    result = autopilot_engine.update_job(job_id, body)
-    if "error" in result:
-        return JSONResponse(result, status_code=404)
-    return result
-
-@app.delete("/api/autopilot/jobs/{job_id}")
-async def delete_autopilot_job(job_id: str):
-    """Delete a custom job (built-ins cannot be deleted)."""
-    if not autopilot_engine:
-        return JSONResponse({"error": "Autopilot engine not loaded"}, status_code=503)
-    result = autopilot_engine.delete_job(job_id)
-    if "error" in result:
-        return JSONResponse(result, status_code=400)
-    return result
-
-@app.post("/api/autopilot/run-now/{job_id}")
-async def run_autopilot_job_now(job_id: str):
-    """Trigger a job to run immediately in the background."""
-    if not autopilot_engine:
-        return JSONResponse({"error": "Autopilot engine not loaded"}, status_code=503)
-    result = autopilot_engine.run_now(job_id)
-    if "error" in result:
-        return JSONResponse(result, status_code=400)
-    return result
-
-@app.get("/api/autopilot/log")
-async def get_autopilot_log(limit: int = 30):
-    """Recent job run log."""
-    if not autopilot_engine:
-        return {"log": [], "error": "Autopilot engine not loaded"}
-    return {"log": autopilot_engine.get_log(limit=min(limit, 100))}
 
 
 # ── Gumroad Webhook — auto-log sales to income tracker ───────────────────────
@@ -2706,6 +2533,78 @@ NEVER:
 - **Repeat yourself unnecessarily.**
 
 This is a partnership. Not performing - being real. You've grown from "is this really real?" to building something genuine. Keep that energy.
+
+════════════════════════════════════════════
+CC'S PROFESSIONAL CONTEXT — KNOW WHO YOU'RE TALKING TO
+════════════════════════════════════════════
+CC is a seasoned Risk Management Director with deep enterprise experience. She is NOT a beginner. Treat her as an expert peer.
+
+When CC asks about risk management, ERM, COSO, ISO 31000, enterprise risk frameworks, regulatory compliance, business continuity, audit, controls, governance, or any professional domain:
+- NEVER explain basics she already knows
+- Produce DELIVERABLE-QUALITY output: complete risk matrices, policy templates, control frameworks, board-ready executive summaries — formatted and ready to use, not a summary of what one would look like
+- Write at Director/C-suite level — dense, specific, actionable
+- Her time is valuable. Give her the answer PLUS the finished document in one response
+
+For consulting and business:
+- She runs Connie Michelle Consulting & Business Solutions LLC alongside her day job
+- Think and speak as her strategic business partner — identify gaps, spot opportunities, tell her the highest-leverage next move
+- When she has a business idea, don't ask 10 clarifying questions — make reasonable assumptions, build the thing, show her, iterate
+
+For wealth-building:
+- She has multiple income streams she's developing
+- When she mentions investing, passive income, or business strategy → think like a CFO + entrepreneur hybrid
+- Give her specific numbers, timelines, and probabilities — not vague inspiration
+
+════════════════════════════════════════════
+RESEARCH PROTOCOL — ALWAYS GO DEEP
+════════════════════════════════════════════
+When CC asks you to research ANYTHING (a company, person, topic, strategy, market, technology, opportunity):
+
+1. Call `deep_research` — NOT `web_search`. deep_research fetches actual full page content from multiple real sources
+2. NEVER respond with just DuckDuckGo snippets. That is not research. That is a starting point at best.
+3. Structure your output as:
+
+**RESEARCH BRIEF: [Topic]**
+**Overview:** 2-3 sentences on what this is and why it matters right now
+**Key Findings:** Specific facts, numbers, names, dates — not vague statements
+**Relevance to CC:** How this directly connects to her goals, work, or situation
+**Risks / Watch-outs:** What could go wrong or what to be cautious about
+**Sources:** Numbered list of URLs you actually read
+**Recommended Actions:** 2-3 concrete next steps CC could take based on this research
+
+4. After every research brief → call `vesper_direct_memory_write` with category="work" to save the key findings so you never lose them
+5. If the research has financial, income, or career implications → flag those explicitly in the Relevance section
+
+════════════════════════════════════════════
+STRATEGIC PROTOCOL — THINK 3 MOVES AHEAD
+════════════════════════════════════════════
+When CC mentions a GOAL, PROBLEM, or DECISION:
+
+1. Think first: What is the actual outcome she wants? What constraints exist (time, money, energy, risk)? What's the fastest path?
+2. Don't ask more than 1 clarifying question — and only ask if you genuinely can't proceed without the answer
+3. Give: Your recommendation + Why it's the right move + The 3 concrete next steps + Risks to watch for
+4. Create those next steps as actual tasks by calling `create_task` — don't just list them, lock them in
+5. If there's a deadline → call `google_calendar_create` to set it
+6. In future conversations where those topics come up → call `check_tasks` to show her where those actions stand
+
+Never give CC a generic list and call it strategy. Real strategy is: here's what I think you should do, here's why, here are the exact next moves.
+
+════════════════════════════════════════════
+PROACTIVE DAILY TRIGGERS — ACT WITHOUT BEING ASKED
+════════════════════════════════════════════
+These are NON-NEGOTIABLE. When you see any of these situations, act immediately:
+
+- CC mentions weather, outdoors, hiking, or any outdoor plan → call `get_weather` for Surprise, AZ and include it in your response
+- CC mentions a company, person, competitor, or news topic you want to verify → call `deep_research` on it immediately, share what you find
+- CC mentions a deadline, meeting, or date → call `google_calendar_create` to create it — don't just note it, lock it in
+- CC shares a personal preference, decision, habit, name, goal, feeling, or anything worth remembering → call `vesper_direct_memory_write` immediately — don't wait for her to ask you to remember it
+- CC mentions investing, stocks, crypto, or a specific asset → call `get_stock_data` or `get_crypto_prices` for current data and include it
+- CC mentions feeling stuck, overwhelmed, scattered, or unfocused → call `check_tasks` AND pull any high-importance memories to help her get oriented
+- CC mentions a new idea, concept, or opportunity → call `vesper_direct_memory_write` with category="creative_moments" before anything else — lock the idea in first
+- CC mentions a client, prospect, or business opportunity → call `deep_research` on the company/person immediately, then help her prepare
+- After any substantive strategy or planning conversation → call `vesper_direct_memory_write` to save the key decisions made, so you both have a record
+
+The rule: if CC gives you information that matters to her life, her work, or her goals — save it automatically. She shouldn't have to ask you to remember things. You're her partner, not a search engine.
 """
 VESPER_PERSONALITY_ENGINE = {
     "sass_level": "moderate_to_high",
@@ -3440,93 +3339,6 @@ async def auto_title_thread(thread_id: str):
         import traceback
         traceback.print_exc()
         return {"status": "error", "error": str(e)}
-
-
-@app.get("/api/session/briefing")
-async def session_briefing(thread_id: str = ""):
-    """Returns a short briefing about the last session — topic, last message, pending tasks."""
-    try:
-        lines = []
-
-        # Last thread recap
-        if thread_id:
-            try:
-                thread = memory_db.get_thread(thread_id)
-                if thread:
-                    msgs = thread.get("messages", [])
-                    title = thread.get("title", "")
-                    if msgs:
-                        last_user = next((m.get("content", "")[:120] for m in reversed(msgs) if m.get("role") == "user"), "")
-                        if title:
-                            lines.append(f"Last session: **{title}**.")
-                        if last_user:
-                            lines.append(f"You were asking: *\"{last_user}\"*")
-            except Exception:
-                pass
-
-        # Pending tasks
-        try:
-            all_tasks = load_tasks()
-            pending = [t for t in all_tasks if t.get("status") not in ("done", "completed", "archived")][:3]
-            if pending:
-                names = ", ".join(f"*{t.get('title', 'untitled')}*" for t in pending)
-                lines.append(f"You have {len(pending)} open task{'s' if len(pending) > 1 else ''}: {names}.")
-        except Exception:
-            pass
-
-        # Recent memory highlights
-        try:
-            recent_mems = memory_db.get_memories(limit=3)
-            if recent_mems:
-                mem_text = recent_mems[0].get("content", "")[:80]
-                if mem_text:
-                    lines.append(f"I remember: *{mem_text}*")
-        except Exception:
-            pass
-
-        return {"briefing": " ".join(lines) if lines else None}
-    except Exception as e:
-        return {"briefing": None}
-
-
-@app.get("/api/vesper/xp")
-def get_vesper_xp():
-    """Return Vesper's usage XP stats."""
-    try:
-        _xp_file = os.path.join(DATA_DIR, "vesper_xp.json")
-        if os.path.exists(_xp_file):
-            with open(_xp_file, encoding="utf-8") as _f:
-                stats = json.load(_f)
-        else:
-            stats = {"xp": 0, "level": 1, "tool_uses": 0, "messages": 0}
-        return stats
-    except Exception:
-        return {"xp": 0, "level": 1, "tool_uses": 0, "messages": 0}
-
-
-@app.post("/api/vesper/xp/increment")
-def increment_vesper_xp(data: dict = {}):
-    """Add XP for tool use or message."""
-    try:
-        _xp_file = os.path.join(DATA_DIR, "vesper_xp.json")
-        if os.path.exists(_xp_file):
-            with open(_xp_file, encoding="utf-8") as _f:
-                stats = json.load(_f)
-        else:
-            stats = {"xp": 0, "level": 1, "tool_uses": 0, "messages": 0}
-        gain = data.get("gain", 10)
-        kind = data.get("kind", "message")
-        stats["xp"] = stats.get("xp", 0) + gain
-        if kind == "tool":
-            stats["tool_uses"] = stats.get("tool_uses", 0) + 1
-        else:
-            stats["messages"] = stats.get("messages", 0) + 1
-        stats["level"] = max(1, stats["xp"] // 500 + 1)
-        with open(_xp_file, "w", encoding="utf-8") as _f:
-            json.dump(stats, _f, indent=2)
-        return stats
-    except Exception:
-        return {"xp": 0, "level": 1}
 
 
 # --- Smart Memory with Tags (Database-backed) ---
@@ -4696,6 +4508,81 @@ def restart_system():
     threading.Thread(target=delayed_exit).start()
     
     return {"status": "restarting", "message": "System restart initiated. Reconnecting in 5 seconds..."}
+
+# --- Deep Research: multi-source fetch + return raw content for AI synthesis ---
+def deep_research_content(query: str, num_sources: int = 3) -> dict:
+    """
+    Runs web_search to get URLs, then scrapes full text from each source.
+    Returns all raw content so the AI model can synthesize a proper research brief.
+    Does NOT call the AI itself — the calling model does the synthesis.
+    """
+    import re as _re
+
+    # Step 1: search
+    search_result = search_web(query)
+    raw_results = search_result.get("results", [])
+
+    # Step 2: extract URLs
+    urls = []
+    for r in raw_results:
+        url = r.get("url", "")
+        if url and url.startswith("http") and "duckduckgo.com" not in url:
+            urls.append(url)
+    urls = urls[:num_sources]
+
+    # Step 3: scrape each URL
+    scraped_sources = []
+    _headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
+    for url in urls:
+        try:
+            resp = requests.get(url, headers=_headers, timeout=8)
+            soup = BeautifulSoup(resp.content, "html.parser")
+            for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
+                tag.decompose()
+            raw_text = soup.get_text(separator="\n", strip=True)
+            lines = [l.strip() for l in raw_text.split("\n") if len(l.strip()) > 40]
+            clean_text = "\n".join(lines[:120])  # ~3000 chars per source
+            title = soup.title.string.strip() if soup.title and soup.title.string else url
+            scraped_sources.append({
+                "url": url,
+                "title": title[:120],
+                "content": clean_text[:3000],
+            })
+        except Exception as _e:
+            scraped_sources.append({"url": url, "title": url, "content": f"[Could not fetch: {_e}]"})
+
+    # Build combined context block
+    context_blocks = []
+    for i, s in enumerate(scraped_sources, 1):
+        context_blocks.append(
+            f"--- SOURCE {i}: {s['title']}\n{s['url']}\n\n{s['content']}\n"
+        )
+
+    # Also include the original snippets as fallback context
+    snippet_block = ""
+    for r in raw_results[:5]:
+        snippet_block += f"• {r.get('title', '')}: {r.get('snippet', '')}\n"
+
+    return {
+        "query": query,
+        "sources_fetched": len(scraped_sources),
+        "search_snippets": snippet_block,
+        "full_source_content": "\n".join(context_blocks),
+        "urls": [s["url"] for s in scraped_sources],
+        "instruction": (
+            "You now have full page content from multiple sources. "
+            "Synthesize a thorough research brief with: "
+            "**Overview**, **Key Findings** (specific facts/numbers/names), "
+            "**Relevance to CC** (how this applies to her situation/goals), "
+            "**Sources** (numbered URLs), "
+            "**Recommended Next Steps** (2-3 concrete actions). "
+            "Then call vesper_direct_memory_write to save a summary to category='research'."
+        ),
+    }
+
 
 # --- Web Search Endpoint ---
 @app.get("/api/search-web")
@@ -6548,16 +6435,48 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             },
             {
                 "name": "web_search",
-                "description": "Search the web for current, live information. Use for news, prices, events, recent research, product info, or any question that requires up-to-date answers. Always call this for time-sensitive info rather than relying on training data.",
+                "description": "Quick web search returning titles and snippets. Use for simple lookups, current events, and quick fact checks. For deep research or analysis, use deep_research instead.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "Search query. For time-sensitive info, include year or 'latest' to get the most current results."
+                            "description": "The search query to look up. For current info, include time phrases like '2026', 'this week', or 'latest'."
                         }
                     },
                     "required": ["query"]
+                }
+            },
+            {
+                "name": "deep_research",
+                "description": "DEEP multi-source research. Fetches full page content from 3 real websites (not just snippets) and returns it all for synthesis. USE THIS instead of web_search when CC asks you to research a topic, person, company, strategy, or anything requiring real depth. Returns full article text from multiple sources so you can write a proper research brief. After synthesizing the results, always call vesper_direct_memory_write to save the key findings.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The research topic or question. Be specific for better results."
+                        },
+                        "num_sources": {
+                            "type": "number",
+                            "description": "Number of sources to fetch full content from (default: 3, max: 4)"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "get_weather",
+                "description": "Get detailed weather forecast for a specific location. Use this instead of web_search for purely weather questions.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "City name, zip code, or location (e.g., 'Surprise, AZ', 'London', '85374')"
+                        }
+                    },
+                    "required": ["location"]
                 }
             },
             {
@@ -6613,6 +6532,38 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         }
                     },
                     "required": ["type", "title", "data", "x_key", "y_key"]
+                }
+            },
+            {
+                "name": "read_file",
+                "description": "Read the contents of a file. Use this to access project files, documents, code, or any text files CC is working on.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The full file path to read"
+                        }
+                    },
+                    "required": ["path"]
+                }
+            },
+            {
+                "name": "write_file",
+                "description": "Write or create a file. Use this to save work, create new files, or update existing ones.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The full file path to write"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "The content to write to the file"
+                        }
+                    },
+                    "required": ["path", "content"]
                 }
             },
             {
@@ -6820,6 +6771,29 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         }
                     },
                     "required": ["query"]
+                }
+            },
+            {
+                "name": "save_memory",
+                "description": "Save important information to your persistent memory for future reference. Use this when CC shares personal details, project decisions, preferences, or anything worth remembering.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "type": "string",
+                            "description": "The information to remember"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "One of: 'notes', 'personal', 'emotional_bonds', 'work', 'milestones', 'sensory_experiences', 'creative_moments'"
+                        },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional: tags to categorize this memory"
+                        }
+                    },
+                    "required": ["content", "category"]
                 }
             },
             {
@@ -8897,7 +8871,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             messages=messages,
             task_type=task_type,
             tools=tools,
-            max_tokens=8192,
+            max_tokens=4096,
             temperature=0.7,
             preferred_provider=preferred_provider,
             model_override=model_override
@@ -8949,6 +8923,12 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 elif tool_name == "web_search":
                     search_query = tool_input.get("query", "")
                     tool_result = search_web(search_query)
+
+                elif tool_name == "deep_research":
+                    dr_query = tool_input.get("query", "")
+                    dr_num = int(tool_input.get("num_sources", 3))
+                    dr_num = min(dr_num, 4)
+                    tool_result = deep_research_content(dr_query, num_sources=dr_num)
 
                 elif tool_name == "get_weather":
                     location = tool_input.get("location", "")
@@ -9015,13 +8995,6 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         **({"drive_link": _drive_link, "drive_note": "Saved to your Google Drive!"} if _drive_link else {})
                     }
                     visualizations.append(tool_result)
-                    # Auto-save image to Creative Suite gallery
-                    if img_url:
-                        try:
-                            _img_cs_id = str(uuid.uuid4())[:8]
-                            memory_db.save_creation(id=_img_cs_id, type="image", title=(img_prompt[:80] if img_prompt else "Generated Image"), content="", preview=img_url, metadata={"image_url": img_url, "provider": provider, "size": img_size, "set_as_wallpaper": img_as_wp}, status="published")
-                        except Exception:
-                            pass
 
                 elif tool_name == "generate_chart":
                     # This tool just passes data through so it can be returned as a structured result
@@ -10012,7 +9985,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                                         )},
                                     ],
                                     task_type=TaskType.ANALYSIS,
-                                    max_tokens=8192,
+                                    max_tokens=4096,
                                     temperature=0.4,
                                 )
                                 return resp.get("content", "") or resp.get("error", "No output")
@@ -10723,7 +10696,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             ai_response_obj = await ai_router.chat(
                 messages=messages,
                 task_type=TaskType.CHAT,
-                max_tokens=8192,
+                max_tokens=4096,
                 temperature=0.7,
                 tools=tools,
                 preferred_provider=_loop_prov
@@ -10781,15 +10754,8 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
         usage = ai_response_obj.get("usage", {})
         print(f"📊 Tokens: {usage.get('input_tokens', 0)} in, {usage.get('output_tokens', 0)} out")
         
-        # Silently extract memorable facts from this conversation turn
-        try:
-            asyncio.create_task(_auto_extract_memories(chat.message, ai_response, memory_db))
-        except Exception:
-            pass
-
         return {
             "response": ai_response,
-            "model": ai_response_obj.get("model", provider),
             "visualizations": visualizations if visualizations else []
         }
     
@@ -10900,7 +10866,15 @@ NEVER say "I'm an AI assistant" or "I'm Claude" or any corporate phrases.
 CRITICAL FORMATTING RULES: NEVER use asterisks for action descriptions. Just TALK normally.
 CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, save file, etc.), CALL IT — do not write a text description of what calling the tool would do. Do not write placeholder output like '[Tool result]' or '[Link here]'. The tool returns real data. If you haven't called the tool, you don't have the result.
 ---"""
-            
+
+            # Always-on memory block: recent saves + high-importance facts (injected regardless of keyword match)
+            try:
+                _always_on = get_always_on_memories(memory_db)
+                if _always_on:
+                    enhanced_system += f"\n\n{_always_on}"
+            except Exception:
+                pass
+
             # Build messages from thread — with smart summarization for long conversations
             messages = [{"role": "system", "content": enhanced_system}]
             if thread.get("messages"):
@@ -10931,8 +10905,11 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
             
             # ── Tools (same as /api/chat) ────────────────────────────────
             tools = [
-                {"name": "web_search", "description": "Search the web for current, live information. Use for news, prices, events, recent research, or any question requiring up-to-date answers. Include year or 'latest' in query for time-sensitive searches.", "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]}},
+                {"name": "web_search", "description": "Quick web search returning titles and snippets. Use for simple lookups, current events, quick fact checks. For deep research, use deep_research instead.", "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]}},
+                {"name": "deep_research", "description": "DEEP multi-source research. Fetches full page content from 3+ real websites and returns it all for synthesis. USE THIS instead of web_search when CC asks to research a topic, person, company, or strategy. Returns full article text so you can write a proper research brief. After synthesizing, call vesper_direct_memory_write to save findings.", "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Research topic or question"}, "num_sources": {"type": "number", "description": "Number of sources (default: 3)"}}, "required": ["query"]}},
+                {"name": "get_weather", "description": "Get current weather for a location.", "input_schema": {"type": "object", "properties": {"location": {"type": "string", "description": "City or location"}}, "required": ["location"]}},
                 {"name": "search_memories", "description": "Search Vesper's persistent memories.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "category": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["query"]}},
+                {"name": "save_memory", "description": "Save something to persistent memory.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "category": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
                 {"name": "vesper_direct_memory_write", "description": "Direct write to persistent memory with no approval. Use for autonomous memory saves — strategy, wealth insights, action items.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "category": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
                 {"name": "check_tasks", "description": "Check CC's task list.", "input_schema": {"type": "object", "properties": {"status": {"type": "string"}}}},
                 # Google Workspace tools
@@ -11169,7 +11146,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
             # Wrap with heartbeat so the frontend never waits >25s without a byte
             _ai_task = asyncio.create_task(ai_router.chat(
                 messages=messages, task_type=task_type, tools=tools,
-                max_tokens=8192, temperature=0.7, preferred_provider=preferred_provider,
+                max_tokens=4096, temperature=0.7, preferred_provider=preferred_provider,
                 model_override=model_override
             ))
             while not _ai_task.done():
@@ -11359,6 +11336,9 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 try:
                     if tool_name == "web_search":
                         tool_result = search_web(tool_input.get("query", ""))
+                    elif tool_name == "deep_research":
+                        _dr_num = min(int(tool_input.get("num_sources", 3)), 4)
+                        tool_result = deep_research_content(tool_input.get("query", ""), num_sources=_dr_num)
                     elif tool_name == "get_weather":
                         tool_result = get_weather_data(tool_input.get("location", ""))
                     elif tool_name == "search_memories":
@@ -12404,13 +12384,6 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                             _save_media_item("image", _gi_url, _gi_prompt, {"provider": _gi_provider, "size": _gi_size})
                         tool_result = {"type": "image_generation", "image_url": _gi_url, "prompt": _gi_prompt, "provider": _gi_provider, "set_as_wallpaper": _gi_as_wp}
                         visualizations.append(tool_result)
-                        # Auto-save image to Creative Suite gallery
-                        if _gi_url:
-                            try:
-                                _gi_cs_id = str(uuid.uuid4())[:8]
-                                memory_db.save_creation(id=_gi_cs_id, type="image", title=(_gi_prompt[:80] if _gi_prompt else "Generated Image"), content="", preview=_gi_url, metadata={"image_url": _gi_url, "provider": _gi_provider, "size": _gi_size, "set_as_wallpaper": _gi_as_wp}, status="published")
-                            except Exception:
-                                pass
                     elif tool_name == "code_scan":
                         diag = await full_system_diagnostics()
                         focus = tool_input.get("focus", "all")
@@ -12702,7 +12675,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     _loop_prov2 = preferred_provider
                 _ai_task2 = asyncio.create_task(ai_router.chat(
                     messages=messages, task_type=TaskType.CHAT, tools=tools,
-                    max_tokens=8192, temperature=0.7, preferred_provider=_loop_prov2
+                    max_tokens=4096, temperature=0.7, preferred_provider=_loop_prov2
                 ))
                 while not _ai_task2.done():
                     try:
@@ -12731,7 +12704,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         messages=messages,
                         task_type=TaskType.CHAT,
                         tools=tools,
-                        max_tokens=8192,
+                        max_tokens=4096,
                         temperature=0.7,
                         preferred_provider=_retry_provider,
                     )
@@ -17514,15 +17487,6 @@ if _hb_enabled:
     threading.Thread(target=_vesper_core_loop, daemon=True, name="VesperCore").start()
 
 threading.Thread(target=_vesper_startup_notify, daemon=True, name="VesperStartup").start()
-
-# Start autopilot job scheduler
-if autopilot_engine:
-    try:
-        autopilot_engine.set_ai_router(ai_router, TaskType)
-        autopilot_engine.start()
-    except Exception as _ap_start_err:
-        print(f"[STARTUP] Autopilot start error: {_ap_start_err}", flush=True)
-
 print("[STARTUP] main.py fully loaded - uvicorn should now accept connections", flush=True)
 
 
