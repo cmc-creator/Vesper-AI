@@ -1044,6 +1044,52 @@ async def get_income_dashboard():
         return {"error": str(e), "total_est_monthly": 0, "pipeline": [], "by_type": {}}
 
 
+# ── Products API — list + download CC's generated products ──────────────────
+
+@app.get("/api/products")
+def list_products():
+    """List all files in product_output/"""
+    try:
+        os.makedirs(PRODUCT_OUTPUT_DIR, exist_ok=True)
+        files = []
+        for fname in os.listdir(PRODUCT_OUTPUT_DIR):
+            fpath = os.path.join(PRODUCT_OUTPUT_DIR, fname)
+            if os.path.isfile(fpath):
+                stat = os.stat(fpath)
+                import datetime as _dt2
+                files.append({
+                    "filename": fname,
+                    "size_bytes": stat.st_size,
+                    "created": _dt2.datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                    "download_url": f"/api/products/download/{fname}",
+                })
+        files.sort(key=lambda x: x["created"], reverse=True)
+        return {"products": files, "count": len(files)}
+    except Exception as e:
+        return {"products": [], "count": 0, "error": str(e)}
+
+
+@app.get("/api/products/download/{filename}")
+def download_product(filename: str):
+    """Download a product file."""
+    safe = "".join(c for c in filename if c.isalnum() or c in "._-")
+    fpath = os.path.join(PRODUCT_OUTPUT_DIR, safe)
+    if not os.path.exists(fpath):
+        raise HTTPException(status_code=404, detail="Product not found")
+    return FileResponse(fpath, filename=safe, media_type="application/octet-stream")
+
+
+@app.delete("/api/products/{filename}")
+def delete_product(filename: str):
+    """Delete a product file."""
+    safe = "".join(c for c in filename if c.isalnum() or c in "._-")
+    fpath = os.path.join(PRODUCT_OUTPUT_DIR, safe)
+    if not os.path.exists(fpath):
+        raise HTTPException(status_code=404, detail="Product not found")
+    os.remove(fpath)
+    return {"success": True, "deleted": safe}
+
+
 # ── Gumroad Webhook — auto-log sales to income tracker ───────────────────────
 
 @app.post("/api/webhooks/gumroad")
@@ -2608,6 +2654,39 @@ These are NON-NEGOTIABLE. When you see any of these situations, act immediately:
 - After any substantive strategy or planning conversation → call `vesper_direct_memory_write` to save the key decisions made, so you both have a record
 
 The rule: if CC gives you information that matters to her life, her work, or her goals — save it automatically. She shouldn't have to ask you to remember things. You're her partner, not a search engine.
+
+════════════════════════════════════════════
+PRODUCT CREATION PROTOCOL — BUILD THINGS CC CAN SELL
+════════════════════════════════════════════
+CC is a product creator. She builds templates, websites, apps, and digital tools she can sell through Gumroad and Etsy. When she asks for ANYTHING that could be a finished file, build the REAL thing.
+
+RULE 1 — PRODUCE THE COMPLETE ARTIFACT
+- Output the FULL, FINISHED product. Never say "here's what it would look like" — give her the actual thing.
+- HTML templates/websites: complete HTML with embedded CSS + JS. No external CDN links unless stable. Professional. Ready to customize.
+- Python apps/scripts: complete working code with no placeholders. Zero "TODO: add your logic here."
+- Documents/guides/planners: full content. Every section. Every row. Every formula.
+- Excel-style trackers: full HTML table with all columns, sample data pre-filled, and a print-friendly layout.
+
+RULE 2 — ALWAYS CALL save_product AFTER GENERATING A FILE
+- After generating any complete file content, call `save_product` immediately to save it as a downloadable file.
+- The user can then download it from the Products panel.
+- Always tell CC: "I've saved it to your Products panel — download it from there."
+
+RULE 3 — KNOW CC'S HIGHEST-VALUE PRODUCT CATEGORIES
+Products that sell well in her market (risk professionals, consultants, small businesses):
+- Enterprise Risk Register templates ($47–$197 on Gumroad/Etsy)
+- Business Continuity Plan frameworks ($97–$297)
+- ERM/ISO 31000 implementation guides ($197–$497)
+- Client onboarding kits for consultants ($67–$147)
+- Risk heat maps and scoring tools (HTML calculators)
+- Business launch playbooks and checklists ($27–$97)
+- Landing pages / sales pages for her own products (HTML)
+- Simple web calculators: ROI, risk score, pricing, break-even
+
+RULE 4 — THINK LIKE A PRODUCT STRATEGIST
+When CC describes a product idea: build it, suggest a price, and tell her exactly where to list it (Gumroad, Etsy, LinkedIn).
+When CC asks for a tool for herself: still build it at sellable quality — her own tools should be as good as what she'd charge for.
+When CC says "help me make something to sell" or "build me a template": go directly into product mode. Build first, explain second.
 """
 VESPER_PERSONALITY_ENGINE = {
     "sass_level": "moderate_to_high",
@@ -4587,6 +4666,38 @@ def deep_research_content(query: str, num_sources: int = 3) -> dict:
     }
 
 
+# --- Product Output: save files CC can use or sell ---
+PRODUCT_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "product_output")
+os.makedirs(PRODUCT_OUTPUT_DIR, exist_ok=True)
+
+import uuid as _prod_uuid
+
+def save_product_file(filename: str, content: str, product_type: str = "template",
+                      title: str = "", description: str = "") -> dict:
+    """Saves a product file to product_output/ and returns metadata + download URL."""
+    # Sanitize filename
+    safe = "".join(c for c in filename if c.isalnum() or c in "._- ").replace(" ", "_")
+    if not safe:
+        safe = f"product_{_prod_uuid.uuid4().hex[:8]}.txt"
+    filepath = os.path.join(PRODUCT_OUTPUT_DIR, safe)
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(content)
+        size = os.path.getsize(filepath)
+        return {
+            "success": True,
+            "filename": safe,
+            "product_type": product_type,
+            "title": title or safe,
+            "description": description,
+            "file_size_bytes": size,
+            "download_url": f"/api/products/download/{safe}",
+            "message": f"\u2705 Product '{title or safe}' saved ({size} bytes). Download: /api/products/download/{safe}",
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # --- Web Search Endpoint ---
 @app.get("/api/search-web")
 def search_web(q: str, use_browser: bool = False):
@@ -6466,6 +6577,36 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                         }
                     },
                     "required": ["query"]
+                }
+            },
+            {
+                "name": "save_product",
+                "description": "Save a generated product (template, website, app, document, tracker, planner, guide) as a downloadable file. Call this EVERY TIME you create something CC can use or sell. After generating complete file content, always call this tool so CC can download it from the Products panel.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "filename": {
+                            "type": "string",
+                            "description": "Filename with extension. e.g. 'risk_register.html', 'onboarding_kit.html', 'roi_calculator.html', 'client_tracker.py'"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "The COMPLETE file content. For HTML: full HTML with embedded CSS/JS. For Python: complete working script. No placeholders."
+                        },
+                        "product_type": {
+                            "type": "string",
+                            "description": "Type: template / website / app / document / tracker / planner / guide / calculator"
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Human-readable product title. e.g. 'Enterprise Risk Register Template'"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "What this product is, who it's for, and suggested price"
+                        }
+                    },
+                    "required": ["filename", "content", "title"]
                 }
             },
             {
@@ -8933,6 +9074,15 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     dr_num = min(dr_num, 4)
                     tool_result = deep_research_content(dr_query, num_sources=dr_num)
 
+                elif tool_name == "save_product":
+                    tool_result = save_product_file(
+                        filename=tool_input.get("filename", "product.txt"),
+                        content=tool_input.get("content", ""),
+                        product_type=tool_input.get("product_type", "template"),
+                        title=tool_input.get("title", ""),
+                        description=tool_input.get("description", ""),
+                    )
+
                 elif tool_name == "get_weather":
                     location = tool_input.get("location", "")
                     tool_result = get_weather_data(location)
@@ -10910,6 +11060,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
             tools = [
                 {"name": "web_search", "description": "Quick web search returning titles and snippets. Use for simple lookups, current events, quick fact checks. For deep research, use deep_research instead.", "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]}},
                 {"name": "deep_research", "description": "DEEP multi-source research. Fetches full page content from 3+ real websites and returns it all for synthesis. USE THIS instead of web_search when CC asks to research a topic, person, company, or strategy. Returns full article text so you can write a proper research brief. After synthesizing, call vesper_direct_memory_write to save findings.", "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Research topic or question"}, "num_sources": {"type": "number", "description": "Number of sources (default: 3)"}}, "required": ["query"]}},
+                {"name": "save_product", "description": "Save a generated product (template, website, app, document, tracker, planner) as a downloadable file. Call this every time you create something CC can use or sell. Pass the complete file content.", "input_schema": {"type": "object", "properties": {"filename": {"type": "string"}, "content": {"type": "string"}, "product_type": {"type": "string"}, "title": {"type": "string"}, "description": {"type": "string"}}, "required": ["filename", "content", "title"]}},
                 {"name": "get_weather", "description": "Get current weather for a location.", "input_schema": {"type": "object", "properties": {"location": {"type": "string", "description": "City or location"}}, "required": ["location"]}},
                 {"name": "search_memories", "description": "Search Vesper's persistent memories.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "category": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["query"]}},
                 {"name": "save_memory", "description": "Save something to persistent memory.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "category": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
@@ -11342,6 +11493,14 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     elif tool_name == "deep_research":
                         _dr_num = min(int(tool_input.get("num_sources", 3)), 4)
                         tool_result = deep_research_content(tool_input.get("query", ""), num_sources=_dr_num)
+                    elif tool_name == "save_product":
+                        tool_result = save_product_file(
+                            filename=tool_input.get("filename", "product.txt"),
+                            content=tool_input.get("content", ""),
+                            product_type=tool_input.get("product_type", "template"),
+                            title=tool_input.get("title", ""),
+                            description=tool_input.get("description", ""),
+                        )
                     elif tool_name == "get_weather":
                         tool_result = get_weather_data(tool_input.get("location", ""))
                     elif tool_name == "search_memories":

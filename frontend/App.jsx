@@ -820,6 +820,9 @@ function App() {
   // Vesper Reacts mood chip
   const [vesperMood, setVesperMood] = useState(null);
   const [starredPanelOpen, setStarredPanelOpen] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(false);
   // Global cross-thread search
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
@@ -3225,6 +3228,8 @@ export default function App() {
         inputRef.current?.focus();
         showToast('📖 Example: /remind in 30 min to review the PR', 'warn');
       }
+    } else if (cmd === '/products') {
+      setProductsOpen(true); fetchProducts();
     } else if (cmd === '/star') {
       setStarredPanelOpen(true);
     } else if (cmd === '/global') {
@@ -3233,6 +3238,16 @@ export default function App() {
     }
   }, [apiBase, fetchTasks, vesperReact, exportChat, showToast]);
 
+
+  const fetchProducts = useCallback(async () => {
+    setProductsLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/api/products`);
+      const data = await res.json();
+      setProducts(data.products || []);
+    } catch (e) { console.error('fetchProducts error', e); }
+    finally { setProductsLoading(false); }
+  }, [apiBase]);
 
   const fetchThreads = useCallback(async (silent = false) => {
     if (!silent) setThreadsLoading(true);
@@ -3556,6 +3571,7 @@ export default function App() {
     { group: 'Actions', icon: '⌨', label: 'Keyboard Shortcuts',  action: () => { setShortcutsOpen(true); } },
     { group: 'Actions', icon: '🎨', label: 'Open Theme Picker',   action: () => { setActiveSection('settings'); } },
     { group: 'Actions', icon: '⭐', label: 'Saved Messages',      action: () => { setStarredPanelOpen(true); } },
+    { group: 'Actions', icon: '📦', label: 'My Products',           action: () => { setProductsOpen(true); fetchProducts(); } },
     { group: 'Actions', icon: '🌐', label: 'Search All Conversations', action: () => { setGlobalSearchOpen(true); } },
     ...NAV.map(n => ({ group: 'Navigate', icon: '→', label: n.label,  action: () => setActiveSection(n.id) })),
     ...THEMES.map(t => ({ group: 'Theme', icon: '●', label: t.label, accent: t.accent, action: () => { setActiveTheme(t); try { localStorage.setItem('vesper_theme', t.id); } catch(_) {} setToast(`Theme: ${t.label}`); } })),
@@ -10050,7 +10066,52 @@ export default function App() {
         </Box>
       )}
 
-      {/* ─── STARRED MESSAGES PANEL ──────────────────────────────────────── */}
+      {/* ─── PRODUCTS PANEL ──────────────────────────────────────────────── */}
+      {productsOpen && (
+        <Box onClick={() => setProductsOpen(false)}
+          sx={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', p: 2 }}>
+          <Box onClick={e => e.stopPropagation()}
+            sx={{ width: 420, maxHeight: '78vh', borderRadius: 3, bgcolor: 'rgba(8,11,20,0.98)', border: '1px solid rgba(var(--accent-rgb),0.3)', overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: 'cmdSlideIn 0.18s cubic-bezier(0.22,1,0.36,1)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.07)', gap: 1 }}>
+              <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: '#fff', flex: 1 }}>📦 My Products</Typography>
+              <Box component='span' onClick={() => fetchProducts()} sx={{ fontSize: '0.7rem', color: 'var(--accent)', cursor: 'pointer', mr: 1, opacity: 0.7 }}>Refresh</Box>
+              <Box component='span' onClick={() => setProductsOpen(false)} sx={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 1 }}>×</Box>
+            </Box>
+            <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5 }}>
+              {productsLoading ? (
+                <Box sx={{ py: 4, textAlign: 'center' }}><Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem' }}>Loading…</Typography></Box>
+              ) : products.length === 0 ? (
+                <Box sx={{ py: 5, textAlign: 'center' }}>
+                  <Typography sx={{ fontSize: '2rem', mb: 1 }}>📦</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', fontWeight: 600 }}>No products yet</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem', mt: 0.5, px: 3 }}>Ask Vesper to build a template, website, or tool and she’ll save it here.</Typography>
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {products.map(p => (
+                    <Box key={p.filename} sx={{ p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(var(--accent-rgb),0.12)', transition: 'all 0.15s ease' }}>
+                      <Typography sx={{ fontWeight: 600, fontSize: '0.82rem', color: '#fff', wordBreak: 'break-word', mb: 0.25 }}>{p.filename}</Typography>
+                      <Typography sx={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', mb: 0.75 }}>{Math.round(p.size_bytes/1024*10)/10} KB · {new Date(p.created).toLocaleDateString()}</Typography>
+                      <Box sx={{ display: 'flex', gap: 0.75 }}>
+                        <Box component='a' href={`${apiBase}${p.download_url}`} download={p.filename}
+                          sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent)', fontSize: '0.7rem', fontWeight: 700, textDecoration: 'none', border: '1px solid rgba(var(--accent-rgb),0.3)', cursor: 'pointer' }}>↓ Download</Box>
+                        <Box component='a' href={`${apiBase}${p.download_url}`} target='_blank' rel='noreferrer'
+                          sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', fontWeight: 600, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}>Preview</Box>
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+            <Box sx={{ px: 2, py: 1.25, borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', flex: 1 }}>Ask Vesper to build templates, websites, or tools</Typography>
+              <Typography sx={{ fontSize: '0.68rem', color: 'var(--accent)', opacity: 0.6 }}>{products.length} file{products.length !== 1 ? 's' : ''}</Typography>
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+            {/* ─── STARRED MESSAGES PANEL ──────────────────────────────────────── */}
       {starredPanelOpen && (
         <Box onClick={() => setStarredPanelOpen(false)}
           sx={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', p: 2 }}>
