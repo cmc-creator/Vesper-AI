@@ -3249,6 +3249,14 @@ export default function App() {
     finally { setProductsLoading(false); }
   }, [apiBase]);
 
+  const deleteProduct = useCallback(async (filename) => {
+    try {
+      await fetch(`${apiBase}/api/products/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+      setProducts(prev => prev.filter(p => p.filename !== filename));
+      setToast('Product deleted');
+    } catch (e) { console.error('deleteProduct error', e); }
+  }, [apiBase]);
+
   const fetchThreads = useCallback(async (silent = false) => {
     if (!silent) setThreadsLoading(true);
     try {
@@ -10097,6 +10105,8 @@ export default function App() {
                           sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent)', fontSize: '0.7rem', fontWeight: 700, textDecoration: 'none', border: '1px solid rgba(var(--accent-rgb),0.3)', cursor: 'pointer' }}>↓ Download</Box>
                         <Box component='a' href={`${apiBase}${p.download_url}`} target='_blank' rel='noreferrer'
                           sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', fontWeight: 600, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}>Preview</Box>
+                        <Box component='span' onClick={() => deleteProduct(p.filename)}
+                          sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(255,60,60,0.08)', color: 'rgba(255,100,100,0.65)', fontSize: '0.7rem', fontWeight: 600, border: '1px solid rgba(255,60,60,0.15)', cursor: 'pointer', userSelect: 'none' }}>Delete</Box>
                       </Box>
                     </Box>
                   ))}
