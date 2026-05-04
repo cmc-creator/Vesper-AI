@@ -111,7 +111,7 @@ import { signInAnonymously } from 'firebase/auth';
 // Components
 import AIAvatar from './src/components/AIAvatar';
 import CommandPalette from './src/components/CommandPalette';
-import Editor from '@monaco-editor/react';
+import Editor, { DiffEditor } from '@monaco-editor/react';
 import VoiceInput from './src/components/VoiceInput';
 // FloatingActionButton removed - actions now in tools grid
 import Canvas from './src/components/Canvas';
@@ -836,6 +836,8 @@ function App() {
   const [ideNewFileName, setIdeNewFileName] = useState('');
   const [ideRenameFile, setIdeRenameFile] = useState(null);
   const [ideRenameName, setIdeRenameName] = useState('');
+  const [ideExplorerSearch, setIdeExplorerSearch] = useState('');
+  const [ideDiff, setIdeDiff] = useState(null);
   const pendingAutoOpen = useRef(false);
   const monacoSaveRef = useRef(null);
   // Global cross-thread search
@@ -3301,6 +3303,27 @@ export default function App() {
     return map[ext] || { label: ext.toUpperCase() || 'File', icon: '📄', monacoLang: 'plaintext' };
   }, []);
 
+  const getFileColor = useCallback((filename) => {
+    const ext = (filename || '').split('.').pop().toLowerCase();
+    const colors = {
+      html: '#e34c26', htm: '#e34c26',
+      css:  '#264de4',
+      js:   '#f7df1e', mjs: '#f7df1e',
+      jsx:  '#61dafb', tsx: '#3178c6',
+      ts:   '#3178c6',
+      py:   '#3572a5',
+      json: '#40b844',
+      md:   '#083fa1',
+      sh:   '#89e051',
+      yaml: '#cb171e', yml: '#cb171e',
+      sql:  '#e38c00',
+      xml:  '#ff6600',
+      csv:  '#237346',
+      txt:  '#888',
+    };
+    return colors[ext] || '#666';
+  }, []);
+
   const openInEditor = useCallback(async (filename, downloadUrl) => {
     if (editorTabs.find(t => t.filename === filename)) {
       setActiveTab(filename); setIdeMode(true); return;
@@ -3338,12 +3361,12 @@ export default function App() {
     });
   }, [activeTab]);
 
-  const createNewFile = useCallback(async (filename) => {
+  const createNewFile = useCallback(async (filename, initialContent = '') => {
     const safe = filename.trim();
     if (!safe) return;
     try {
       await fetch(`${apiBase}/api/products/${encodeURIComponent(safe)}`, {
-        method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: '',
+        method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: initialContent,
       });
       await fetchProducts();
       openInEditor(safe, `/api/products/download/${encodeURIComponent(safe)}`);
@@ -3375,6 +3398,30 @@ export default function App() {
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
     } catch(e) { console.error('exportAllZip error', e); }
   }, [apiBase]);
+
+  const applyToEditor = useCallback(async (code, lang) => {
+    if (!activeTab) {
+      const ext = (lang && lang !== 'plaintext') ? lang : 'txt';
+      const fname = `applied_${Date.now()}.${ext}`;
+      await createNewFile(fname, code);
+      setToast(`✓ Created ${fname}`);
+      setIdeMode(true);
+      return;
+    }
+    const tab = editorTabs.find(t => t.filename === activeTab);
+    const before = tab?.content || '';
+    setEditorTabs(prev => prev.map(t =>
+      t.filename === activeTab ? { ...t, content: code, dirty: true } : t
+    ));
+    setIdeDiff({ filename: activeTab, before, after: code });
+    setIdeMode(true);
+    try {
+      await fetch(`${apiBase}/api/products/${encodeURIComponent(activeTab)}`, {
+        method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: code,
+      });
+      setToast(`✓ Applied to ${activeTab}`);
+    } catch(e) { console.error('applyToEditor save error', e); }
+  }, [activeTab, editorTabs, apiBase, createNewFile]);
 
   const fetchThreads = useCallback(async (silent = false) => {
     if (!silent) setThreadsLoading(true);
@@ -4990,6 +5037,24 @@ export default function App() {
           >
             {content}
           </ReactMarkdown>
+          {!isUser && !isStreaming && (() => {
+            const codeBlocks = [...((content||'').matchAll(/```(\w*)\n([\s\S]*?)```/g))].map((m,i) => ({ lang: m[1]||'', code: m[2].trim(), idx: i }));
+            if (!codeBlocks.length) return null;
+            return (
+              <Box sx={{ mt: 0.75, display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                {codeBlocks.map((block, i) => (
+                  <Box key={i} component='span'
+                    onClick={() => applyToEditor(block.code, block.lang)}
+                    sx={{ px: 1.5, py: 0.4, borderRadius: 1, bgcolor: 'rgba(var(--accent-rgb),0.1)', color: 'var(--accent)',
+                      fontSize: '0.7rem', cursor: 'pointer', userSelect: 'none',
+                      border: '1px solid rgba(var(--accent-rgb),0.22)', fontFamily: 'monospace',
+                      transition: 'all 0.15s', '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.22)' } }}>
+                    ⬆ Apply{block.lang ? ` (${block.lang})` : ''}{codeBlocks.length > 1 ? ` #${i+1}` : ''}
+                  </Box>
+                ))}
+              </Box>
+            );
+          })()}
           {isStreaming && <span className="streaming-cursor" />}
           </Box>
         </Box>
@@ -10295,14 +10360,23 @@ export default function App() {
                 <Typography component='span' sx={{ fontSize: '0.6rem' }}>▾</Typography> PRODUCTS
               </Box>
               <Box sx={{ flex: 1, overflowY: 'auto', pb: 1, '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#444' } }}>
+                <Box sx={{ px: 1.5, pb: 0.75, flexShrink: 0 }}>
+                  <Box component='input' placeholder="🔍 Filter files…" value={ideExplorerSearch}
+                    onChange={e => setIdeExplorerSearch(e.target.value)}
+                    sx={{ width: '100%', bgcolor: '#3c3c3c', border: '1px solid #444', borderRadius: 1,
+                      color: '#ccc', px: 1, py: 0.4, fontSize: '0.73rem', fontFamily: 'Consolas,monospace',
+                      outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: 'var(--accent)' },
+                    }}
+                  />
+                </Box>
                 {products.length === 0 ? (
                   <Box sx={{ px: 2, pt: 2, fontSize: '0.75rem', color: '#555', lineHeight: 1.75 }}>No files yet.<br/>Ask Vesper to build something.</Box>
-                ) : products.map(p => (
+                ) : products.filter(p => !ideExplorerSearch || p.filename.toLowerCase().includes(ideExplorerSearch.toLowerCase())).map(p => (
                   <Box key={p.filename} onClick={() => openInEditor(p.filename, p.download_url)}
                     sx={{ pl: 3, pr: 1.5, py: 0.5, fontSize: '0.78rem', color: activeTab === p.filename ? '#fff' : '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.75,
                       bgcolor: activeTab === p.filename ? 'rgba(var(--accent-rgb),0.15)' : 'transparent',
                       '&:hover': { bgcolor: activeTab === p.filename ? 'rgba(var(--accent-rgb),0.15)' : 'rgba(255,255,255,0.06)' } }}>
-                    <Typography component='span' sx={{ fontSize: '0.72rem', opacity: 0.65, flexShrink: 0 }}>{getFileLang(p.filename).icon}</Typography>
+                    <Box component='span' sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: getFileColor(p.filename), flexShrink: 0, display: 'inline-block', alignSelf: 'center', mr: 0.5 }} />
                     {ideRenameFile === p.filename ? (
                       <Box component='input' autoFocus value={ideRenameName} onChange={e => setIdeRenameName(e.target.value)}
                         onClick={e => e.stopPropagation()}
@@ -10338,7 +10412,7 @@ export default function App() {
                     borderTop: `1px solid ${activeTab === tab.filename ? 'var(--accent)' : 'transparent'}`,
                     borderRight: '1px solid #252526',
                     '&:hover': { bgcolor: activeTab === tab.filename ? '#1e1e1e' : 'rgba(255,255,255,0.05)' } }}>
-                  <Typography component='span' sx={{ fontSize: '0.68rem', opacity: 0.6, flexShrink: 0 }}>{getFileLang(tab.filename).icon}</Typography>
+                  <Box component='span' sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: getFileColor(tab.filename), flexShrink: 0, display: 'inline-block', alignSelf: 'center' }} />
                   <Typography component='span' sx={{ fontSize: '0.75rem', color: activeTab === tab.filename ? '#fff' : '#aaa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{tab.filename}{tab.dirty ? ' ●' : ''}</Typography>
                   <Typography component='span' onClick={e => { e.stopPropagation(); closeEditorTab(tab.filename); }}
                     sx={{ fontSize: '0.8rem', color: '#666', lineHeight: 1, ml: 0.5, px: 0.5, borderRadius: 0.5, flexShrink: 0, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}>×</Typography>
@@ -10374,7 +10448,28 @@ export default function App() {
             <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
 
               {/* Code Editor */}
-              {activeTab ? (() => {
+              {ideDiff && ideDiff.filename === activeTab ? (
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+                  <Box sx={{ px: 2, py: 0.75, bgcolor: '#252526', borderBottom: '1px solid #1e1e1e', display: 'flex', alignItems: 'center', flexShrink: 0, gap: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.72rem', color: '#e9e9e9', fontWeight: 600 }}>↔ Diff — {ideDiff.filename}</Typography>
+                    <Typography sx={{ fontSize: '0.68rem', color: '#888' }}>red = before · green = applied</Typography>
+                    <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+                      <Box component='span' onClick={() => setIdeDiff(null)}
+                        sx={{ fontSize: '0.7rem', color: 'var(--accent)', cursor: 'pointer', px: 1.25, py: 0.3, borderRadius: 1,
+                          border: '1px solid rgba(var(--accent-rgb),0.3)', userSelect: 'none',
+                          '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.1)' } }}>✓ Dismiss diff</Box>
+                    </Box>
+                  </Box>
+                  <DiffEditor
+                    original={ideDiff.before}
+                    modified={ideDiff.after}
+                    language={getFileLang(ideDiff.filename).monacoLang}
+                    theme='vs-dark'
+                    height='100%'
+                    options={{ readOnly: true, minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }}
+                  />
+                </Box>
+              ) : activeTab ? (() => {
                 const tab = editorTabs.find(t => t.filename === activeTab);
                 if (!tab) return <Box sx={{ flex: 1, bgcolor: '#1e1e1e' }} />;
                 return (
