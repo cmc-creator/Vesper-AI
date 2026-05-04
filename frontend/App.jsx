@@ -111,6 +111,7 @@ import { signInAnonymously } from 'firebase/auth';
 // Components
 import AIAvatar from './src/components/AIAvatar';
 import CommandPalette from './src/components/CommandPalette';
+import Editor from '@monaco-editor/react';
 import VoiceInput from './src/components/VoiceInput';
 // FloatingActionButton removed - actions now in tools grid
 import Canvas from './src/components/Canvas';
@@ -830,6 +831,8 @@ function App() {
   const [activeTab, setActiveTab] = useState(null);
   const [editorSidebarOpen, setEditorSidebarOpen] = useState(true);
   const [editorChatOpen, setEditorChatOpen] = useState(true);
+  const pendingAutoOpen = useRef(false);
+  const monacoSaveRef = useRef(null);
   // Global cross-thread search
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
@@ -2054,6 +2057,9 @@ export default function App() {
                   ? { ...t, status: data.success ? 'done' : 'error' }
                   : t
               ));
+              if (data.tool_name === 'save_product' && data.success) {
+                window.dispatchEvent(new CustomEvent('vesper:product_saved'));
+              }
             } else if (data.type === 'provider') {
               currentProvider = data.provider;
               currentModel = data.model;
@@ -3273,20 +3279,21 @@ export default function App() {
   const getFileLang = useCallback((filename) => {
     const ext = (filename || '').split('.').pop().toLowerCase();
     const map = {
-      html: { label: 'HTML', icon: '🌐' }, htm: { label: 'HTML', icon: '🌐' },
-      css:  { label: 'CSS', icon: '🎨' },
-      js:   { label: 'JavaScript', icon: '🟨' }, mjs: { label: 'JavaScript', icon: '🟨' },
-      jsx:  { label: 'JSX', icon: '⚛️' }, tsx: { label: 'TSX', icon: '⚛️' },
-      ts:   { label: 'TypeScript', icon: '🔷' },
-      py:   { label: 'Python', icon: '🐍' },
-      json: { label: 'JSON', icon: '{ }' },
-      md:   { label: 'Markdown', icon: '📝' },
-      csv:  { label: 'CSV', icon: '📊' },
-      txt:  { label: 'Text', icon: '📄' },
-      sh:   { label: 'Shell', icon: '#!' }, yaml: { label: 'YAML', icon: '⚙️' }, yml: { label: 'YAML', icon: '⚙️' },
-      sql:  { label: 'SQL', icon: '🗄️' }, xml: { label: 'XML', icon: '📋' },
+      html:  { label: 'HTML',       icon: '🌐', monacoLang: 'html'       }, htm:  { label: 'HTML', icon: '🌐', monacoLang: 'html' },
+      css:   { label: 'CSS',        icon: '🎨', monacoLang: 'css'        },
+      js:    { label: 'JavaScript', icon: '🟨', monacoLang: 'javascript' }, mjs:  { label: 'JavaScript', icon: '🟨', monacoLang: 'javascript' },
+      jsx:   { label: 'JSX',        icon: '⚛️', monacoLang: 'javascript' }, tsx: { label: 'TSX', icon: '⚛️', monacoLang: 'typescript' },
+      ts:    { label: 'TypeScript', icon: '🔷', monacoLang: 'typescript' },
+      py:    { label: 'Python',     icon: '🐍', monacoLang: 'python'     },
+      json:  { label: 'JSON',       icon: '{ }',        monacoLang: 'json'       },
+      md:    { label: 'Markdown',   icon: '📝', monacoLang: 'markdown'   },
+      csv:   { label: 'CSV',        icon: '📊', monacoLang: 'plaintext'  },
+      txt:   { label: 'Text',       icon: '📄', monacoLang: 'plaintext'  },
+      sh:    { label: 'Shell',      icon: '#!',         monacoLang: 'shell'      },
+      yaml:  { label: 'YAML',       icon: '⚙️', monacoLang: 'yaml'     }, yml: { label: 'YAML', icon: '⚙️', monacoLang: 'yaml' },
+      sql:   { label: 'SQL',        icon: '🗄️', monacoLang: 'sql'  }, xml: { label: 'XML', icon: '📋', monacoLang: 'xml' },
     };
-    return map[ext] || { label: ext.toUpperCase() || 'File', icon: '📄' };
+    return map[ext] || { label: ext.toUpperCase() || 'File', icon: '📄', monacoLang: 'plaintext' };
   }, []);
 
   const openInEditor = useCallback(async (filename, downloadUrl) => {
@@ -3640,6 +3647,28 @@ export default function App() {
     }
   };
 
+  // ── IDE auto-open + polling ───────────────────────────────────
+  useEffect(() => {
+    const onProductSaved = () => { fetchProducts(); pendingAutoOpen.current = true; };
+    window.addEventListener('vesper:product_saved', onProductSaved);
+    return () => window.removeEventListener('vesper:product_saved', onProductSaved);
+  }, [fetchProducts]);
+
+  useEffect(() => {
+    if (pendingAutoOpen.current && products.length > 0) {
+      pendingAutoOpen.current = false;
+      openInEditor(products[0].filename, products[0].download_url);
+    }
+  }, [products, openInEditor]);
+
+  useEffect(() => { monacoSaveRef.current = saveEditorFile; }, [saveEditorFile]);
+
+  useEffect(() => {
+    if (!ideMode) return;
+    const iv = setInterval(fetchProducts, 8000);
+    return () => clearInterval(iv);
+  }, [ideMode, fetchProducts]);
+
   // ── Command palette items ──────────────────────────────────────────────────
   const ALL_COMMANDS = useMemo(() => [
     { group: 'Actions', icon: '✦', label: 'New Conversation',     action: () => startNewChat() },
@@ -3650,9 +3679,11 @@ export default function App() {
     { group: 'Actions', icon: '⭐', label: 'Saved Messages',      action: () => { setStarredPanelOpen(true); } },
     { group: 'Actions', icon: '📦', label: 'My Products',           action: () => { setProductsOpen(true); fetchProducts(); } },
     { group: 'Actions', icon: '🌐', label: 'Search All Conversations', action: () => { setGlobalSearchOpen(true); } },
+    { group: 'Actions', icon: '</>', label: 'Open Vesper IDE',         action: () => { setIdeMode(true); if (products.length === 0) fetchProducts(); } },
+    ...products.map(p => ({ group: 'Files', icon: getFileLang(p.filename).icon, label: p.filename, action: () => openInEditor(p.filename, p.download_url) })),
     ...NAV.map(n => ({ group: 'Navigate', icon: '→', label: n.label,  action: () => setActiveSection(n.id) })),
     ...THEMES.map(t => ({ group: 'Theme', icon: '●', label: t.label, accent: t.accent, action: () => { setActiveTheme(t); try { localStorage.setItem('vesper_theme', t.id); } catch(_) {} setToast(`Theme: ${t.label}`); } })),
-  ], [messages]);
+  ], [messages, products]);
 
   const filteredCommands = useMemo(() => {
     const q = cmdQuery.toLowerCase().trim();
@@ -10246,23 +10277,40 @@ export default function App() {
               {activeTab ? (() => {
                 const tab = editorTabs.find(t => t.filename === activeTab);
                 if (!tab) return <Box sx={{ flex: 1, bgcolor: '#1e1e1e' }} />;
-                const edLines = (tab.content || '').split('\n');
                 return (
-                  <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', fontFamily: "'Cascadia Code','JetBrains Mono','Fira Code',Consolas,'Courier New',monospace", fontSize: '13.5px', lineHeight: '21px', minWidth: 0 }}>
-                    <Box id='vesper-ide-linenums' sx={{ width: 52, bgcolor: '#1e1e1e', color: '#5a5a5a', textAlign: 'right', pr: 1.5, pt: '10px', pb: '10px', userSelect: 'none', pointerEvents: 'none', overflowY: 'hidden', flexShrink: 0, fontSize: '12px', lineHeight: '21px' }}>
-                      <Box component='pre' sx={{ m: 0, fontFamily: 'inherit', fontSize: 'inherit', lineHeight: 'inherit', whiteSpace: 'pre' }}>{edLines.map((_, i) => i + 1).join('\n')}</Box>
-                    </Box>
-                    <Box component='textarea' id='vesper-ide-editor'
+                  <Box sx={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
+                    <Editor
+                      key={activeTab}
+                      height='100%'
+                      language={getFileLang(activeTab).monacoLang}
+                      theme='vs-dark'
                       value={tab.content}
-                      onChange={e => { const v = e.target.value; setEditorTabs(prev => prev.map(t => t.filename === activeTab ? {...t, content: v, dirty: true} : t)); }}
-                      onKeyDown={e => {
-                        if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveEditorFile(); }
-                        if (e.key === 'Tab') { e.preventDefault(); const ta = e.target; const s = ta.selectionStart; const v = tab.content.substring(0,s)+'  '+tab.content.substring(ta.selectionEnd); setEditorTabs(prev => prev.map(t => t.filename === activeTab ? {...t, content: v, dirty: true} : t)); requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = s+2; }); }
+                      onChange={(value) => setEditorTabs(prev => prev.map(t =>
+                        t.filename === activeTab ? {...t, content: value ?? '', dirty: true} : t
+                      ))}
+                      onMount={(editor, monaco) => {
+                        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => { monacoSaveRef.current?.(); });
                       }}
-                      onScroll={e => { const ln = document.getElementById('vesper-ide-linenums'); if (ln) ln.scrollTop = e.target.scrollTop; }}
-                      spellCheck={false} autoCorrect='off' autoCapitalize='off'
-                      sx={{ flex: 1, bgcolor: '#1e1e1e', color: '#d4d4d4', border: 'none', outline: 'none', resize: 'none', p: '10px', pl: 1, fontFamily: 'inherit', fontSize: 'inherit', lineHeight: 'inherit', overflowY: 'auto', boxSizing: 'border-box', caretColor: '#aeafad',
-                        '&::-webkit-scrollbar': { width: 12 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#424242', borderRadius: 6, border: '3px solid #1e1e1e' }, '&::-webkit-scrollbar-track': { bgcolor: '#1e1e1e' } }}
+                      options={{
+                        fontSize: 13.5,
+                        lineHeight: 21,
+                        fontFamily: "'Cascadia Code','JetBrains Mono','Fira Code',Consolas,'Courier New',monospace",
+                        minimap: { enabled: false },
+                        scrollBeyondLastLine: false,
+                        tabSize: 2,
+                        insertSpaces: true,
+                        wordWrap: 'on',
+                        renderLineHighlight: 'line',
+                        smoothScrolling: true,
+                        cursorBlinking: 'smooth',
+                        padding: { top: 10, bottom: 10 },
+                        overviewRulerLanes: 0,
+                      }}
+                      loading={
+                        <Box sx={{ height: '100%', bgcolor: '#1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Typography sx={{ color: '#555', fontSize: '0.75rem' }}>Loading editor…</Typography>
+                        </Box>
+                      }
                     />
                   </Box>
                 );
