@@ -1079,6 +1079,18 @@ def download_product(filename: str):
     return FileResponse(fpath, filename=safe, media_type="application/octet-stream")
 
 
+@app.put("/api/products/{filename}")
+async def update_product(filename: str, request: Request):
+    """Overwrite a product file with new content (for in-browser editing)."""
+    safe = "".join(c for c in filename if c.isalnum() or c in "._-")
+    fpath = os.path.join(PRODUCT_OUTPUT_DIR, safe)
+    if not os.path.exists(fpath):
+        raise HTTPException(status_code=404, detail="Product not found")
+    body = await request.body()
+    with open(fpath, "wb") as fh:
+        fh.write(body)
+    return {"success": True, "filename": safe, "size": len(body)}
+
 @app.delete("/api/products/{filename}")
 def delete_product(filename: str):
     """Delete a product file."""

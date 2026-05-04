@@ -82,6 +82,8 @@ import {
   Autorenew as AutorenewIcon,
   Bookmark as BookmarkIcon,
   BookmarkBorder as BookmarkBorderIcon,
+  FolderOpen as FolderOpenIcon,
+  Code as CodeIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -823,6 +825,11 @@ function App() {
   const [productsOpen, setProductsOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
+  const [ideMode, setIdeMode] = useState(false);
+  const [editorTabs, setEditorTabs] = useState([]);
+  const [activeTab, setActiveTab] = useState(null);
+  const [editorSidebarOpen, setEditorSidebarOpen] = useState(true);
+  const [editorChatOpen, setEditorChatOpen] = useState(true);
   // Global cross-thread search
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
@@ -1536,6 +1543,12 @@ export default function App() {
     e.preventDefault();
     setGameMode((prev) => !prev);
   });
+
+  useHotkeys('ctrl+shift+e', (e) => {
+    e.preventDefault();
+    setIdeMode(v => !v);
+    if (products.length === 0) fetchProducts();
+  }, [products.length, fetchProducts]);
 
   useEffect(() => {
     if (disableFirebaseAuth || !isFirebaseConfigured || !auth || typeof signInAnonymously !== 'function') {
@@ -3256,6 +3269,62 @@ export default function App() {
       setToast('Product deleted');
     } catch (e) { console.error('deleteProduct error', e); }
   }, [apiBase]);
+
+  const getFileLang = useCallback((filename) => {
+    const ext = (filename || '').split('.').pop().toLowerCase();
+    const map = {
+      html: { label: 'HTML', icon: '🌐' }, htm: { label: 'HTML', icon: '🌐' },
+      css:  { label: 'CSS', icon: '🎨' },
+      js:   { label: 'JavaScript', icon: '🟨' }, mjs: { label: 'JavaScript', icon: '🟨' },
+      jsx:  { label: 'JSX', icon: '⚛️' }, tsx: { label: 'TSX', icon: '⚛️' },
+      ts:   { label: 'TypeScript', icon: '🔷' },
+      py:   { label: 'Python', icon: '🐍' },
+      json: { label: 'JSON', icon: '{ }' },
+      md:   { label: 'Markdown', icon: '📝' },
+      csv:  { label: 'CSV', icon: '📊' },
+      txt:  { label: 'Text', icon: '📄' },
+      sh:   { label: 'Shell', icon: '#!' }, yaml: { label: 'YAML', icon: '⚙️' }, yml: { label: 'YAML', icon: '⚙️' },
+      sql:  { label: 'SQL', icon: '🗄️' }, xml: { label: 'XML', icon: '📋' },
+    };
+    return map[ext] || { label: ext.toUpperCase() || 'File', icon: '📄' };
+  }, []);
+
+  const openInEditor = useCallback(async (filename, downloadUrl) => {
+    if (editorTabs.find(t => t.filename === filename)) {
+      setActiveTab(filename); setIdeMode(true); return;
+    }
+    try {
+      const res = await fetch(`${apiBase}${downloadUrl}`);
+      const text = await res.text();
+      setEditorTabs(prev => [...prev, { filename, content: text, dirty: false }]);
+      setActiveTab(filename);
+      setIdeMode(true);
+    } catch(e) { console.error('openInEditor error', e); }
+  }, [apiBase, editorTabs]);
+
+  const saveEditorFile = useCallback(async () => {
+    const tab = editorTabs.find(t => t.filename === activeTab);
+    if (!tab) return;
+    try {
+      await fetch(`${apiBase}/api/products/${encodeURIComponent(tab.filename)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        body: tab.content,
+      });
+      setEditorTabs(prev => prev.map(t => t.filename === tab.filename ? {...t, dirty: false} : t));
+    } catch(e) { console.error('saveEditorFile error', e); }
+  }, [apiBase, editorTabs, activeTab]);
+
+  const closeEditorTab = useCallback((filename) => {
+    setEditorTabs(prev => {
+      const next = prev.filter(t => t.filename !== filename);
+      if (activeTab === filename) {
+        setActiveTab(next.length > 0 ? next[next.length - 1].filename : null);
+        if (next.length === 0) setIdeMode(false);
+      }
+      return next;
+    });
+  }, [activeTab]);
 
   const fetchThreads = useCallback(async (silent = false) => {
     if (!silent) setThreadsLoading(true);
@@ -8271,6 +8340,24 @@ export default function App() {
                     }}
                   />
                 )}
+
+                {/* IDE Toggle */}
+                <Tooltip title={ideMode ? 'Exit Vesper IDE  (Ctrl+Shift+E)' : 'Vesper IDE  (Ctrl+Shift+E)'} placement="left">
+                  <IconButton
+                    size="small"
+                    onClick={() => { setIdeMode(v => !v); if (products.length === 0) fetchProducts(); }}
+                    sx={{
+                      display: { xs: 'none', md: 'inline-flex' },
+                      color: ideMode ? '#569cd6' : 'rgba(255,255,255,0.35)',
+                      bgcolor: ideMode ? 'rgba(86,156,214,0.15)' : 'transparent',
+                      border: ideMode ? '1px solid rgba(86,156,214,0.5)' : '1px solid rgba(255,255,255,0.15)',
+                      '&:hover': { color: '#569cd6', bgcolor: 'rgba(86,156,214,0.15)' },
+                      width: 32, height: 32,
+                    }}
+                  >
+                    <CodeIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
               </Box>
             </Box>
 
@@ -10074,7 +10161,192 @@ export default function App() {
         </Box>
       )}
 
-      {/* ─── PRODUCTS PANEL ──────────────────────────────────────────────── */}
+      {/* ─── VESPER IDE ──────────────────────────────────────────────────── */}
+      {ideMode && (
+        <Box sx={{ position: 'fixed', inset: 0, zIndex: 99996, display: 'flex', bgcolor: '#1e1e1e' }}>
+
+          {/* Activity Bar */}
+          <Box sx={{ width: 48, bgcolor: '#333333', display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 1, pb: 1, gap: 0.5, borderRight: '1px solid #252526', flexShrink: 0 }}>
+            <Tooltip title="File Explorer" placement="right">
+              <IconButton onClick={() => setEditorSidebarOpen(v => !v)}
+                sx={{ color: editorSidebarOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: editorSidebarOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
+                <FolderOpenIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Chat" placement="right">
+              <IconButton onClick={() => setEditorChatOpen(v => !v)}
+                sx={{ color: editorChatOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: editorChatOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
+                <AutoAwesomeIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+            <Box sx={{ flex: 1 }} />
+            <Tooltip title="Close IDE  (Ctrl+Shift+E)" placement="right">
+              <IconButton onClick={() => setIdeMode(false)}
+                sx={{ color: '#858585', width: 36, height: 36, borderRadius: 1, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.08)' } }}>
+                <CloseIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+
+          {/* File Explorer Sidebar */}
+          {editorSidebarOpen && (
+            <Box sx={{ width: 240, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'hidden' }}>
+              <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>EXPLORER</Box>
+              <Box sx={{ px: 1, pt: 1, pb: 0.25, fontSize: '0.68rem', fontWeight: 600, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                <Typography component='span' sx={{ fontSize: '0.6rem' }}>▾</Typography> PRODUCTS
+              </Box>
+              <Box sx={{ flex: 1, overflowY: 'auto', pb: 1, '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#444' } }}>
+                {products.length === 0 ? (
+                  <Box sx={{ px: 2, pt: 2, fontSize: '0.75rem', color: '#555', lineHeight: 1.75 }}>No files yet.<br/>Ask Vesper to build something.</Box>
+                ) : products.map(p => (
+                  <Box key={p.filename} onClick={() => openInEditor(p.filename, p.download_url)}
+                    sx={{ pl: 3, pr: 1.5, py: 0.5, fontSize: '0.78rem', color: activeTab === p.filename ? '#fff' : '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.75,
+                      bgcolor: activeTab === p.filename ? 'rgba(var(--accent-rgb),0.15)' : 'transparent',
+                      '&:hover': { bgcolor: activeTab === p.filename ? 'rgba(var(--accent-rgb),0.15)' : 'rgba(255,255,255,0.06)' } }}>
+                    <Typography component='span' sx={{ fontSize: '0.72rem', opacity: 0.65, flexShrink: 0 }}>{getFileLang(p.filename).icon}</Typography>
+                    <Typography component='span' sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'inherit' }}>{p.filename}</Typography>
+                    {editorTabs.find(t => t.filename === p.filename)?.dirty && (
+                      <Box component='span' sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'var(--accent)', flexShrink: 0 }} />
+                    )}
+                  </Box>
+                ))}
+              </Box>
+              <Box sx={{ px: 2, py: 0.875, borderTop: '1px solid #1e1e1e', flexShrink: 0 }}>
+                <Typography onClick={fetchProducts} sx={{ fontSize: '0.68rem', color: 'var(--accent)', cursor: 'pointer', opacity: 0.6, '&:hover': { opacity: 1 }, userSelect: 'none' }}>↺ Refresh</Typography>
+              </Box>
+            </Box>
+          )}
+
+          {/* Center + Right */}
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+
+            {/* Tab Bar */}
+            <Box sx={{ height: 35, bgcolor: '#2d2d2d', display: 'flex', alignItems: 'stretch', overflowX: 'auto', flexShrink: 0, borderBottom: '1px solid #252526', '&::-webkit-scrollbar': { height: 3 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#555' } }}>
+              {editorTabs.length === 0 ? (
+                <Box sx={{ px: 2, display: 'flex', alignItems: 'center', fontSize: '0.73rem', color: '#555', fontStyle: 'italic' }}>Select a file from the explorer</Box>
+              ) : editorTabs.map(tab => (
+                <Box key={tab.filename} onClick={() => setActiveTab(tab.filename)}
+                  sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.75, minWidth: 0, maxWidth: 200, cursor: 'pointer', flexShrink: 0,
+                    bgcolor: activeTab === tab.filename ? '#1e1e1e' : 'transparent',
+                    borderTop: `1px solid ${activeTab === tab.filename ? 'var(--accent)' : 'transparent'}`,
+                    borderRight: '1px solid #252526',
+                    '&:hover': { bgcolor: activeTab === tab.filename ? '#1e1e1e' : 'rgba(255,255,255,0.05)' } }}>
+                  <Typography component='span' sx={{ fontSize: '0.68rem', opacity: 0.6, flexShrink: 0 }}>{getFileLang(tab.filename).icon}</Typography>
+                  <Typography component='span' sx={{ fontSize: '0.75rem', color: activeTab === tab.filename ? '#fff' : '#aaa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{tab.filename}{tab.dirty ? ' ●' : ''}</Typography>
+                  <Typography component='span' onClick={e => { e.stopPropagation(); closeEditorTab(tab.filename); }}
+                    sx={{ fontSize: '0.8rem', color: '#666', lineHeight: 1, ml: 0.5, px: 0.5, borderRadius: 0.5, flexShrink: 0, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}>×</Typography>
+                </Box>
+              ))}
+            </Box>
+
+            {/* Editor + Chat Row */}
+            <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+
+              {/* Code Editor */}
+              {activeTab ? (() => {
+                const tab = editorTabs.find(t => t.filename === activeTab);
+                if (!tab) return <Box sx={{ flex: 1, bgcolor: '#1e1e1e' }} />;
+                const edLines = (tab.content || '').split('\n');
+                return (
+                  <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', fontFamily: "'Cascadia Code','JetBrains Mono','Fira Code',Consolas,'Courier New',monospace", fontSize: '13.5px', lineHeight: '21px', minWidth: 0 }}>
+                    <Box id='vesper-ide-linenums' sx={{ width: 52, bgcolor: '#1e1e1e', color: '#5a5a5a', textAlign: 'right', pr: 1.5, pt: '10px', pb: '10px', userSelect: 'none', pointerEvents: 'none', overflowY: 'hidden', flexShrink: 0, fontSize: '12px', lineHeight: '21px' }}>
+                      <Box component='pre' sx={{ m: 0, fontFamily: 'inherit', fontSize: 'inherit', lineHeight: 'inherit', whiteSpace: 'pre' }}>{edLines.map((_, i) => i + 1).join('\n')}</Box>
+                    </Box>
+                    <Box component='textarea' id='vesper-ide-editor'
+                      value={tab.content}
+                      onChange={e => { const v = e.target.value; setEditorTabs(prev => prev.map(t => t.filename === activeTab ? {...t, content: v, dirty: true} : t)); }}
+                      onKeyDown={e => {
+                        if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveEditorFile(); }
+                        if (e.key === 'Tab') { e.preventDefault(); const ta = e.target; const s = ta.selectionStart; const v = tab.content.substring(0,s)+'  '+tab.content.substring(ta.selectionEnd); setEditorTabs(prev => prev.map(t => t.filename === activeTab ? {...t, content: v, dirty: true} : t)); requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = s+2; }); }
+                      }}
+                      onScroll={e => { const ln = document.getElementById('vesper-ide-linenums'); if (ln) ln.scrollTop = e.target.scrollTop; }}
+                      spellCheck={false} autoCorrect='off' autoCapitalize='off'
+                      sx={{ flex: 1, bgcolor: '#1e1e1e', color: '#d4d4d4', border: 'none', outline: 'none', resize: 'none', p: '10px', pl: 1, fontFamily: 'inherit', fontSize: 'inherit', lineHeight: 'inherit', overflowY: 'auto', boxSizing: 'border-box', caretColor: '#aeafad',
+                        '&::-webkit-scrollbar': { width: 12 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#424242', borderRadius: 6, border: '3px solid #1e1e1e' }, '&::-webkit-scrollbar-track': { bgcolor: '#1e1e1e' } }}
+                    />
+                  </Box>
+                );
+              })() : (
+                <Box sx={{ flex: 1, bgcolor: '#1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Box sx={{ textAlign: 'center', userSelect: 'none' }}>
+                    <Typography sx={{ fontSize: '4rem', mb: 2, opacity: 0.1 }}>⌨</Typography>
+                    <Typography sx={{ color: '#555', fontSize: '0.88rem', fontWeight: 500 }}>No file open</Typography>
+                    <Typography sx={{ color: '#444', fontSize: '0.73rem', mt: 0.5 }}>Select a file from the explorer or ask Vesper to build something</Typography>
+                    <Box sx={{ mt: 3, display: 'flex', gap: 1, justifyContent: 'center' }}>
+                      <Box component='span' onClick={() => { setEditorSidebarOpen(true); fetchProducts(); }}
+                        sx={{ px: 2, py: 0.75, borderRadius: 1.5, border: '1px solid rgba(var(--accent-rgb),0.3)', color: 'var(--accent)', fontSize: '0.73rem', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.08)' }, userSelect: 'none' }}>Browse files</Box>
+                      <Box component='span' onClick={() => setEditorChatOpen(true)}
+                        sx={{ px: 2, py: 0.75, borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.1)', color: '#888', fontSize: '0.73rem', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' }, userSelect: 'none' }}>Open chat</Box>
+                    </Box>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Chat Panel */}
+              {editorChatOpen && (
+                <Box sx={{ width: 340, bgcolor: '#252526', borderLeft: '1px solid #1e1e1e', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
+                  <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    VESPER
+                    {activeTab && (
+                      <Typography component='span' sx={{ ml: 'auto', fontSize: '0.62rem', color: '#555', fontWeight: 400, textTransform: 'none', letterSpacing: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>{activeTab}</Typography>
+                    )}
+                  </Box>
+                  <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.25, '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#444' }, minHeight: 0 }}>
+                    {messages.length === 0 && (
+                      <Box sx={{ py: 3, textAlign: 'center' }}><Typography sx={{ fontSize: '0.75rem', color: '#555' }}>Start a conversation</Typography></Box>
+                    )}
+                    {messages.slice(-30).map((m, i) => (
+                      <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                        <Typography component='span' sx={{ fontSize: '0.63rem', color: m.role === 'user' ? 'var(--accent)' : '#7a7a7a', flexShrink: 0, mt: 0.3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 48 }}>{m.role === 'user' ? 'you' : 'vesper'}</Typography>
+                        <Typography component='span' sx={{ flex: 1, fontSize: '0.77rem', color: '#ccc', lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{typeof m.content === 'string' ? (m.content.length > 600 ? m.content.slice(0,600)+'\u2026' : m.content) : ''}</Typography>
+                      </Box>
+                    ))}
+                    {loading && (
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                        <Typography component='span' sx={{ fontSize: '0.63rem', color: '#7a7a7a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 48 }}>vesper</Typography>
+                        <Box sx={{ display: 'flex', gap: 0.5, mt: 0.6 }}>{[0,1,2].map(j => <Box key={j} sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'var(--accent)', opacity: 0.6, animation: `pulse 1.2s ${j*0.2}s ease-in-out infinite` }} />)}</Box>
+                      </Box>
+                    )}
+                  </Box>
+                  <Box sx={{ p: 1.25, borderTop: '1px solid #1e1e1e', flexShrink: 0 }}>
+                    {activeTab && <Typography sx={{ fontSize: '0.62rem', color: '#555', mb: 0.75, px: 0.25 }}>Context: <Typography component='span' sx={{ color: '#777', fontFamily: 'Consolas,monospace', fontSize: 'inherit' }}>{activeTab}</Typography></Typography>}
+                    <Box sx={{ display: 'flex', gap: 0.75, bgcolor: '#1e1e1e', borderRadius: 1.5, border: '1px solid #3c3c3c', px: 1.25, py: 0.875, alignItems: 'flex-end', '&:focus-within': { borderColor: 'rgba(var(--accent-rgb),0.5)' } }}>
+                      <Box component='textarea' value={input} onChange={e => setInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                        placeholder={activeTab ? `Ask about ${activeTab}\u2026` : 'Ask Vesper to build something\u2026'}
+                        rows={2} spellCheck={false}
+                        sx={{ flex: 1, bgcolor: 'transparent', border: 'none', outline: 'none', color: '#d4d4d4', fontSize: '0.77rem', resize: 'none', fontFamily: 'inherit', lineHeight: 1.55, '&::placeholder': { color: '#555' } }}
+                      />
+                      <Box component='span' onClick={sendMessage}
+                        sx={{ color: 'var(--accent)', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700, px: 1, py: 0.5, borderRadius: 1, bgcolor: 'rgba(var(--accent-rgb),0.1)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.22)' }, flexShrink: 0, userSelect: 'none', transition: 'background 0.15s' }}>
+                        ↵
+                      </Box>
+                    </Box>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+
+            {/* Status Bar */}
+            <Box sx={{ height: 22, bgcolor: '#0078d4', display: 'flex', alignItems: 'center', px: 2, gap: 2.5, flexShrink: 0 }}>
+              <Typography sx={{ fontSize: '0.68rem', color: '#fff', fontWeight: 600, letterSpacing: '0.03em' }}>⚡ Vesper IDE</Typography>
+              {activeTab ? (
+                <>
+                  <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.85)' }}>{activeTab}</Typography>
+                  <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.7)' }}>{getFileLang(activeTab).label}</Typography>
+                  <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.6)' }}>{(editorTabs.find(t => t.filename === activeTab)?.content || '').split('\n').length} lines</Typography>
+                  {editorTabs.find(t => t.filename === activeTab)?.dirty && <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,220,0,0.9)', fontWeight: 600 }}>● unsaved</Typography>}
+                </>
+              ) : <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.5)' }}>No file open</Typography>}
+              <Box sx={{ flex: 1 }} />
+              {activeTab && <Typography onClick={saveEditorFile} sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', '&:hover': { color: '#fff' }, userSelect: 'none' }}>Ctrl+S to save</Typography>}
+              <Typography onClick={() => setIdeMode(false)} sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', '&:hover': { color: '#fff' }, userSelect: 'none' }}>× Close IDE</Typography>
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+            {/* ─── PRODUCTS PANEL ──────────────────────────────────────────────── */}
       {productsOpen && (
         <Box onClick={() => setProductsOpen(false)}
           sx={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', p: 2 }}>
@@ -10105,6 +10377,8 @@ export default function App() {
                           sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent)', fontSize: '0.7rem', fontWeight: 700, textDecoration: 'none', border: '1px solid rgba(var(--accent-rgb),0.3)', cursor: 'pointer' }}>↓ Download</Box>
                         <Box component='a' href={`${apiBase}${p.download_url}`} target='_blank' rel='noreferrer'
                           sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', fontWeight: 600, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}>Preview</Box>
+                        <Box component='span' onClick={() => { openInEditor(p.filename, p.download_url); setProductsOpen(false); }}
+                          sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(86,156,214,0.12)', color: '#569cd6', fontSize: '0.7rem', fontWeight: 700, border: '1px solid rgba(86,156,214,0.25)', cursor: 'pointer', userSelect: 'none' }}>⌨️ Edit</Box>
                         <Box component='span' onClick={() => deleteProduct(p.filename)}
                           sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(255,60,60,0.08)', color: 'rgba(255,100,100,0.65)', fontSize: '0.7rem', fontWeight: 600, border: '1px solid rgba(255,60,60,0.15)', cursor: 'pointer', userSelect: 'none' }}>Delete</Box>
                       </Box>
