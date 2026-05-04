@@ -831,6 +831,11 @@ function App() {
   const [activeTab, setActiveTab] = useState(null);
   const [editorSidebarOpen, setEditorSidebarOpen] = useState(true);
   const [editorChatOpen, setEditorChatOpen] = useState(true);
+  const [idePreviewOpen, setIdePreviewOpen] = useState(false);
+  const [ideNewFileOpen, setIdeNewFileOpen] = useState(false);
+  const [ideNewFileName, setIdeNewFileName] = useState('');
+  const [ideRenameFile, setIdeRenameFile] = useState(null);
+  const [ideRenameName, setIdeRenameName] = useState('');
   const pendingAutoOpen = useRef(false);
   const monacoSaveRef = useRef(null);
   // Global cross-thread search
@@ -3332,6 +3337,44 @@ export default function App() {
       return next;
     });
   }, [activeTab]);
+
+  const createNewFile = useCallback(async (filename) => {
+    const safe = filename.trim();
+    if (!safe) return;
+    try {
+      await fetch(`${apiBase}/api/products/${encodeURIComponent(safe)}`, {
+        method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: '',
+      });
+      await fetchProducts();
+      openInEditor(safe, `/api/products/download/${encodeURIComponent(safe)}`);
+    } catch(e) { console.error('createNewFile error', e); }
+  }, [apiBase, fetchProducts, openInEditor]);
+
+  const renameFile = useCallback(async (oldName, newName) => {
+    const safeOld = oldName.trim(); const safeNew = newName.trim();
+    if (!safeNew || safeOld === safeNew) { setIdeRenameFile(null); return; }
+    try {
+      const res = await fetch(`${apiBase}/api/products/download/${encodeURIComponent(safeOld)}`);
+      const content = await res.text();
+      await fetch(`${apiBase}/api/products/${encodeURIComponent(safeNew)}`, {
+        method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: content,
+      });
+      await fetch(`${apiBase}/api/products/${encodeURIComponent(safeOld)}`, { method: 'DELETE' });
+      setEditorTabs(prev => prev.map(t => t.filename === safeOld ? {...t, filename: safeNew} : t));
+      if (activeTab === safeOld) setActiveTab(safeNew);
+      await fetchProducts();
+      setIdeRenameFile(null);
+    } catch(e) { console.error('renameFile error', e); }
+  }, [apiBase, activeTab, fetchProducts]);
+
+  const exportAllZip = useCallback(async () => {
+    try {
+      const a = document.createElement('a');
+      a.href = `${apiBase}/api/products/export/zip`;
+      a.download = 'vesper-products.zip';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch(e) { console.error('exportAllZip error', e); }
+  }, [apiBase]);
 
   const fetchThreads = useCallback(async (silent = false) => {
     if (!silent) setThreadsLoading(true);
@@ -10210,6 +10253,12 @@ export default function App() {
                 <AutoAwesomeIcon sx={{ fontSize: 20 }} />
               </IconButton>
             </Tooltip>
+            <Tooltip title="Live Preview" placement="right">
+              <IconButton onClick={() => setIdePreviewOpen(v => !v)}
+                sx={{ color: idePreviewOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: idePreviewOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
+                <Typography sx={{ fontSize: '1.05rem', lineHeight: 1, userSelect: 'none' }}>▶</Typography>
+              </IconButton>
+            </Tooltip>
             <Box sx={{ flex: 1 }} />
             <Tooltip title="Close IDE  (Ctrl+Shift+E)" placement="right">
               <IconButton onClick={() => setIdeMode(false)}
@@ -10222,7 +10271,26 @@ export default function App() {
           {/* File Explorer Sidebar */}
           {editorSidebarOpen && (
             <Box sx={{ width: 240, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'hidden' }}>
-              <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>EXPLORER</Box>
+              <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                EXPLORER
+                <Box sx={{ ml: 'auto', display: 'flex', gap: 0.25 }}>
+                  <Tooltip title='New file' placement='bottom'>
+                    <Typography onClick={() => setIdeNewFileOpen(true)} sx={{ fontSize: '1rem', cursor: 'pointer', color: '#858585', px: 0.5, lineHeight: 1.3, borderRadius: 1, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.07)' }, userSelect: 'none' }}>+</Typography>
+                  </Tooltip>
+                  <Tooltip title='Export all as ZIP' placement='bottom'>
+                    <Typography onClick={exportAllZip} sx={{ fontSize: '0.72rem', cursor: 'pointer', color: '#858585', px: 0.5, lineHeight: 1.4, borderRadius: 1, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.07)' }, userSelect: 'none' }}>⤓</Typography>
+                  </Tooltip>
+                </Box>
+              </Box>
+              {ideNewFileOpen && (
+                <Box sx={{ px: 1.5, py: 0.75, borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>
+                  <Box component='input' autoFocus value={ideNewFileName} onChange={e => setIdeNewFileName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { createNewFile(ideNewFileName); setIdeNewFileOpen(false); setIdeNewFileName(''); } if (e.key === 'Escape') { setIdeNewFileOpen(false); setIdeNewFileName(''); } }}
+                    placeholder='filename.html' sx={{ width: '100%', bgcolor: '#3c3c3c', border: '1px solid var(--accent)', borderRadius: 1, color: '#d4d4d4', px: 1, py: 0.5, fontSize: '0.75rem', fontFamily: 'Consolas,monospace', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <Typography sx={{ fontSize: '0.62rem', color: '#666', mt: 0.5 }}>Enter to create · Esc to cancel</Typography>
+                </Box>
+              )}
               <Box sx={{ px: 1, pt: 1, pb: 0.25, fontSize: '0.68rem', fontWeight: 600, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
                 <Typography component='span' sx={{ fontSize: '0.6rem' }}>▾</Typography> PRODUCTS
               </Box>
@@ -10235,7 +10303,15 @@ export default function App() {
                       bgcolor: activeTab === p.filename ? 'rgba(var(--accent-rgb),0.15)' : 'transparent',
                       '&:hover': { bgcolor: activeTab === p.filename ? 'rgba(var(--accent-rgb),0.15)' : 'rgba(255,255,255,0.06)' } }}>
                     <Typography component='span' sx={{ fontSize: '0.72rem', opacity: 0.65, flexShrink: 0 }}>{getFileLang(p.filename).icon}</Typography>
-                    <Typography component='span' sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'inherit' }}>{p.filename}</Typography>
+                    {ideRenameFile === p.filename ? (
+                      <Box component='input' autoFocus value={ideRenameName} onChange={e => setIdeRenameName(e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                        onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') renameFile(p.filename, ideRenameName); if (e.key === 'Escape') setIdeRenameFile(null); }}
+                        sx={{ flex: 1, bgcolor: '#3c3c3c', border: '1px solid var(--accent)', borderRadius: 0.5, color: '#d4d4d4', px: 0.75, py: 0.25, fontSize: '0.75rem', fontFamily: 'Consolas,monospace', outline: 'none', minWidth: 0 }}
+                      />
+                    ) : (
+                      <Typography component='span' onDoubleClick={e => { e.stopPropagation(); setIdeRenameFile(p.filename); setIdeRenameName(p.filename); }} sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'inherit' }}>{p.filename}</Typography>
+                    )}
                     {editorTabs.find(t => t.filename === p.filename)?.dirty && (
                       <Box component='span' sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'var(--accent)', flexShrink: 0 }} />
                     )}
@@ -10269,6 +10345,30 @@ export default function App() {
                 </Box>
               ))}
             </Box>
+
+            {/* Quick Actions Bar */}
+            {activeTab && (
+              <Box sx={{ height: 30, bgcolor: '#2d2d2d', borderBottom: '1px solid #252526', display: 'flex', alignItems: 'center', px: 1.5, gap: 0.5, flexShrink: 0, overflowX: 'auto', '&::-webkit-scrollbar': { height: 0 } }}>
+                {[
+                  { label: '🐛 Fix Bugs',        prompt: 'Review the code in this file. Find and fix any bugs, syntax errors, or logic issues. Show the complete corrected file.' },
+                  { label: '💬 Add Comments',    prompt: 'Add clear, helpful comments to this code. Keep the logic identical. Show the complete commented file.' },
+                  { label: '⚡ Minify',              prompt: 'Minify this file for production. Remove all unnecessary whitespace and comments. Show only the minified output.' },
+                  { label: '🔍 Explain',         prompt: 'Explain what this code does in plain English. Walk through the key sections.' },
+                  { label: '✨ Improve',             prompt: 'Suggest and apply improvements to this code. Make it cleaner, more efficient, and more readable. Show the improved file.' },
+                  { label: '📱 Make Responsive', prompt: 'Make this HTML/CSS fully responsive for mobile, tablet, and desktop. Show the complete updated file.' },
+                ].map(({ label, prompt }) => (
+                  <Box key={label} component='span'
+                    onClick={() => {
+                      const tab = editorTabs.find(t => t.filename === activeTab);
+                      if (!tab) return;
+                      const msg = `${prompt}\n\nFile: ${activeTab}\n\`\`\`\n${tab.content}\n\`\`\``;
+                      setInput(msg); setTimeout(sendMessage, 50);
+                    }}
+                    sx={{ px: 1.5, py: 0.3, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.55)', fontSize: '0.7rem', cursor: 'pointer', flexShrink: 0, userSelect: 'none', border: '1px solid rgba(255,255,255,0.07)', whiteSpace: 'nowrap',
+                      '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent)', borderColor: 'rgba(var(--accent-rgb),0.3)' }, transition: 'all 0.15s' }}>{label}</Box>
+                ))}
+              </Box>
+            )}
 
             {/* Editor + Chat Row */}
             <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
@@ -10329,6 +10429,34 @@ export default function App() {
                   </Box>
                 </Box>
               )}
+
+              {/* Live Preview Panel */}
+              {idePreviewOpen && activeTab && (() => {
+                const tab = editorTabs.find(t => t.filename === activeTab);
+                const lang = getFileLang(activeTab);
+                const isHtml = lang.monacoLang === 'html';
+                const blobUrl = isHtml && tab
+                  ? URL.createObjectURL(new Blob([tab.content], { type: 'text/html' }))
+                  : null;
+                return (
+                  <Box sx={{ width: 380, bgcolor: '#1e1e1e', borderLeft: '1px solid #252526', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
+                    <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #252526', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                      PREVIEW
+                      <Typography component='span' sx={{ ml: 'auto', fontSize: '0.6rem', color: '#555', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{activeTab}</Typography>
+                    </Box>
+                    {isHtml && blobUrl ? (
+                      <Box component='iframe' src={blobUrl} onLoad={() => URL.revokeObjectURL(blobUrl)}
+                        sx={{ flex: 1, border: 'none', bgcolor: '#fff' }} title='preview' sandbox='allow-scripts' />
+                    ) : (
+                      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 1 }}>
+                        <Typography sx={{ fontSize: '2rem', opacity: 0.15 }}>👁️</Typography>
+                        <Typography sx={{ color: '#555', fontSize: '0.78rem' }}>Preview available for HTML files</Typography>
+                        <Typography sx={{ color: '#444', fontSize: '0.68rem' }}>{lang.label} files render as plain text</Typography>
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })()}
 
               {/* Chat Panel */}
               {editorChatOpen && (

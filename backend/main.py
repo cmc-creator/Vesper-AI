@@ -1091,6 +1091,26 @@ async def update_product(filename: str, request: Request):
         fh.write(body)
     return {"success": True, "filename": safe, "size": len(body)}
 
+@app.get("/api/products/export/zip")
+def export_products_zip():
+    """Download all product files as a single ZIP archive."""
+    import io as _io
+    import zipfile
+    buf = _io.BytesIO()
+    files = [f for f in os.listdir(PRODUCT_OUTPUT_DIR)
+             if os.path.isfile(os.path.join(PRODUCT_OUTPUT_DIR, f))]
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for fname in files:
+            zf.write(os.path.join(PRODUCT_OUTPUT_DIR, fname), fname)
+    buf.seek(0)
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        buf,
+        media_type='application/zip',
+        headers={'Content-Disposition': 'attachment; filename="vesper-products.zip"'},
+    )
+
+
 @app.delete("/api/products/{filename}")
 def delete_product(filename: str):
     """Delete a product file."""
