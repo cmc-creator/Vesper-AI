@@ -51,12 +51,11 @@ export default defineConfig({
           if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'vendor-recharts';
           if (id.includes('node_modules/framer-motion')) return 'vendor-motion';
           if (id.includes('node_modules/@monaco-editor') || id.includes('node_modules/monaco-editor')) return 'vendor-monaco';
-          // Ii TDZ fix: react-syntax-highlighter (Prism.js) and react-markdown have circular
-          // ESM re-exports internally. Splitting them into their own chunks lets Rollup resolve
-          // those internal circular deps in isolation. These packages do NOT import from App.jsx
-          // so there is no circular dep between vendor-syntax/vendor-markdown and main bundle.
-          if (id.includes('node_modules/react-syntax-highlighter') || id.includes('node_modules/prismjs') || id.includes('node_modules/refractor')) return 'vendor-syntax';
-          if (id.includes('node_modules/react-markdown') || id.includes('node_modules/micromark') || id.includes('node_modules/mdast') || id.includes('node_modules/remark') || id.includes('node_modules/unified') || id.includes('node_modules/hast') || id.includes('node_modules/vfile')) return 'vendor-markdown';
+          // NOTE: react-syntax-highlighter and react-markdown are NOT listed here.
+          // They are now only loaded lazily via MessageContent (React.lazy), so Rollup
+          // will auto-chunk them as async chunks. Forcing them into named manualChunks
+          // while they have no sync import path from App.jsx shifts the main bundle's
+          // module evaluation order and causes the cn TDZ from vendor-three.
         },
       },
     },
@@ -69,8 +68,7 @@ export default defineConfig({
       'recharts',
       'framer-motion',
       '@monaco-editor/react',
-      'react-syntax-highlighter',
-      'react-markdown',
+      // react-syntax-highlighter and react-markdown removed - they are lazy-only now
     ],
     esbuildOptions: {
       target: 'esnext'
