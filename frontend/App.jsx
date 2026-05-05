@@ -131,7 +131,7 @@ import CockpitPanel from './src/components/CockpitPanel';
 import CreativeSuite from './src/components/CreativeSuite';
 import Sassy from './src/components/Sassy';
 import MediaGallery from './src/components/MediaGallery';
-import AvatarStudio from './src/components/AvatarStudio';
+const AvatarStudio = React.lazy(() => import('./src/components/AvatarStudio'));
 import IntegrationsHub from './src/components/IntegrationsHub';
 import IncomeDashboard from './src/components/IncomeDashboard';
 import GapsJournal from './src/components/GapsJournal';
@@ -6227,13 +6227,15 @@ export default function App() {
         return (
           <DraggableBoard id="sassy">
             {avatarStudioOpen ? (
-              <AvatarStudio 
-                apiBase={apiBase} 
-                onClose={() => setAvatarStudioOpen(false)} 
-                accentColor={activeTheme.accent} 
-                vesperIdentity={vesperIdentity}
-                setToast={setToast}
-              />
+              <React.Suspense fallback={null}>
+                <AvatarStudio 
+                  apiBase={apiBase} 
+                  onClose={() => setAvatarStudioOpen(false)} 
+                  accentColor={activeTheme.accent} 
+                  vesperIdentity={vesperIdentity}
+                  setToast={setToast}
+                />
+              </React.Suspense>
             ) : (
               <Box sx={{ position: 'relative' }}>
                 <Sassy apiBase={apiBase} onClose={() => setActiveSection('chat')} />
