@@ -851,6 +851,16 @@ function App() {
   const autoSaveTimerRef = useRef(null);
   const pendingAutoOpen = useRef(false);
   const monacoSaveRef = useRef(null);
+  const [ideBottomOpen, setIdeBottomOpen] = useState(false);
+  const [ideBottomTab, setIdeBottomTab] = useState('problems');
+  const [ideConsoleInput, setIdeConsoleInput] = useState('');
+  const [ideConsoleHistory, setIdeConsoleHistory] = useState([{ type: 'sys', text: 'Vesper IDE Console · type help for commands' }]);
+  const [ideOutputLines, setIdeOutputLines] = useState(() => [`[${new Date().toLocaleTimeString()}] Vesper IDE ready`]);
+  const [tabContextMenu, setTabContextMenu] = useState(null);
+  const [ideSearchOpen, setIdeSearchOpen] = useState(false);
+  const [ideSearchQuery, setIdeSearchQuery] = useState('');
+  const [ideSearchResults, setIdeSearchResults] = useState([]);
+  const [editorTheme, setEditorTheme] = useState(() => safeStorageGet('ide_theme', 'vs-dark'));
   // Global cross-thread search
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
@@ -3359,6 +3369,7 @@ export default function App() {
       });
       setEditorTabs(prev => prev.map(t => t.filename === tab.filename ? {...t, dirty: false} : t));
       setIdeLastSaved(new Date());
+      setIdeOutputLines(prev => [...prev.slice(-199), `[${new Date().toLocaleTimeString()}] Saved: ${tab?.filename}`]);
     } catch(e) { console.error('saveEditorFile error', e); }
   }, [apiBase, editorTabs, activeTab]);
 
@@ -10337,9 +10348,15 @@ export default function App() {
               </IconButton>
             </Tooltip>
             <Tooltip title="IDE Settings" placement="right">
-              <IconButton onClick={() => setIdeSettingsOpen(v => !v)}
+              <IconButton onClick={() => { setIdeSettingsOpen(v => !v); setIdeSearchOpen(false); }}
                 sx={{ color: ideSettingsOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: ideSettingsOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
                 <SettingsRounded sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Search files" placement="right">
+              <IconButton onClick={() => { setIdeSearchOpen(v => !v); setIdeSettingsOpen(false); }}
+                sx={{ color: ideSearchOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: ideSearchOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
+                <ManageSearchIcon sx={{ fontSize: 19 }} />
               </IconButton>
             </Tooltip>
             <Box sx={{ flex: 1 }} />
@@ -10389,11 +10406,80 @@ export default function App() {
                     ))}
                   </Box>
                 </Box>
+                <Box>
+                  <Typography sx={{ fontSize: '0.66rem', color: '#888', mb: 1, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Editor Theme</Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    {[{ id: 'vs-dark', label: 'Dark (default)' }, { id: 'vs', label: 'Light' }, { id: 'hc-black', label: 'High Contrast' }].map(t => (
+                      <Box key={t.id} onClick={() => { setEditorTheme(t.id); try { localStorage.setItem('ide_theme', t.id); } catch(e){} }}
+                        sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.25, py: 0.5, borderRadius: 1,
+                          bgcolor: editorTheme === t.id ? 'rgba(var(--accent-rgb),0.15)' : 'transparent',
+                          border: `1px solid ${editorTheme === t.id ? 'rgba(var(--accent-rgb),0.4)' : 'transparent'}`,
+                          cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
+                        <Box sx={{ width: 10, height: 10, borderRadius: 0.5, bgcolor: editorTheme === t.id ? 'var(--accent)' : '#555', flexShrink: 0 }} />
+                        <Typography sx={{ fontSize: '0.73rem', color: editorTheme === t.id ? 'var(--accent)' : '#aaa' }}>{t.label}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          )}
+          {/* IDE Search Sidebar */}
+          {ideSearchOpen && (
+            <Box sx={{ width: 280, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'hidden' }}>
+              <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                SEARCH
+                <Box component='span' onClick={() => setIdeSearchOpen(false)} sx={{ ml: 'auto', cursor: 'pointer', color: '#555', fontSize: '1rem', lineHeight: 1, '&:hover': { color: '#fff' }, userSelect: 'none' }}>x</Box>
+              </Box>
+              <Box sx={{ px: 1.5, pt: 1.25, pb: 0.75, flexShrink: 0, borderBottom: '1px solid #1e1e1e' }}>
+                <Box component='input' autoFocus value={ideSearchQuery}
+                  onChange={e => {
+                    const q = e.target.value;
+                    setIdeSearchQuery(q);
+                    const ql = q.toLowerCase().trim();
+                    if (!ql) { setIdeSearchResults([]); return; }
+                    const results = [];
+                    editorTabs.forEach(tab => {
+                      tab.content.split('\n').forEach((line, idx) => {
+                        if (line.toLowerCase().includes(ql)) results.push({ filename: tab.filename, line: idx + 1, text: line });
+                      });
+                    });
+                    setIdeSearchResults(results.slice(0, 200));
+                  }}
+                  placeholder='Search across open files…'
+                  sx={{ width: '100%', bgcolor: '#3c3c3c', border: '1px solid #444', borderRadius: 1, color: '#ccc', px: 1, py: 0.5, fontSize: '0.73rem', fontFamily: 'Consolas,monospace', outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: 'var(--accent)' } }}
+                />
+                {ideSearchQuery && <Typography sx={{ fontSize: '0.62rem', color: '#666', mt: 0.75 }}>{ideSearchResults.length}{ideSearchResults.length >= 200 ? '+' : ''} result{ideSearchResults.length !== 1 ? 's' : ''}</Typography>}
+              </Box>
+              <Box sx={{ flex: 1, overflowY: 'auto', '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#444' } }}>
+                {ideSearchResults.length === 0 && ideSearchQuery && (
+                  <Box sx={{ p: 2 }}><Typography sx={{ fontSize: '0.72rem', color: '#555' }}>No results for "{ideSearchQuery}"</Typography></Box>
+                )}
+                {(() => {
+                  const grouped = {};
+                  ideSearchResults.forEach(r => { if (!grouped[r.filename]) grouped[r.filename] = []; grouped[r.filename].push(r); });
+                  return Object.entries(grouped).map(([fname, results]) => (
+                    <Box key={fname}>
+                      <Box sx={{ px: 1.5, py: 0.625, display: 'flex', alignItems: 'center', gap: 0.75, position: 'sticky', top: 0, bgcolor: '#252526' }}>
+                        <Box component='span' sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: getFileColor(fname), flexShrink: 0, display: 'inline-block' }} />
+                        <Typography sx={{ fontSize: '0.7rem', color: '#ccc', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{fname}</Typography>
+                        <Typography sx={{ fontSize: '0.62rem', color: '#666', flexShrink: 0 }}>{results.length}</Typography>
+                      </Box>
+                      {results.map((r, i) => (
+                        <Box key={i} onClick={() => { setActiveTab(r.filename); setIdeSearchOpen(false); }}
+                          sx={{ px: 2.5, py: 0.35, cursor: 'pointer', display: 'flex', gap: 1.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
+                          <Typography sx={{ fontSize: '0.62rem', color: '#666', flexShrink: 0, fontFamily: 'monospace', mt: 0.1 }}>{r.line}</Typography>
+                          <Typography sx={{ fontSize: '0.68rem', color: '#aaa', fontFamily: 'Consolas,monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.text}</Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  ));
+                })()}
               </Box>
             </Box>
           )}
           {/* File Explorer Sidebar */}
-          {editorSidebarOpen && !ideSettingsOpen && (
+          {editorSidebarOpen && !ideSettingsOpen && !ideSearchOpen && (
             <Box sx={{ width: 240, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'hidden' }}>
               <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                 EXPLORER
@@ -10466,6 +10552,7 @@ export default function App() {
                 <Box sx={{ px: 2, display: 'flex', alignItems: 'center', fontSize: '0.73rem', color: '#555', fontStyle: 'italic' }}>Select a file from the explorer</Box>
               ) : editorTabs.map(tab => (
                 <Box key={tab.filename} onClick={() => setActiveTab(tab.filename)}
+                  onContextMenu={e => { e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, filename: tab.filename }); }}
                   sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.75, minWidth: 0, maxWidth: 200, cursor: 'pointer', flexShrink: 0,
                     bgcolor: activeTab === tab.filename ? '#1e1e1e' : 'transparent',
                     borderTop: `1px solid ${activeTab === tab.filename ? 'var(--accent)' : 'transparent'}`,
@@ -10489,6 +10576,22 @@ export default function App() {
                 </Box>
               )}
             </Box>
+
+            {/* Breadcrumb Bar */}
+            {activeTab && (
+              <Box sx={{ height: 22, bgcolor: '#1e1e1e', display: 'flex', alignItems: 'center', px: 1.5, borderBottom: '1px solid #252526', flexShrink: 0, overflowX: 'auto', '&::-webkit-scrollbar': { height: 0 } }}>
+                {activeTab.split('/').map((seg, i, arr) => (
+                  <Box key={i} sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    {i > 0 && <Typography component='span' sx={{ fontSize: '0.67rem', color: '#555', mx: 0.5, userSelect: 'none' }}>›</Typography>}
+                    <Typography component='span'
+                      sx={{ fontSize: '0.67rem', color: i === arr.length - 1 ? '#ccc' : '#777', userSelect: 'none',
+                        ...(i === arr.length - 1 ? {} : { cursor: 'default' }) }}>
+                      {seg}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            )}
 
             {/* Quick Actions Bar */}
             {activeTab && (
@@ -10535,7 +10638,7 @@ export default function App() {
                     original={ideDiff.before}
                     modified={ideDiff.after}
                     language={getFileLang(ideDiff.filename).monacoLang}
-                    theme='vs-dark'
+                    theme={editorTheme}
                     height='100%'
                     options={{ readOnly: true, minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }}
                   />
@@ -10549,7 +10652,7 @@ export default function App() {
                       key={activeTab}
                       height='100%'
                       language={getFileLang(activeTab).monacoLang}
-                      theme='vs-dark'
+                      theme={editorTheme}
                       value={tab.content}
                       onChange={(value) => {
                         setEditorTabs(prev => prev.map(t =>
@@ -10622,7 +10725,7 @@ export default function App() {
                       key={`split-${splitTab}`}
                       height='100%'
                       language={getFileLang(splitTab).monacoLang}
-                      theme='vs-dark'
+                      theme={editorTheme}
                       value={stab.content}
                       onChange={(value) => setEditorTabs(prev => prev.map(t => t.filename === splitTab ? {...t, content: value ?? '', dirty: true} : t))}
                       options={{ fontSize: editorFontSize, lineHeight: Math.round(editorFontSize * 1.6), minimap: { enabled: false }, scrollBeyondLastLine: false, tabSize: editorTabSize, wordWrap: editorWordWrap, padding: { top: 10, bottom: 10 }, overviewRulerLanes: 0 }}
@@ -10710,6 +10813,117 @@ export default function App() {
               )}
             </Box>
 
+            {/* Tab Context Menu */}
+            {tabContextMenu && (
+              <Box onClick={() => setTabContextMenu(null)}
+                sx={{ position: 'fixed', inset: 0, zIndex: 99990 }}>
+                <Box onClick={e => e.stopPropagation()}
+                  sx={{ position: 'fixed', top: tabContextMenu.y, left: tabContextMenu.x,
+                    bgcolor: '#2d2d2d', border: '1px solid #454545', borderRadius: 1,
+                    py: 0.5, minWidth: 170, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', zIndex: 99991 }}>
+                  {[{ label: 'Close', action: () => { closeEditorTab(tabContextMenu.filename); setTabContextMenu(null); } },
+                    { label: 'Close Others', action: () => { setEditorTabs(prev => prev.filter(t => t.filename === tabContextMenu.filename)); setActiveTab(tabContextMenu.filename); setTabContextMenu(null); } },
+                    { label: 'Close All', action: () => { setEditorTabs([]); setActiveTab(null); setTabContextMenu(null); } },
+                  ].map(({ label, action }) => (
+                    <Box key={label} onClick={action}
+                      sx={{ px: 2, py: 0.625, fontSize: '0.73rem', color: '#ccc', cursor: 'pointer',
+                        '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.2)', color: '#fff' } }}>
+                      {label}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            )}
+
+            {/* Bottom Panel */}
+            {ideBottomOpen && (
+              <Box sx={{ height: 180, bgcolor: '#1e1e1e', display: 'flex', flexDirection: 'column', flexShrink: 0, borderTop: '2px solid #252526', overflow: 'hidden' }}>
+                <Box sx={{ display: 'flex', alignItems: 'stretch', bgcolor: '#252526', flexShrink: 0, borderBottom: '1px solid #1e1e1e', height: 28 }}>
+                  {['problems', 'output', 'console'].map(tabId => (
+                    <Box key={tabId} onClick={() => setIdeBottomTab(tabId)}
+                      sx={{ px: 2, display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.05em',
+                        color: ideBottomTab === tabId ? '#fff' : '#888',
+                        borderTop: `1px solid ${ideBottomTab === tabId ? 'var(--accent)' : 'transparent'}`,
+                        bgcolor: ideBottomTab === tabId ? '#1e1e1e' : 'transparent',
+                        '&:hover': { color: '#ccc' } }}>
+                      {tabId.toUpperCase()}
+                    </Box>
+                  ))}
+                  <Box sx={{ flex: 1 }} />
+                  <Box onClick={() => setIdeBottomOpen(false)}
+                    sx={{ display: 'flex', alignItems: 'center', px: 1.25, color: '#666', cursor: 'pointer', fontSize: '0.9rem', userSelect: 'none', '&:hover': { color: '#fff' } }}>×</Box>
+                </Box>
+                <Box sx={{ flex: 1, overflowY: 'auto', '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#444' } }}>
+                  {ideBottomTab === 'problems' && (() => {
+                    const content = editorTabs.find(t => t.filename === activeTab)?.content || '';
+                    const issues = [];
+                    content.split('\n').forEach((line, idx) => {
+                      const m = line.match(/\/\/\s*(TODO|FIXME|HACK|BUG|NOTE)[:\s]/i);
+                      if (m) issues.push({ line: idx + 1, type: m[1].toUpperCase(), text: line.trim() });
+                    });
+                    return issues.length > 0 ? (
+                      <Box sx={{ p: 0.5 }}>
+                        {issues.map((issue, i) => (
+                          <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, px: 1.5, py: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}>
+                            <Typography sx={{ fontSize: '0.65rem', color: (issue.type === 'BUG' || issue.type === 'FIXME') ? '#f48771' : '#dcdcaa', fontWeight: 700, flexShrink: 0, fontFamily: 'monospace', mt: 0.1 }}>{issue.type}</Typography>
+                            <Typography sx={{ fontSize: '0.7rem', color: '#ccc', flex: 1, fontFamily: 'Consolas,monospace' }}>{issue.text}</Typography>
+                            <Typography sx={{ fontSize: '0.65rem', color: '#666', flexShrink: 0 }}>:{issue.line}</Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography sx={{ fontSize: '0.72rem', color: '#4ec9b0' }}>✓</Typography>
+                        <Typography sx={{ fontSize: '0.72rem', color: '#888' }}>{activeTab ? `No problems found in ${activeTab}` : 'No file open'}</Typography>
+                      </Box>
+                    );
+                  })()}
+                  {ideBottomTab === 'output' && (
+                    <Box sx={{ p: 1.5 }}>
+                      {ideOutputLines.map((line, i) => (
+                        <Typography key={i} sx={{ fontSize: '0.68rem', color: '#9cdcfe', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'Consolas,monospace' }}>{line}</Typography>
+                      ))}
+                    </Box>
+                  )}
+                  {ideBottomTab === 'console' && (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                      <Box sx={{ flex: 1, p: 1.5, overflowY: 'auto' }}>
+                        {ideConsoleHistory.map((entry, i) => (
+                          <Typography key={i}
+                            sx={{ fontSize: '0.68rem', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'Consolas,monospace',
+                              color: entry.type === 'sys' ? '#4ec9b0' : entry.type === 'err' ? '#f48771' : entry.type === 'cmd' ? '#dcdcaa' : '#ccc' }}>
+                            {entry.type === 'cmd' ? `> ${entry.text}` : entry.text}
+                          </Typography>
+                        ))}
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', px: 1.5, py: 0.625, borderTop: '1px solid #252526', flexShrink: 0, gap: 0.75 }}>
+                        <Typography sx={{ fontSize: '0.68rem', color: '#4ec9b0', fontFamily: 'Consolas,monospace', flexShrink: 0, userSelect: 'none' }}>$</Typography>
+                        <Box component='input' value={ideConsoleInput} onChange={e => setIdeConsoleInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              const cmd = ideConsoleInput.trim();
+                              setIdeConsoleInput('');
+                              if (!cmd) return;
+                              const entries = [{ type: 'cmd', text: cmd }];
+                              const parts = cmd.split(' ');
+                              if (parts[0] === 'clear') { setIdeConsoleHistory([{ type: 'sys', text: 'Console cleared.' }]); return; }
+                              if (parts[0] === 'help') entries.push({ type: 'out', text: 'Commands: clear, ls, echo <text>, help' });
+                              else if (parts[0] === 'ls') entries.push({ type: 'out', text: editorTabs.map(t => t.filename).join('\n') || '(no files open)' });
+                              else if (parts[0] === 'echo') entries.push({ type: 'out', text: parts.slice(1).join(' ') });
+                              else entries.push({ type: 'err', text: `command not found: ${parts[0]}` });
+                              setIdeConsoleHistory(prev => [...prev.slice(-199), ...entries]);
+                            }
+                          }}
+                          placeholder='Enter a command…'
+                          sx={{ flex: 1, bgcolor: 'transparent', border: 'none', outline: 'none', color: '#d4d4d4', fontSize: '0.68rem', fontFamily: 'Consolas,monospace' }}
+                        />
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )}
+
             {/* Status Bar */}
             <Box sx={{ height: 22, bgcolor: '#0078d4', display: 'flex', alignItems: 'center', px: 2, gap: 2.5, flexShrink: 0 }}>
               <Typography sx={{ fontSize: '0.68rem', color: '#fff', fontWeight: 600, letterSpacing: '0.03em' }}>⚡ Vesper IDE</Typography>
@@ -10724,6 +10938,10 @@ export default function App() {
                 </>
               ) : <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.5)' }}>No file open</Typography>}
               <Box sx={{ flex: 1 }} />
+              <Typography onClick={() => setIdeBottomOpen(v => !v)}
+                sx={{ fontSize: '0.67rem', color: ideBottomOpen ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)', cursor: 'pointer', mr: 1.5, userSelect: 'none', '&:hover': { color: '#fff' } }}>
+                {ideBottomOpen ? '⊟' : '⊞'} Panel
+              </Typography>
               {activeTab && <Typography onClick={saveEditorFile} sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', '&:hover': { color: '#fff' }, userSelect: 'none' }}>Ctrl+S to save</Typography>}
               <Typography onClick={() => setIdeMode(false)} sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', '&:hover': { color: '#fff' }, userSelect: 'none' }}>× Close IDE</Typography>
             </Box>
