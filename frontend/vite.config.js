@@ -37,16 +37,19 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // IMPORTANT: Only packages that are lazy-loaded (React.lazy) should go here.
-          // Sync-imported packages MUST stay in the main bundle or their initialization
-          // order will produce TDZ errors.
+          // RULE: Only list packages here that are (a) ONLY loaded via React.lazy
+          // AND (b) do NOT contain a React reconciler / scheduler that could fire
+          // callbacks into the main bundle before cr/cn are initialized.
           //
-          // vendor-react: DO NOT add. React must stay in main bundle so that sync deps
-          //   (framer-motion, @dnd-kit, react-hotkeys-hook) can all reference the same
-          //   React instance without circular init issues.
-          //
-          // Exact original patterns restored for vendor-three to avoid xr TDZ:
-          if (id.includes('@react-three') || (id.includes('node_modules/three') && !id.includes('sandpack'))) return 'vendor-three';
+          // DO NOT add:
+          //   vendor-react     - React must stay in main bundle
+          //   vendor-motion    - framer-motion sync-imported in App.jsx
+          //   vendor-three     - @react-three/fiber has its own React reconciler;
+          //                      naming it causes scheduler callbacks to fire before
+          //                      main bundle cr/cn are initialized. Let Rollup
+          //                      auto-chunk it alongside the Canvas/KnowledgeGraph
+          //                      lazy components.
+          //   vendor-syntax / vendor-markdown - removed (now lazy via MessageContent)
           if (id.includes('@codesandbox/sandpack') || id.includes('sandpack-react') || id.includes('sandpack-themes')) return 'vendor-sandpack';
           if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'vendor-recharts';
           // framer-motion is NOT chunked: it's sync-imported in App.jsx, so splitting it
@@ -65,7 +68,8 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       'react', 'react-dom',
-      'three', '@react-three/fiber', '@react-three/drei',
+      // three/@react-three removed from optimizeDeps - let Rollup auto-chunk them
+      // alongside Canvas/KnowledgeGraph lazy components to avoid R3F reconciler TDZ
       '@codesandbox/sandpack-react',
       'recharts',
       'framer-motion',
