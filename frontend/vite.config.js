@@ -49,7 +49,9 @@ export default defineConfig({
           if (id.includes('@react-three') || (id.includes('node_modules/three') && !id.includes('sandpack'))) return 'vendor-three';
           if (id.includes('@codesandbox/sandpack') || id.includes('sandpack-react') || id.includes('sandpack-themes')) return 'vendor-sandpack';
           if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'vendor-recharts';
-          if (id.includes('node_modules/framer-motion')) return 'vendor-motion';
+          // framer-motion is NOT chunked: it's sync-imported in App.jsx, so splitting it
+          // creates a circular chunk dep (vendor-motion → React in main bundle → vendor-motion),
+          // which causes TDZ on const cr/cn. Keep framer-motion in the main bundle.
           if (id.includes('node_modules/@monaco-editor') || id.includes('node_modules/monaco-editor')) return 'vendor-monaco';
           // NOTE: react-syntax-highlighter and react-markdown are NOT listed here.
           // They are now only loaded lazily via MessageContent (React.lazy), so Rollup
