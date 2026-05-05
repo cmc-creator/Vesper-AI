@@ -37,17 +37,20 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Isolate every heavy/circular-ESM package into its own async chunk.
-          // This prevents TDZ errors caused by circular module initialization in the main bundle.
+          // React core must be isolated first so vendor-three (R3F) doesn't bundle React internals,
+          // which would cause circular initialization TDZ against the main bundle.
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/scheduler/') || id.includes('node_modules/react-reconciler/')) return 'vendor-react';
           if (id.includes('node_modules/@react-three') || id.includes('node_modules/three')) return 'vendor-three';
           if (id.includes('node_modules/@codesandbox') || id.includes('node_modules/sandpack')) return 'vendor-sandpack';
           if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-') || id.includes('node_modules/victory-')) return 'vendor-recharts';
           if (id.includes('node_modules/framer-motion')) return 'vendor-motion';
           if (id.includes('node_modules/@monaco-editor') || id.includes('node_modules/monaco-editor')) return 'vendor-monaco';
-          if (id.includes('node_modules/react-syntax-highlighter') || id.includes('node_modules/prismjs') || id.includes('node_modules/highlight.js')) return 'vendor-syntax';
+          // react-syntax-highlighter and react-markdown: isolated to prevent Ii TDZ.
+          // These are sync-imported but are standalone (no circular deps with main bundle).
+          if (id.includes('node_modules/react-syntax-highlighter') || id.includes('node_modules/prismjs') || id.includes('node_modules/highlight.js') || id.includes('node_modules/refractor')) return 'vendor-syntax';
           if (id.includes('node_modules/react-markdown') || id.includes('node_modules/micromark') || id.includes('node_modules/mdast') || id.includes('node_modules/remark') || id.includes('node_modules/unified') || id.includes('node_modules/hast') || id.includes('node_modules/vfile')) return 'vendor-markdown';
-          if (id.includes('node_modules/@dnd-kit')) return 'vendor-dnd';
-          if (id.includes('node_modules/react-hotkeys-hook')) return 'vendor-hotkeys';
+          // NOTE: @dnd-kit and react-hotkeys-hook are sync-imported in App.jsx.
+          // Do NOT put them in separate chunks - that causes circular TDZ with main bundle.
         },
       },
     },
@@ -62,7 +65,6 @@ export default defineConfig({
       '@monaco-editor/react',
       'react-syntax-highlighter',
       'react-markdown',
-      '@dnd-kit/core',
     ],
     esbuildOptions: {
       target: 'esnext'
