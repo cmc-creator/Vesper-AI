@@ -838,6 +838,17 @@ function App() {
   const [ideRenameName, setIdeRenameName] = useState('');
   const [ideExplorerSearch, setIdeExplorerSearch] = useState('');
   const [ideDiff, setIdeDiff] = useState(null);
+  const [ideCursorPos, setIdeCursorPos] = useState({ line: 1, col: 1 });
+  const [ideLastSaved, setIdeLastSaved] = useState(null);
+  const [editorFontSize, setEditorFontSize] = useState(() => parseInt(safeStorageGet('ide_fontSize', '13')));
+  const [editorWordWrap, setEditorWordWrap] = useState(() => safeStorageGet('ide_wordWrap', 'on'));
+  const [editorMinimap, setEditorMinimap] = useState(() => safeStorageGet('ide_minimap', 'false') === 'true');
+  const [editorTabSize, setEditorTabSize] = useState(() => parseInt(safeStorageGet('ide_tabSize', '2')));
+  const [editorAutoSave, setEditorAutoSave] = useState(() => safeStorageGet('ide_autoSave', 'false') === 'true');
+  const [ideSettingsOpen, setIdeSettingsOpen] = useState(false);
+  const [splitTab, setSplitTab] = useState(null);
+  const monacoEditorRef = useRef(null);
+  const autoSaveTimerRef = useRef(null);
   const pendingAutoOpen = useRef(false);
   const monacoSaveRef = useRef(null);
   // Global cross-thread search
@@ -3347,6 +3358,7 @@ export default function App() {
         body: tab.content,
       });
       setEditorTabs(prev => prev.map(t => t.filename === tab.filename ? {...t, dirty: false} : t));
+      setIdeLastSaved(new Date());
     } catch(e) { console.error('saveEditorFile error', e); }
   }, [apiBase, editorTabs, activeTab]);
 
@@ -10324,6 +10336,12 @@ export default function App() {
                 <Typography sx={{ fontSize: '1.05rem', lineHeight: 1, userSelect: 'none' }}>▶</Typography>
               </IconButton>
             </Tooltip>
+            <Tooltip title="IDE Settings" placement="right">
+              <IconButton onClick={() => setIdeSettingsOpen(v => !v)}
+                sx={{ color: ideSettingsOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: ideSettingsOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
+                <SettingsRounded sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
             <Box sx={{ flex: 1 }} />
             <Tooltip title="Close IDE  (Ctrl+Shift+E)" placement="right">
               <IconButton onClick={() => setIdeMode(false)}
@@ -10333,8 +10351,49 @@ export default function App() {
             </Tooltip>
           </Box>
 
+          {/* IDE Settings Panel */}
+          {ideSettingsOpen && (
+            <Box sx={{ width: 260, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'auto' }}>
+              <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                IDE SETTINGS
+                <Box component='span' onClick={() => setIdeSettingsOpen(false)} sx={{ ml: 'auto', cursor: 'pointer', color: '#555', fontSize: '1rem', lineHeight: 1, '&:hover': { color: '#fff' }, userSelect: 'none' }}>x</Box>
+              </Box>
+              <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.66rem', color: '#888', mb: 1, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Font Size</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box component='span' onClick={() => { const v = Math.max(10, editorFontSize - 1); setEditorFontSize(v); try { localStorage.setItem('ide_fontSize', String(v)); } catch(e){} }}
+                      sx={{ width: 26, height: 26, borderRadius: 1, border: '1px solid #444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#aaa', fontSize: '1rem', userSelect: 'none', '&:hover': { borderColor: 'var(--accent)', color: '#fff' } }}>−</Box>
+                    <Typography sx={{ fontSize: '0.85rem', color: '#d4d4d4', width: 28, textAlign: 'center', fontFamily: 'monospace' }}>{editorFontSize}</Typography>
+                    <Box component='span' onClick={() => { const v = Math.min(24, editorFontSize + 1); setEditorFontSize(v); try { localStorage.setItem('ide_fontSize', String(v)); } catch(e){} }}
+                      sx={{ width: 26, height: 26, borderRadius: 1, border: '1px solid #444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#aaa', fontSize: '1rem', userSelect: 'none', '&:hover': { borderColor: 'var(--accent)', color: '#fff' } }}>+</Box>
+                  </Box>
+                </Box>
+                {[{ label: 'Word Wrap', val: editorWordWrap === 'on', toggle: () => { const v = editorWordWrap === 'on' ? 'off' : 'on'; setEditorWordWrap(v); try { localStorage.setItem('ide_wordWrap', v); } catch(e){} } },
+                  { label: 'Minimap', val: editorMinimap, toggle: () => { const v = !editorMinimap; setEditorMinimap(v); try { localStorage.setItem('ide_minimap', String(v)); } catch(e){} } },
+                  { label: 'Auto-Save (1.5s)', val: editorAutoSave, toggle: () => { const v = !editorAutoSave; setEditorAutoSave(v); try { localStorage.setItem('ide_autoSave', String(v)); } catch(e){} } },
+                ].map(({ label, val, toggle }) => (
+                  <Box key={label} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: '#ccc' }}>{label}</Typography>
+                    <Box onClick={toggle} sx={{ width: 38, height: 20, borderRadius: 10, bgcolor: val ? 'var(--accent)' : '#3c3c3c', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                      <Box sx={{ position: 'absolute', top: 3, left: val ? 20 : 3, width: 14, height: 14, borderRadius: '50%', bgcolor: '#fff', transition: 'left 0.2s' }} />
+                    </Box>
+                  </Box>
+                ))}
+                <Box>
+                  <Typography sx={{ fontSize: '0.66rem', color: '#888', mb: 1, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Tab Size</Typography>
+                  <Box sx={{ display: 'flex', gap: 0.75 }}>
+                    {[2, 4].map(n => (
+                      <Box key={n} onClick={() => { setEditorTabSize(n); try { localStorage.setItem('ide_tabSize', String(n)); } catch(e){} }}
+                        sx={{ px: 2, py: 0.5, borderRadius: 1, border: `1px solid ${editorTabSize === n ? 'var(--accent)' : '#444'}`, bgcolor: editorTabSize === n ? 'rgba(var(--accent-rgb),0.15)' : 'transparent', color: editorTabSize === n ? 'var(--accent)' : '#888', fontSize: '0.73rem', cursor: 'pointer', userSelect: 'none', transition: 'all 0.15s' }}>{n} spaces</Box>
+                    ))}
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          )}
           {/* File Explorer Sidebar */}
-          {editorSidebarOpen && (
+          {editorSidebarOpen && !ideSettingsOpen && (
             <Box sx={{ width: 240, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'hidden' }}>
               <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                 EXPLORER
@@ -10418,6 +10477,17 @@ export default function App() {
                     sx={{ fontSize: '0.8rem', color: '#666', lineHeight: 1, ml: 0.5, px: 0.5, borderRadius: 0.5, flexShrink: 0, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}>×</Typography>
                 </Box>
               ))}
+              {editorTabs.length > 0 && (
+                <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', px: 0.75, flexShrink: 0, borderLeft: '1px solid #252526' }}>
+                  <Tooltip title={splitTab ? 'Close split editor' : 'Split editor'} placement='bottom'>
+                    <IconButton
+                      onClick={() => { if (splitTab) { setSplitTab(null); } else { const other = editorTabs.find(t => t.filename !== activeTab); if (other) setSplitTab(other.filename); } }}
+                      sx={{ color: splitTab ? 'var(--accent)' : '#666', width: 26, height: 26, borderRadius: 0.75, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.08)' } }}>
+                      <Typography sx={{ fontSize: '0.85rem', lineHeight: 1, userSelect: 'none', fontFamily: 'monospace' }}>⧉</Typography>
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
             </Box>
 
             {/* Quick Actions Bar */}
@@ -10430,6 +10500,7 @@ export default function App() {
                   { label: '🔍 Explain',         prompt: 'Explain what this code does in plain English. Walk through the key sections.' },
                   { label: '✨ Improve',             prompt: 'Suggest and apply improvements to this code. Make it cleaner, more efficient, and more readable. Show the improved file.' },
                   { label: '📱 Make Responsive', prompt: 'Make this HTML/CSS fully responsive for mobile, tablet, and desktop. Show the complete updated file.' },
+                  { label: '🤖 Ask Vesper', prompt: 'Review this file thoroughly. Describe what it does, identify any bugs or improvements, and suggest optimizations. Be concise and direct.' },
                 ].map(({ label, prompt }) => (
                   <Box key={label} component='span'
                     onClick={() => {
@@ -10480,21 +10551,31 @@ export default function App() {
                       language={getFileLang(activeTab).monacoLang}
                       theme='vs-dark'
                       value={tab.content}
-                      onChange={(value) => setEditorTabs(prev => prev.map(t =>
-                        t.filename === activeTab ? {...t, content: value ?? '', dirty: true} : t
-                      ))}
+                      onChange={(value) => {
+                        setEditorTabs(prev => prev.map(t =>
+                          t.filename === activeTab ? {...t, content: value ?? '', dirty: true} : t
+                        ));
+                        if (editorAutoSave) {
+                          clearTimeout(autoSaveTimerRef.current);
+                          autoSaveTimerRef.current = setTimeout(() => { monacoSaveRef.current?.(); }, 1500);
+                        }
+                      }}
                       onMount={(editor, monaco) => {
+                        monacoEditorRef.current = editor;
                         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => { monacoSaveRef.current?.(); });
+                        editor.onDidChangeCursorPosition(e => {
+                          setIdeCursorPos({ line: e.position.lineNumber, col: e.position.column });
+                        });
                       }}
                       options={{
-                        fontSize: 13.5,
-                        lineHeight: 21,
+                        fontSize: editorFontSize,
+                        lineHeight: Math.round(editorFontSize * 1.6),
                         fontFamily: "'Cascadia Code','JetBrains Mono','Fira Code',Consolas,'Courier New',monospace",
-                        minimap: { enabled: false },
+                        minimap: { enabled: editorMinimap },
                         scrollBeyondLastLine: false,
-                        tabSize: 2,
+                        tabSize: editorTabSize,
                         insertSpaces: true,
-                        wordWrap: 'on',
+                        wordWrap: editorWordWrap,
                         renderLineHighlight: 'line',
                         smoothScrolling: true,
                         cursorBlinking: 'smooth',
@@ -10525,6 +10606,31 @@ export default function App() {
                 </Box>
               )}
 
+              {/* Split Editor Panel */}
+              {splitTab && splitTab !== activeTab && (() => {
+                const stab = editorTabs.find(t => t.filename === splitTab);
+                if (!stab) return null;
+                return (
+                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderLeft: '2px solid #252526', minWidth: 0 }}>
+                    <Box sx={{ height: 35, bgcolor: '#2d2d2d', display: 'flex', alignItems: 'center', px: 1.5, gap: 0.75, flexShrink: 0, borderBottom: '1px solid #252526' }}>
+                      <Box component='span' sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: getFileColor(splitTab), flexShrink: 0, display: 'inline-block' }} />
+                      <Typography component='span' sx={{ fontSize: '0.73rem', color: '#ccc', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{splitTab}</Typography>
+                      <Typography component='span' onClick={() => setSplitTab(null)}
+                        sx={{ fontSize: '0.8rem', color: '#666', cursor: 'pointer', px: 0.5, borderRadius: 0.5, flexShrink: 0, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}>×</Typography>
+                    </Box>
+                    <Editor
+                      key={`split-${splitTab}`}
+                      height='100%'
+                      language={getFileLang(splitTab).monacoLang}
+                      theme='vs-dark'
+                      value={stab.content}
+                      onChange={(value) => setEditorTabs(prev => prev.map(t => t.filename === splitTab ? {...t, content: value ?? '', dirty: true} : t))}
+                      options={{ fontSize: editorFontSize, lineHeight: Math.round(editorFontSize * 1.6), minimap: { enabled: false }, scrollBeyondLastLine: false, tabSize: editorTabSize, wordWrap: editorWordWrap, padding: { top: 10, bottom: 10 }, overviewRulerLanes: 0 }}
+                    />
+                  </Box>
+                );
+              })()}
+
               {/* Live Preview Panel */}
               {idePreviewOpen && activeTab && (() => {
                 const tab = editorTabs.find(t => t.filename === activeTab);
@@ -10538,6 +10644,12 @@ export default function App() {
                     <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #252526', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                       PREVIEW
                       <Typography component='span' sx={{ ml: 'auto', fontSize: '0.6rem', color: '#555', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{activeTab}</Typography>
+                      {isHtml && (
+                        <Box component='span' onClick={() => { const t2 = editorTabs.find(x => x.filename === activeTab); if (t2) { const u = URL.createObjectURL(new Blob([t2.content], { type: 'text/html' })); window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 5000); } }}
+                          sx={{ ml: 1, fontSize: '0.6rem', color: 'var(--accent)', cursor: 'pointer', userSelect: 'none', opacity: 0.8, textTransform: 'none', letterSpacing: 0, '&:hover': { opacity: 1 } }}>
+                          ↗ new tab
+                        </Box>
+                      )}
                     </Box>
                     {isHtml && blobUrl ? (
                       <Box component='iframe' src={blobUrl} onLoad={() => URL.revokeObjectURL(blobUrl)}
@@ -10605,8 +10717,10 @@ export default function App() {
                 <>
                   <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.85)' }}>{activeTab}</Typography>
                   <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.7)' }}>{getFileLang(activeTab).label}</Typography>
-                  <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.6)' }}>{(editorTabs.find(t => t.filename === activeTab)?.content || '').split('\n').length} lines</Typography>
+                  <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.55)' }}>Ln {ideCursorPos.line}, Col {ideCursorPos.col}</Typography>
+                  <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.45)' }}>{(() => { const c = (editorTabs.find(t => t.filename === activeTab)?.content || ''); return `${c.split('\n').length} lines · ${(new Blob([c]).size/1024).toFixed(1)} KB`; })()}</Typography>
                   {editorTabs.find(t => t.filename === activeTab)?.dirty && <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,220,0,0.9)', fontWeight: 600 }}>● unsaved</Typography>}
+                  {ideLastSaved && !editorTabs.find(t => t.filename === activeTab)?.dirty && <Typography sx={{ fontSize: '0.67rem', color: 'rgba(120,220,120,0.8)' }}>✓ saved {ideLastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</Typography>}
                 </>
               ) : <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.5)' }}>No file open</Typography>}
               <Box sx={{ flex: 1 }} />
