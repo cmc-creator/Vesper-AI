@@ -115,7 +115,7 @@ import CommandPalette from './src/components/CommandPalette';
 import Editor, { DiffEditor } from '@monaco-editor/react';
 import VoiceInput from './src/components/VoiceInput';
 // FloatingActionButton removed - actions now in tools grid
-import Canvas from './src/components/Canvas';
+const Canvas = React.lazy(() => import('./src/components/Canvas'));
 import DeepResearch from './src/components/DeepResearch';
 import ImageGenerator from './src/components/ImageGenerator';
 import VideoCreator from './src/components/VideoCreator';
@@ -9978,12 +9978,14 @@ export default function App() {
       
       {/* Canvas Modal */}
       <Dialog open={canvasOpen} onClose={() => setCanvasOpen(false)} maxWidth="lg" fullWidth fullScreen>
-        <Canvas 
-            onClose={() => setCanvasOpen(false)} 
-            onShare={() => setToast('Canvas shared!')} 
-            initialCode={canvasAppCode}
-            initialTab={canvasActiveTab}
-        />
+        <React.Suspense fallback={null}>
+          <Canvas 
+              onClose={() => setCanvasOpen(false)} 
+              onShare={() => setToast('Canvas shared!')} 
+              initialCode={canvasAppCode}
+              initialTab={canvasActiveTab}
+          />
+        </React.Suspense>
       </Dialog>
 
       {/* Knowledge Graph Modal */}
