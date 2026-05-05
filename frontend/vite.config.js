@@ -33,10 +33,25 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@react-three') || (id.includes('node_modules/three') && !id.includes('sandpack'))) return 'vendor-three';
+          if (id.includes('@codesandbox/sandpack') || id.includes('sandpack-react') || id.includes('sandpack-themes')) return 'vendor-sandpack';
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'vendor-recharts';
+          if (id.includes('node_modules/framer-motion')) return 'vendor-motion';
+          if (id.includes('node_modules/@monaco-editor') || id.includes('node_modules/monaco-editor')) return 'vendor-monaco';
+        },
+      },
+    },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'three', '@react-three/fiber'],
+    include: [
+      'react', 'react-dom', 'three', '@react-three/fiber',
+      '@codesandbox/sandpack-react', 'recharts', 'framer-motion',
+      '@monaco-editor/react',
+    ],
     esbuildOptions: {
       target: 'esnext'
     }

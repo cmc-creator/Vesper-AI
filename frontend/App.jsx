@@ -121,7 +121,7 @@ import ImageGenerator from './src/components/ImageGenerator';
 import VideoCreator from './src/components/VideoCreator';
 const KnowledgeGraph = React.lazy(() => import('./src/components/KnowledgeGraph'));
 import GuidedLearning from './src/components/GuidedLearning';
-import ChartComponent from './src/components/ChartComponent';
+const ChartComponent = React.lazy(() => import('./src/components/ChartComponent'));
 // Game is lazy-loaded when user enters the world
 const GameLazy = React.lazy(() => import('./src/game/Game'));
 import SystemDiagnostics from './src/components/SystemDiagnostics';
@@ -4617,13 +4617,15 @@ export default function App() {
            key={message.id}
         >
            <Box sx={{ width: '90%', maxWidth: '800px' }}>
-              <ChartComponent
-                 type={message.chartData.chart_type}
-                 title={message.chartData.title}
-                 data={message.chartData.data}
-                 xKey={message.chartData.keys.x}
-                 yKey={message.chartData.keys.y}
-              />
+              <React.Suspense fallback={null}>
+                <ChartComponent
+                   type={message.chartData.chart_type}
+                   title={message.chartData.title}
+                   data={message.chartData.data}
+                   xKey={message.chartData.keys.x}
+                   yKey={message.chartData.keys.y}
+                />
+              </React.Suspense>
            </Box>
         </motion.div>
       );
