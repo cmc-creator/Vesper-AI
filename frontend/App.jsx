@@ -84,6 +84,7 @@ import {
   BookmarkBorder as BookmarkBorderIcon,
   FolderOpen as FolderOpenIcon,
   Code as CodeIcon,
+  FormatListBulleted as OutlineIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -118,7 +119,7 @@ import Canvas from './src/components/Canvas';
 import DeepResearch from './src/components/DeepResearch';
 import ImageGenerator from './src/components/ImageGenerator';
 import VideoCreator from './src/components/VideoCreator';
-import KnowledgeGraph from './src/components/KnowledgeGraph';
+const KnowledgeGraph = React.lazy(() => import('./src/components/KnowledgeGraph'));
 import GuidedLearning from './src/components/GuidedLearning';
 import ChartComponent from './src/components/ChartComponent';
 // Game is lazy-loaded when user enters the world
@@ -131,7 +132,6 @@ import CreativeSuite from './src/components/CreativeSuite';
 import Sassy from './src/components/Sassy';
 import MediaGallery from './src/components/MediaGallery';
 import AvatarStudio from './src/components/AvatarStudio';
-import VesperAvatar3D from './src/components/VesperAvatar3D';
 import IntegrationsHub from './src/components/IntegrationsHub';
 import IncomeDashboard from './src/components/IncomeDashboard';
 import GapsJournal from './src/components/GapsJournal';
@@ -861,6 +861,12 @@ function App() {
   const [ideSearchQuery, setIdeSearchQuery] = useState('');
   const [ideSearchResults, setIdeSearchResults] = useState([]);
   const [editorTheme, setEditorTheme] = useState(() => safeStorageGet('ide_theme', 'vs-dark'));
+  const [ideFindOpen, setIdeFindOpen] = useState(false);
+  const [ideFindQuery, setIdeFindQuery] = useState('');
+  const [ideReplaceQuery, setIdeReplaceQuery] = useState('');
+  const [ideFindCase, setIdeFindCase] = useState(false);
+  const [ideFindWord, setIdeFindWord] = useState(false);
+  const [ideOutlineOpen, setIdeOutlineOpen] = useState(false);
   // Global cross-thread search
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
@@ -9992,7 +9998,7 @@ export default function App() {
         }}
       >
         <Box sx={{ position: 'relative', width: '100vw', height: '100vh' }}>
-            <KnowledgeGraph apiBase={apiBase} />
+            <React.Suspense fallback={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}><CircularProgress sx={{ color: 'var(--accent)' }} /></Box>}><KnowledgeGraph apiBase={apiBase} /></React.Suspense>
             <IconButton
               onClick={() => setGraphOpen(false)}
               sx={{
@@ -10354,9 +10360,15 @@ export default function App() {
               </IconButton>
             </Tooltip>
             <Tooltip title="Search files" placement="right">
-              <IconButton onClick={() => { setIdeSearchOpen(v => !v); setIdeSettingsOpen(false); }}
+              <IconButton onClick={() => { setIdeSearchOpen(v => !v); setIdeSettingsOpen(false); setIdeOutlineOpen(false); }}
                 sx={{ color: ideSearchOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: ideSearchOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
                 <ManageSearchIcon sx={{ fontSize: 19 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Outline" placement="right">
+              <IconButton onClick={() => { setIdeOutlineOpen(v => !v); setIdeSearchOpen(false); setIdeSettingsOpen(false); }}
+                sx={{ color: ideOutlineOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: ideOutlineOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
+                <OutlineIcon sx={{ fontSize: 19 }} />
               </IconButton>
             </Tooltip>
             <Box sx={{ flex: 1 }} />
@@ -10379,10 +10391,10 @@ export default function App() {
                 <Box>
                   <Typography sx={{ fontSize: '0.66rem', color: '#888', mb: 1, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Font Size</Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box component='span' onClick={() => { const v = Math.max(10, editorFontSize - 1); setEditorFontSize(v); try { localStorage.setItem('ide_fontSize', String(v)); } catch(e){} }}
+                    <Box component='span' onClick={() => { const v = Math.max(8, editorFontSize - 1); setEditorFontSize(v); try { localStorage.setItem('ide_fontSize', String(v)); } catch(e){} }}
                       sx={{ width: 26, height: 26, borderRadius: 1, border: '1px solid #444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#aaa', fontSize: '1rem', userSelect: 'none', '&:hover': { borderColor: 'var(--accent)', color: '#fff' } }}>−</Box>
                     <Typography sx={{ fontSize: '0.85rem', color: '#d4d4d4', width: 28, textAlign: 'center', fontFamily: 'monospace' }}>{editorFontSize}</Typography>
-                    <Box component='span' onClick={() => { const v = Math.min(24, editorFontSize + 1); setEditorFontSize(v); try { localStorage.setItem('ide_fontSize', String(v)); } catch(e){} }}
+                    <Box component='span' onClick={() => { const v = Math.min(32, editorFontSize + 1); setEditorFontSize(v); try { localStorage.setItem('ide_fontSize', String(v)); } catch(e){} }}
                       sx={{ width: 26, height: 26, borderRadius: 1, border: '1px solid #444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#aaa', fontSize: '1rem', userSelect: 'none', '&:hover': { borderColor: 'var(--accent)', color: '#fff' } }}>+</Box>
                   </Box>
                 </Box>
@@ -10478,8 +10490,58 @@ export default function App() {
               </Box>
             </Box>
           )}
+          {/* Outline Sidebar */}
+          {ideOutlineOpen && (() => {
+            const activeContent = editorTabs.find(t => t.filename === activeTab)?.content || '';
+            const lang = activeTab ? getFileLang(activeTab).monacoLang : '';
+            const outlineItems = [];
+            activeContent.split('\n').forEach((line, idx) => {
+              const trimmed = line.trim();
+              // Markdown headings
+              const hm = trimmed.match(/^(#{1,3})\s+(.+)/);
+              if (hm) { outlineItems.push({ line: idx + 1, level: hm[1].length, label: hm[2].trim(), kind: 'heading' }); return; }
+              // JS/TS: function/class/const declarations
+              const jm = trimmed.match(/^(?:export\s+)?(?:default\s+)?(?:(async\s+)?function\*?|class)\s+([A-Za-z_$][\w$]*)/);
+              if (jm) { outlineItems.push({ line: idx + 1, level: 1, label: jm[2], kind: 'function' }); return; }
+              const cm = trimmed.match(/^(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=/);
+              if (cm) { outlineItems.push({ line: idx + 1, level: 2, label: cm[1], kind: 'const' }); return; }
+              // Python: def/class
+              const pm = trimmed.match(/^(def|class)\s+([A-Za-z_][\w]*)/);
+              if (pm) { outlineItems.push({ line: idx + 1, level: pm[1] === 'class' ? 1 : 2, label: pm[2], kind: pm[1] }); return; }
+            });
+            const kindColor = { heading: '#569cd6', function: '#dcdcaa', const: '#9cdcfe', def: '#c586c0', class: '#4ec9b0' };
+            const kindPrefix = { heading: '§', function: 'ƒ', const: '·', def: 'ƒ', class: '⬡' };
+            return (
+              <Box sx={{ width: 260, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'hidden' }}>
+                <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                  OUTLINE
+                  <Box component='span' onClick={() => setIdeOutlineOpen(false)} sx={{ ml: 'auto', cursor: 'pointer', color: '#555', fontSize: '1rem', lineHeight: 1, '&:hover': { color: '#fff' }, userSelect: 'none' }}>x</Box>
+                </Box>
+                <Box sx={{ flex: 1, overflowY: 'auto', '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#444' } }}>
+                  {!activeTab ? (
+                    <Box sx={{ p: 2 }}><Typography sx={{ fontSize: '0.72rem', color: '#555' }}>No file open</Typography></Box>
+                  ) : outlineItems.length === 0 ? (
+                    <Box sx={{ p: 2 }}><Typography sx={{ fontSize: '0.72rem', color: '#555' }}>No symbols found</Typography></Box>
+                  ) : outlineItems.map((item, i) => (
+                    <Box key={i} onClick={() => {
+                        if (monacoEditorRef.current) {
+                          monacoEditorRef.current.revealLineInCenter(item.line);
+                          monacoEditorRef.current.setPosition({ lineNumber: item.line, column: 1 });
+                          monacoEditorRef.current.focus();
+                        }
+                      }}
+                      sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1 + (item.level - 1) * 1.5 + 'rem', py: 0.4, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
+                      <Typography component='span' sx={{ fontSize: '0.65rem', color: kindColor[item.kind] || '#888', fontFamily: 'monospace', flexShrink: 0, width: 14 }}>{kindPrefix[item.kind] || '·'}</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', color: '#ccc', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</Typography>
+                      <Typography sx={{ fontSize: '0.62rem', color: '#555', flexShrink: 0, fontFamily: 'monospace' }}>{item.line}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            );
+          })()}
           {/* File Explorer Sidebar */}
-          {editorSidebarOpen && !ideSettingsOpen && !ideSearchOpen && (
+          {editorSidebarOpen && !ideSettingsOpen && !ideSearchOpen && !ideOutlineOpen && (
             <Box sx={{ width: 240, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'hidden' }}>
               <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                 EXPLORER
@@ -10593,6 +10655,52 @@ export default function App() {
               </Box>
             )}
 
+            {/* Find & Replace Bar */}
+            {ideFindOpen && activeTab && (
+              <Box sx={{ height: 'auto', bgcolor: '#252526', borderBottom: '1px solid #1e1e1e', px: 1.5, py: 0.625, display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, flexWrap: 'wrap' }}>
+                <Box component='input' autoFocus value={ideFindQuery} onChange={e => setIdeFindQuery(e.target.value)}
+                  placeholder='Find…'
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') setIdeFindOpen(false);
+                    if (e.key === 'Enter' && monacoEditorRef.current && ideFindQuery) {
+                      const model = monacoEditorRef.current.getModel();
+                      const cur = monacoEditorRef.current.getPosition();
+                      if (!model || !cur) return;
+                      const matches = model.findMatches(ideFindQuery, false, false, ideFindCase, ideFindWord ? '\b' : null, false);
+                      if (!matches.length) return;
+                      const after = matches.find(m => m.range.startLineNumber > cur.lineNumber || (m.range.startLineNumber === cur.lineNumber && m.range.startColumn > cur.column));
+                      const target = after || matches[0];
+                      monacoEditorRef.current.revealRangeInCenter(target.range);
+                      monacoEditorRef.current.setSelection(target.range);
+                    }
+                  }}
+                  sx={{ bgcolor: '#3c3c3c', border: '1px solid #555', borderRadius: 1, color: '#ccc', px: 1, py: 0.4, fontSize: '0.73rem', fontFamily: 'Consolas,monospace', outline: 'none', width: 180, '&:focus': { borderColor: 'var(--accent)' } }}
+                />
+                <Box component='input' value={ideReplaceQuery} onChange={e => setIdeReplaceQuery(e.target.value)}
+                  placeholder='Replace…'
+                  sx={{ bgcolor: '#3c3c3c', border: '1px solid #555', borderRadius: 1, color: '#ccc', px: 1, py: 0.4, fontSize: '0.73rem', fontFamily: 'Consolas,monospace', outline: 'none', width: 160, '&:focus': { borderColor: 'var(--accent)' } }}
+                />
+                {[{ label: 'Aa', title: 'Case sensitive', val: ideFindCase, set: setIdeFindCase }, { label: '\b', title: 'Whole word', val: ideFindWord, set: setIdeFindWord }].map(({ label, title, val, set }) => (
+                  <Tooltip key={label} title={title} placement='top'>
+                    <Box component='span' onClick={() => set(v => !v)}
+                      sx={{ px: 1, py: 0.3, borderRadius: 1, border: `1px solid ${val ? 'var(--accent)' : '#444'}`, bgcolor: val ? 'rgba(var(--accent-rgb),0.15)' : 'transparent', color: val ? 'var(--accent)' : '#777', fontSize: '0.7rem', fontFamily: 'monospace', cursor: 'pointer', userSelect: 'none', flexShrink: 0 }}>{label}</Box>
+                  </Tooltip>
+                ))}
+                <Box component='span' onClick={() => {
+                    if (!monacoEditorRef.current || !ideFindQuery) return;
+                    const editor = monacoEditorRef.current;
+                    const model = editor.getModel();
+                    if (!model) return;
+                    const matches = model.findMatches(ideFindQuery, false, false, ideFindCase, ideFindWord ? '\b' : null, false);
+                    if (!matches.length) return;
+                    editor.executeEdits('find-replace', matches.map(m => ({ range: m.range, text: ideReplaceQuery })));
+                    setEditorTabs(prev => prev.map(t => t.filename === activeTab ? { ...t, content: model.getValue(), dirty: true } : t));
+                  }}
+                  sx={{ px: 1.25, py: 0.3, borderRadius: 1, bgcolor: 'rgba(var(--accent-rgb),0.12)', border: '1px solid rgba(var(--accent-rgb),0.3)', color: 'var(--accent)', fontSize: '0.7rem', cursor: 'pointer', userSelect: 'none', flexShrink: 0, '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.22)' } }}>Replace All</Box>
+                <Box component='span' onClick={() => setIdeFindOpen(false)}
+                  sx={{ ml: 'auto', color: '#555', cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1, userSelect: 'none', '&:hover': { color: '#fff' }, flexShrink: 0 }}>×</Box>
+              </Box>
+            )}
             {/* Quick Actions Bar */}
             {activeTab && (
               <Box sx={{ height: 30, bgcolor: '#2d2d2d', borderBottom: '1px solid #252526', display: 'flex', alignItems: 'center', px: 1.5, gap: 0.5, flexShrink: 0, overflowX: 'auto', '&::-webkit-scrollbar': { height: 0 } }}>
@@ -10666,6 +10774,7 @@ export default function App() {
                       onMount={(editor, monaco) => {
                         monacoEditorRef.current = editor;
                         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => { monacoSaveRef.current?.(); });
+                        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => { setIdeFindOpen(v => !v); });
                         editor.onDidChangeCursorPosition(e => {
                           setIdeCursorPos({ line: e.position.lineNumber, col: e.position.column });
                         });
@@ -10942,6 +11051,8 @@ export default function App() {
                 sx={{ fontSize: '0.67rem', color: ideBottomOpen ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)', cursor: 'pointer', mr: 1.5, userSelect: 'none', '&:hover': { color: '#fff' } }}>
                 {ideBottomOpen ? '⊟' : '⊞'} Panel
               </Typography>
+              {editorAutoSave && <Typography sx={{ fontSize: '0.62rem', color: 'rgba(120,220,120,0.9)', fontWeight: 700, px: 0.75, py: 0.15, borderRadius: 0.75, bgcolor: 'rgba(0,200,100,0.15)', border: '1px solid rgba(0,200,100,0.3)', userSelect: 'none', flexShrink: 0 }}>AUTO</Typography>}
+              <Typography onClick={() => setIdeFindOpen(v => !v)} sx={{ fontSize: '0.67rem', color: ideFindOpen ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)', cursor: 'pointer', userSelect: 'none', '&:hover': { color: '#fff' } }}>⌕ Find</Typography>
               {activeTab && <Typography onClick={saveEditorFile} sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', '&:hover': { color: '#fff' }, userSelect: 'none' }}>Ctrl+S to save</Typography>}
               <Typography onClick={() => setIdeMode(false)} sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', '&:hover': { color: '#fff' }, userSelect: 'none' }}>× Close IDE</Typography>
             </Box>
