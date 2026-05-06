@@ -107,9 +107,9 @@ import {
 import { signInAnonymously } from 'firebase/auth';
 
 // Components
-// AIAvatar and VoiceInput used in main chat UI - keep sync
-import AIAvatar from './src/components/AIAvatar';
-import VoiceInput from './src/components/VoiceInput';
+// All components are lazy - index chunk contains only App.jsx + vendor chunks
+const AIAvatar = withSuspense(React.lazy(() => import('./src/components/AIAvatar')));
+const VoiceInput = withSuspense(React.lazy(() => import('./src/components/VoiceInput')));
 
 // withSuspense: HOC wrapping lazy components in a Suspense boundary
 // so JSX usage of converted components does not need to change

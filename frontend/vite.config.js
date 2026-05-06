@@ -63,6 +63,12 @@ export default defineConfig({
             id.includes('/node_modules/firebase') ||
             id.includes('/node_modules/@firebase')
           ) return 'vendor-firebase';
+
+          // vendor-misc: remaining sync npm deps - isolate from App.jsx index chunk
+          if (
+            id.includes('/node_modules/@dnd-kit/') ||
+            id.includes('/node_modules/react-hotkeys-hook')
+          ) return 'vendor-misc';
         },
       },
     },
