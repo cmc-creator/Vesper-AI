@@ -37,30 +37,34 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // RULE: Only list packages here that are (a) ONLY loaded via React.lazy
-          // AND (b) do NOT contain a React reconciler / scheduler that could fire
-          // callbacks into the main bundle before cr/cn are initialized.
+          // ROOT CAUSE of recurring TDZ (cr/cn/gr before initialization):
+          // Rollup auto-creates a shared chunk for @react-three/fiber deps. Because
+          // @react-three/fiber uses react-reconciler (which shares code with react-dom),
+          // Rollup co-locates react-dom INTO that auto-chunk. main.jsx needs react-dom
+          // synchronously, so it gets a SYNC import edge to the vendor-three chunk.
+          // When vendor-three evaluates, R3F's reconciler boots and calls back into the
+          // main bundle before its consts (cr/cn/gr) are initialized → TDZ crash.
           //
-          // DO NOT add:
-          //   vendor-react     - React must stay in main bundle
-          //   vendor-motion    - framer-motion sync-imported in App.jsx
-          //   vendor-three     - @react-three/fiber has its own React reconciler;
-          //                      naming it causes scheduler callbacks to fire before
-          //                      main bundle cr/cn are initialized. Let Rollup
-          //                      auto-chunk it alongside the Canvas/KnowledgeGraph
-          //                      lazy components.
-          //   vendor-syntax / vendor-markdown - removed (now lazy via MessageContent)
+          // FIX: Pin react + react-dom + scheduler into a dedicated 'vendor-react' chunk.
+          // - Main bundle gets a static import to vendor-react (loads vendor-react FIRST)
+          // - vendor-react has NO back-references to the main bundle (no circular dep)
+          // - @react-three auto-chunk imports React from vendor-react (already initialized)
+          // - By the time any lazy component renders, all consts in main bundle are set
+          //
+          // Packages that MUST stay in vendor-react (sync deps of main.jsx / App.jsx):
+          if (
+            id.includes('/node_modules/react/') ||
+            id.includes('/node_modules/react-dom/') ||
+            id.includes('/node_modules/scheduler/')
+          ) return 'vendor-react';
+
+          // Lazy-only packages (safe to chunk because they never load synchronously):
           if (id.includes('@codesandbox/sandpack') || id.includes('sandpack-react') || id.includes('sandpack-themes')) return 'vendor-sandpack';
           if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'vendor-recharts';
-          // framer-motion is NOT chunked: it's sync-imported in App.jsx, so splitting it
-          // creates a circular chunk dep (vendor-motion → React in main bundle → vendor-motion),
-          // which causes TDZ on const cr/cn. Keep framer-motion in the main bundle.
           if (id.includes('node_modules/@monaco-editor') || id.includes('node_modules/monaco-editor')) return 'vendor-monaco';
-          // NOTE: react-syntax-highlighter and react-markdown are NOT listed here.
-          // They are now only loaded lazily via MessageContent (React.lazy), so Rollup
-          // will auto-chunk them as async chunks. Forcing them into named manualChunks
-          // while they have no sync import path from App.jsx shifts the main bundle's
-          // module evaluation order and causes the cn TDZ from vendor-three.
+          // framer-motion: sync-imported in App.jsx → stays in main bundle (no entry here)
+          // @react-three: lazy-only → Rollup auto-chunks alongside KnowledgeGraph/AvatarStudio
+          // react-markdown / react-syntax-highlighter: lazy-only via MessageContent (no entry)
         },
       },
     },
@@ -68,13 +72,10 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       'react', 'react-dom',
-      // three/@react-three removed from optimizeDeps - let Rollup auto-chunk them
-      // alongside Canvas/KnowledgeGraph lazy components to avoid R3F reconciler TDZ
       '@codesandbox/sandpack-react',
       'recharts',
       'framer-motion',
       '@monaco-editor/react',
-      // react-syntax-highlighter and react-markdown removed - they are lazy-only now
     ],
     esbuildOptions: {
       target: 'esnext'
