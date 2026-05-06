@@ -107,35 +107,53 @@ import {
 import { signInAnonymously } from 'firebase/auth';
 
 // Components
+// AIAvatar and VoiceInput used in main chat UI - keep sync
 import AIAvatar from './src/components/AIAvatar';
-import CommandPalette from './src/components/CommandPalette';
-import Editor, { DiffEditor } from '@monaco-editor/react';
 import VoiceInput from './src/components/VoiceInput';
-// FloatingActionButton removed - actions now in tools grid
+
+// withSuspense: HOC wrapping lazy components in a Suspense boundary
+// so JSX usage of converted components does not need to change
+function withSuspense(LazyComp) {
+  return function Wrapped(props) {
+    return (
+      <React.Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4 }}><CircularProgress /></Box>}>
+        <LazyComp {...props} />
+      </React.Suspense>
+    );
+  };
+}
+
+// Already-lazy (Suspense handled in JSX)
 const Canvas = React.lazy(() => import('./src/components/Canvas'));
-import DeepResearch from './src/components/DeepResearch';
-import ImageGenerator from './src/components/ImageGenerator';
-import VideoCreator from './src/components/VideoCreator';
 const KnowledgeGraph = React.lazy(() => import('./src/components/KnowledgeGraph'));
-import GuidedLearning from './src/components/GuidedLearning';
 const ChartComponent = React.lazy(() => import('./src/components/ChartComponent'));
-// Game is lazy-loaded when user enters the world
 const GameLazy = React.lazy(() => import('./src/game/Game'));
-import SystemDiagnostics from './src/components/SystemDiagnostics';
-import SystemStatusCard from './src/components/SystemStatusCard';
-import WeatherWidget from './src/components/WeatherWidget';
-import CockpitPanel from './src/components/CockpitPanel';
-import CreativeSuite from './src/components/CreativeSuite';
-import Sassy from './src/components/Sassy';
-import MediaGallery from './src/components/MediaGallery';
 const AvatarStudio = React.lazy(() => import('./src/components/AvatarStudio'));
 const MessageContent = React.lazy(() => import('./src/components/MessageContent'));
-import IntegrationsHub from './src/components/IntegrationsHub';
-import IncomeDashboard from './src/components/IncomeDashboard';
-import GapsJournal from './src/components/GapsJournal';
-import MorningBrief from './src/components/MorningBrief';
-import BackgroundStudio from './src/components/BackgroundStudio';
-import SetupWizard from './src/components/SetupWizard';
+
+// Lazy-loaded feature panels - never needed on initial render
+const CommandPalette = withSuspense(React.lazy(() => import('./src/components/CommandPalette')));
+const DeepResearch = withSuspense(React.lazy(() => import('./src/components/DeepResearch')));
+const ImageGenerator = withSuspense(React.lazy(() => import('./src/components/ImageGenerator')));
+const VideoCreator = withSuspense(React.lazy(() => import('./src/components/VideoCreator')));
+const GuidedLearning = withSuspense(React.lazy(() => import('./src/components/GuidedLearning')));
+const SystemDiagnostics = withSuspense(React.lazy(() => import('./src/components/SystemDiagnostics')));
+const SystemStatusCard = withSuspense(React.lazy(() => import('./src/components/SystemStatusCard')));
+const WeatherWidget = withSuspense(React.lazy(() => import('./src/components/WeatherWidget')));
+const CockpitPanel = withSuspense(React.lazy(() => import('./src/components/CockpitPanel')));
+const CreativeSuite = withSuspense(React.lazy(() => import('./src/components/CreativeSuite')));
+const Sassy = withSuspense(React.lazy(() => import('./src/components/Sassy')));
+const MediaGallery = withSuspense(React.lazy(() => import('./src/components/MediaGallery')));
+const IntegrationsHub = withSuspense(React.lazy(() => import('./src/components/IntegrationsHub')));
+const IncomeDashboard = withSuspense(React.lazy(() => import('./src/components/IncomeDashboard')));
+const GapsJournal = withSuspense(React.lazy(() => import('./src/components/GapsJournal')));
+const MorningBrief = withSuspense(React.lazy(() => import('./src/components/MorningBrief')));
+const BackgroundStudio = withSuspense(React.lazy(() => import('./src/components/BackgroundStudio')));
+const SetupWizard = withSuspense(React.lazy(() => import('./src/components/SetupWizard')));
+
+// Monaco Editor: lazy to keep its worker-based module system out of the index chunk
+const Editor = withSuspense(React.lazy(() => import('@monaco-editor/react').then(m => ({ default: m.Editor }))));
+const DiffEditor = withSuspense(React.lazy(() => import('@monaco-editor/react').then(m => ({ default: m.DiffEditor }))));
 
 // Styles
 import './App.css';
