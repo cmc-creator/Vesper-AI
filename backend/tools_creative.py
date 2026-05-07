@@ -3994,17 +3994,23 @@ Return a complete JSON business concept:
         workspace = os.environ.get("WORKSPACE_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         save_dir = os.path.join(workspace, "vesper-ai", "creations", "app_concepts")
         os.makedirs(save_dir, exist_ok=True)
-        slug = (data.get("app_name", problem)[:30]).lower().replace(" ", "_")
+        raw_name = data.get("app_name", problem)
+        # AI sometimes returns app_name as a list of options — normalise to string
+        if isinstance(raw_name, list):
+            app_name_str = raw_name[0] if raw_name else problem
+        else:
+            app_name_str = str(raw_name)
+        slug = app_name_str[:30].lower().replace(" ", "_")
         fp = os.path.join(save_dir, f"{slug}_{uuid.uuid4().hex[:6]}.json")
         with open(fp, "w") as f:
             _json.dump(data, f, indent=2)
 
         return {
             "success": True,
-            "title": f"App Concept: {data.get('app_name', problem[:30])}",
+            "title": f"App Concept: {app_name_str}",
             "concept": data,
             "file_path": fp,
-            "preview": f"[App concept saved — {data.get('app_name', 'Concept')}]",
+            "preview": f"[App concept saved — {app_name_str}]",
             "income_note": "The fastest path to $10K MRR is a micro-SaaS solving a specific B2B pain. This concept doc is the blueprint.",
         }
     except Exception as e:
