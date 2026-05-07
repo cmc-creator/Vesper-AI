@@ -33,10 +33,10 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
-    rollupOptions: {},
+    sourcemap: true
   },
   optimizeDeps: {
+    include: ['react', 'react-dom', 'three', '@react-three/fiber'],
     esbuildOptions: {
       target: 'esnext'
     }

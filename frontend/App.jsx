@@ -1,90 +1,95 @@
-﻿import React, { useState, useEffect, useRef, useMemo, useCallback, startTransition } from 'react';
-import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
-import IconButton from '@mui/material/IconButton';
-import Typography from '@mui/material/Typography';
-import CircularProgress from '@mui/material/CircularProgress';
-import Paper from '@mui/material/Paper';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
-import Divider from '@mui/material/Divider';
-import Button from '@mui/material/Button';
-import Grid from '@mui/material/Grid';
-import Snackbar from '@mui/material/Snackbar';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import Drawer from '@mui/material/Drawer';
-import Alert from '@mui/material/Alert';
-import Switch from '@mui/material/Switch';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import LinearProgress from '@mui/material/LinearProgress';
-import Checkbox from '@mui/material/Checkbox';
-import Select from '@mui/material/Select';
-import Slider from '@mui/material/Slider';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import Accordion from '@mui/material/Accordion';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import SendIcon from '@mui/icons-material/Send';
-import DeleteIcon from '@mui/icons-material/Delete';
-import CloseIcon from '@mui/icons-material/Close';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DownloadIcon from '@mui/icons-material/Download';
-import AutoFixHigh from '@mui/icons-material/AutoFixHigh';
-import ContentPasteRounded from '@mui/icons-material/ContentPasteRounded';
-import PinIcon from '@mui/icons-material/PushPin';
-import PinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
-import HistoryRounded from '@mui/icons-material/HistoryRounded';
-import BoltRounded from '@mui/icons-material/BoltRounded';
-import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
-import StorageRounded from '@mui/icons-material/StorageRounded';
-import ScienceRounded from '@mui/icons-material/ScienceRounded';
-import HubRounded from '@mui/icons-material/HubRounded';
-import ChecklistRounded from '@mui/icons-material/ChecklistRounded';
-import SettingsRounded from '@mui/icons-material/SettingsRounded';
-import PublicRounded from '@mui/icons-material/PublicRounded';
-import PaletteIcon from '@mui/icons-material/Palette';
-import VolumeUpIcon from '@mui/icons-material/VolumeUp';
-import VolumeOffIcon from '@mui/icons-material/VolumeOff';
-import BarChart from '@mui/icons-material/BarChart';
-import Person from '@mui/icons-material/Person';
-import AutoStories from '@mui/icons-material/AutoStories';
-import Checkroom from '@mui/icons-material/Checkroom';
-import SpeedIcon from '@mui/icons-material/Speed';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import SaveAltIcon from '@mui/icons-material/SaveAlt';
-import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
-import PhotoLibrary from '@mui/icons-material/PhotoLibrary';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ZoomInIcon from '@mui/icons-material/ZoomIn';
-import ZoomOutIcon from '@mui/icons-material/ZoomOut';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import MenuIcon from '@mui/icons-material/Menu';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import NightsStayIcon from '@mui/icons-material/NightsStay';
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import StarRounded from '@mui/icons-material/StarRounded';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-import ManageSearchIcon from '@mui/icons-material/ManageSearch';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import AutorenewIcon from '@mui/icons-material/Autorenew';
-import BookmarkIcon from '@mui/icons-material/Bookmark';
-import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
-import FolderOpenIcon from '@mui/icons-material/FolderOpen';
-import CodeIcon from '@mui/icons-material/Code';
-import OutlineIcon from '@mui/icons-material/FormatListBulleted';
+import React, { useState, useEffect, useRef, useMemo, useCallback, startTransition } from 'react';
+import {
+  Box,
+  TextField,
+  IconButton,
+  Typography,
+  CircularProgress,
+  Paper,
+  Chip,
+  Stack,
+  Tooltip,
+  Divider,
+  Button,
+  Grid,
+  Snackbar,
+  Menu,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Drawer,
+  Alert,
+  Switch,
+  FormControlLabel,
+  LinearProgress,
+  Checkbox,
+  Select,
+  Slider,
+  Tabs,
+  Tab,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+} from '@mui/material';
+import {
+  Send as SendIcon,
+  Delete as DeleteIcon,
+  Close as CloseIcon,
+  Add as AddIcon,
+  Edit as EditIcon,
+  Download as DownloadIcon,
+  AutoFixHigh,
+  ContentPasteRounded,
+  PushPin as PinIcon,
+  PushPinOutlined as PinOutlinedIcon,
+  HistoryRounded,
+  BoltRounded,
+  ContentCopyRounded,
+  StorageRounded,
+  ScienceRounded,
+  HubRounded,
+  ChecklistRounded,
+  SettingsRounded,
+  PublicRounded,
+  Palette as PaletteIcon,
+  VolumeUp as VolumeUpIcon,
+  VolumeOff as VolumeOffIcon,
+  BarChart,
+  Person,
+  AutoStories,
+  Checkroom,
+  Speed as SpeedIcon,
+  PlayArrow as PlayArrowIcon,
+  SaveAlt as SaveAltIcon,
+  RecordVoiceOver as RecordVoiceOverIcon,
+  PhotoLibrary,
+  ArrowBack as ArrowBackIcon,
+  ZoomIn as ZoomInIcon,
+  ZoomOut as ZoomOutIcon,
+  MoreVert as MoreVertIcon,
+  Menu as MenuIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  ExpandMore as ExpandMoreIcon,
+  TrendingUp as TrendingUpIcon,
+  NightsStay as NightsStayIcon,
+  WbSunny as WbSunnyIcon,
+  StarRounded,
+  StarBorder as StarBorderIcon,
+  ManageSearch as ManageSearchIcon,
+  AutoMode as AutoModeIcon,
+  PlayCircle as PlayCircleIcon,
+  CheckCircle as CheckCircleIcon,
+  ErrorOutline as ErrorOutlineIcon,
+  Schedule as ScheduleIcon,
+} from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { DndContext, useDraggable, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 
@@ -102,37 +107,31 @@ import {
 } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 
-// Components
-// All components are lazy - index chunk contains only App.jsx + vendor chunks
-const AIAvatar = withSuspense(React.lazy(() => import('./src/components/AIAvatar')));
-const VoiceInput = withSuspense(React.lazy(() => import('./src/components/VoiceInput')));
+// Components — AIAvatar and VoiceInput are sync (needed on initial render)
+import AIAvatar from './src/components/AIAvatar';
+import VoiceInput from './src/components/VoiceInput';
 
-// withSuspense: HOC wrapping lazy components in a Suspense boundary
-// so JSX usage of converted components does not need to change
+// withSuspense: wraps a lazy component in a Suspense boundary so JSX usage unchanged
 function withSuspense(LazyComp) {
   return function Wrapped(props) {
     return (
-      <React.Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4 }}><CircularProgress /></Box>}>
+      <React.Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4 }}><CircularProgress sx={{ color: 'rgba(0,255,255,0.6)' }} /></Box>}>
         <LazyComp {...props} />
       </React.Suspense>
     );
   };
 }
 
-// Already-lazy (Suspense handled in JSX)
-const Canvas = React.lazy(() => import('./src/components/Canvas'));
-const KnowledgeGraph = React.lazy(() => import('./src/components/KnowledgeGraph'));
-const ChartComponent = React.lazy(() => import('./src/components/ChartComponent'));
-const GameLazy = React.lazy(() => import('./src/game/Game'));
-const AvatarStudio = React.lazy(() => import('./src/components/AvatarStudio'));
-const MessageContent = React.lazy(() => import('./src/components/MessageContent'));
-
-// Lazy-loaded feature panels - never needed on initial render
+// Lazy-loaded feature panels — separate chunks prevent MUI circular-dep TDZ in Rollup
 const CommandPalette = withSuspense(React.lazy(() => import('./src/components/CommandPalette')));
+const Canvas = withSuspense(React.lazy(() => import('./src/components/Canvas')));
 const DeepResearch = withSuspense(React.lazy(() => import('./src/components/DeepResearch')));
 const ImageGenerator = withSuspense(React.lazy(() => import('./src/components/ImageGenerator')));
 const VideoCreator = withSuspense(React.lazy(() => import('./src/components/VideoCreator')));
+const KnowledgeGraph = withSuspense(React.lazy(() => import('./src/components/KnowledgeGraph')));
 const GuidedLearning = withSuspense(React.lazy(() => import('./src/components/GuidedLearning')));
+const ChartComponent = withSuspense(React.lazy(() => import('./src/components/ChartComponent')));
+const GameLazy = React.lazy(() => import('./src/game/Game'));
 const SystemDiagnostics = withSuspense(React.lazy(() => import('./src/components/SystemDiagnostics')));
 const SystemStatusCard = withSuspense(React.lazy(() => import('./src/components/SystemStatusCard')));
 const WeatherWidget = withSuspense(React.lazy(() => import('./src/components/WeatherWidget')));
@@ -140,6 +139,8 @@ const CockpitPanel = withSuspense(React.lazy(() => import('./src/components/Cock
 const CreativeSuite = withSuspense(React.lazy(() => import('./src/components/CreativeSuite')));
 const Sassy = withSuspense(React.lazy(() => import('./src/components/Sassy')));
 const MediaGallery = withSuspense(React.lazy(() => import('./src/components/MediaGallery')));
+const AvatarStudio = withSuspense(React.lazy(() => import('./src/components/AvatarStudio')));
+const VesperAvatar3D = withSuspense(React.lazy(() => import('./src/components/VesperAvatar3D')));
 const IntegrationsHub = withSuspense(React.lazy(() => import('./src/components/IntegrationsHub')));
 const IncomeDashboard = withSuspense(React.lazy(() => import('./src/components/IncomeDashboard')));
 const GapsJournal = withSuspense(React.lazy(() => import('./src/components/GapsJournal')));
@@ -147,13 +148,251 @@ const MorningBrief = withSuspense(React.lazy(() => import('./src/components/Morn
 const BackgroundStudio = withSuspense(React.lazy(() => import('./src/components/BackgroundStudio')));
 const SetupWizard = withSuspense(React.lazy(() => import('./src/components/SetupWizard')));
 
-// Monaco Editor: lazy to keep its worker-based module system out of the index chunk
-const Editor = withSuspense(React.lazy(() => import('@monaco-editor/react').then(m => ({ default: m.Editor }))));
-const DiffEditor = withSuspense(React.lazy(() => import('@monaco-editor/react').then(m => ({ default: m.DiffEditor }))));
-
 // Styles
 import './App.css';
 import './src/enhancements.css';
+
+// ─── AutopilotPanel — standalone component so it has clean hooks scope ────────
+function AutopilotPanel({ apiBase, onBack, jobs, setJobs, log, setLog, loading, setLoading, running, setRunning, niches, setNiches, accentColor, setToast }) {
+  const accent = accentColor || '#00ffff';
+
+  const fetchJobs = React.useCallback(async () => {
+    try {
+      const [jr, lr] = await Promise.all([
+        fetch(`${apiBase}/api/autopilot/jobs`),
+        fetch(`${apiBase}/api/autopilot/log?limit=20`),
+      ]);
+      if (jr.ok) { const d = await jr.json(); setJobs(d.jobs || []); }
+      if (lr.ok) { const d = await lr.json(); setLog(d.log || []); }
+    } catch (e) { /* network failure */ }
+  }, [apiBase, setJobs, setLog]);
+
+  React.useEffect(() => { fetchJobs(); }, [fetchJobs]);
+
+  const toggleJob = async (job) => {
+    const updated = { enabled: !job.enabled };
+    try {
+      const r = await fetch(`${apiBase}/api/autopilot/jobs/${job.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      });
+      if (r.ok) { await fetchJobs(); setToast({ open: true, message: job.enabled ? `${job.name} paused` : `${job.name} enabled — runs on schedule`, severity: 'success' }); }
+    } catch (e) { setToast({ open: true, message: 'Failed to update job', severity: 'error' }); }
+  };
+
+  const saveNiche = async (job) => {
+    const niche = (niches[job.id] ?? job.niche) || '';
+    try {
+      const r = await fetch(`${apiBase}/api/autopilot/jobs/${job.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ niche }),
+      });
+      if (r.ok) { await fetchJobs(); setToast({ open: true, message: 'Niche saved', severity: 'success' }); }
+    } catch (e) {}
+  };
+
+  const runNow = async (job) => {
+    setRunning(prev => ({ ...prev, [job.id]: true }));
+    setToast({ open: true, message: `▶ ${job.name} started in background…`, severity: 'info' });
+    try {
+      await fetch(`${apiBase}/api/autopilot/run-now/${job.id}`, { method: 'POST' });
+      // Poll for completion: check log for new entry
+      let polls = 0;
+      const check = setInterval(async () => {
+        polls++;
+        if (polls > 60) { clearInterval(check); setRunning(prev => ({ ...prev, [job.id]: false })); return; }
+        await fetchJobs();
+        const updatedJobs = await fetch(`${apiBase}/api/autopilot/jobs`).then(r => r.json()).catch(() => null);
+        if (updatedJobs) {
+          const j = (updatedJobs.jobs || []).find(x => x.id === job.id);
+          if (j && j.last_run) {
+            clearInterval(check);
+            setRunning(prev => ({ ...prev, [job.id]: false }));
+            await fetchJobs();
+            const st = j.last_status === 'ok' ? 'success' : 'warning';
+            setToast({ open: true, message: `${job.name}: ${j.last_output || 'Done'}`, severity: st });
+          }
+        }
+      }, 3000);
+    } catch (e) {
+      setRunning(prev => ({ ...prev, [job.id]: false }));
+    }
+  };
+
+  const JOB_ICONS = { weekly_pipeline: '🏭', daily_article: '✍️', weekly_keywords: '🔑', social_drip: '📲' };
+
+  return (
+    <Box sx={{ height: '100%', overflowY: 'auto', p: { xs: 2, md: 3 }, maxWidth: 860, mx: 'auto' }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+        <IconButton onClick={onBack} size="small" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+          <ArrowBackIcon fontSize="small" />
+        </IconButton>
+        <AutoModeIcon sx={{ color: accent, fontSize: '1.4rem' }} />
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            Autopilot
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+            Vesper works while you sleep
+          </Typography>
+        </Box>
+        <Box sx={{ ml: 'auto' }}>
+          <Chip
+            label={jobs.filter(j => j.enabled).length + ' active'}
+            size="small"
+            sx={{ bgcolor: jobs.some(j => j.enabled) ? 'rgba(107,203,119,0.15)' : 'rgba(255,255,255,0.06)', color: jobs.some(j => j.enabled) ? '#6bcb77' : 'rgba(255,255,255,0.4)', fontWeight: 700, fontSize: '0.65rem' }}
+          />
+        </Box>
+      </Box>
+
+      {/* Job cards */}
+      <Stack spacing={1.5} sx={{ mb: 3 }}>
+        {jobs.map((job) => {
+          const isRunning = running[job.id];
+          const icon = JOB_ICONS[job.type] || '⚙️';
+          const currentNiche = niches[job.id] ?? job.niche ?? '';
+          return (
+            <Paper key={job.id} elevation={0} sx={{
+              p: 2.5,
+              border: `1px solid ${job.enabled ? `${accent}40` : 'rgba(255,255,255,0.07)'}`,
+              borderRadius: 2,
+              bgcolor: job.enabled ? `${accent}08` : 'rgba(255,255,255,0.02)',
+              transition: 'border-color 0.2s',
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                <Typography sx={{ fontSize: '1.5rem', lineHeight: 1, mt: 0.2 }}>{icon}</Typography>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.4 }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700, color: '#fff', fontSize: '0.95rem' }}>
+                      {job.name}
+                    </Typography>
+                    {job.enabled && (
+                      <Chip label="ON" size="small" sx={{ height: 16, fontSize: '0.55rem', bgcolor: `${accent}30`, color: accent, fontWeight: 800 }} />
+                    )}
+                  </Box>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 1 }}>
+                    {job.description}
+                  </Typography>
+
+                  {/* Niche input */}
+                  {job.niche !== undefined && (
+                    <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'center' }}>
+                      <TextField
+                        size="small"
+                        placeholder="Your niche (e.g. AI productivity, Etsy sellers)"
+                        value={currentNiche}
+                        onChange={e => setNiches(prev => ({ ...prev, [job.id]: e.target.value }))}
+                        sx={{
+                          flex: 1,
+                          '& .MuiInputBase-root': { fontSize: '0.75rem', bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1 },
+                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' },
+                          '& input': { color: '#fff', py: 0.8 },
+                        }}
+                      />
+                      <Button size="small" onClick={() => saveNiche(job)} sx={{ color: accent, fontSize: '0.7rem', textTransform: 'none', minWidth: 0, px: 1.5 }}>
+                        Save
+                      </Button>
+                    </Box>
+                  )}
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <ScheduleIcon sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }} />
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.65rem' }}>
+                        {job.schedule_label || 'Scheduled'}
+                      </Typography>
+                    </Box>
+
+                    {job.last_run && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {job.last_status === 'ok'
+                          ? <CheckCircleIcon sx={{ fontSize: '0.75rem', color: '#6bcb77' }} />
+                          : <ErrorOutlineIcon sx={{ fontSize: '0.75rem', color: '#ff6b6b' }} />}
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem' }}>
+                          Last: {new Date(job.last_run).toLocaleDateString()} — {job.last_output?.slice(0, 60) || ''}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+
+                {/* Controls */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, flexShrink: 0 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={!!job.enabled}
+                        onChange={() => toggleJob(job)}
+                        size="small"
+                        sx={{
+                          '& .MuiSwitch-track': { bgcolor: job.enabled ? `${accent}60` : 'rgba(255,255,255,0.1)' },
+                          '& .Mui-checked .MuiSwitch-thumb': { bgcolor: accent },
+                        }}
+                      />
+                    }
+                    label=""
+                    sx={{ m: 0 }}
+                  />
+                  <Tooltip title="Run now (single run in background)" placement="left">
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={isRunning}
+                        onClick={() => runNow(job)}
+                        sx={{ color: isRunning ? 'rgba(255,255,255,0.2)' : accent, border: `1px solid ${isRunning ? 'rgba(255,255,255,0.1)' : `${accent}40`}`, borderRadius: 1, p: 0.5 }}
+                      >
+                        {isRunning
+                          ? <CircularProgress size={14} sx={{ color: accent }} />
+                          : <PlayCircleIcon sx={{ fontSize: '1rem' }} />}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Box>
+              </Box>
+            </Paper>
+          );
+        })}
+      </Stack>
+
+      {/* Activity log */}
+      <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', letterSpacing: '0.15em', mb: 1, display: 'block' }}>
+        Activity Log
+      </Typography>
+      {log.length === 0 ? (
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>
+          No jobs have run yet. Enable a job or hit Run Now to start.
+        </Typography>
+      ) : (
+        <Stack spacing={0.5}>
+          {log.slice(0, 15).map((entry, i) => (
+            <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.2, borderRadius: 1.5, bgcolor: entry.success ? 'rgba(107,203,119,0.05)' : 'rgba(255,107,107,0.05)', border: `1px solid ${entry.success ? 'rgba(107,203,119,0.12)' : 'rgba(255,107,107,0.12)'}` }}>
+              <Typography sx={{ fontSize: '0.8rem', lineHeight: 1.4, flexShrink: 0 }}>
+                {entry.success ? '✓' : '✗'}
+              </Typography>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: entry.success ? '#6bcb77' : '#ff6b6b', fontSize: '0.7rem' }}>
+                    {entry.job_name}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.65rem' }}>
+                    {entry.ended ? new Date(entry.ended).toLocaleString() : ''}
+                  </Typography>
+                </Box>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {entry.output}
+                </Typography>
+              </Box>
+            </Box>
+          ))}
+        </Stack>
+      )}
+    </Box>
+  );
+}
+
 
 const baseTheme = createTheme({
   palette: {
@@ -170,6 +409,14 @@ const SECTION_QUICK_STARTS = {
     'Break my current project into actionable tasks',
     'What should I prioritize today?',
     'Create a sprint plan for this week',
+  ],
+  income: [
+    'Plan my income streams for this month',
+    'Find profitable keywords in my niche',
+    'Write an SEO article about [topic]',
+    'Create a 30-day content calendar',
+    'Generate 5 digital product ideas for my audience',
+    'Analyze my income gap and suggest fixes',
   ],
   research: [
     'Research the latest trends in AI',
@@ -331,17 +578,63 @@ const THEMES = [
 ];
 
 const NAV = [
-  { id: 'chat', label: 'Chat', icon: HubRounded },
-  { id: 'research', label: 'Research Tools', icon: ScienceRounded },
-  { id: 'tasks', label: 'Task Matrix', icon: ChecklistRounded },
-  { id: 'morning-brief', label: 'Morning Brief', icon: WbSunnyIcon },
-  { id: 'sparks', label: 'Sparks', icon: AutoAwesomeIcon },
-  { id: 'vault', label: 'The Vault', icon: BookmarkIcon },
-  { id: 'gaps', label: 'Memory', icon: NightsStayIcon },
-  { id: 'settings', label: 'Settings', icon: SettingsRounded },
+  { id: 'chat',         label: 'Chat',           icon: HubRounded      },
+  { id: 'income',       label: 'Money Ops',      icon: TrendingUpIcon  },
+  { id: 'autopilot',    label: 'Autopilot',      icon: AutoModeIcon    },
+  { id: 'tasks',        label: 'Task Matrix',    icon: ChecklistRounded },
+  { id: 'research',     label: 'Research Tools', icon: ScienceRounded  },
+  { id: 'morning-brief',label: 'Morning Brief',  icon: WbSunnyIcon     },
+  { id: 'gaps',         label: 'Memory',         icon: NightsStayIcon  },
+  { id: 'settings',     label: 'Settings',       icon: SettingsRounded },
 ];
 
 const UI_RELEASE = 'LUX-OPS R4 · 2026-04-01';
+
+// ── Proactive nudge map: tool name → suggested next actions ──────────────
+const NUDGE_MAP = {
+  // Creative / income tools
+  generate_image:        ['Make a variation', 'Add to wallpaper', 'Build a product listing'],
+  write_seo_article:     ['Generate social posts', 'Publish to Medium', 'Repurpose to email'],
+  create_ebook:          ['Generate a cover image', 'Create a sales page', 'Publish on Gumroad'],
+  keyword_research:      ['Write the article now', 'Build a content calendar', 'Find affiliate angles'],
+  plan_income_stream:    ['Build the top stream now', 'Create a content calendar', 'Set a revenue goal'],
+  create_content_calendar:['Write the first article', 'Schedule to social', 'Save to Creative Suite'],
+  create_email_sequence: ['Set up the automation', 'Write a lead magnet', 'Add a Gumroad product'],
+  affiliate_research:    ['Write affiliate content', 'Build a review article', 'Find related keywords'],
+  product_idea_generator:['Build the top product', 'Create a sales page', 'Research the market'],
+  write_sales_page:      ['Generate product images', 'Build an email sequence', 'Publish on Gumroad'],
+  income_gap_analyzer:   ['Fix the biggest gap', 'Create a new income stream', 'Set a 30-day goal'],
+  create_landing_page:   ['Connect to Gumroad', 'Write a launch email', 'Build social posts'],
+  create_course_outline: ['Write the first module', 'Build a landing page', 'Set a launch date'],
+  // General tools
+  web_search:            ['Go deeper on this', 'Save as research note', 'Summarize key points'],
+  search_web:            ['Go deeper on this', 'Save as research note', 'Summarize key points'],
+  create_task:           ['Add subtasks', 'Set a deadline', 'Mark in progress'],
+  create_song:           ['Generate album art', 'Push to Creative Suite', 'Write a second verse'],
+  execute_python:        ['Explain this code', 'Test edge cases', 'Optimize it'],
+  vesper_read_file:      ['Edit this file', 'Summarize the key sections', 'Search for related files'],
+  vesper_write_file:     ['Run git diff', 'Commit this change', 'Test the changes'],
+  scrape_url:            ['Extract key data', 'Save to research notes', 'Find competitor data'],
+};
+
+// ── Voice personality per theme sound type ─────────────────────────────────
+const SOUND_VOICE_PARAMS = {
+  digital:  { stability: 0.60, similarity_boost: 0.75 },
+  synth:    { stability: 0.42, similarity_boost: 0.62 },
+  ambient:  { stability: 0.72, similarity_boost: 0.80 },
+  dark:     { stability: 0.32, similarity_boost: 0.54 },
+  nature:   { stability: 0.65, similarity_boost: 0.70 },
+  jazz:     { stability: 0.28, similarity_boost: 0.48 },
+  forest:   { stability: 0.68, similarity_boost: 0.72 },
+  ocean:    { stability: 0.70, similarity_boost: 0.76 },
+  wind:     { stability: 0.55, similarity_boost: 0.64 },
+  fire:     { stability: 0.38, similarity_boost: 0.56 },
+  cosmic:   { stability: 0.45, similarity_boost: 0.60 },
+  rain:     { stability: 0.60, similarity_boost: 0.68 },
+  bells:    { stability: 0.55, similarity_boost: 0.70 },
+  retro:    { stability: 0.50, similarity_boost: 0.65 },
+  spooky:   { stability: 0.30, similarity_boost: 0.50 },
+};
 
 // ─── Voice Persona Assigner Component ──────────────────────────────────
 function PersonaAssigner({ apiBase, cloudVoices, setToast, playVoicePreview, onSave }) {
@@ -825,60 +1118,7 @@ function App() {
   const [starredMsgs, setStarredMsgs] = useState(() => {
     try { return JSON.parse(localStorage.getItem('vesper_starred_msgs') || '[]'); } catch { return []; }
   });
-  // The Vault - pinned AI responses
-  const [vaultItems, setVaultItems] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('vesper_vault') || '[]'); } catch { return []; }
-  });
-  // Sparks feature
-  const [sparks, setSparks] = useState([]);
-  const [sparksLoading, setSparksLoading] = useState(false);
-  // Vesper Reacts mood chip
-  const [vesperMood, setVesperMood] = useState(null);
   const [starredPanelOpen, setStarredPanelOpen] = useState(false);
-  const [productsOpen, setProductsOpen] = useState(false);
-  const [products, setProducts] = useState([]);
-  const [productsLoading, setProductsLoading] = useState(false);
-  const [ideMode, setIdeMode] = useState(false);
-  const [editorTabs, setEditorTabs] = useState([]);
-  const [activeTab, setActiveTab] = useState(null);
-  const [editorSidebarOpen, setEditorSidebarOpen] = useState(true);
-  const [editorChatOpen, setEditorChatOpen] = useState(true);
-  const [idePreviewOpen, setIdePreviewOpen] = useState(false);
-  const [ideNewFileOpen, setIdeNewFileOpen] = useState(false);
-  const [ideNewFileName, setIdeNewFileName] = useState('');
-  const [ideRenameFile, setIdeRenameFile] = useState(null);
-  const [ideRenameName, setIdeRenameName] = useState('');
-  const [ideExplorerSearch, setIdeExplorerSearch] = useState('');
-  const [ideDiff, setIdeDiff] = useState(null);
-  const [ideCursorPos, setIdeCursorPos] = useState({ line: 1, col: 1 });
-  const [ideLastSaved, setIdeLastSaved] = useState(null);
-  const [editorFontSize, setEditorFontSize] = useState(() => parseInt(safeStorageGet('ide_fontSize', '13')));
-  const [editorWordWrap, setEditorWordWrap] = useState(() => safeStorageGet('ide_wordWrap', 'on'));
-  const [editorMinimap, setEditorMinimap] = useState(() => safeStorageGet('ide_minimap', 'false') === 'true');
-  const [editorTabSize, setEditorTabSize] = useState(() => parseInt(safeStorageGet('ide_tabSize', '2')));
-  const [editorAutoSave, setEditorAutoSave] = useState(() => safeStorageGet('ide_autoSave', 'false') === 'true');
-  const [ideSettingsOpen, setIdeSettingsOpen] = useState(false);
-  const [splitTab, setSplitTab] = useState(null);
-  const monacoEditorRef = useRef(null);
-  const autoSaveTimerRef = useRef(null);
-  const pendingAutoOpen = useRef(false);
-  const monacoSaveRef = useRef(null);
-  const [ideBottomOpen, setIdeBottomOpen] = useState(false);
-  const [ideBottomTab, setIdeBottomTab] = useState('problems');
-  const [ideConsoleInput, setIdeConsoleInput] = useState('');
-  const [ideConsoleHistory, setIdeConsoleHistory] = useState([{ type: 'sys', text: 'Vesper IDE Console · type help for commands' }]);
-  const [ideOutputLines, setIdeOutputLines] = useState(() => [`[${new Date().toLocaleTimeString()}] Vesper IDE ready`]);
-  const [tabContextMenu, setTabContextMenu] = useState(null);
-  const [ideSearchOpen, setIdeSearchOpen] = useState(false);
-  const [ideSearchQuery, setIdeSearchQuery] = useState('');
-  const [ideSearchResults, setIdeSearchResults] = useState([]);
-  const [editorTheme, setEditorTheme] = useState(() => safeStorageGet('ide_theme', 'vs-dark'));
-  const [ideFindOpen, setIdeFindOpen] = useState(false);
-  const [ideFindQuery, setIdeFindQuery] = useState('');
-  const [ideReplaceQuery, setIdeReplaceQuery] = useState('');
-  const [ideFindCase, setIdeFindCase] = useState(false);
-  const [ideFindWord, setIdeFindWord] = useState(false);
-  const [ideOutlineOpen, setIdeOutlineOpen] = useState(false);
   // Global cross-thread search
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
@@ -945,6 +1185,14 @@ function App() {
     }
   }, [launchMode]);
 
+  // ── Voice personality shifts with theme "sound" type ────────────────────
+  useEffect(() => {
+    const profile = SOUND_VOICE_PARAMS[activeTheme?.sound] || SOUND_VOICE_PARAMS.ambient;
+    setVoiceStability(profile.stability);
+    setVoiceSimilarityBoost(profile.similarity_boost);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTheme?.id]);
+
   // Restore draft input for the current thread
   useEffect(() => {
     const draft = safeStorageGet(`vesper_draft_${currentThreadId || 'new'}`, '');
@@ -971,6 +1219,20 @@ function App() {
   const [activeToolLabel, setActiveToolLabel] = useState('');
   const [toolHistory, setToolHistory] = useState([]);
   const previewAudioRef = useRef(null);
+
+  // ── Wow Factors: mood, nudges, briefing, XP ──────────────────────────────
+  const [vesperMood, setVesperMood] = useState('neutral');
+  const [pendingNudges, setPendingNudges] = useState([]);
+  const [sessionBriefing, setSessionBriefing] = useState(null);
+  const [vesperXp, setVesperXp] = useState(() => { try { return JSON.parse(localStorage.getItem('vesper_xp_cache') || '{"xp":0,"level":1}'); } catch { return {xp:0, level:1}; } });
+  const [incomeStats, setIncomeStats] = useState(() => { try { return JSON.parse(localStorage.getItem('vesper_income_cache') || 'null'); } catch { return null; } });
+
+  // ── Autopilot state ──────────────────────────────────────────────────────
+  const [autopilotJobs, setAutopilotJobs] = useState([]);
+  const [autopilotLog, setAutopilotLog] = useState([]);
+  const [autopilotLoading, setAutopilotLoading] = useState(false);
+  const [autopilotRunning, setAutopilotRunning] = useState({}); // { job_id: true }
+  const [autopilotNiches, setAutopilotNiches] = useState({}); // { job_id: niche string }
 
   // ── Vesper Autonomy: Daily Identity + Proactive Initiative ─────
   const [vesperIdentity, setVesperIdentity] = useState(null);
@@ -1593,12 +1855,6 @@ export default function App() {
     setGameMode((prev) => !prev);
   });
 
-  useHotkeys('ctrl+shift+e', (e) => {
-    e.preventDefault();
-    setIdeMode(v => !v);
-    if (products.length === 0) fetchProducts();
-  }, [products.length, fetchProducts]);
-
   useEffect(() => {
     if (disableFirebaseAuth || !isFirebaseConfigured || !auth || typeof signInAnonymously !== 'function') {
       setUserId('local');
@@ -1731,6 +1987,36 @@ export default function App() {
           if (active) setActiveAvatarData(active);
         }
       } catch (e) {}
+
+      // ── Session briefing ──────────────────────────────────────────────────
+      try {
+        const _tid = (() => { try { return localStorage.getItem('vesper_last_thread_id') || ''; } catch { return ''; } })();
+        const briefRes = await fetch(`${apiBase}/api/session/briefing${_tid ? `?thread_id=${_tid}` : ''}`);
+        if (briefRes.ok) {
+          const bd = await briefRes.json();
+          if (bd.briefing) setSessionBriefing(bd.briefing);
+        }
+      } catch (e) { /* briefing is best-effort */ }
+
+      // ── Fetch XP ─────────────────────────────────────────────────────────
+      try {
+        const xpRes = await fetch(`${apiBase}/api/vesper/xp`);
+        if (xpRes.ok) {
+          const xd = await xpRes.json();
+          setVesperXp(xd);
+          try { localStorage.setItem('vesper_xp_cache', JSON.stringify(xd)); } catch (_) {}
+        }
+      } catch (e) { /* xp is best-effort */ }
+
+      // ── Fetch income summary ──────────────────────────────────────────────
+      try {
+        const isRes = await fetch(`${apiBase}/api/income/summary`);
+        if (isRes.ok) {
+          const isd = await isRes.json();
+          setIncomeStats(isd);
+          try { localStorage.setItem('vesper_income_cache', JSON.stringify(isd)); } catch (_) {}
+        }
+      } catch (e) { /* income summary is best-effort */ }
     };
     loadVesperIdentity();
   }, [apiBase]);
@@ -2103,9 +2389,11 @@ export default function App() {
                   ? { ...t, status: data.success ? 'done' : 'error' }
                   : t
               ));
-              if (data.tool_name === 'save_product' && data.success) {
-                window.dispatchEvent(new CustomEvent('vesper:product_saved'));
-              }
+              // Proactive nudges — suggest what to do next
+              const _nudges = NUDGE_MAP[data.tool_name];
+              if (_nudges) setPendingNudges(_nudges.slice(0, 3));
+              // Mood: working while a tool runs, happy when it completes
+              setVesperMood(data.success ? 'happy' : 'concerned');
             } else if (data.type === 'provider') {
               currentProvider = data.provider;
               currentModel = data.model;
@@ -2124,7 +2412,7 @@ export default function App() {
                 if (now - lastStreamUpdate >= STREAM_THROTTLE) {
                   lastStreamUpdate = now;
                   setMessages(prev => prev.map(m => 
-                    m.id === streamMsgId ? { ...m, content: accumulatedText } : m
+                    m.id === streamMsgId ? { ...m, content: accumulatedText, model: currentModel, provider: currentProvider } : m
                   ));
                 }
               }
@@ -2183,6 +2471,15 @@ export default function App() {
             } else if (data.type === 'done') {
               currentProvider = data.provider || currentProvider;
               currentModel = data.model || currentModel;
+              // Mood detection based on response content
+              const _txt = accumulatedText.toLowerCase();
+              const _exclaim = (accumulatedText.match(/!/g) || []).length;
+              if (_exclaim >= 2 || /amazing|wow|incredible|exciting|great news/i.test(_txt)) setVesperMood('excited');
+              else if (/sorry|unfortunately|error|can't|cannot|unable/i.test(_txt)) setVesperMood('concerned');
+              else if (/created|here.*image|here.*chart|generated|here you go/i.test(_txt)) setVesperMood('happy');
+              else if (/i found|searching|here.*results|according to/i.test(_txt)) setVesperMood('searching');
+              else if (accumulatedText.length > 400) setVesperMood('focused' in {} ? 'focused' : 'neutral');
+              else setVesperMood('neutral');
             } else if (data.type === 'error') {
               if (!messageAdded) {
                 addLocalMessage('assistant', data.content || 'Something went wrong.');
@@ -2221,7 +2518,7 @@ export default function App() {
               accumulatedText = retryText;
               if (messageAdded) {
                 setMessages(prev => prev.map(m =>
-                  m.id === streamMsgId ? { ...m, content: accumulatedText } : m
+                  m.id === streamMsgId ? { ...m, content: accumulatedText, model: currentModel, provider: currentProvider } : m
                 ));
               } else {
                 addLocalMessage('assistant', accumulatedText, { id: streamMsgId });
@@ -2237,7 +2534,7 @@ export default function App() {
       // Finalize — flush last streaming content
       if (messageAdded && accumulatedText) {
         setMessages(prev => prev.map(m => 
-          m.id === streamMsgId ? { ...m, content: accumulatedText } : m
+          m.id === streamMsgId ? { ...m, content: accumulatedText, model: currentModel, provider: currentProvider } : m
         ));
       }
       if (!messageAdded && accumulatedText) {
@@ -2273,6 +2570,11 @@ export default function App() {
       playSound('notification');
       
       fetchThreads(true); // silent — don't reset scroll position
+      // XP increment — fire and forget
+      try {
+        fetch(`${apiBase}/api/vesper/xp/increment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gain: toolHistory.length > 0 ? 25 : 10, kind: toolHistory.length > 0 ? 'tool' : 'message' }) })
+          .then(r => r.json()).then(xd => { setVesperXp(xd); try { localStorage.setItem('vesper_xp_cache', JSON.stringify(xd)); } catch (_) {} }).catch(() => {});
+      } catch (_) {}
     } catch (error) {
       if (error.name === 'AbortError') {
         console.log('🛑 Generation stopped by user');
@@ -3293,8 +3595,6 @@ export default function App() {
         inputRef.current?.focus();
         showToast('📖 Example: /remind in 30 min to review the PR', 'warn');
       }
-    } else if (cmd === '/products') {
-      setProductsOpen(true); fetchProducts();
     } else if (cmd === '/star') {
       setStarredPanelOpen(true);
     } else if (cmd === '/global') {
@@ -3303,166 +3603,6 @@ export default function App() {
     }
   }, [apiBase, fetchTasks, vesperReact, exportChat, showToast]);
 
-
-  const fetchProducts = useCallback(async () => {
-    setProductsLoading(true);
-    try {
-      const res = await fetch(`${apiBase}/api/products`);
-      const data = await res.json();
-      setProducts(data.products || []);
-    } catch (e) { console.error('fetchProducts error', e); }
-    finally { setProductsLoading(false); }
-  }, [apiBase]);
-
-  const deleteProduct = useCallback(async (filename) => {
-    try {
-      await fetch(`${apiBase}/api/products/${encodeURIComponent(filename)}`, { method: 'DELETE' });
-      setProducts(prev => prev.filter(p => p.filename !== filename));
-      setToast('Product deleted');
-    } catch (e) { console.error('deleteProduct error', e); }
-  }, [apiBase]);
-
-  const getFileLang = useCallback((filename) => {
-    const ext = (filename || '').split('.').pop().toLowerCase();
-    const map = {
-      html:  { label: 'HTML',       icon: '🌐', monacoLang: 'html'       }, htm:  { label: 'HTML', icon: '🌐', monacoLang: 'html' },
-      css:   { label: 'CSS',        icon: '🎨', monacoLang: 'css'        },
-      js:    { label: 'JavaScript', icon: '🟨', monacoLang: 'javascript' }, mjs:  { label: 'JavaScript', icon: '🟨', monacoLang: 'javascript' },
-      jsx:   { label: 'JSX',        icon: '⚛️', monacoLang: 'javascript' }, tsx: { label: 'TSX', icon: '⚛️', monacoLang: 'typescript' },
-      ts:    { label: 'TypeScript', icon: '🔷', monacoLang: 'typescript' },
-      py:    { label: 'Python',     icon: '🐍', monacoLang: 'python'     },
-      json:  { label: 'JSON',       icon: '{ }',        monacoLang: 'json'       },
-      md:    { label: 'Markdown',   icon: '📝', monacoLang: 'markdown'   },
-      csv:   { label: 'CSV',        icon: '📊', monacoLang: 'plaintext'  },
-      txt:   { label: 'Text',       icon: '📄', monacoLang: 'plaintext'  },
-      sh:    { label: 'Shell',      icon: '#!',         monacoLang: 'shell'      },
-      yaml:  { label: 'YAML',       icon: '⚙️', monacoLang: 'yaml'     }, yml: { label: 'YAML', icon: '⚙️', monacoLang: 'yaml' },
-      sql:   { label: 'SQL',        icon: '🗄️', monacoLang: 'sql'  }, xml: { label: 'XML', icon: '📋', monacoLang: 'xml' },
-    };
-    return map[ext] || { label: ext.toUpperCase() || 'File', icon: '📄', monacoLang: 'plaintext' };
-  }, []);
-
-  const getFileColor = useCallback((filename) => {
-    const ext = (filename || '').split('.').pop().toLowerCase();
-    const colors = {
-      html: '#e34c26', htm: '#e34c26',
-      css:  '#264de4',
-      js:   '#f7df1e', mjs: '#f7df1e',
-      jsx:  '#61dafb', tsx: '#3178c6',
-      ts:   '#3178c6',
-      py:   '#3572a5',
-      json: '#40b844',
-      md:   '#083fa1',
-      sh:   '#89e051',
-      yaml: '#cb171e', yml: '#cb171e',
-      sql:  '#e38c00',
-      xml:  '#ff6600',
-      csv:  '#237346',
-      txt:  '#888',
-    };
-    return colors[ext] || '#666';
-  }, []);
-
-  const openInEditor = useCallback(async (filename, downloadUrl) => {
-    if (editorTabs.find(t => t.filename === filename)) {
-      setActiveTab(filename); setIdeMode(true); return;
-    }
-    try {
-      const res = await fetch(`${apiBase}${downloadUrl}`);
-      const text = await res.text();
-      setEditorTabs(prev => [...prev, { filename, content: text, dirty: false }]);
-      setActiveTab(filename);
-      setIdeMode(true);
-    } catch(e) { console.error('openInEditor error', e); }
-  }, [apiBase, editorTabs]);
-
-  const saveEditorFile = useCallback(async () => {
-    const tab = editorTabs.find(t => t.filename === activeTab);
-    if (!tab) return;
-    try {
-      await fetch(`${apiBase}/api/products/${encodeURIComponent(tab.filename)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-        body: tab.content,
-      });
-      setEditorTabs(prev => prev.map(t => t.filename === tab.filename ? {...t, dirty: false} : t));
-      setIdeLastSaved(new Date());
-      setIdeOutputLines(prev => [...prev.slice(-199), `[${new Date().toLocaleTimeString()}] Saved: ${tab?.filename}`]);
-    } catch(e) { console.error('saveEditorFile error', e); }
-  }, [apiBase, editorTabs, activeTab]);
-
-  const closeEditorTab = useCallback((filename) => {
-    setEditorTabs(prev => {
-      const next = prev.filter(t => t.filename !== filename);
-      if (activeTab === filename) {
-        setActiveTab(next.length > 0 ? next[next.length - 1].filename : null);
-        if (next.length === 0) setIdeMode(false);
-      }
-      return next;
-    });
-  }, [activeTab]);
-
-  const createNewFile = useCallback(async (filename, initialContent = '') => {
-    const safe = filename.trim();
-    if (!safe) return;
-    try {
-      await fetch(`${apiBase}/api/products/${encodeURIComponent(safe)}`, {
-        method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: initialContent,
-      });
-      await fetchProducts();
-      openInEditor(safe, `/api/products/download/${encodeURIComponent(safe)}`);
-    } catch(e) { console.error('createNewFile error', e); }
-  }, [apiBase, fetchProducts, openInEditor]);
-
-  const renameFile = useCallback(async (oldName, newName) => {
-    const safeOld = oldName.trim(); const safeNew = newName.trim();
-    if (!safeNew || safeOld === safeNew) { setIdeRenameFile(null); return; }
-    try {
-      const res = await fetch(`${apiBase}/api/products/download/${encodeURIComponent(safeOld)}`);
-      const content = await res.text();
-      await fetch(`${apiBase}/api/products/${encodeURIComponent(safeNew)}`, {
-        method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: content,
-      });
-      await fetch(`${apiBase}/api/products/${encodeURIComponent(safeOld)}`, { method: 'DELETE' });
-      setEditorTabs(prev => prev.map(t => t.filename === safeOld ? {...t, filename: safeNew} : t));
-      if (activeTab === safeOld) setActiveTab(safeNew);
-      await fetchProducts();
-      setIdeRenameFile(null);
-    } catch(e) { console.error('renameFile error', e); }
-  }, [apiBase, activeTab, fetchProducts]);
-
-  const exportAllZip = useCallback(async () => {
-    try {
-      const a = document.createElement('a');
-      a.href = `${apiBase}/api/products/export/zip`;
-      a.download = 'vesper-products.zip';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    } catch(e) { console.error('exportAllZip error', e); }
-  }, [apiBase]);
-
-  const applyToEditor = useCallback(async (code, lang) => {
-    if (!activeTab) {
-      const ext = (lang && lang !== 'plaintext') ? lang : 'txt';
-      const fname = `applied_${Date.now()}.${ext}`;
-      await createNewFile(fname, code);
-      setToast(`✓ Created ${fname}`);
-      setIdeMode(true);
-      return;
-    }
-    const tab = editorTabs.find(t => t.filename === activeTab);
-    const before = tab?.content || '';
-    setEditorTabs(prev => prev.map(t =>
-      t.filename === activeTab ? { ...t, content: code, dirty: true } : t
-    ));
-    setIdeDiff({ filename: activeTab, before, after: code });
-    setIdeMode(true);
-    try {
-      await fetch(`${apiBase}/api/products/${encodeURIComponent(activeTab)}`, {
-        method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: code,
-      });
-      setToast(`✓ Applied to ${activeTab}`);
-    } catch(e) { console.error('applyToEditor save error', e); }
-  }, [activeTab, editorTabs, apiBase, createNewFile]);
 
   const fetchThreads = useCallback(async (silent = false) => {
     if (!silent) setThreadsLoading(true);
@@ -3638,117 +3778,6 @@ export default function App() {
     });
   };
 
-  // Add or remove message from The Vault
-  const toggleVaultItem = (message) => {
-    const itemId = message.id;
-    setVaultItems(prev => {
-      const exists = prev.find(v => v.id === itemId);
-      const next = exists
-        ? prev.filter(v => v.id !== itemId)
-        : [{
-            id: itemId,
-            content: (message.content || '').slice(0, 2000),
-            timestamp: message.timestamp || Date.now(),
-            threadTitle: currentThreadTitle || 'Untitled',
-            threadId: currentThreadId,
-          }, ...prev];
-      try { localStorage.setItem('vesper_vault', JSON.stringify(next)); } catch(_) {}
-      setTimeout(() => setToast(exists ? '🗄 Removed from Vault' : '🗄 Saved to The Vault'), 0);
-      return next;
-    });
-  };
-
-  // Mood options map for Vesper Reacts chip
-  const MOOD_MAP = {
-    chaotic:    { emoji: '⚡', color: '#ff4444', label: 'Chaotic Energy' },
-    chill:      { emoji: '🌊', color: '#44bbff', label: 'Chill Vibes' },
-    intense:    { emoji: '🔥', color: '#ff8800', label: 'Intense Focus' },
-    playful:    { emoji: '😈', color: '#cc44ff', label: 'Playful' },
-    mysterious: { emoji: '🌙', color: '#6644cc', label: 'Mysterious' },
-    savage:     { emoji: '🗡️', color: '#ff0044', label: 'Zero Filter' },
-    fierce:     { emoji: '💪', color: '#ff2266', label: 'Fierce' },
-    dreamy:     { emoji: '✨', color: '#88aaff', label: 'Dreamy' },
-    liminal:    { emoji: '🌫️', color: '#aaaacc', label: 'Liminal' },
-    focused:    { emoji: '🎯', color: '#00ccff', label: 'Focused' },
-    sardonic:   { emoji: '😏', color: '#cc8800', label: 'Sardonic' },
-  };
-
-  // Fetch Vesper's current mood from backend
-  const fetchVesperMood = useCallback(async () => {
-    if (!apiBase) return;
-    try {
-      const res = await fetch(`${apiBase}/api/vesper/mood`);
-      const data = await res.json();
-      if (data && data.mood) {
-        const meta = MOOD_MAP[data.mood] || { emoji: '⚡', color: 'var(--accent)', label: data.mood };
-        setVesperMood({ ...data, ...meta });
-      }
-    } catch(_) {}
-  }, [apiBase]);
-
-  // Fetch Sparks from recent threads + AI
-  const fetchSparks = useCallback(async () => {
-    if (!apiBase) return;
-    setSparksLoading(true);
-    setSparks([]);
-    try {
-      // Pull rich context: thread titles + recent memories + active tasks
-      let contextParts = [];
-
-      // Thread titles (recent conversations)
-      try {
-        const tres = await fetch(`${apiBase}/api/threads`);
-        const tdata = await tres.json();
-        const threads = tdata.threads || tdata || [];
-        const titles = threads.slice(0, 8).map(t => t.title).filter(Boolean);
-        if (titles.length) contextParts.push(`Recent conversations:\n${titles.join('\n')}`);
-      } catch(_) {}
-
-      // Recent memories (personal + work + goals)
-      try {
-        const mres = await fetch(`${apiBase}/api/memory?limit=12`);
-        const mdata = await mres.json();
-        const memories = mdata.memories || mdata || [];
-        const memLines = memories
-          .filter(m => m.content && m.content.length > 20)
-          .slice(0, 8)
-          .map(m => `[${m.category || 'note'}] ${m.title || m.content?.slice(0, 80)}`);
-        if (memLines.length) contextParts.push(`Things CC has told Vesper:\n${memLines.join('\n')}`);
-      } catch(_) {}
-
-      // Active tasks
-      try {
-        const tres2 = await fetch(`${apiBase}/api/tasks`);
-        const tdata2 = await tres2.json();
-        const tasks = (tdata2.tasks || tdata2 || []).filter(t => t.status !== 'done');
-        const taskLines = tasks.slice(0, 5).map(t => t.title || t.content).filter(Boolean);
-        if (taskLines.length) contextParts.push(`Active tasks:\n${taskLines.join('\n')}`);
-      } catch(_) {}
-
-      const context = contextParts.join('\n\n');
-      const prompt = context
-        ? `You are Vesper, CC's sharp AI bestie who knows her inside and out. Here's what you know about her right now:\n\n${context}\n\nGenerate exactly 3 sparks SPECIFIC to CC's actual life, goals, and situation. A spark is a 1-2 sentence observation, reframe, or provocative question that cuts to something real — not generic wisdom, but something that lands because it's true about HER. Be incisive, surprising, and personal. Reply ONLY with a JSON array: [{"spark": "...", "tag": "category"}]`
-        : `You are Vesper. Generate exactly 3 sharp, thought-provoking sparks for a 50-year-old Risk Management Director in Surprise, AZ who is building wealth and creative income on the side. A spark is a 1-2 sentence observation, reframe, or question that ignites a new line of thinking. Be incisive and surprising. Reply ONLY with a JSON array: [{"spark": "...", "tag": "category"}]`;
-
-      const cres = await fetch(`${apiBase}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: prompt }),
-      });
-      const cdata = await cres.json();
-      const text = cdata.response || cdata.message || '';
-      const match = text.match(/\[[\s\S]*?\]/);
-      if (match) {
-        const parsed = JSON.parse(match[0]);
-        setSparks(Array.isArray(parsed) ? parsed.slice(0, 3) : []);
-      }
-    } catch(err) {
-      console.error('Sparks error:', err);
-    } finally {
-      setSparksLoading(false);
-    }
-  }, [apiBase]);
-
   // Edit user message: trim conversation and restore to input
   const confirmEditMessage = (msgId, newContent) => {
     if (!newContent.trim()) return;
@@ -3778,28 +3807,6 @@ export default function App() {
     }
   };
 
-  // ── IDE auto-open + polling ───────────────────────────────────
-  useEffect(() => {
-    const onProductSaved = () => { fetchProducts(); pendingAutoOpen.current = true; };
-    window.addEventListener('vesper:product_saved', onProductSaved);
-    return () => window.removeEventListener('vesper:product_saved', onProductSaved);
-  }, [fetchProducts]);
-
-  useEffect(() => {
-    if (pendingAutoOpen.current && products.length > 0) {
-      pendingAutoOpen.current = false;
-      openInEditor(products[0].filename, products[0].download_url);
-    }
-  }, [products, openInEditor]);
-
-  useEffect(() => { monacoSaveRef.current = saveEditorFile; }, [saveEditorFile]);
-
-  useEffect(() => {
-    if (!ideMode) return;
-    const iv = setInterval(fetchProducts, 8000);
-    return () => clearInterval(iv);
-  }, [ideMode, fetchProducts]);
-
   // ── Command palette items ──────────────────────────────────────────────────
   const ALL_COMMANDS = useMemo(() => [
     { group: 'Actions', icon: '✦', label: 'New Conversation',     action: () => startNewChat() },
@@ -3808,13 +3815,10 @@ export default function App() {
     { group: 'Actions', icon: '⌨', label: 'Keyboard Shortcuts',  action: () => { setShortcutsOpen(true); } },
     { group: 'Actions', icon: '🎨', label: 'Open Theme Picker',   action: () => { setActiveSection('settings'); } },
     { group: 'Actions', icon: '⭐', label: 'Saved Messages',      action: () => { setStarredPanelOpen(true); } },
-    { group: 'Actions', icon: '📦', label: 'My Products',           action: () => { setProductsOpen(true); fetchProducts(); } },
     { group: 'Actions', icon: '🌐', label: 'Search All Conversations', action: () => { setGlobalSearchOpen(true); } },
-    { group: 'Actions', icon: '</>', label: 'Open Vesper IDE',         action: () => { setIdeMode(true); if (products.length === 0) fetchProducts(); } },
-    ...products.map(p => ({ group: 'Files', icon: getFileLang(p.filename).icon, label: p.filename, action: () => openInEditor(p.filename, p.download_url) })),
     ...NAV.map(n => ({ group: 'Navigate', icon: '→', label: n.label,  action: () => setActiveSection(n.id) })),
     ...THEMES.map(t => ({ group: 'Theme', icon: '●', label: t.label, accent: t.accent, action: () => { setActiveTheme(t); try { localStorage.setItem('vesper_theme', t.id); } catch(_) {} setToast(`Theme: ${t.label}`); } })),
-  ], [messages, products]);
+  ], [messages]);
 
   const filteredCommands = useMemo(() => {
     const q = cmdQuery.toLowerCase().trim();
@@ -4099,14 +4103,12 @@ export default function App() {
     fetchThreads(false); // startup: show loading spinner on first load
     fetchDocuments(); // Load documents on startup
     fetchPersonality(); // Seed sassy default if not set
-    fetchVesperMood(); // Load Vesper's mood for sidebar chip
-    fetchSparks(); // Pre-load Sparks on startup
     // Load Vesper's background gallery
     fetch(`${apiBase}/api/backgrounds`)
       .then(r => r.json())
       .then(d => { if (d?.backgrounds) setBackgroundGallery(d.backgrounds); })
       .catch(() => {});
-  }, [fetchResearch, fetchTasks, fetchThreads, fetchDocuments, fetchPersonality, fetchVesperMood, fetchSparks]);
+  }, [fetchResearch, fetchTasks, fetchThreads, fetchDocuments, fetchPersonality]);
 
   useEffect(() => {
     fetchMemory(memoryCategory);
@@ -4651,15 +4653,13 @@ export default function App() {
            key={message.id}
         >
            <Box sx={{ width: '90%', maxWidth: '800px' }}>
-              <React.Suspense fallback={null}>
-                <ChartComponent
-                   type={message.chartData.chart_type}
-                   title={message.chartData.title}
-                   data={message.chartData.data}
-                   xKey={message.chartData.keys.x}
-                   yKey={message.chartData.keys.y}
-                />
-              </React.Suspense>
+              <ChartComponent
+                 type={message.chartData.chart_type}
+                 title={message.chartData.title}
+                 data={message.chartData.data}
+                 xKey={message.chartData.keys.x}
+                 yKey={message.chartData.keys.y}
+              />
            </Box>
         </motion.div>
       );
@@ -4938,13 +4938,18 @@ export default function App() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: isGrouped ? 0 : 0.75, gap: 1, ...(isGrouped && { display: 'none' }) }}>
-            {!isUser && <AIAvatar thinking={thinking} isSpeaking={isSpeaking} mood={thinking ? 'thinking' : 'neutral'} />}
+            {!isUser && <AIAvatar thinking={thinking} isSpeaking={isSpeaking} mood={thinking ? 'thinking' : vesperMood} />}
             <Typography variant="caption" sx={{ color: isUser ? 'rgba(255,255,255,0.7)' : 'var(--accent)', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.04em' }}>
               {isUser ? 'You' : 'Vesper'}
             </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.67rem', transition: 'opacity 0.2s', opacity: isHovered ? 1 : 0 }}>
               {ts}
             </Typography>
+            {!isUser && message.model && (
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.62rem', fontFamily: 'monospace', opacity: isHovered ? 0.8 : 0, transition: 'opacity 0.2s' }}>
+                {message.model}
+              </Typography>
+            )}
             {!isUser && thinking && (
               <Chip
                 label="thinking"
@@ -4983,36 +4988,125 @@ export default function App() {
           )}
 
           <Box sx={{ lineHeight: 1.72, fontSize: '0.91rem', color: 'rgba(255,255,255,0.88)' }}>
-          <React.Suspense fallback={<span style={{color:'rgba(255,255,255,0.6)'}}>{content}</span>}>
-            <MessageContent
-              content={content}
-              onOpenAppBuilder={(code) => {
-                setCanvasAppCode(code);
-                setCanvasActiveTab(1);
-                setCanvasOpen(true);
-                setToast('Code loaded into App Builder');
-                playSound('click');
-              }}
-            />
-          </React.Suspense>
-          {!isUser && !isStreaming && (() => {
-            const codeBlocks = [...((content||'').matchAll(/```(\w*)\n([\s\S]*?)```/g))].map((m,i) => ({ lang: m[1]||'', code: m[2].trim(), idx: i }));
-            if (!codeBlocks.length) return null;
-            return (
-              <Box sx={{ mt: 0.75, display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-                {codeBlocks.map((block, i) => (
-                  <Box key={i} component='span'
-                    onClick={() => applyToEditor(block.code, block.lang)}
-                    sx={{ px: 1.5, py: 0.4, borderRadius: 1, bgcolor: 'rgba(var(--accent-rgb),0.1)', color: 'var(--accent)',
-                      fontSize: '0.7rem', cursor: 'pointer', userSelect: 'none',
-                      border: '1px solid rgba(var(--accent-rgb),0.22)', fontFamily: 'monospace',
-                      transition: 'all 0.15s', '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.22)' } }}>
-                    ⬆ Apply{block.lang ? ` (${block.lang})` : ''}{codeBlocks.length > 1 ? ` #${i+1}` : ''}
+          <ReactMarkdown
+            components={{
+              a: ({ href, children, ...props }) => (
+                <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none', borderBottom: '1px solid rgba(var(--accent-rgb),0.4)' }} {...props}>{children}</a>
+              ),
+              h1: ({ children }) => (
+                <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', mt: 2, mb: 0.75, borderBottom: '1px solid rgba(var(--accent-rgb),0.2)', pb: 0.5, fontFamily: 'Cormorant Garamond, serif' }}>{children}</Typography>
+              ),
+              h2: ({ children }) => (
+                <Typography sx={{ fontSize: '1.08rem', fontWeight: 700, color: 'rgba(255,255,255,0.95)', mt: 1.5, mb: 0.5 }}>{children}</Typography>
+              ),
+              h3: ({ children }) => (
+                <Typography sx={{ fontSize: '0.97rem', fontWeight: 600, color: 'var(--accent)', mt: 1.25, mb: 0.4, letterSpacing: '0.02em' }}>{children}</Typography>
+              ),
+              blockquote: ({ children }) => (
+                <Box sx={{ borderLeft: '3px solid rgba(var(--accent-rgb),0.5)', pl: 1.5, py: 0.25, my: 1, bgcolor: 'rgba(var(--accent-rgb),0.06)', borderRadius: '0 6px 6px 0' }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontStyle: 'italic', fontSize: '0.89rem', lineHeight: 1.65 }}>{children}</Typography>
+                </Box>
+              ),
+              table: ({ children }) => (
+                <Box sx={{ overflowX: 'auto', my: 1.5, borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>{children}</table>
+                </Box>
+              ),
+              thead: ({ children }) => <thead style={{ background: 'rgba(var(--accent-rgb),0.1)' }}>{children}</thead>,
+              th: ({ children }) => <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 700, borderBottom: '1px solid rgba(var(--accent-rgb),0.25)', whiteSpace: 'nowrap' }}>{children}</th>,
+              td: ({ children }) => <td style={{ padding: '7px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.82)' }}>{children}</td>,
+              li: ({ children }) => (
+                <li style={{ marginBottom: '0.3em', lineHeight: 1.65, color: 'rgba(255,255,255,0.85)' }}>{children}</li>
+              ),
+              p: ({ children }) => (
+                <p style={{ margin: '0 0 0.75em 0', lineHeight: 1.72 }}>{children}</p>
+              ),
+              strong: ({ children }) => <strong style={{ color: '#fff', fontWeight: 700 }}>{children}</strong>,
+              em: ({ children }) => <em style={{ color: 'rgba(255,255,255,0.75)' }}>{children}</em>,
+              code: ({ inline, className, children, ...props }) => {
+                const match = /language-(\w+)/.exec(className || '');
+                const codeString = String(children).replace(/\n$/, '');
+                const copy = async () => {
+                  try {
+                    await navigator.clipboard.writeText(codeString);
+                  } catch (e) {
+                    console.error(e);
+                  }
+                };
+                const isReact = match && ['js', 'jsx', 'javascript', 'tsx', 'ts', 'react'].includes(match[1]);
+
+                const openInAppBuilder = () => {
+                   setCanvasAppCode(codeString);
+                   setCanvasActiveTab(1);
+                   setCanvasOpen(true);
+                   setToast('Code loaded into App Builder');
+                   playSound('click');
+                };
+
+                return !inline && match ? (
+                  <Box sx={{ position: 'relative', my: 1, borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    {/* Language badge + action buttons */}
+                    <Box sx={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      px: 1.5, py: 0.5,
+                      bgcolor: 'rgba(0,0,0,0.55)',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
+                        {match[1]}
+                      </Typography>
+                      <Stack direction="row" spacing={0.5}>
+                        {isReact && (
+                          <Tooltip title="Preview in App Builder">
+                            <IconButton size="small" onClick={openInAppBuilder} sx={{ color: 'var(--accent)', p: 0.4, '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.15)' } }}>
+                              <BoltRounded sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="Copy">
+                          <IconButton size="small" onClick={copy} sx={{ color: 'rgba(255,255,255,0.5)', p: 0.4, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.08)' } }}>
+                            <ContentCopyRounded sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </Box>
+                    <SyntaxHighlighter
+                      language={match[1]}
+                      style={oneDark}
+                      customStyle={{
+                        margin: 0,
+                        borderRadius: 0,
+                        fontSize: '0.8rem',
+                        lineHeight: 1.6,
+                        background: 'rgba(10,12,18,0.95)',
+                        padding: '14px 16px',
+                      }}
+                      wrapLongLines
+                    >
+                      {codeString}
+                    </SyntaxHighlighter>
                   </Box>
-                ))}
-              </Box>
-            );
-          })()}
+                ) : (
+                  <code
+                    className={className}
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.35)',
+                      padding: '2px 6px',
+                      borderRadius: '6px',
+                      fontFamily: 'monospace',
+                      fontSize: '0.85em',
+                      color: 'var(--accent)',
+                    }}
+                    {...props}
+                  >
+                    {children}
+                  </code>
+                );
+              },
+            }}
+          >
+            {content}
+          </ReactMarkdown>
           {isStreaming && <span className="streaming-cursor" />}
           </Box>
         </Box>
@@ -5062,13 +5156,6 @@ export default function App() {
               <IconButton size="small" onClick={() => togglePinMessage(message)}
                 sx={{ p: 0.5, color: pinnedMsgIds[message.id] ? 'var(--accent)' : 'rgba(255,255,255,0.4)', '&:hover': { color: 'var(--accent)', bgcolor: 'rgba(var(--accent-rgb),0.1)' } }}>
                 {pinnedMsgIds[message.id] ? <PinIcon sx={{ fontSize: 13 }} /> : <PinOutlinedIcon sx={{ fontSize: 13 }} />}
-              </IconButton>
-            </Tooltip>
-            {/* Vault button */}
-            <Tooltip title={vaultItems.find(v => v.id === message.id) ? 'Remove from Vault' : 'Save to The Vault'}>
-              <IconButton size="small" onClick={() => toggleVaultItem(message)}
-                sx={{ p: 0.5, color: vaultItems.find(v => v.id === message.id) ? '#c084fc' : 'rgba(255,255,255,0.4)', '&:hover': { color: '#c084fc', bgcolor: 'rgba(192,132,252,0.1)' } }}>
-                {vaultItems.find(v => v.id === message.id) ? <BookmarkIcon sx={{ fontSize: 13 }} /> : <BookmarkBorderIcon sx={{ fontSize: 13 }} />}
               </IconButton>
             </Tooltip>
             {/* Star button */}
@@ -6129,6 +6216,23 @@ export default function App() {
         return (
           <IncomeDashboard apiBase={apiBase} onBack={() => setActiveSection('chat')} />
         );
+      case 'autopilot':
+        return <AutopilotPanel
+          apiBase={apiBase}
+          onBack={() => setActiveSection('chat')}
+          jobs={autopilotJobs}
+          setJobs={setAutopilotJobs}
+          log={autopilotLog}
+          setLog={setAutopilotLog}
+          loading={autopilotLoading}
+          setLoading={setAutopilotLoading}
+          running={autopilotRunning}
+          setRunning={setAutopilotRunning}
+          niches={autopilotNiches}
+          setNiches={setAutopilotNiches}
+          accentColor={accentColor}
+          setToast={setToast}
+        />;
       case 'morning-brief':
         return (
           <MorningBrief apiBase={apiBase} onClose={() => setActiveSection('chat')} />
@@ -6156,15 +6260,13 @@ export default function App() {
         return (
           <DraggableBoard id="sassy">
             {avatarStudioOpen ? (
-              <React.Suspense fallback={null}>
-                <AvatarStudio 
-                  apiBase={apiBase} 
-                  onClose={() => setAvatarStudioOpen(false)} 
-                  accentColor={activeTheme.accent} 
-                  vesperIdentity={vesperIdentity}
-                  setToast={setToast}
-                />
-              </React.Suspense>
+              <AvatarStudio 
+                apiBase={apiBase} 
+                onClose={() => setAvatarStudioOpen(false)} 
+                accentColor={activeTheme.accent} 
+                vesperIdentity={vesperIdentity}
+                setToast={setToast}
+              />
             ) : (
               <Box sx={{ position: 'relative' }}>
                 <Sassy apiBase={apiBase} onClose={() => setActiveSection('chat')} />
@@ -6331,135 +6433,6 @@ export default function App() {
             </Paper>
           </DraggableBoard>
         );
-      case 'sparks':
-        return (
-          <DraggableBoard id="sparks" defaultPos={{ x: 40, y: 80 }}>
-            <Paper className="intel-board glass-card" sx={{ minWidth: 420, maxWidth: 680 }}>
-              <Box className="board-header" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AutoAwesomeIcon sx={{ color: 'var(--accent)', fontSize: 18 }} />
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Sparks</Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.55)' }}>
-                    Fresh provocations based on what you've been exploring
-                  </Typography>
-                </Box>
-                <Tooltip title="Regenerate Sparks">
-                  <IconButton size="small" onClick={fetchSparks} disabled={sparksLoading}
-                    sx={{ color: 'var(--accent)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.12)' } }}>
-                    <AutorenewIcon sx={{ fontSize: 16, animation: sparksLoading ? 'spin 1s linear infinite' : 'none' }} />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-              <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {sparksLoading && [0,1,2].map(i => (
-                  <Box key={i} sx={{ borderRadius: 2, height: 72, bgcolor: 'rgba(var(--accent-rgb),0.06)', border: '1px solid rgba(var(--accent-rgb),0.1)', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                ))}
-                {!sparksLoading && sparks.length === 0 && (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-                      No sparks yet. Click regenerate to ignite some ideas.
-                    </Typography>
-                  </Box>
-                )}
-                {!sparksLoading && sparks.map((s, i) => (
-                  <Box key={i} sx={{
-                    p: 2, borderRadius: 2,
-                    background: 'rgba(var(--accent-rgb),0.06)',
-                    border: '1px solid rgba(var(--accent-rgb),0.15)',
-                    borderLeft: '3px solid var(--accent)',
-                    transition: 'background 0.2s',
-                    '&:hover': { background: 'rgba(var(--accent-rgb),0.1)' },
-                  }}>
-                    <Typography variant="body2" sx={{ color: '#f0f0f0', lineHeight: 1.6, mb: 1 }}>
-                      {s.spark || s.text || s}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      {s.tag && (
-                        <Chip label={s.tag} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent)', fontWeight: 700 }} />
-                      )}
-                      <Tooltip title="Take this to chat">
-                        <IconButton size="small" onClick={() => { setInput(s.spark || s.text || s); setActiveSection('chat'); }}
-                          sx={{ color: 'var(--accent)', p: 0.5, '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.15)' } }}>
-                          <AutoStories sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            </Paper>
-          </DraggableBoard>
-        );
-
-      case 'vault':
-        return (
-          <DraggableBoard id="vault" defaultPos={{ x: 40, y: 80 }}>
-            <Paper className="intel-board glass-card" sx={{ minWidth: 420, maxWidth: 700 }}>
-              <Box className="board-header" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <BookmarkIcon sx={{ color: '#c084fc', fontSize: 18 }} />
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>The Vault</Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.55)' }}>
-                    Vesper's best kept — {vaultItems.length} saved
-                  </Typography>
-                </Box>
-                {vaultItems.length > 0 && (
-                  <Tooltip title="Export all as text">
-                    <IconButton size="small" onClick={() => {
-                      const text = vaultItems.map((v, i) => `--- ${i+1}. ${v.threadTitle} · ${new Date(v.timestamp).toLocaleDateString()} ---\n${v.content}`).join('\n\n');
-                      const blob = new Blob([text], { type: 'text/plain' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a'); a.href = url; a.download = 'vesper-vault.txt'; a.click();
-                      URL.revokeObjectURL(url);
-                    }} sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#c084fc' } }}>
-                      <SaveAltIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </Box>
-              <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 520, overflowY: 'auto' }}>
-                {vaultItems.length === 0 && (
-                  <Box sx={{ textAlign: 'center', py: 5 }}>
-                    <BookmarkBorderIcon sx={{ fontSize: 36, color: 'rgba(255,255,255,0.15)', mb: 1.5, display: 'block', mx: 'auto' }} />
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-                      The Vault is empty. Bookmark Vesper's best responses to preserve them here.
-                    </Typography>
-                  </Box>
-                )}
-                {vaultItems.map(item => (
-                  <Box key={item.id} sx={{
-                    p: 2, borderRadius: 2,
-                    background: 'rgba(192,132,252,0.05)',
-                    border: '1px solid rgba(192,132,252,0.15)',
-                    borderLeft: '3px solid #c084fc',
-                    position: 'relative',
-                  }}>
-                    <IconButton size="small" onClick={() => toggleVaultItem({ id: item.id })}
-                      sx={{ position: 'absolute', top: 6, right: 6, color: 'rgba(255,255,255,0.3)', p: 0.4, '&:hover': { color: '#ff4444' } }}>
-                      <CloseIcon sx={{ fontSize: 12 }} />
-                    </IconButton>
-                    <Typography variant="body2" sx={{ color: '#e8e8f0', lineHeight: 1.65, mb: 1.5, pr: 3, fontStyle: 'italic' }}>
-                      "{item.content.length > 400 ? item.content.slice(0, 400) + '...' : item.content}"
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Chip label={item.threadTitle} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(192,132,252,0.12)', color: '#c084fc', fontWeight: 600, maxWidth: 160 }} />
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem' }}>
-                        {new Date(item.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                      </Typography>
-                      <Tooltip title="Take to chat">
-                        <IconButton size="small" onClick={() => { setInput(`Expand on this: "${item.content.slice(0,200)}"`); setActiveSection('chat'); }}
-                          sx={{ color: 'rgba(255,255,255,0.35)', p: 0.3, ml: 'auto', '&:hover': { color: '#c084fc' } }}>
-                          <AutoStories sx={{ fontSize: 13 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            </Paper>
-          </DraggableBoard>
-        );
-
       case 'settings':
         return (
           <Box sx={{ position: 'fixed', top: '80px', left: '280px', width: 'calc(100vw - 320px)', maxWidth: '1000px', maxHeight: 'calc(100vh - 120px)', overflow: 'auto', zIndex: 10 }}>
@@ -7812,28 +7785,6 @@ export default function App() {
             </Box>
           </Box>
 
-          {vesperMood && (
-            <Chip
-              size="small"
-              label={`${vesperMood.emoji} ${vesperMood.label}`}
-              onClick={fetchVesperMood}
-              title="Click to refresh Vesper's mood"
-              sx={{
-                mb: 1.5,
-                fontSize: '0.65rem',
-                height: 22,
-                cursor: 'pointer',
-                color: vesperMood.color || 'var(--accent)',
-                borderColor: `${vesperMood.color || 'var(--accent)'}55`,
-                bgcolor: `${vesperMood.color || 'var(--accent)'}14`,
-                border: '1px solid',
-                fontWeight: 700,
-                letterSpacing: 0.4,
-                '& .MuiChip-label': { px: 1 },
-              }}
-            />
-          )}
-
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1 }}>
             {NAV.map(({ id, label, icon: Icon }) => (
               <Box
@@ -7848,6 +7799,15 @@ export default function App() {
               >
                 <Icon fontSize="small" />
                 <span className="nav-label">{label}</span>
+                {id === 'income' && incomeStats && incomeStats.total_est_monthly > 0 && (
+                  <span style={{
+                    marginLeft: 'auto', fontSize: '0.6rem', fontFamily: 'monospace',
+                    color: '#6bcb77', fontWeight: 700, opacity: 0.85,
+                    background: 'rgba(107,203,119,0.1)', borderRadius: 6, padding: '1px 5px',
+                  }}>
+                    ~${Math.round(incomeStats.total_est_monthly)}/mo
+                  </span>
+                )}
               </Box>
             ))}
           </Box>
@@ -8439,24 +8399,6 @@ export default function App() {
                     }}
                   />
                 )}
-
-                {/* IDE Toggle */}
-                <Tooltip title={ideMode ? 'Exit Vesper IDE  (Ctrl+Shift+E)' : 'Vesper IDE  (Ctrl+Shift+E)'} placement="left">
-                  <IconButton
-                    size="small"
-                    onClick={() => { setIdeMode(v => !v); if (products.length === 0) fetchProducts(); }}
-                    sx={{
-                      display: { xs: 'none', md: 'inline-flex' },
-                      color: ideMode ? '#569cd6' : 'rgba(255,255,255,0.35)',
-                      bgcolor: ideMode ? 'rgba(86,156,214,0.15)' : 'transparent',
-                      border: ideMode ? '1px solid rgba(86,156,214,0.5)' : '1px solid rgba(255,255,255,0.15)',
-                      '&:hover': { color: '#569cd6', bgcolor: 'rgba(86,156,214,0.15)' },
-                      width: 32, height: 32,
-                    }}
-                  >
-                    <CodeIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
               </Box>
             </Box>
 
@@ -8849,23 +8791,45 @@ export default function App() {
                       How can I help you today?
                     </Typography>
                   )}
+                  {/* Session briefing card */}
+                  {sessionBriefing && (
+                    <Box sx={{ mt: 1.5, px: 2, py: 1.25, borderRadius: '10px', border: '1px solid rgba(var(--accent-rgb), 0.18)', background: 'rgba(var(--accent-rgb), 0.05)', maxWidth: 420, textAlign: 'left' }}>
+                      <Typography sx={{ fontSize: '0.67rem', color: 'var(--accent)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.5, fontFamily: 'monospace' }}>Last session</Typography>
+                      <Typography
+                        sx={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.55 }}
+                        dangerouslySetInnerHTML={{ __html: sessionBriefing.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>') }}
+                      />
+                    </Box>
+                  )}
+                  {/* XP badge */}
+                  {vesperXp.xp > 0 && (
+                    <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>LVL {vesperXp.level}</Typography>
+                      <Box sx={{ width: 80, height: 3, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                        <Box sx={{ height: '100%', borderRadius: 2, bgcolor: 'var(--accent)', width: `${Math.min(100, (vesperXp.xp % 500) / 5)}%`, transition: 'width 0.6s ease' }} />
+                      </Box>
+                      <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace' }}>{vesperXp.xp} XP</Typography>
+                    </Box>
+                  )}
                 </Box>
 
-                {/* Suggested prompts grid */}
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, width: '100%', maxWidth: 520 }}>
+                {/* Money-making prompt grid */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, width: '100%', maxWidth: 560 }}>
                   {[
-                    { icon: '✦', label: 'Draft something', prompt: 'Help me write a' },
-                    { icon: '◎', label: 'Research a topic', prompt: 'Research and summarize' },
-                    { icon: '⚡', label: 'Build with code', prompt: 'Write code to' },
-                    { icon: '◈', label: 'Brainstorm ideas', prompt: 'Give me creative ideas for' },
+                    { icon: '💰', label: 'Plan income',     prompt: 'Plan my income streams for this month. What are the top 3 ways to monetize my skills?' },
+                    { icon: '📈', label: 'SEO article',     prompt: 'Write an SEO article about ' },
+                    { icon: '🔑', label: 'Keywords',        prompt: 'Research profitable keywords for ' },
+                    { icon: '📅', label: 'Content plan',    prompt: 'Create a 30-day content calendar for ' },
+                    { icon: '📦', label: 'Digital product', prompt: 'Generate 5 digital product ideas for my audience. Include revenue projections.' },
+                    { icon: '✦',  label: 'Just write',      prompt: 'Help me write a ' },
                   ].map(({ icon, label, prompt }) => (
                     <Box
                       key={label}
-                      onClick={() => setInput(prompt + ' ')}
+                      onClick={() => setInput(prompt)}
                       sx={{
-                        px: 1.5, py: 1.25, borderRadius: '12px',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        background: 'rgba(255,255,255,0.03)',
+                        px: 1.5, py: 1.25, borderRadius: '10px',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                        background: 'rgba(255,255,255,0.025)',
                         cursor: 'pointer', transition: 'all 0.18s ease',
                         '&:hover': {
                           border: '1px solid rgba(var(--accent-rgb), 0.35)',
@@ -8874,15 +8838,44 @@ export default function App() {
                         },
                       }}
                     >
-                      <Typography sx={{ fontSize: '0.9rem', mb: 0.25, color: 'var(--accent)', lineHeight: 1 }}>{icon}</Typography>
-                      <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.75)', letterSpacing: '0.01em' }}>{label}</Typography>
+                      <Typography sx={{ fontSize: '0.88rem', mb: 0.15, lineHeight: 1 }}>{icon}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.01em' }}>{label}</Typography>
                     </Box>
                   ))}
+                </Box>
+                {/* Money Ops shortcut */}
+                <Box
+                  onClick={() => setActiveSection('income')}
+                  sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.7, borderRadius: '20px', border: '1px solid rgba(var(--accent-rgb), 0.2)', background: 'rgba(var(--accent-rgb), 0.04)', cursor: 'pointer', transition: 'all 0.18s', '&:hover': { background: 'rgba(var(--accent-rgb), 0.1)' } }}
+                >
+                  <TrendingUpIcon sx={{ fontSize: '0.9rem', color: 'var(--accent)', opacity: 0.7 }} />
+                  <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.04em' }}>Open Money Ops dashboard</Typography>
                 </Box>
               </Box>
             )}
 
 
+            {/* Proactive nudges — tool-specific next-action suggestions */}
+            {pendingNudges.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 1, mb: 1, overflowX: 'auto', px: 1, alignItems: 'center' }}>
+                <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', flexShrink: 0 }}>next →</span>
+                {pendingNudges.map((n, i) => (
+                  <Chip
+                    key={i}
+                    label={n}
+                    size="small"
+                    onClick={() => { setInput(n); setPendingNudges([]); }}
+                    onDelete={() => setPendingNudges(prev => prev.filter((_, idx) => idx !== i))}
+                    sx={{
+                      bgcolor: 'rgba(var(--accent-rgb), 0.08)',
+                      border: '1px solid rgba(var(--accent-rgb), 0.28)',
+                      color: 'var(--accent)', fontSize: '0.7rem',
+                      '&:hover': { bgcolor: 'rgba(var(--accent-rgb), 0.18)' },
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
             {/* Proactive Suggestions */}
             {suggestions.length > 0 && (
               <Box sx={{ display: 'flex', gap: 1, mb: 1, overflowX: 'auto', px: 1 }}>
@@ -9907,14 +9900,12 @@ export default function App() {
       
       {/* Canvas Modal */}
       <Dialog open={canvasOpen} onClose={() => setCanvasOpen(false)} maxWidth="lg" fullWidth fullScreen>
-        <React.Suspense fallback={null}>
-          <Canvas 
-              onClose={() => setCanvasOpen(false)} 
-              onShare={() => setToast('Canvas shared!')} 
-              initialCode={canvasAppCode}
-              initialTab={canvasActiveTab}
-          />
-        </React.Suspense>
+        <Canvas 
+            onClose={() => setCanvasOpen(false)} 
+            onShare={() => setToast('Canvas shared!')} 
+            initialCode={canvasAppCode}
+            initialTab={canvasActiveTab}
+        />
       </Dialog>
 
       {/* Knowledge Graph Modal */}
@@ -9931,7 +9922,7 @@ export default function App() {
         }}
       >
         <Box sx={{ position: 'relative', width: '100vw', height: '100vh' }}>
-            <React.Suspense fallback={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}><CircularProgress sx={{ color: 'var(--accent)' }} /></Box>}><KnowledgeGraph apiBase={apiBase} /></React.Suspense>
+            <KnowledgeGraph apiBase={apiBase} />
             <IconButton
               onClick={() => setGraphOpen(false)}
               sx={{
@@ -10262,787 +10253,7 @@ export default function App() {
         </Box>
       )}
 
-      {/* ─── VESPER IDE ──────────────────────────────────────────────────── */}
-      {ideMode && (
-        <Box sx={{ position: 'fixed', inset: 0, zIndex: 99996, display: 'flex', bgcolor: '#1e1e1e' }}>
-
-          {/* Activity Bar */}
-          <Box sx={{ width: 48, bgcolor: '#333333', display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 1, pb: 1, gap: 0.5, borderRight: '1px solid #252526', flexShrink: 0 }}>
-            <Tooltip title="File Explorer" placement="right">
-              <IconButton onClick={() => setEditorSidebarOpen(v => !v)}
-                sx={{ color: editorSidebarOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: editorSidebarOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
-                <FolderOpenIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Chat" placement="right">
-              <IconButton onClick={() => setEditorChatOpen(v => !v)}
-                sx={{ color: editorChatOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: editorChatOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
-                <AutoAwesomeIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Live Preview" placement="right">
-              <IconButton onClick={() => setIdePreviewOpen(v => !v)}
-                sx={{ color: idePreviewOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: idePreviewOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
-                <Typography sx={{ fontSize: '1.05rem', lineHeight: 1, userSelect: 'none' }}>▶</Typography>
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="IDE Settings" placement="right">
-              <IconButton onClick={() => { setIdeSettingsOpen(v => !v); setIdeSearchOpen(false); }}
-                sx={{ color: ideSettingsOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: ideSettingsOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
-                <SettingsRounded sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Search files" placement="right">
-              <IconButton onClick={() => { setIdeSearchOpen(v => !v); setIdeSettingsOpen(false); setIdeOutlineOpen(false); }}
-                sx={{ color: ideSearchOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: ideSearchOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
-                <ManageSearchIcon sx={{ fontSize: 19 }} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Outline" placement="right">
-              <IconButton onClick={() => { setIdeOutlineOpen(v => !v); setIdeSearchOpen(false); setIdeSettingsOpen(false); }}
-                sx={{ color: ideOutlineOpen ? '#fff' : '#858585', width: 36, height: 36, borderRadius: 1, borderLeft: ideOutlineOpen ? '2px solid var(--accent)' : '2px solid transparent' }}>
-                <OutlineIcon sx={{ fontSize: 19 }} />
-              </IconButton>
-            </Tooltip>
-            <Box sx={{ flex: 1 }} />
-            <Tooltip title="Close IDE  (Ctrl+Shift+E)" placement="right">
-              <IconButton onClick={() => setIdeMode(false)}
-                sx={{ color: '#858585', width: 36, height: 36, borderRadius: 1, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.08)' } }}>
-                <CloseIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>
-          </Box>
-
-          {/* IDE Settings Panel */}
-          {ideSettingsOpen && (
-            <Box sx={{ width: 260, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'auto' }}>
-              <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                IDE SETTINGS
-                <Box component='span' onClick={() => setIdeSettingsOpen(false)} sx={{ ml: 'auto', cursor: 'pointer', color: '#555', fontSize: '1rem', lineHeight: 1, '&:hover': { color: '#fff' }, userSelect: 'none' }}>x</Box>
-              </Box>
-              <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                <Box>
-                  <Typography sx={{ fontSize: '0.66rem', color: '#888', mb: 1, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Font Size</Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box component='span' onClick={() => { const v = Math.max(8, editorFontSize - 1); setEditorFontSize(v); try { localStorage.setItem('ide_fontSize', String(v)); } catch(e){} }}
-                      sx={{ width: 26, height: 26, borderRadius: 1, border: '1px solid #444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#aaa', fontSize: '1rem', userSelect: 'none', '&:hover': { borderColor: 'var(--accent)', color: '#fff' } }}>−</Box>
-                    <Typography sx={{ fontSize: '0.85rem', color: '#d4d4d4', width: 28, textAlign: 'center', fontFamily: 'monospace' }}>{editorFontSize}</Typography>
-                    <Box component='span' onClick={() => { const v = Math.min(32, editorFontSize + 1); setEditorFontSize(v); try { localStorage.setItem('ide_fontSize', String(v)); } catch(e){} }}
-                      sx={{ width: 26, height: 26, borderRadius: 1, border: '1px solid #444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#aaa', fontSize: '1rem', userSelect: 'none', '&:hover': { borderColor: 'var(--accent)', color: '#fff' } }}>+</Box>
-                  </Box>
-                </Box>
-                {[{ label: 'Word Wrap', val: editorWordWrap === 'on', toggle: () => { const v = editorWordWrap === 'on' ? 'off' : 'on'; setEditorWordWrap(v); try { localStorage.setItem('ide_wordWrap', v); } catch(e){} } },
-                  { label: 'Minimap', val: editorMinimap, toggle: () => { const v = !editorMinimap; setEditorMinimap(v); try { localStorage.setItem('ide_minimap', String(v)); } catch(e){} } },
-                  { label: 'Auto-Save (1.5s)', val: editorAutoSave, toggle: () => { const v = !editorAutoSave; setEditorAutoSave(v); try { localStorage.setItem('ide_autoSave', String(v)); } catch(e){} } },
-                ].map(({ label, val, toggle }) => (
-                  <Box key={label} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: '#ccc' }}>{label}</Typography>
-                    <Box onClick={toggle} sx={{ width: 38, height: 20, borderRadius: 10, bgcolor: val ? 'var(--accent)' : '#3c3c3c', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
-                      <Box sx={{ position: 'absolute', top: 3, left: val ? 20 : 3, width: 14, height: 14, borderRadius: '50%', bgcolor: '#fff', transition: 'left 0.2s' }} />
-                    </Box>
-                  </Box>
-                ))}
-                <Box>
-                  <Typography sx={{ fontSize: '0.66rem', color: '#888', mb: 1, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Tab Size</Typography>
-                  <Box sx={{ display: 'flex', gap: 0.75 }}>
-                    {[2, 4].map(n => (
-                      <Box key={n} onClick={() => { setEditorTabSize(n); try { localStorage.setItem('ide_tabSize', String(n)); } catch(e){} }}
-                        sx={{ px: 2, py: 0.5, borderRadius: 1, border: `1px solid ${editorTabSize === n ? 'var(--accent)' : '#444'}`, bgcolor: editorTabSize === n ? 'rgba(var(--accent-rgb),0.15)' : 'transparent', color: editorTabSize === n ? 'var(--accent)' : '#888', fontSize: '0.73rem', cursor: 'pointer', userSelect: 'none', transition: 'all 0.15s' }}>{n} spaces</Box>
-                    ))}
-                  </Box>
-                </Box>
-                <Box>
-                  <Typography sx={{ fontSize: '0.66rem', color: '#888', mb: 1, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Editor Theme</Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    {[{ id: 'vs-dark', label: 'Dark (default)' }, { id: 'vs', label: 'Light' }, { id: 'hc-black', label: 'High Contrast' }].map(t => (
-                      <Box key={t.id} onClick={() => { setEditorTheme(t.id); try { localStorage.setItem('ide_theme', t.id); } catch(e){} }}
-                        sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.25, py: 0.5, borderRadius: 1,
-                          bgcolor: editorTheme === t.id ? 'rgba(var(--accent-rgb),0.15)' : 'transparent',
-                          border: `1px solid ${editorTheme === t.id ? 'rgba(var(--accent-rgb),0.4)' : 'transparent'}`,
-                          cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: 0.5, bgcolor: editorTheme === t.id ? 'var(--accent)' : '#555', flexShrink: 0 }} />
-                        <Typography sx={{ fontSize: '0.73rem', color: editorTheme === t.id ? 'var(--accent)' : '#aaa' }}>{t.label}</Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-          )}
-          {/* IDE Search Sidebar */}
-          {ideSearchOpen && (
-            <Box sx={{ width: 280, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'hidden' }}>
-              <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                SEARCH
-                <Box component='span' onClick={() => setIdeSearchOpen(false)} sx={{ ml: 'auto', cursor: 'pointer', color: '#555', fontSize: '1rem', lineHeight: 1, '&:hover': { color: '#fff' }, userSelect: 'none' }}>x</Box>
-              </Box>
-              <Box sx={{ px: 1.5, pt: 1.25, pb: 0.75, flexShrink: 0, borderBottom: '1px solid #1e1e1e' }}>
-                <Box component='input' autoFocus value={ideSearchQuery}
-                  onChange={e => {
-                    const q = e.target.value;
-                    setIdeSearchQuery(q);
-                    const ql = q.toLowerCase().trim();
-                    if (!ql) { setIdeSearchResults([]); return; }
-                    const results = [];
-                    editorTabs.forEach(tab => {
-                      tab.content.split('\n').forEach((line, idx) => {
-                        if (line.toLowerCase().includes(ql)) results.push({ filename: tab.filename, line: idx + 1, text: line });
-                      });
-                    });
-                    setIdeSearchResults(results.slice(0, 200));
-                  }}
-                  placeholder='Search across open files…'
-                  sx={{ width: '100%', bgcolor: '#3c3c3c', border: '1px solid #444', borderRadius: 1, color: '#ccc', px: 1, py: 0.5, fontSize: '0.73rem', fontFamily: 'Consolas,monospace', outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: 'var(--accent)' } }}
-                />
-                {ideSearchQuery && <Typography sx={{ fontSize: '0.62rem', color: '#666', mt: 0.75 }}>{ideSearchResults.length}{ideSearchResults.length >= 200 ? '+' : ''} result{ideSearchResults.length !== 1 ? 's' : ''}</Typography>}
-              </Box>
-              <Box sx={{ flex: 1, overflowY: 'auto', '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#444' } }}>
-                {ideSearchResults.length === 0 && ideSearchQuery && (
-                  <Box sx={{ p: 2 }}><Typography sx={{ fontSize: '0.72rem', color: '#555' }}>No results for "{ideSearchQuery}"</Typography></Box>
-                )}
-                {(() => {
-                  const grouped = {};
-                  ideSearchResults.forEach(r => { if (!grouped[r.filename]) grouped[r.filename] = []; grouped[r.filename].push(r); });
-                  return Object.entries(grouped).map(([fname, results]) => (
-                    <Box key={fname}>
-                      <Box sx={{ px: 1.5, py: 0.625, display: 'flex', alignItems: 'center', gap: 0.75, position: 'sticky', top: 0, bgcolor: '#252526' }}>
-                        <Box component='span' sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: getFileColor(fname), flexShrink: 0, display: 'inline-block' }} />
-                        <Typography sx={{ fontSize: '0.7rem', color: '#ccc', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{fname}</Typography>
-                        <Typography sx={{ fontSize: '0.62rem', color: '#666', flexShrink: 0 }}>{results.length}</Typography>
-                      </Box>
-                      {results.map((r, i) => (
-                        <Box key={i} onClick={() => { setActiveTab(r.filename); setIdeSearchOpen(false); }}
-                          sx={{ px: 2.5, py: 0.35, cursor: 'pointer', display: 'flex', gap: 1.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
-                          <Typography sx={{ fontSize: '0.62rem', color: '#666', flexShrink: 0, fontFamily: 'monospace', mt: 0.1 }}>{r.line}</Typography>
-                          <Typography sx={{ fontSize: '0.68rem', color: '#aaa', fontFamily: 'Consolas,monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.text}</Typography>
-                        </Box>
-                      ))}
-                    </Box>
-                  ));
-                })()}
-              </Box>
-            </Box>
-          )}
-          {/* Outline Sidebar */}
-          {ideOutlineOpen && (() => {
-            const activeContent = editorTabs.find(t => t.filename === activeTab)?.content || '';
-            const lang = activeTab ? getFileLang(activeTab).monacoLang : '';
-            const outlineItems = [];
-            activeContent.split('\n').forEach((line, idx) => {
-              const trimmed = line.trim();
-              // Markdown headings
-              const hm = trimmed.match(/^(#{1,3})\s+(.+)/);
-              if (hm) { outlineItems.push({ line: idx + 1, level: hm[1].length, label: hm[2].trim(), kind: 'heading' }); return; }
-              // JS/TS: function/class/const declarations
-              const jm = trimmed.match(/^(?:export\s+)?(?:default\s+)?(?:(async\s+)?function\*?|class)\s+([A-Za-z_$][\w$]*)/);
-              if (jm) { outlineItems.push({ line: idx + 1, level: 1, label: jm[2], kind: 'function' }); return; }
-              const cm = trimmed.match(/^(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=/);
-              if (cm) { outlineItems.push({ line: idx + 1, level: 2, label: cm[1], kind: 'const' }); return; }
-              // Python: def/class
-              const pm = trimmed.match(/^(def|class)\s+([A-Za-z_][\w]*)/);
-              if (pm) { outlineItems.push({ line: idx + 1, level: pm[1] === 'class' ? 1 : 2, label: pm[2], kind: pm[1] }); return; }
-            });
-            const kindColor = { heading: '#569cd6', function: '#dcdcaa', const: '#9cdcfe', def: '#c586c0', class: '#4ec9b0' };
-            const kindPrefix = { heading: '§', function: 'ƒ', const: '·', def: 'ƒ', class: '⬡' };
-            return (
-              <Box sx={{ width: 260, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'hidden' }}>
-                <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                  OUTLINE
-                  <Box component='span' onClick={() => setIdeOutlineOpen(false)} sx={{ ml: 'auto', cursor: 'pointer', color: '#555', fontSize: '1rem', lineHeight: 1, '&:hover': { color: '#fff' }, userSelect: 'none' }}>x</Box>
-                </Box>
-                <Box sx={{ flex: 1, overflowY: 'auto', '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#444' } }}>
-                  {!activeTab ? (
-                    <Box sx={{ p: 2 }}><Typography sx={{ fontSize: '0.72rem', color: '#555' }}>No file open</Typography></Box>
-                  ) : outlineItems.length === 0 ? (
-                    <Box sx={{ p: 2 }}><Typography sx={{ fontSize: '0.72rem', color: '#555' }}>No symbols found</Typography></Box>
-                  ) : outlineItems.map((item, i) => (
-                    <Box key={i} onClick={() => {
-                        if (monacoEditorRef.current) {
-                          monacoEditorRef.current.revealLineInCenter(item.line);
-                          monacoEditorRef.current.setPosition({ lineNumber: item.line, column: 1 });
-                          monacoEditorRef.current.focus();
-                        }
-                      }}
-                      sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1 + (item.level - 1) * 1.5 + 'rem', py: 0.4, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
-                      <Typography component='span' sx={{ fontSize: '0.65rem', color: kindColor[item.kind] || '#888', fontFamily: 'monospace', flexShrink: 0, width: 14 }}>{kindPrefix[item.kind] || '·'}</Typography>
-                      <Typography sx={{ fontSize: '0.7rem', color: '#ccc', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</Typography>
-                      <Typography sx={{ fontSize: '0.62rem', color: '#555', flexShrink: 0, fontFamily: 'monospace' }}>{item.line}</Typography>
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            );
-          })()}
-          {/* File Explorer Sidebar */}
-          {editorSidebarOpen && !ideSettingsOpen && !ideSearchOpen && !ideOutlineOpen && (
-            <Box sx={{ width: 240, bgcolor: '#252526', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e1e1e', flexShrink: 0, overflow: 'hidden' }}>
-              <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                EXPLORER
-                <Box sx={{ ml: 'auto', display: 'flex', gap: 0.25 }}>
-                  <Tooltip title='New file' placement='bottom'>
-                    <Typography onClick={() => setIdeNewFileOpen(true)} sx={{ fontSize: '1rem', cursor: 'pointer', color: '#858585', px: 0.5, lineHeight: 1.3, borderRadius: 1, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.07)' }, userSelect: 'none' }}>+</Typography>
-                  </Tooltip>
-                  <Tooltip title='Export all as ZIP' placement='bottom'>
-                    <Typography onClick={exportAllZip} sx={{ fontSize: '0.72rem', cursor: 'pointer', color: '#858585', px: 0.5, lineHeight: 1.4, borderRadius: 1, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.07)' }, userSelect: 'none' }}>⤓</Typography>
-                  </Tooltip>
-                </Box>
-              </Box>
-              {ideNewFileOpen && (
-                <Box sx={{ px: 1.5, py: 0.75, borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>
-                  <Box component='input' autoFocus value={ideNewFileName} onChange={e => setIdeNewFileName(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { createNewFile(ideNewFileName); setIdeNewFileOpen(false); setIdeNewFileName(''); } if (e.key === 'Escape') { setIdeNewFileOpen(false); setIdeNewFileName(''); } }}
-                    placeholder='filename.html' sx={{ width: '100%', bgcolor: '#3c3c3c', border: '1px solid var(--accent)', borderRadius: 1, color: '#d4d4d4', px: 1, py: 0.5, fontSize: '0.75rem', fontFamily: 'Consolas,monospace', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                  <Typography sx={{ fontSize: '0.62rem', color: '#666', mt: 0.5 }}>Enter to create · Esc to cancel</Typography>
-                </Box>
-              )}
-              <Box sx={{ px: 1, pt: 1, pb: 0.25, fontSize: '0.68rem', fontWeight: 600, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                <Typography component='span' sx={{ fontSize: '0.6rem' }}>▾</Typography> PRODUCTS
-              </Box>
-              <Box sx={{ flex: 1, overflowY: 'auto', pb: 1, '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#444' } }}>
-                <Box sx={{ px: 1.5, pb: 0.75, flexShrink: 0 }}>
-                  <Box component='input' placeholder="🔍 Filter files…" value={ideExplorerSearch}
-                    onChange={e => setIdeExplorerSearch(e.target.value)}
-                    sx={{ width: '100%', bgcolor: '#3c3c3c', border: '1px solid #444', borderRadius: 1,
-                      color: '#ccc', px: 1, py: 0.4, fontSize: '0.73rem', fontFamily: 'Consolas,monospace',
-                      outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: 'var(--accent)' },
-                    }}
-                  />
-                </Box>
-                {products.length === 0 ? (
-                  <Box sx={{ px: 2, pt: 2, fontSize: '0.75rem', color: '#555', lineHeight: 1.75 }}>No files yet.<br/>Ask Vesper to build something.</Box>
-                ) : products.filter(p => !ideExplorerSearch || p.filename.toLowerCase().includes(ideExplorerSearch.toLowerCase())).map(p => (
-                  <Box key={p.filename} onClick={() => openInEditor(p.filename, p.download_url)}
-                    sx={{ pl: 3, pr: 1.5, py: 0.5, fontSize: '0.78rem', color: activeTab === p.filename ? '#fff' : '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.75,
-                      bgcolor: activeTab === p.filename ? 'rgba(var(--accent-rgb),0.15)' : 'transparent',
-                      '&:hover': { bgcolor: activeTab === p.filename ? 'rgba(var(--accent-rgb),0.15)' : 'rgba(255,255,255,0.06)' } }}>
-                    <Box component='span' sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: getFileColor(p.filename), flexShrink: 0, display: 'inline-block', alignSelf: 'center', mr: 0.5 }} />
-                    {ideRenameFile === p.filename ? (
-                      <Box component='input' autoFocus value={ideRenameName} onChange={e => setIdeRenameName(e.target.value)}
-                        onClick={e => e.stopPropagation()}
-                        onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') renameFile(p.filename, ideRenameName); if (e.key === 'Escape') setIdeRenameFile(null); }}
-                        sx={{ flex: 1, bgcolor: '#3c3c3c', border: '1px solid var(--accent)', borderRadius: 0.5, color: '#d4d4d4', px: 0.75, py: 0.25, fontSize: '0.75rem', fontFamily: 'Consolas,monospace', outline: 'none', minWidth: 0 }}
-                      />
-                    ) : (
-                      <Typography component='span' onDoubleClick={e => { e.stopPropagation(); setIdeRenameFile(p.filename); setIdeRenameName(p.filename); }} sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'inherit' }}>{p.filename}</Typography>
-                    )}
-                    {editorTabs.find(t => t.filename === p.filename)?.dirty && (
-                      <Box component='span' sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'var(--accent)', flexShrink: 0 }} />
-                    )}
-                  </Box>
-                ))}
-              </Box>
-              <Box sx={{ px: 2, py: 0.875, borderTop: '1px solid #1e1e1e', flexShrink: 0 }}>
-                <Typography onClick={fetchProducts} sx={{ fontSize: '0.68rem', color: 'var(--accent)', cursor: 'pointer', opacity: 0.6, '&:hover': { opacity: 1 }, userSelect: 'none' }}>↺ Refresh</Typography>
-              </Box>
-            </Box>
-          )}
-
-          {/* Center + Right */}
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-
-            {/* Tab Bar */}
-            <Box sx={{ height: 35, bgcolor: '#2d2d2d', display: 'flex', alignItems: 'stretch', overflowX: 'auto', flexShrink: 0, borderBottom: '1px solid #252526', '&::-webkit-scrollbar': { height: 3 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#555' } }}>
-              {editorTabs.length === 0 ? (
-                <Box sx={{ px: 2, display: 'flex', alignItems: 'center', fontSize: '0.73rem', color: '#555', fontStyle: 'italic' }}>Select a file from the explorer</Box>
-              ) : editorTabs.map(tab => (
-                <Box key={tab.filename} onClick={() => setActiveTab(tab.filename)}
-                  onContextMenu={e => { e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, filename: tab.filename }); }}
-                  sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.75, minWidth: 0, maxWidth: 200, cursor: 'pointer', flexShrink: 0,
-                    bgcolor: activeTab === tab.filename ? '#1e1e1e' : 'transparent',
-                    borderTop: `1px solid ${activeTab === tab.filename ? 'var(--accent)' : 'transparent'}`,
-                    borderRight: '1px solid #252526',
-                    '&:hover': { bgcolor: activeTab === tab.filename ? '#1e1e1e' : 'rgba(255,255,255,0.05)' } }}>
-                  <Box component='span' sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: getFileColor(tab.filename), flexShrink: 0, display: 'inline-block', alignSelf: 'center' }} />
-                  <Typography component='span' sx={{ fontSize: '0.75rem', color: activeTab === tab.filename ? '#fff' : '#aaa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{tab.filename}{tab.dirty ? ' ●' : ''}</Typography>
-                  <Typography component='span' onClick={e => { e.stopPropagation(); closeEditorTab(tab.filename); }}
-                    sx={{ fontSize: '0.8rem', color: '#666', lineHeight: 1, ml: 0.5, px: 0.5, borderRadius: 0.5, flexShrink: 0, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}>×</Typography>
-                </Box>
-              ))}
-              {editorTabs.length > 0 && (
-                <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', px: 0.75, flexShrink: 0, borderLeft: '1px solid #252526' }}>
-                  <Tooltip title={splitTab ? 'Close split editor' : 'Split editor'} placement='bottom'>
-                    <IconButton
-                      onClick={() => { if (splitTab) { setSplitTab(null); } else { const other = editorTabs.find(t => t.filename !== activeTab); if (other) setSplitTab(other.filename); } }}
-                      sx={{ color: splitTab ? 'var(--accent)' : '#666', width: 26, height: 26, borderRadius: 0.75, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.08)' } }}>
-                      <Typography sx={{ fontSize: '0.85rem', lineHeight: 1, userSelect: 'none', fontFamily: 'monospace' }}>⧉</Typography>
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              )}
-            </Box>
-
-            {/* Breadcrumb Bar */}
-            {activeTab && (
-              <Box sx={{ height: 22, bgcolor: '#1e1e1e', display: 'flex', alignItems: 'center', px: 1.5, borderBottom: '1px solid #252526', flexShrink: 0, overflowX: 'auto', '&::-webkit-scrollbar': { height: 0 } }}>
-                {activeTab.split('/').map((seg, i, arr) => (
-                  <Box key={i} sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                    {i > 0 && <Typography component='span' sx={{ fontSize: '0.67rem', color: '#555', mx: 0.5, userSelect: 'none' }}>›</Typography>}
-                    <Typography component='span'
-                      sx={{ fontSize: '0.67rem', color: i === arr.length - 1 ? '#ccc' : '#777', userSelect: 'none',
-                        ...(i === arr.length - 1 ? {} : { cursor: 'default' }) }}>
-                      {seg}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            )}
-
-            {/* Find & Replace Bar */}
-            {ideFindOpen && activeTab && (
-              <Box sx={{ height: 'auto', bgcolor: '#252526', borderBottom: '1px solid #1e1e1e', px: 1.5, py: 0.625, display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, flexWrap: 'wrap' }}>
-                <Box component='input' autoFocus value={ideFindQuery} onChange={e => setIdeFindQuery(e.target.value)}
-                  placeholder='Find…'
-                  onKeyDown={e => {
-                    if (e.key === 'Escape') setIdeFindOpen(false);
-                    if (e.key === 'Enter' && monacoEditorRef.current && ideFindQuery) {
-                      const model = monacoEditorRef.current.getModel();
-                      const cur = monacoEditorRef.current.getPosition();
-                      if (!model || !cur) return;
-                      const matches = model.findMatches(ideFindQuery, false, false, ideFindCase, ideFindWord ? '\b' : null, false);
-                      if (!matches.length) return;
-                      const after = matches.find(m => m.range.startLineNumber > cur.lineNumber || (m.range.startLineNumber === cur.lineNumber && m.range.startColumn > cur.column));
-                      const target = after || matches[0];
-                      monacoEditorRef.current.revealRangeInCenter(target.range);
-                      monacoEditorRef.current.setSelection(target.range);
-                    }
-                  }}
-                  sx={{ bgcolor: '#3c3c3c', border: '1px solid #555', borderRadius: 1, color: '#ccc', px: 1, py: 0.4, fontSize: '0.73rem', fontFamily: 'Consolas,monospace', outline: 'none', width: 180, '&:focus': { borderColor: 'var(--accent)' } }}
-                />
-                <Box component='input' value={ideReplaceQuery} onChange={e => setIdeReplaceQuery(e.target.value)}
-                  placeholder='Replace…'
-                  sx={{ bgcolor: '#3c3c3c', border: '1px solid #555', borderRadius: 1, color: '#ccc', px: 1, py: 0.4, fontSize: '0.73rem', fontFamily: 'Consolas,monospace', outline: 'none', width: 160, '&:focus': { borderColor: 'var(--accent)' } }}
-                />
-                {[{ label: 'Aa', title: 'Case sensitive', val: ideFindCase, set: setIdeFindCase }, { label: '\b', title: 'Whole word', val: ideFindWord, set: setIdeFindWord }].map(({ label, title, val, set }) => (
-                  <Tooltip key={label} title={title} placement='top'>
-                    <Box component='span' onClick={() => set(v => !v)}
-                      sx={{ px: 1, py: 0.3, borderRadius: 1, border: `1px solid ${val ? 'var(--accent)' : '#444'}`, bgcolor: val ? 'rgba(var(--accent-rgb),0.15)' : 'transparent', color: val ? 'var(--accent)' : '#777', fontSize: '0.7rem', fontFamily: 'monospace', cursor: 'pointer', userSelect: 'none', flexShrink: 0 }}>{label}</Box>
-                  </Tooltip>
-                ))}
-                <Box component='span' onClick={() => {
-                    if (!monacoEditorRef.current || !ideFindQuery) return;
-                    const editor = monacoEditorRef.current;
-                    const model = editor.getModel();
-                    if (!model) return;
-                    const matches = model.findMatches(ideFindQuery, false, false, ideFindCase, ideFindWord ? '\b' : null, false);
-                    if (!matches.length) return;
-                    editor.executeEdits('find-replace', matches.map(m => ({ range: m.range, text: ideReplaceQuery })));
-                    setEditorTabs(prev => prev.map(t => t.filename === activeTab ? { ...t, content: model.getValue(), dirty: true } : t));
-                  }}
-                  sx={{ px: 1.25, py: 0.3, borderRadius: 1, bgcolor: 'rgba(var(--accent-rgb),0.12)', border: '1px solid rgba(var(--accent-rgb),0.3)', color: 'var(--accent)', fontSize: '0.7rem', cursor: 'pointer', userSelect: 'none', flexShrink: 0, '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.22)' } }}>Replace All</Box>
-                <Box component='span' onClick={() => setIdeFindOpen(false)}
-                  sx={{ ml: 'auto', color: '#555', cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1, userSelect: 'none', '&:hover': { color: '#fff' }, flexShrink: 0 }}>×</Box>
-              </Box>
-            )}
-            {/* Quick Actions Bar */}
-            {activeTab && (
-              <Box sx={{ height: 30, bgcolor: '#2d2d2d', borderBottom: '1px solid #252526', display: 'flex', alignItems: 'center', px: 1.5, gap: 0.5, flexShrink: 0, overflowX: 'auto', '&::-webkit-scrollbar': { height: 0 } }}>
-                {[
-                  { label: '🐛 Fix Bugs',        prompt: 'Review the code in this file. Find and fix any bugs, syntax errors, or logic issues. Show the complete corrected file.' },
-                  { label: '💬 Add Comments',    prompt: 'Add clear, helpful comments to this code. Keep the logic identical. Show the complete commented file.' },
-                  { label: '⚡ Minify',              prompt: 'Minify this file for production. Remove all unnecessary whitespace and comments. Show only the minified output.' },
-                  { label: '🔍 Explain',         prompt: 'Explain what this code does in plain English. Walk through the key sections.' },
-                  { label: '✨ Improve',             prompt: 'Suggest and apply improvements to this code. Make it cleaner, more efficient, and more readable. Show the improved file.' },
-                  { label: '📱 Make Responsive', prompt: 'Make this HTML/CSS fully responsive for mobile, tablet, and desktop. Show the complete updated file.' },
-                  { label: '🤖 Ask Vesper', prompt: 'Review this file thoroughly. Describe what it does, identify any bugs or improvements, and suggest optimizations. Be concise and direct.' },
-                ].map(({ label, prompt }) => (
-                  <Box key={label} component='span'
-                    onClick={() => {
-                      const tab = editorTabs.find(t => t.filename === activeTab);
-                      if (!tab) return;
-                      const msg = `${prompt}\n\nFile: ${activeTab}\n\`\`\`\n${tab.content}\n\`\`\``;
-                      setInput(msg); setTimeout(sendMessage, 50);
-                    }}
-                    sx={{ px: 1.5, py: 0.3, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.55)', fontSize: '0.7rem', cursor: 'pointer', flexShrink: 0, userSelect: 'none', border: '1px solid rgba(255,255,255,0.07)', whiteSpace: 'nowrap',
-                      '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent)', borderColor: 'rgba(var(--accent-rgb),0.3)' }, transition: 'all 0.15s' }}>{label}</Box>
-                ))}
-              </Box>
-            )}
-
-            {/* Editor + Chat Row */}
-            <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
-
-              {/* Code Editor */}
-              {ideDiff && ideDiff.filename === activeTab ? (
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-                  <Box sx={{ px: 2, py: 0.75, bgcolor: '#252526', borderBottom: '1px solid #1e1e1e', display: 'flex', alignItems: 'center', flexShrink: 0, gap: 1.5 }}>
-                    <Typography sx={{ fontSize: '0.72rem', color: '#e9e9e9', fontWeight: 600 }}>↔ Diff — {ideDiff.filename}</Typography>
-                    <Typography sx={{ fontSize: '0.68rem', color: '#888' }}>red = before · green = applied</Typography>
-                    <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
-                      <Box component='span' onClick={() => setIdeDiff(null)}
-                        sx={{ fontSize: '0.7rem', color: 'var(--accent)', cursor: 'pointer', px: 1.25, py: 0.3, borderRadius: 1,
-                          border: '1px solid rgba(var(--accent-rgb),0.3)', userSelect: 'none',
-                          '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.1)' } }}>✓ Dismiss diff</Box>
-                    </Box>
-                  </Box>
-                  <DiffEditor
-                    original={ideDiff.before}
-                    modified={ideDiff.after}
-                    language={getFileLang(ideDiff.filename).monacoLang}
-                    theme={editorTheme}
-                    height='100%'
-                    options={{ readOnly: true, minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }}
-                  />
-                </Box>
-              ) : activeTab ? (() => {
-                const tab = editorTabs.find(t => t.filename === activeTab);
-                if (!tab) return <Box sx={{ flex: 1, bgcolor: '#1e1e1e' }} />;
-                return (
-                  <Box sx={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-                    <Editor
-                      key={activeTab}
-                      height='100%'
-                      language={getFileLang(activeTab).monacoLang}
-                      theme={editorTheme}
-                      value={tab.content}
-                      onChange={(value) => {
-                        setEditorTabs(prev => prev.map(t =>
-                          t.filename === activeTab ? {...t, content: value ?? '', dirty: true} : t
-                        ));
-                        if (editorAutoSave) {
-                          clearTimeout(autoSaveTimerRef.current);
-                          autoSaveTimerRef.current = setTimeout(() => { monacoSaveRef.current?.(); }, 1500);
-                        }
-                      }}
-                      onMount={(editor, monaco) => {
-                        monacoEditorRef.current = editor;
-                        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => { monacoSaveRef.current?.(); });
-                        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => { setIdeFindOpen(v => !v); });
-                        editor.onDidChangeCursorPosition(e => {
-                          setIdeCursorPos({ line: e.position.lineNumber, col: e.position.column });
-                        });
-                      }}
-                      options={{
-                        fontSize: editorFontSize,
-                        lineHeight: Math.round(editorFontSize * 1.6),
-                        fontFamily: "'Cascadia Code','JetBrains Mono','Fira Code',Consolas,'Courier New',monospace",
-                        minimap: { enabled: editorMinimap },
-                        scrollBeyondLastLine: false,
-                        tabSize: editorTabSize,
-                        insertSpaces: true,
-                        wordWrap: editorWordWrap,
-                        renderLineHighlight: 'line',
-                        smoothScrolling: true,
-                        cursorBlinking: 'smooth',
-                        padding: { top: 10, bottom: 10 },
-                        overviewRulerLanes: 0,
-                      }}
-                      loading={
-                        <Box sx={{ height: '100%', bgcolor: '#1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Typography sx={{ color: '#555', fontSize: '0.75rem' }}>Loading editor…</Typography>
-                        </Box>
-                      }
-                    />
-                  </Box>
-                );
-              })() : (
-                <Box sx={{ flex: 1, bgcolor: '#1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Box sx={{ textAlign: 'center', userSelect: 'none' }}>
-                    <Typography sx={{ fontSize: '4rem', mb: 2, opacity: 0.1 }}>⌨</Typography>
-                    <Typography sx={{ color: '#555', fontSize: '0.88rem', fontWeight: 500 }}>No file open</Typography>
-                    <Typography sx={{ color: '#444', fontSize: '0.73rem', mt: 0.5 }}>Select a file from the explorer or ask Vesper to build something</Typography>
-                    <Box sx={{ mt: 3, display: 'flex', gap: 1, justifyContent: 'center' }}>
-                      <Box component='span' onClick={() => { setEditorSidebarOpen(true); fetchProducts(); }}
-                        sx={{ px: 2, py: 0.75, borderRadius: 1.5, border: '1px solid rgba(var(--accent-rgb),0.3)', color: 'var(--accent)', fontSize: '0.73rem', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.08)' }, userSelect: 'none' }}>Browse files</Box>
-                      <Box component='span' onClick={() => setEditorChatOpen(true)}
-                        sx={{ px: 2, py: 0.75, borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.1)', color: '#888', fontSize: '0.73rem', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' }, userSelect: 'none' }}>Open chat</Box>
-                    </Box>
-                  </Box>
-                </Box>
-              )}
-
-              {/* Split Editor Panel */}
-              {splitTab && splitTab !== activeTab && (() => {
-                const stab = editorTabs.find(t => t.filename === splitTab);
-                if (!stab) return null;
-                return (
-                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderLeft: '2px solid #252526', minWidth: 0 }}>
-                    <Box sx={{ height: 35, bgcolor: '#2d2d2d', display: 'flex', alignItems: 'center', px: 1.5, gap: 0.75, flexShrink: 0, borderBottom: '1px solid #252526' }}>
-                      <Box component='span' sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: getFileColor(splitTab), flexShrink: 0, display: 'inline-block' }} />
-                      <Typography component='span' sx={{ fontSize: '0.73rem', color: '#ccc', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{splitTab}</Typography>
-                      <Typography component='span' onClick={() => setSplitTab(null)}
-                        sx={{ fontSize: '0.8rem', color: '#666', cursor: 'pointer', px: 0.5, borderRadius: 0.5, flexShrink: 0, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}>×</Typography>
-                    </Box>
-                    <Editor
-                      key={`split-${splitTab}`}
-                      height='100%'
-                      language={getFileLang(splitTab).monacoLang}
-                      theme={editorTheme}
-                      value={stab.content}
-                      onChange={(value) => setEditorTabs(prev => prev.map(t => t.filename === splitTab ? {...t, content: value ?? '', dirty: true} : t))}
-                      options={{ fontSize: editorFontSize, lineHeight: Math.round(editorFontSize * 1.6), minimap: { enabled: false }, scrollBeyondLastLine: false, tabSize: editorTabSize, wordWrap: editorWordWrap, padding: { top: 10, bottom: 10 }, overviewRulerLanes: 0 }}
-                    />
-                  </Box>
-                );
-              })()}
-
-              {/* Live Preview Panel */}
-              {idePreviewOpen && activeTab && (() => {
-                const tab = editorTabs.find(t => t.filename === activeTab);
-                const lang = getFileLang(activeTab);
-                const isHtml = lang.monacoLang === 'html';
-                const blobUrl = isHtml && tab
-                  ? URL.createObjectURL(new Blob([tab.content], { type: 'text/html' }))
-                  : null;
-                return (
-                  <Box sx={{ width: 380, bgcolor: '#1e1e1e', borderLeft: '1px solid #252526', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
-                    <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #252526', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                      PREVIEW
-                      <Typography component='span' sx={{ ml: 'auto', fontSize: '0.6rem', color: '#555', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{activeTab}</Typography>
-                      {isHtml && (
-                        <Box component='span' onClick={() => { const t2 = editorTabs.find(x => x.filename === activeTab); if (t2) { const u = URL.createObjectURL(new Blob([t2.content], { type: 'text/html' })); window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 5000); } }}
-                          sx={{ ml: 1, fontSize: '0.6rem', color: 'var(--accent)', cursor: 'pointer', userSelect: 'none', opacity: 0.8, textTransform: 'none', letterSpacing: 0, '&:hover': { opacity: 1 } }}>
-                          ↗ new tab
-                        </Box>
-                      )}
-                    </Box>
-                    {isHtml && blobUrl ? (
-                      <Box component='iframe' src={blobUrl} onLoad={() => URL.revokeObjectURL(blobUrl)}
-                        sx={{ flex: 1, border: 'none', bgcolor: '#fff' }} title='preview' sandbox='allow-scripts' />
-                    ) : (
-                      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 1 }}>
-                        <Typography sx={{ fontSize: '2rem', opacity: 0.15 }}>👁️</Typography>
-                        <Typography sx={{ color: '#555', fontSize: '0.78rem' }}>Preview available for HTML files</Typography>
-                        <Typography sx={{ color: '#444', fontSize: '0.68rem' }}>{lang.label} files render as plain text</Typography>
-                      </Box>
-                    )}
-                  </Box>
-                );
-              })()}
-
-              {/* Chat Panel */}
-              {editorChatOpen && (
-                <Box sx={{ width: 340, bgcolor: '#252526', borderLeft: '1px solid #1e1e1e', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
-                  <Box sx={{ px: 2, py: 0.875, fontSize: '0.68rem', fontWeight: 700, color: '#bbb', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #1e1e1e', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                    VESPER
-                    {activeTab && (
-                      <Typography component='span' sx={{ ml: 'auto', fontSize: '0.62rem', color: '#555', fontWeight: 400, textTransform: 'none', letterSpacing: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>{activeTab}</Typography>
-                    )}
-                  </Box>
-                  <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.25, '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#444' }, minHeight: 0 }}>
-                    {messages.length === 0 && (
-                      <Box sx={{ py: 3, textAlign: 'center' }}><Typography sx={{ fontSize: '0.75rem', color: '#555' }}>Start a conversation</Typography></Box>
-                    )}
-                    {messages.slice(-30).map((m, i) => (
-                      <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                        <Typography component='span' sx={{ fontSize: '0.63rem', color: m.role === 'user' ? 'var(--accent)' : '#7a7a7a', flexShrink: 0, mt: 0.3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 48 }}>{m.role === 'user' ? 'you' : 'vesper'}</Typography>
-                        <Typography component='span' sx={{ flex: 1, fontSize: '0.77rem', color: '#ccc', lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{typeof m.content === 'string' ? (m.content.length > 600 ? m.content.slice(0,600)+'\u2026' : m.content) : ''}</Typography>
-                      </Box>
-                    ))}
-                    {loading && (
-                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                        <Typography component='span' sx={{ fontSize: '0.63rem', color: '#7a7a7a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 48 }}>vesper</Typography>
-                        <Box sx={{ display: 'flex', gap: 0.5, mt: 0.6 }}>{[0,1,2].map(j => <Box key={j} sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'var(--accent)', opacity: 0.6, animation: `pulse 1.2s ${j*0.2}s ease-in-out infinite` }} />)}</Box>
-                      </Box>
-                    )}
-                  </Box>
-                  <Box sx={{ p: 1.25, borderTop: '1px solid #1e1e1e', flexShrink: 0 }}>
-                    {activeTab && <Typography sx={{ fontSize: '0.62rem', color: '#555', mb: 0.75, px: 0.25 }}>Context: <Typography component='span' sx={{ color: '#777', fontFamily: 'Consolas,monospace', fontSize: 'inherit' }}>{activeTab}</Typography></Typography>}
-                    <Box sx={{ display: 'flex', gap: 0.75, bgcolor: '#1e1e1e', borderRadius: 1.5, border: '1px solid #3c3c3c', px: 1.25, py: 0.875, alignItems: 'flex-end', '&:focus-within': { borderColor: 'rgba(var(--accent-rgb),0.5)' } }}>
-                      <Box component='textarea' value={input} onChange={e => setInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                        placeholder={activeTab ? `Ask about ${activeTab}\u2026` : 'Ask Vesper to build something\u2026'}
-                        rows={2} spellCheck={false}
-                        sx={{ flex: 1, bgcolor: 'transparent', border: 'none', outline: 'none', color: '#d4d4d4', fontSize: '0.77rem', resize: 'none', fontFamily: 'inherit', lineHeight: 1.55, '&::placeholder': { color: '#555' } }}
-                      />
-                      <Box component='span' onClick={sendMessage}
-                        sx={{ color: 'var(--accent)', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700, px: 1, py: 0.5, borderRadius: 1, bgcolor: 'rgba(var(--accent-rgb),0.1)', '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.22)' }, flexShrink: 0, userSelect: 'none', transition: 'background 0.15s' }}>
-                        ↵
-                      </Box>
-                    </Box>
-                  </Box>
-                </Box>
-              )}
-            </Box>
-
-            {/* Tab Context Menu */}
-            {tabContextMenu && (
-              <Box onClick={() => setTabContextMenu(null)}
-                sx={{ position: 'fixed', inset: 0, zIndex: 99990 }}>
-                <Box onClick={e => e.stopPropagation()}
-                  sx={{ position: 'fixed', top: tabContextMenu.y, left: tabContextMenu.x,
-                    bgcolor: '#2d2d2d', border: '1px solid #454545', borderRadius: 1,
-                    py: 0.5, minWidth: 170, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', zIndex: 99991 }}>
-                  {[{ label: 'Close', action: () => { closeEditorTab(tabContextMenu.filename); setTabContextMenu(null); } },
-                    { label: 'Close Others', action: () => { setEditorTabs(prev => prev.filter(t => t.filename === tabContextMenu.filename)); setActiveTab(tabContextMenu.filename); setTabContextMenu(null); } },
-                    { label: 'Close All', action: () => { setEditorTabs([]); setActiveTab(null); setTabContextMenu(null); } },
-                  ].map(({ label, action }) => (
-                    <Box key={label} onClick={action}
-                      sx={{ px: 2, py: 0.625, fontSize: '0.73rem', color: '#ccc', cursor: 'pointer',
-                        '&:hover': { bgcolor: 'rgba(var(--accent-rgb),0.2)', color: '#fff' } }}>
-                      {label}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            )}
-
-            {/* Bottom Panel */}
-            {ideBottomOpen && (
-              <Box sx={{ height: 180, bgcolor: '#1e1e1e', display: 'flex', flexDirection: 'column', flexShrink: 0, borderTop: '2px solid #252526', overflow: 'hidden' }}>
-                <Box sx={{ display: 'flex', alignItems: 'stretch', bgcolor: '#252526', flexShrink: 0, borderBottom: '1px solid #1e1e1e', height: 28 }}>
-                  {['problems', 'output', 'console'].map(tabId => (
-                    <Box key={tabId} onClick={() => setIdeBottomTab(tabId)}
-                      sx={{ px: 2, display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.05em',
-                        color: ideBottomTab === tabId ? '#fff' : '#888',
-                        borderTop: `1px solid ${ideBottomTab === tabId ? 'var(--accent)' : 'transparent'}`,
-                        bgcolor: ideBottomTab === tabId ? '#1e1e1e' : 'transparent',
-                        '&:hover': { color: '#ccc' } }}>
-                      {tabId.toUpperCase()}
-                    </Box>
-                  ))}
-                  <Box sx={{ flex: 1 }} />
-                  <Box onClick={() => setIdeBottomOpen(false)}
-                    sx={{ display: 'flex', alignItems: 'center', px: 1.25, color: '#666', cursor: 'pointer', fontSize: '0.9rem', userSelect: 'none', '&:hover': { color: '#fff' } }}>×</Box>
-                </Box>
-                <Box sx={{ flex: 1, overflowY: 'auto', '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#444' } }}>
-                  {ideBottomTab === 'problems' && (() => {
-                    const content = editorTabs.find(t => t.filename === activeTab)?.content || '';
-                    const issues = [];
-                    content.split('\n').forEach((line, idx) => {
-                      const m = line.match(/\/\/\s*(TODO|FIXME|HACK|BUG|NOTE)[:\s]/i);
-                      if (m) issues.push({ line: idx + 1, type: m[1].toUpperCase(), text: line.trim() });
-                    });
-                    return issues.length > 0 ? (
-                      <Box sx={{ p: 0.5 }}>
-                        {issues.map((issue, i) => (
-                          <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, px: 1.5, py: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}>
-                            <Typography sx={{ fontSize: '0.65rem', color: (issue.type === 'BUG' || issue.type === 'FIXME') ? '#f48771' : '#dcdcaa', fontWeight: 700, flexShrink: 0, fontFamily: 'monospace', mt: 0.1 }}>{issue.type}</Typography>
-                            <Typography sx={{ fontSize: '0.7rem', color: '#ccc', flex: 1, fontFamily: 'Consolas,monospace' }}>{issue.text}</Typography>
-                            <Typography sx={{ fontSize: '0.65rem', color: '#666', flexShrink: 0 }}>:{issue.line}</Typography>
-                          </Box>
-                        ))}
-                      </Box>
-                    ) : (
-                      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography sx={{ fontSize: '0.72rem', color: '#4ec9b0' }}>✓</Typography>
-                        <Typography sx={{ fontSize: '0.72rem', color: '#888' }}>{activeTab ? `No problems found in ${activeTab}` : 'No file open'}</Typography>
-                      </Box>
-                    );
-                  })()}
-                  {ideBottomTab === 'output' && (
-                    <Box sx={{ p: 1.5 }}>
-                      {ideOutputLines.map((line, i) => (
-                        <Typography key={i} sx={{ fontSize: '0.68rem', color: '#9cdcfe', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'Consolas,monospace' }}>{line}</Typography>
-                      ))}
-                    </Box>
-                  )}
-                  {ideBottomTab === 'console' && (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                      <Box sx={{ flex: 1, p: 1.5, overflowY: 'auto' }}>
-                        {ideConsoleHistory.map((entry, i) => (
-                          <Typography key={i}
-                            sx={{ fontSize: '0.68rem', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'Consolas,monospace',
-                              color: entry.type === 'sys' ? '#4ec9b0' : entry.type === 'err' ? '#f48771' : entry.type === 'cmd' ? '#dcdcaa' : '#ccc' }}>
-                            {entry.type === 'cmd' ? `> ${entry.text}` : entry.text}
-                          </Typography>
-                        ))}
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', px: 1.5, py: 0.625, borderTop: '1px solid #252526', flexShrink: 0, gap: 0.75 }}>
-                        <Typography sx={{ fontSize: '0.68rem', color: '#4ec9b0', fontFamily: 'Consolas,monospace', flexShrink: 0, userSelect: 'none' }}>$</Typography>
-                        <Box component='input' value={ideConsoleInput} onChange={e => setIdeConsoleInput(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              const cmd = ideConsoleInput.trim();
-                              setIdeConsoleInput('');
-                              if (!cmd) return;
-                              const entries = [{ type: 'cmd', text: cmd }];
-                              const parts = cmd.split(' ');
-                              if (parts[0] === 'clear') { setIdeConsoleHistory([{ type: 'sys', text: 'Console cleared.' }]); return; }
-                              if (parts[0] === 'help') entries.push({ type: 'out', text: 'Commands: clear, ls, echo <text>, help' });
-                              else if (parts[0] === 'ls') entries.push({ type: 'out', text: editorTabs.map(t => t.filename).join('\n') || '(no files open)' });
-                              else if (parts[0] === 'echo') entries.push({ type: 'out', text: parts.slice(1).join(' ') });
-                              else entries.push({ type: 'err', text: `command not found: ${parts[0]}` });
-                              setIdeConsoleHistory(prev => [...prev.slice(-199), ...entries]);
-                            }
-                          }}
-                          placeholder='Enter a command…'
-                          sx={{ flex: 1, bgcolor: 'transparent', border: 'none', outline: 'none', color: '#d4d4d4', fontSize: '0.68rem', fontFamily: 'Consolas,monospace' }}
-                        />
-                      </Box>
-                    </Box>
-                  )}
-                </Box>
-              </Box>
-            )}
-
-            {/* Status Bar */}
-            <Box sx={{ height: 22, bgcolor: '#0078d4', display: 'flex', alignItems: 'center', px: 2, gap: 2.5, flexShrink: 0 }}>
-              <Typography sx={{ fontSize: '0.68rem', color: '#fff', fontWeight: 600, letterSpacing: '0.03em' }}>⚡ Vesper IDE</Typography>
-              {activeTab ? (
-                <>
-                  <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.85)' }}>{activeTab}</Typography>
-                  <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.7)' }}>{getFileLang(activeTab).label}</Typography>
-                  <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.55)' }}>Ln {ideCursorPos.line}, Col {ideCursorPos.col}</Typography>
-                  <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.45)' }}>{(() => { const c = (editorTabs.find(t => t.filename === activeTab)?.content || ''); return `${c.split('\n').length} lines · ${(new Blob([c]).size/1024).toFixed(1)} KB`; })()}</Typography>
-                  {editorTabs.find(t => t.filename === activeTab)?.dirty && <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,220,0,0.9)', fontWeight: 600 }}>● unsaved</Typography>}
-                  {ideLastSaved && !editorTabs.find(t => t.filename === activeTab)?.dirty && <Typography sx={{ fontSize: '0.67rem', color: 'rgba(120,220,120,0.8)' }}>✓ saved {ideLastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</Typography>}
-                </>
-              ) : <Typography sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.5)' }}>No file open</Typography>}
-              <Box sx={{ flex: 1 }} />
-              <Typography onClick={() => setIdeBottomOpen(v => !v)}
-                sx={{ fontSize: '0.67rem', color: ideBottomOpen ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)', cursor: 'pointer', mr: 1.5, userSelect: 'none', '&:hover': { color: '#fff' } }}>
-                {ideBottomOpen ? '⊟' : '⊞'} Panel
-              </Typography>
-              {editorAutoSave && <Typography sx={{ fontSize: '0.62rem', color: 'rgba(120,220,120,0.9)', fontWeight: 700, px: 0.75, py: 0.15, borderRadius: 0.75, bgcolor: 'rgba(0,200,100,0.15)', border: '1px solid rgba(0,200,100,0.3)', userSelect: 'none', flexShrink: 0 }}>AUTO</Typography>}
-              <Typography onClick={() => setIdeFindOpen(v => !v)} sx={{ fontSize: '0.67rem', color: ideFindOpen ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)', cursor: 'pointer', userSelect: 'none', '&:hover': { color: '#fff' } }}>⌕ Find</Typography>
-              {activeTab && <Typography onClick={saveEditorFile} sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', '&:hover': { color: '#fff' }, userSelect: 'none' }}>Ctrl+S to save</Typography>}
-              <Typography onClick={() => setIdeMode(false)} sx={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', '&:hover': { color: '#fff' }, userSelect: 'none' }}>× Close IDE</Typography>
-            </Box>
-          </Box>
-        </Box>
-      )}
-
-            {/* ─── PRODUCTS PANEL ──────────────────────────────────────────────── */}
-      {productsOpen && (
-        <Box onClick={() => setProductsOpen(false)}
-          sx={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', p: 2 }}>
-          <Box onClick={e => e.stopPropagation()}
-            sx={{ width: 420, maxHeight: '78vh', borderRadius: 3, bgcolor: 'rgba(8,11,20,0.98)', border: '1px solid rgba(var(--accent-rgb),0.3)', overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: 'cmdSlideIn 0.18s cubic-bezier(0.22,1,0.36,1)' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.07)', gap: 1 }}>
-              <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: '#fff', flex: 1 }}>📦 My Products</Typography>
-              <Box component='span' onClick={() => fetchProducts()} sx={{ fontSize: '0.7rem', color: 'var(--accent)', cursor: 'pointer', mr: 1, opacity: 0.7 }}>Refresh</Box>
-              <Box component='span' onClick={() => setProductsOpen(false)} sx={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 1 }}>×</Box>
-            </Box>
-            <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5 }}>
-              {productsLoading ? (
-                <Box sx={{ py: 4, textAlign: 'center' }}><Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem' }}>Loading…</Typography></Box>
-              ) : products.length === 0 ? (
-                <Box sx={{ py: 5, textAlign: 'center' }}>
-                  <Typography sx={{ fontSize: '2rem', mb: 1 }}>📦</Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', fontWeight: 600 }}>No products yet</Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem', mt: 0.5, px: 3 }}>Ask Vesper to build a template, website, or tool and she’ll save it here.</Typography>
-                </Box>
-              ) : (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {products.map(p => (
-                    <Box key={p.filename} sx={{ p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(var(--accent-rgb),0.12)', transition: 'all 0.15s ease' }}>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.82rem', color: '#fff', wordBreak: 'break-word', mb: 0.25 }}>{p.filename}</Typography>
-                      <Typography sx={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', mb: 0.75 }}>{Math.round(p.size_bytes/1024*10)/10} KB · {new Date(p.created).toLocaleDateString()}</Typography>
-                      <Box sx={{ display: 'flex', gap: 0.75 }}>
-                        <Box component='a' href={`${apiBase}${p.download_url}`} download={p.filename}
-                          sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent)', fontSize: '0.7rem', fontWeight: 700, textDecoration: 'none', border: '1px solid rgba(var(--accent-rgb),0.3)', cursor: 'pointer' }}>↓ Download</Box>
-                        <Box component='a' href={`${apiBase}${p.download_url}`} target='_blank' rel='noreferrer'
-                          sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', fontWeight: 600, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}>Preview</Box>
-                        <Box component='span' onClick={() => { openInEditor(p.filename, p.download_url); setProductsOpen(false); }}
-                          sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(86,156,214,0.12)', color: '#569cd6', fontSize: '0.7rem', fontWeight: 700, border: '1px solid rgba(86,156,214,0.25)', cursor: 'pointer', userSelect: 'none' }}>⌨️ Edit</Box>
-                        <Box component='span' onClick={() => deleteProduct(p.filename)}
-                          sx={{ px: 1.5, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(255,60,60,0.08)', color: 'rgba(255,100,100,0.65)', fontSize: '0.7rem', fontWeight: 600, border: '1px solid rgba(255,60,60,0.15)', cursor: 'pointer', userSelect: 'none' }}>Delete</Box>
-                      </Box>
-                    </Box>
-                  ))}
-                </Box>
-              )}
-            </Box>
-            <Box sx={{ px: 2, py: 1.25, borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', flex: 1 }}>Ask Vesper to build templates, websites, or tools</Typography>
-              <Typography sx={{ fontSize: '0.68rem', color: 'var(--accent)', opacity: 0.6 }}>{products.length} file{products.length !== 1 ? 's' : ''}</Typography>
-            </Box>
-          </Box>
-        </Box>
-      )}
-
-            {/* ─── STARRED MESSAGES PANEL ──────────────────────────────────────── */}
+      {/* ─── STARRED MESSAGES PANEL ──────────────────────────────────────── */}
       {starredPanelOpen && (
         <Box onClick={() => setStarredPanelOpen(false)}
           sx={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', p: 2 }}>
