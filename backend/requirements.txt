@@ -52,10 +52,16 @@ elevenlabs>=1.7.0,<3.0.0
 
 psutil
 fpdf2
-apscheduler>=3.10.0
 
 # New tools (weather, file_reader, code_sandbox, notion, reminders)
 aiohttp>=3.9.0        # file_reader + notion HTTP calls
 pypdf>=4.0.0          # file_reader: PDF text extraction
 python-docx>=1.1.0    # file_reader: DOCX text extraction
 openpyxl>=3.1.0       # file_reader: XLSX support
+pdfplumber>=0.10.0    # upload endpoint: extract text from PDFs
+
+# Real browser automation (JS-rendered sites, form filling, screenshots)
+playwright>=1.44.0
+
+# Background job scheduler (Vesper can schedule herself to run tools at set times)
+apscheduler>=3.10.4

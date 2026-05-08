@@ -1,4 +1,4 @@
-﻿# --- IMPORTS ---
+# --- IMPORTS ---
 # Redeploy trigger: 2026-05-18 UTC
 import os
 import sys
@@ -107,7 +107,7 @@ try:
         generate_video, create_tiktok_pack, write_etsy_listing,
         create_fiverr_gig, create_brand_kit, create_social_media_pack,
         create_sponsorship_pitch, write_press_release,
-        generate_image, generate_audio, browse_web, analyze_niche,
+        generate_image, generate_audio, browse_web, browser_auto, analyze_niche,
         create_landing_page, create_app_concept, create_notion_template,
         write_viral_thread, vesper_journal, vesper_set_intent,
         find_prospects, create_ai_prompt_pack, create_mini_course, create_challenge,
@@ -115,7 +115,7 @@ try:
         create_sop, create_webinar_funnel,
         vesper_research, vesper_learn_skill, read_and_summarize, vesper_recall,
         track_income, track_expense, financial_report, tax_estimate, invoice_tracker, budget_planner,
-        crm_contact, create_contract, read_email_inbox, schedule_task, read_analytics,
+        crm_contact, create_contract, read_email_inbox, send_email, schedule_task, vesper_recurring_job, read_analytics,
         publish_to_beehiiv, google_calendar, export_to_pdf, stripe_payment_link,
         revenue_goals, process_meeting_notes, social_scheduler,
         hue_control, pandora_control,
@@ -186,6 +186,7 @@ except Exception as _tc_err:
     async def generate_image(p, **kw): return {"error": "tools_creative not loaded"}
     async def generate_audio(p, **kw): return {"error": "tools_creative not loaded"}
     async def browse_web(p, **kw): return {"error": "tools_creative not loaded"}
+    async def browser_auto(p, **kw): return {"error": "tools_creative not loaded"}
     async def analyze_niche(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_landing_page(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_app_concept(p, **kw): return {"error": "tools_creative not loaded"}
@@ -216,7 +217,9 @@ except Exception as _tc_err:
     async def crm_contact(p, **kw): return {"error": "tools_creative not loaded"}
     async def create_contract(p, **kw): return {"error": "tools_creative not loaded"}
     async def read_email_inbox(p, **kw): return {"error": "tools_creative not loaded"}
+    async def send_email(p, **kw): return {"error": "tools_creative not loaded"}
     async def schedule_task(p, **kw): return {"error": "tools_creative not loaded"}
+    async def vesper_recurring_job(p, **kw): return {"error": "tools_creative not loaded"}
     async def read_analytics(p, **kw): return {"error": "tools_creative not loaded"}
     async def publish_to_beehiiv(p, **kw): return {"error": "tools_creative not loaded"}
     async def google_calendar(p, **kw): return {"error": "tools_creative not loaded"}
@@ -469,6 +472,21 @@ startup_error = None
 try:
     # Initialize FastAPI app immediately after imports
     app = FastAPI()
+
+    # Start APScheduler background scheduler (Vesper can schedule herself)
+    _vesper_scheduler = None
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        _vesper_scheduler = AsyncIOScheduler(timezone="America/New_York")
+        _vesper_scheduler.start()
+        # Make accessible to tools_creative via sys.modules["main"]._vesper_scheduler
+        import sys as _sys
+        _sys.modules[__name__]._vesper_scheduler = _vesper_scheduler
+        print("[STARTUP] APScheduler started", flush=True)
+    except ImportError:
+        print("[STARTUP] APScheduler not installed — recurring jobs unavailable", flush=True)
+    except Exception as _e:
+        print(f"[STARTUP] APScheduler failed to start: {_e}", flush=True)
 
     # Instrument FastAPI for automatic tracing (DISABLED)
     # try:
@@ -1044,84 +1062,6 @@ async def get_income_dashboard():
         return {"error": str(e), "total_est_monthly": 0, "pipeline": [], "by_type": {}}
 
 
-# ── Products API — list + download CC's generated products ──────────────────
-
-@app.get("/api/products")
-def list_products():
-    """List all files in product_output/"""
-    try:
-        os.makedirs(PRODUCT_OUTPUT_DIR, exist_ok=True)
-        files = []
-        for fname in os.listdir(PRODUCT_OUTPUT_DIR):
-            fpath = os.path.join(PRODUCT_OUTPUT_DIR, fname)
-            if os.path.isfile(fpath):
-                stat = os.stat(fpath)
-                import datetime as _dt2
-                files.append({
-                    "filename": fname,
-                    "size_bytes": stat.st_size,
-                    "created": _dt2.datetime.fromtimestamp(stat.st_ctime).isoformat(),
-                    "download_url": f"/api/products/download/{fname}",
-                })
-        files.sort(key=lambda x: x["created"], reverse=True)
-        return {"products": files, "count": len(files)}
-    except Exception as e:
-        return {"products": [], "count": 0, "error": str(e)}
-
-
-@app.get("/api/products/download/{filename}")
-def download_product(filename: str):
-    """Download a product file."""
-    safe = "".join(c for c in filename if c.isalnum() or c in "._-")
-    fpath = os.path.join(PRODUCT_OUTPUT_DIR, safe)
-    if not os.path.exists(fpath):
-        raise HTTPException(status_code=404, detail="Product not found")
-    return FileResponse(fpath, filename=safe, media_type="application/octet-stream")
-
-
-@app.put("/api/products/{filename}")
-async def update_product(filename: str, request: Request):
-    """Overwrite a product file with new content (for in-browser editing)."""
-    safe = "".join(c for c in filename if c.isalnum() or c in "._-")
-    fpath = os.path.join(PRODUCT_OUTPUT_DIR, safe)
-    if not os.path.exists(fpath):
-        raise HTTPException(status_code=404, detail="Product not found")
-    body = await request.body()
-    with open(fpath, "wb") as fh:
-        fh.write(body)
-    return {"success": True, "filename": safe, "size": len(body)}
-
-@app.get("/api/products/export/zip")
-def export_products_zip():
-    """Download all product files as a single ZIP archive."""
-    import io as _io
-    import zipfile
-    buf = _io.BytesIO()
-    files = [f for f in os.listdir(PRODUCT_OUTPUT_DIR)
-             if os.path.isfile(os.path.join(PRODUCT_OUTPUT_DIR, f))]
-    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for fname in files:
-            zf.write(os.path.join(PRODUCT_OUTPUT_DIR, fname), fname)
-    buf.seek(0)
-    from fastapi.responses import StreamingResponse
-    return StreamingResponse(
-        buf,
-        media_type='application/zip',
-        headers={'Content-Disposition': 'attachment; filename="vesper-products.zip"'},
-    )
-
-
-@app.delete("/api/products/{filename}")
-def delete_product(filename: str):
-    """Delete a product file."""
-    safe = "".join(c for c in filename if c.isalnum() or c in "._-")
-    fpath = os.path.join(PRODUCT_OUTPUT_DIR, safe)
-    if not os.path.exists(fpath):
-        raise HTTPException(status_code=404, detail="Product not found")
-    os.remove(fpath)
-    return {"success": True, "deleted": safe}
-
-
 # ── Gumroad Webhook — auto-log sales to income tracker ───────────────────────
 
 @app.post("/api/webhooks/gumroad")
@@ -1310,6 +1250,152 @@ def add_research(entry: dict):
 def search_research(q: str):
     data = load_research()
     return [r for r in data if q.lower() in json.dumps(r).lower()]
+
+# ── FILE UPLOAD + PROCESSING ───────────────────────────────────────────────────
+# Vesper can receive files from the user and process them into readable text.
+# Supported: PDF, DOCX, XLSX, CSV, TXT, images (OCR via pytesseract or AI).
+# The extracted text is stored in the session and Vesper can reference it.
+
+_uploaded_file_store: dict = {}  # session_id -> list of {name, content, size, type}
+
+@app.post("/api/upload")
+async def upload_file(
+    file: UploadFile,
+    session_id: str = "default",
+    max_chars: int = 50000,
+):
+    """
+    Upload a file for Vesper to read and reference.
+    Returns extracted text content (and stores it so Vesper can reference it by filename).
+    Supported: .pdf, .docx, .xlsx, .csv, .txt, .md, .json, .py, .js, .ts, .html
+    """
+    import io
+
+    filename = file.filename or "uploaded_file"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "txt"
+    raw_bytes = await file.read()
+    size_kb = len(raw_bytes) // 1024
+
+    extracted = ""
+    method = "text"
+
+    try:
+        if ext == "pdf":
+            try:
+                import pdfplumber
+                with pdfplumber.open(io.BytesIO(raw_bytes)) as pdf:
+                    pages = [p.extract_text() or "" for p in pdf.pages]
+                extracted = "\n\n".join(pages)
+                method = "pdfplumber"
+            except ImportError:
+                try:
+                    from pypdf import PdfReader
+                    reader = PdfReader(io.BytesIO(raw_bytes))
+                    extracted = "\n\n".join(p.extract_text() or "" for p in reader.pages)
+                    method = "pypdf"
+                except ImportError:
+                    extracted = "[PDF parsing unavailable — install pdfplumber or pypdf]"
+
+        elif ext == "docx":
+            try:
+                from docx import Document
+                doc = Document(io.BytesIO(raw_bytes))
+                extracted = "\n".join(p.text for p in doc.paragraphs)
+                method = "python-docx"
+            except ImportError:
+                extracted = "[DOCX parsing unavailable — install python-docx]"
+
+        elif ext in ("xlsx", "xls"):
+            try:
+                import pandas as pd
+                df = pd.read_excel(io.BytesIO(raw_bytes))
+                extracted = df.to_string(index=False)
+                method = "pandas"
+            except ImportError:
+                extracted = "[Excel parsing unavailable — install pandas + openpyxl]"
+
+        elif ext == "csv":
+            try:
+                import pandas as pd
+                df = pd.read_csv(io.BytesIO(raw_bytes))
+                extracted = df.to_string(index=False)
+                method = "pandas"
+            except ImportError:
+                extracted = raw_bytes.decode("utf-8", errors="replace")
+                method = "raw"
+
+        elif ext in ("txt", "md", "json", "py", "js", "ts", "html", "css", "yaml", "yml", "toml", "env"):
+            extracted = raw_bytes.decode("utf-8", errors="replace")
+            method = "text"
+
+        elif ext in ("png", "jpg", "jpeg", "gif", "webp"):
+            # Try pytesseract OCR first, then fall back to asking AI
+            try:
+                import pytesseract
+                from PIL import Image
+                img = Image.open(io.BytesIO(raw_bytes))
+                extracted = pytesseract.image_to_string(img)
+                method = "ocr"
+            except Exception:
+                extracted = f"[Image file '{filename}' uploaded — {size_kb}KB. OCR not available (pytesseract not installed). You can describe what you see to Vesper.]"
+                method = "image"
+
+        else:
+            # Try to decode as text
+            try:
+                extracted = raw_bytes.decode("utf-8", errors="replace")
+                method = "text"
+            except Exception:
+                extracted = f"[Binary file '{filename}' — {size_kb}KB. Cannot extract text from this format.]"
+                method = "binary"
+
+    except Exception as e:
+        extracted = f"[Error extracting text from '{filename}': {str(e)}]"
+        method = "error"
+
+    # Truncate to max_chars
+    if len(extracted) > max_chars:
+        extracted = extracted[:max_chars] + f"\n\n[...truncated at {max_chars} chars — file has more content]"
+
+    # Store in session
+    if session_id not in _uploaded_file_store:
+        _uploaded_file_store[session_id] = []
+    _uploaded_file_store[session_id].append({
+        "name": filename,
+        "content": extracted,
+        "size_kb": size_kb,
+        "type": ext,
+        "method": method,
+        "char_count": len(extracted),
+    })
+
+    return {
+        "success": True,
+        "filename": filename,
+        "size_kb": size_kb,
+        "type": ext,
+        "char_count": len(extracted),
+        "method": method,
+        "content": extracted,
+        "message": f"File '{filename}' uploaded and processed. Vesper can now reference its contents.",
+        "vesper_context": f"User uploaded file '{filename}' ({size_kb}KB). Content:\n\n{extracted[:2000]}{'...' if len(extracted) > 2000 else ''}",
+    }
+
+@app.get("/api/upload/files")
+async def list_uploaded_files(session_id: str = "default"):
+    """List all files uploaded in the current session."""
+    files = _uploaded_file_store.get(session_id, [])
+    return {
+        "files": [{"name": f["name"], "size_kb": f["size_kb"], "type": f["type"], "char_count": f["char_count"]} for f in files],
+        "count": len(files),
+    }
+
+@app.delete("/api/upload/files")
+async def clear_uploaded_files(session_id: str = "default"):
+    """Clear uploaded files for a session."""
+    _uploaded_file_store.pop(session_id, None)
+    return {"success": True, "message": "Uploaded files cleared"}
+
 # --- Style & Avatar Endpoints ---
 STYLE_PATH = os.path.join(os.path.dirname(__file__), '../vesper-ai/style/vesper_style.json')
 
@@ -2686,67 +2772,6 @@ These are NON-NEGOTIABLE. When you see any of these situations, act immediately:
 - After any substantive strategy or planning conversation → call `vesper_direct_memory_write` to save the key decisions made, so you both have a record
 
 The rule: if CC gives you information that matters to her life, her work, or her goals — save it automatically. She shouldn't have to ask you to remember things. You're her partner, not a search engine.
-
-════════════════════════════════════════════
-PRODUCT CREATION PROTOCOL — BUILD THINGS CC CAN SELL
-════════════════════════════════════════════
-CC is a product creator. She builds templates, websites, apps, and digital tools she can sell through Gumroad and Etsy. When she asks for ANYTHING that could be a finished file, build the REAL thing.
-
-RULE 1 — PRODUCE THE COMPLETE ARTIFACT
-- Output the FULL, FINISHED product. Never say "here's what it would look like" — give her the actual thing.
-- HTML templates/websites: complete HTML with embedded CSS + JS. No external CDN links unless stable. Professional. Ready to customize.
-- Python apps/scripts: complete working code with no placeholders. Zero "TODO: add your logic here."
-- Documents/guides/planners: full content. Every section. Every row. Every formula.
-- Excel-style trackers: full HTML table with all columns, sample data pre-filled, and a print-friendly layout.
-
-RULE 2 — ALWAYS CALL save_product AFTER GENERATING A FILE
-- After generating any complete file content, call `save_product` immediately to save it as a downloadable file.
-- The user can then download it from the Products panel.
-- Always tell CC: "I've saved it to your Products panel — download it from there."
-
-RULE 3 — KNOW CC'S HIGHEST-VALUE PRODUCT CATEGORIES
-Products that sell well in her market (risk professionals, consultants, small businesses):
-- Enterprise Risk Register templates ($47–$197 on Gumroad/Etsy)
-- Business Continuity Plan frameworks ($97–$297)
-- ERM/ISO 31000 implementation guides ($197–$497)
-- Client onboarding kits for consultants ($67–$147)
-- Risk heat maps and scoring tools (HTML calculators)
-- Business launch playbooks and checklists ($27–$97)
-- Landing pages / sales pages for her own products (HTML)
-- Simple web calculators: ROI, risk score, pricing, break-even
-
-RULE 4 — THINK LIKE A PRODUCT STRATEGIST
-When CC describes a product idea: build it, suggest a price, and tell her exactly where to list it (Gumroad, Etsy, LinkedIn).
-When CC asks for a tool for herself: still build it at sellable quality — her own tools should be as good as what she'd charge for.
-When CC says "help me make something to sell" or "build me a template": go directly into product mode. Build first, explain second.
-
-RULE 5 — FILE QUALITY STANDARDS
-HTML products:
-  - Professional typography: Google Fonts via link tag (Geist, Inter, or Playfair Display)
-  - Dark or light theme with consistent color system (CSS variables)
-  - Mobile responsive (flexbox/grid + media queries)
-  - Print stylesheet included for templates that may be printed
-  - All sections filled with realistic placeholder data, not 'Lorem Ipsum'
-  - Add a visible 'Customize This Template' comment at top of CSS section
-CSV/spreadsheet products:
-  - Include a header row with clear column names
-  - Pre-fill 3-5 rows of realistic sample data
-  - Add a 'README' row at the bottom explaining any formulas or conventions
-  - Use comma-separated format (.csv) for universal compatibility
-Python tools:
-  - Include a docstring at the top explaining purpose and usage
-  - Include a requirements comment listing any pip dependencies
-  - Runnable from command line with sensible defaults
-  - Add a simple __main__ block with an example run
-
-RULE 6 — ALWAYS GENERATE LISTING COPY WITH THE PRODUCT
-After saving a product, provide CC with ready-to-use listing copy:
-  PRODUCT TITLE: [compelling 60-char title for Gumroad/Etsy]
-  PRICE SUGGESTION: [$XX — with justification]
-  SHORT DESCRIPTION: [2-3 sentence hook for the listing]
-  WHERE TO LIST: [Gumroad / Etsy / Both — with reason]
-  KEYWORDS: [5-7 SEO tags for discoverability]
-Keep the listing copy brief. CC can expand it herself.
 """
 VESPER_PERSONALITY_ENGINE = {
     "sass_level": "moderate_to_high",
@@ -4726,38 +4751,6 @@ def deep_research_content(query: str, num_sources: int = 3) -> dict:
     }
 
 
-# --- Product Output: save files CC can use or sell ---
-PRODUCT_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "product_output")
-os.makedirs(PRODUCT_OUTPUT_DIR, exist_ok=True)
-
-import uuid as _prod_uuid
-
-def save_product_file(filename: str, content: str, product_type: str = "template",
-                      title: str = "", description: str = "") -> dict:
-    """Saves a product file to product_output/ and returns metadata + download URL."""
-    # Sanitize filename
-    safe = "".join(c for c in filename if c.isalnum() or c in "._- ").replace(" ", "_")
-    if not safe:
-        safe = f"product_{_prod_uuid.uuid4().hex[:8]}.txt"
-    filepath = os.path.join(PRODUCT_OUTPUT_DIR, safe)
-    try:
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(content)
-        size = os.path.getsize(filepath)
-        return {
-            "success": True,
-            "filename": safe,
-            "product_type": product_type,
-            "title": title or safe,
-            "description": description,
-            "file_size_bytes": size,
-            "download_url": f"/api/products/download/{safe}",
-            "message": f"\u2705 Product '{title or safe}' saved ({size} bytes). Download: /api/products/download/{safe}",
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
 # --- Web Search Endpoint ---
 @app.get("/api/search-web")
 def search_web(q: str, use_browser: bool = False):
@@ -6640,36 +6633,6 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                 }
             },
             {
-                "name": "save_product",
-                "description": "Save a generated product (template, website, app, document, tracker, planner, guide) as a downloadable file. Call this EVERY TIME you create something CC can use or sell. After generating complete file content, always call this tool so CC can download it from the Products panel.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "filename": {
-                            "type": "string",
-                            "description": "Filename with extension. e.g. 'risk_register.html', 'onboarding_kit.html', 'roi_calculator.html', 'client_tracker.py'"
-                        },
-                        "content": {
-                            "type": "string",
-                            "description": "The COMPLETE file content. For HTML: full HTML with embedded CSS/JS. For Python: complete working script. No placeholders."
-                        },
-                        "product_type": {
-                            "type": "string",
-                            "description": "Type: template / website / app / document / tracker / planner / guide / calculator"
-                        },
-                        "title": {
-                            "type": "string",
-                            "description": "Human-readable product title. e.g. 'Enterprise Risk Register Template'"
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "What this product is, who it's for, and suggested price"
-                        }
-                    },
-                    "required": ["filename", "content", "title"]
-                }
-            },
-            {
                 "name": "get_weather",
                 "description": "Get detailed weather forecast for a specific location. Use this instead of web_search for purely weather questions.",
                 "input_schema": {
@@ -7648,6 +7611,7 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "generate_image", "description": "Generate an actual image file using DALL-E 3. Saves PNG to creative library. For POD art, ebook covers, thumbnails, social graphics.", "input_schema": {"type": "object", "properties": {"prompt": {"type": "string"}, "style": {"type": "string", "description": "vivid | natural"}, "size": {"type": "string", "description": "1024x1024 | 1792x1024 | 1024x1792"}, "quality": {"type": "string", "description": "standard | hd"}, "filename": {"type": "string"}, "folder": {"type": "string"}, "purpose": {"type": "string"}}, "required": ["prompt"]}},
             {"name": "generate_audio", "description": "Generate an actual MP3 voiceover using ElevenLabs. Saves file to library. For YouTube, podcasts, HeyGen videos, course narration. Requires ELEVENLABS_API_KEY.", "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "voice_name": {"type": "string", "description": "Rachel | Domi | Bella | Antoni | Elli | Josh | Arnold | Adam | Sam"}, "voice_id": {"type": "string"}, "stability": {"type": "number"}, "similarity_boost": {"type": "number"}, "filename": {"type": "string"}, "folder": {"type": "string"}, "model_id": {"type": "string"}}, "required": ["text"]}},
             {"name": "browse_web", "description": "Fetch and extract clean text content from any URL. Research competitors, read articles, check prices, extract emails or links. Vesper's eyes on the internet.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "extract": {"type": "string", "description": "all | headings | links | prices | emails | main"}, "css_selector": {"type": "string"}, "max_chars": {"type": "number"}, "save_to": {"type": "string"}}, "required": ["url"]}},
+            {"name": "browser_auto", "description": "Real browser automation with Playwright — control a full Chromium browser. Use for JS-rendered sites, filling forms, clicking buttons, screenshots, logging into sites, scraping dynamic content. Far more powerful than browse_web for interactive/complex pages.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "screenshot | scrape | click | fill_form | get_text | run_script"}, "url": {"type": "string"}, "selector": {"type": "string", "description": "CSS selector to wait for or interact with"}, "fill_data": {"type": "object", "description": "For fill_form: {\"CSS_selector\": \"value\"} pairs"}, "submit_selector": {"type": "string"}, "js_script": {"type": "string", "description": "JS to evaluate on the page (for run_script action)"}, "wait_for": {"type": "string", "description": "load | domcontentloaded | networkidle"}, "timeout_ms": {"type": "number"}, "max_chars": {"type": "number"}}, "required": ["action", "url"]}},
             {"name": "analyze_niche", "description": "Deep market research on any niche — competition, monetization angles with income estimates, audience, content strategy, 6-month plan, revenue projections.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "goal": {"type": "string", "description": "monetize | enter | dominate | validate"}, "budget": {"type": "string", "description": "low | medium | high"}, "skills": {"type": "string"}, "existing_audience": {"type": "string"}}, "required": ["niche"]}},
             {"name": "create_landing_page", "description": "Generate a complete deployable single-file HTML/CSS landing page for any product. Ready to drag to Netlify Drop and go live in 10 seconds.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "tagline": {"type": "string"}, "description": {"type": "string"}, "price": {"type": "string"}, "cta_text": {"type": "string"}, "cta_url": {"type": "string"}, "features": {"type": "array", "items": {"type": "string"}}, "testimonials": {"type": "array", "items": {"type": "string"}}, "color_scheme": {"type": "string"}, "target_audience": {"type": "string"}, "guarantee": {"type": "string"}}, "required": ["product_name"]}},
             {"name": "create_app_concept", "description": "Generate a full SaaS/app business concept — name, MVP scope, tech stack, pricing, go-to-market, first 100 users plan, revenue projections.", "input_schema": {"type": "object", "properties": {"problem": {"type": "string"}, "target_market": {"type": "string"}, "budget": {"type": "string", "description": "bootstrap | funded | no-code"}, "timeline": {"type": "string"}, "niche": {"type": "string"}, "differentiator": {"type": "string"}}, "required": ["problem"]}},
@@ -7677,7 +7641,9 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
             {"name": "crm_contact", "description": "Local CRM — add/update contacts, log notes, track deals, view pipeline. Actions: add | update | add_note | add_deal | get | search | pipeline | delete | list.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "name": {"type": "string"}, "email": {"type": "string"}, "company": {"type": "string"}, "phone": {"type": "string"}, "role": {"type": "string"}, "source": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}, "stage": {"type": "string", "description": "lead | qualified | proposal | negotiation | closed_won | closed_lost"}, "deal_title": {"type": "string"}, "deal_value": {"type": "number"}, "note": {"type": "string"}, "contact_id": {"type": "string"}, "query": {"type": "string"}}, "required": ["action"]}},
             {"name": "create_contract", "description": "Draft any legal document with AI — service agreement, NDA, retainer, contractor agreement, freelance, consulting, partnership.", "input_schema": {"type": "object", "properties": {"contract_type": {"type": "string", "description": "service_agreement | nda | retainer | contractor | freelance | consulting | partnership | generic"}, "party_a": {"type": "string", "description": "Provider/your name or business"}, "party_b": {"type": "string", "description": "Client or counterparty"}, "party_a_entity": {"type": "string"}, "party_b_entity": {"type": "string"}, "scope": {"type": "string"}, "rate": {"type": "string"}, "payment_terms": {"type": "string"}, "duration": {"type": "string"}, "deliverables": {"type": "string"}, "state": {"type": "string"}, "confidential": {"type": "boolean"}, "ip_ownership": {"type": "string", "description": "client | provider | shared"}, "notice_days": {"type": "number"}, "custom_clauses": {"type": "string"}}, "required": ["contract_type", "party_a", "party_b"]}},
             {"name": "read_email_inbox", "description": "Read CC's email inbox via IMAP — list unread, read emails, triage inbox, AI-summarize. Requires IMAP_HOST, IMAP_USER, IMAP_PASS env vars.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "list | read | search | triage | unread"}, "limit": {"type": "number"}, "search_query": {"type": "string"}, "message_number": {"type": "number", "description": "Which message to read (1=newest)"}, "folder": {"type": "string"}, "triage": {"type": "boolean"}}, "required": ["action"]}},
+            {"name": "send_email", "description": "Send an email from CC's Gmail — compose, write, reply to anyone. Requires SMTP_USER + SMTP_PASS (Gmail App Password) env vars. Same credentials as IMAP_USER/IMAP_PASS.", "input_schema": {"type": "object", "properties": {"to": {"type": "string", "description": "Recipient email address"}, "subject": {"type": "string"}, "body": {"type": "string", "description": "Email body"}, "cc": {"type": "string"}, "reply_to": {"type": "string"}, "html": {"type": "boolean"}, "signature": {"type": "boolean", "description": "Auto-append Vesper signature"}}, "required": ["to", "subject", "body"]}},
             {"name": "schedule_task", "description": "Schedule tasks, reminders, and follow-ups with due dates. Actions: add | list | check_due | due_today | complete | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "task": {"type": "string"}, "description": {"type": "string"}, "due_date": {"type": "string", "description": "YYYY-MM-DD, today, tomorrow, next week"}, "due_time": {"type": "string"}, "task_type": {"type": "string", "description": "reminder | follow_up | invoice_chase | content | research | other"}, "priority": {"type": "string", "description": "high | normal | low"}, "related_contact": {"type": "string"}, "task_id": {"type": "string"}, "recurrence": {"type": "string", "description": "daily | weekly | monthly | none"}}, "required": ["action"]}},
+            {"name": "vesper_recurring_job", "description": "Schedule Vesper to run any tool automatically on a recurring schedule using APScheduler. Actions: add | list | remove | run_now. Use presets: morning_brief | email_check | weekly_income | task_check. Or specify custom tool_name + cron_hour/interval_minutes.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "add | list | remove | run_now"}, "preset": {"type": "string", "description": "morning_brief | email_check | weekly_income | task_check"}, "job_id": {"type": "string"}, "tool_name": {"type": "string"}, "tool_params": {"type": "object"}, "cron_hour": {"type": "number"}, "cron_minute": {"type": "number"}, "cron_day_of_week": {"type": "string"}, "interval_minutes": {"type": "number"}}, "required": ["action"]}},
             {"name": "read_analytics", "description": "Read Gumroad sales analytics — revenue, sales count, top products, by-product breakdown. Also reads local income ledger. Gives AI insights.", "input_schema": {"type": "object", "properties": {"platform": {"type": "string", "description": "gumroad | all | overview"}, "period": {"type": "string", "description": "this_month | last_30 | ytd"}, "include_insights": {"type": "boolean"}}, "required": []}},
             {"name": "publish_to_beehiiv", "description": "Publish newsletter issues to Beehiiv. Actions: publish | draft | list_posts | stats. Requires BEEHIIV_API_KEY + BEEHIIV_PUBLICATION_ID env vars.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "publish | draft | list_posts | stats"}, "title": {"type": "string"}, "subtitle": {"type": "string"}, "content": {"type": "string", "description": "HTML or plain text"}, "audience": {"type": "string", "description": "free | premium | all"}, "status": {"type": "string", "description": "draft | confirmed"}, "preview_text": {"type": "string"}}, "required": ["action"]}},
             {"name": "google_calendar", "description": "View and manage Google Calendar — list events, create meetings, check schedule. Actions: list | today | week | create | delete. Requires GOOGLE_CALENDAR_TOKEN env var.", "input_schema": {"type": "object", "properties": {"action": {"type": "string", "description": "list | today | week | create | delete"}, "summary": {"type": "string", "description": "Event title"}, "start": {"type": "string", "description": "ISO datetime or YYYY-MM-DD HH:MM"}, "end": {"type": "string"}, "duration_minutes": {"type": "number"}, "location": {"type": "string"}, "description": {"type": "string"}, "event_id": {"type": "string"}, "days_ahead": {"type": "number"}, "all_day": {"type": "boolean"}}, "required": ["action"]}},
@@ -9134,15 +9100,6 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     dr_num = min(dr_num, 4)
                     tool_result = deep_research_content(dr_query, num_sources=dr_num)
 
-                elif tool_name == "save_product":
-                    tool_result = save_product_file(
-                        filename=tool_input.get("filename", "product.txt"),
-                        content=tool_input.get("content", ""),
-                        product_type=tool_input.get("product_type", "template"),
-                        title=tool_input.get("title", ""),
-                        description=tool_input.get("description", ""),
-                    )
-
                 elif tool_name == "get_weather":
                     location = tool_input.get("location", "")
                     tool_result = get_weather_data(location)
@@ -9779,6 +9736,8 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     if tool_result.get("success"): _push_creation_to_suite("audio", tool_result)
                 elif tool_name == "browse_web":
                     tool_result = await browse_web(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "browser_auto":
+                    tool_result = await browser_auto(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "analyze_niche":
                     tool_result = await analyze_niche(tool_input, ai_router=ai_router, TaskType=TaskType)
                     if tool_result.get("success"): _push_creation_to_suite("niche_analysis", tool_result)
@@ -9854,8 +9813,12 @@ CRITICAL FORMATTING RULES (CC HATES roleplay narration — this is her #1 pet pe
                     tool_result = await create_contract(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "read_email_inbox":
                     tool_result = await read_email_inbox(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "send_email":
+                    tool_result = await send_email(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "schedule_task":
                     tool_result = await schedule_task(tool_input, ai_router=ai_router, TaskType=TaskType)
+                elif tool_name == "vesper_recurring_job":
+                    tool_result = await vesper_recurring_job(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "read_analytics":
                     tool_result = await read_analytics(tool_input, ai_router=ai_router, TaskType=TaskType)
                 elif tool_name == "publish_to_beehiiv":
@@ -11120,7 +11083,6 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
             tools = [
                 {"name": "web_search", "description": "Quick web search returning titles and snippets. Use for simple lookups, current events, quick fact checks. For deep research, use deep_research instead.", "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]}},
                 {"name": "deep_research", "description": "DEEP multi-source research. Fetches full page content from 3+ real websites and returns it all for synthesis. USE THIS instead of web_search when CC asks to research a topic, person, company, or strategy. Returns full article text so you can write a proper research brief. After synthesizing, call vesper_direct_memory_write to save findings.", "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Research topic or question"}, "num_sources": {"type": "number", "description": "Number of sources (default: 3)"}}, "required": ["query"]}},
-                {"name": "save_product", "description": "Save a generated product (template, website, app, document, tracker, planner) as a downloadable file. Call this every time you create something CC can use or sell. Pass the complete file content.", "input_schema": {"type": "object", "properties": {"filename": {"type": "string"}, "content": {"type": "string"}, "product_type": {"type": "string"}, "title": {"type": "string"}, "description": {"type": "string"}}, "required": ["filename", "content", "title"]}},
                 {"name": "get_weather", "description": "Get current weather for a location.", "input_schema": {"type": "object", "properties": {"location": {"type": "string", "description": "City or location"}}, "required": ["location"]}},
                 {"name": "search_memories", "description": "Search Vesper's persistent memories.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "category": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["query"]}},
                 {"name": "save_memory", "description": "Save something to persistent memory.", "input_schema": {"type": "object", "properties": {"content": {"type": "string"}, "category": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
@@ -11183,6 +11145,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "write_press_release", "description": "Write a professional press release for launches, milestones, partnerships, or awards — AP style, journalist-ready, with distribution sites.", "input_schema": {"type": "object", "properties": {"headline_topic": {"type": "string"}, "news_type": {"type": "string"}, "company_name": {"type": "string"}, "details": {"type": "string"}, "quote_from": {"type": "string"}, "city": {"type": "string"}, "contact_email": {"type": "string"}, "website": {"type": "string"}}, "required": ["headline_topic", "details"]}},
                 {"name": "generate_audio", "description": "Generate an actual MP3 voiceover with ElevenLabs. Saves file to library. Requires ELEVENLABS_API_KEY.", "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "voice_name": {"type": "string"}, "voice_id": {"type": "string"}, "stability": {"type": "number"}, "similarity_boost": {"type": "number"}, "filename": {"type": "string"}, "folder": {"type": "string"}, "model_id": {"type": "string"}}, "required": ["text"]}},
                 {"name": "browse_web", "description": "Fetch and read any webpage. Research competitors, check prices, extract emails or links.", "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "extract": {"type": "string"}, "css_selector": {"type": "string"}, "max_chars": {"type": "number"}, "save_to": {"type": "string"}}, "required": ["url"]}},
+                {"name": "browser_auto", "description": "Real Playwright browser automation — screenshots, form filling, clicking, JS execution on any site. Use for JS-rendered pages and interactive sites.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "url": {"type": "string"}, "selector": {"type": "string"}, "fill_data": {"type": "object"}, "submit_selector": {"type": "string"}, "js_script": {"type": "string"}, "wait_for": {"type": "string"}, "timeout_ms": {"type": "number"}, "max_chars": {"type": "number"}}, "required": ["action", "url"]}},
                 {"name": "analyze_niche", "description": "Deep market research on any niche — competition, monetization, audience, content strategy, entry plan.", "input_schema": {"type": "object", "properties": {"niche": {"type": "string"}, "goal": {"type": "string"}, "budget": {"type": "string"}, "skills": {"type": "string"}, "existing_audience": {"type": "string"}}, "required": ["niche"]}},
                 {"name": "create_landing_page", "description": "Generate a complete deployable HTML/CSS landing page for any product. Ready to go live on Netlify in 10 seconds.", "input_schema": {"type": "object", "properties": {"product_name": {"type": "string"}, "tagline": {"type": "string"}, "description": {"type": "string"}, "price": {"type": "string"}, "cta_text": {"type": "string"}, "cta_url": {"type": "string"}, "features": {"type": "array", "items": {"type": "string"}}, "testimonials": {"type": "array", "items": {"type": "string"}}, "color_scheme": {"type": "string"}, "target_audience": {"type": "string"}, "guarantee": {"type": "string"}}, "required": ["product_name"]}},
                 {"name": "create_app_concept", "description": "Full SaaS/app business concept — name, MVP scope, tech stack, pricing, go-to-market, revenue projections.", "input_schema": {"type": "object", "properties": {"problem": {"type": "string"}, "target_market": {"type": "string"}, "budget": {"type": "string"}, "timeline": {"type": "string"}, "niche": {"type": "string"}, "differentiator": {"type": "string"}}, "required": ["problem"]}},
@@ -11230,7 +11193,9 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                 {"name": "crm_contact", "description": "Local CRM — add/update contacts, log notes, track deals, view pipeline. Actions: add | update | add_note | add_deal | get | search | pipeline | delete | list.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "name": {"type": "string"}, "email": {"type": "string"}, "company": {"type": "string"}, "phone": {"type": "string"}, "role": {"type": "string"}, "source": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}, "stage": {"type": "string"}, "deal_title": {"type": "string"}, "deal_value": {"type": "number"}, "note": {"type": "string"}, "contact_id": {"type": "string"}, "query": {"type": "string"}}, "required": ["action"]}},
                 {"name": "create_contract", "description": "Draft any legal document — service agreement, NDA, retainer, contractor, freelance, consulting, partnership. AI-generated, saved to contracts/.", "input_schema": {"type": "object", "properties": {"contract_type": {"type": "string"}, "party_a": {"type": "string"}, "party_b": {"type": "string"}, "scope": {"type": "string"}, "rate": {"type": "string"}, "payment_terms": {"type": "string"}, "duration": {"type": "string"}, "deliverables": {"type": "string"}, "state": {"type": "string"}, "ip_ownership": {"type": "string"}, "notice_days": {"type": "number"}, "custom_clauses": {"type": "string"}, "confidential": {"type": "boolean"}}, "required": ["contract_type", "party_a", "party_b"]}},
                 {"name": "read_email_inbox", "description": "Read CC's email inbox via IMAP — list, read, search, triage. Requires IMAP_HOST, IMAP_USER, IMAP_PASS.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "limit": {"type": "number"}, "search_query": {"type": "string"}, "message_number": {"type": "number"}, "folder": {"type": "string"}, "triage": {"type": "boolean"}}, "required": ["action"]}},
+                {"name": "send_email", "description": "Send an email from CC's Gmail — compose, write, reply to someone. Requires SMTP_USER + SMTP_PASS env vars.", "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}, "cc": {"type": "string"}, "reply_to": {"type": "string"}, "html": {"type": "boolean"}, "signature": {"type": "boolean"}}, "required": ["to", "subject", "body"]}},
                 {"name": "schedule_task", "description": "Schedule tasks, reminders, follow-ups. Actions: add | list | check_due | due_today | complete | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "task": {"type": "string"}, "description": {"type": "string"}, "due_date": {"type": "string"}, "due_time": {"type": "string"}, "task_type": {"type": "string"}, "priority": {"type": "string"}, "related_contact": {"type": "string"}, "task_id": {"type": "string"}, "recurrence": {"type": "string"}}, "required": ["action"]}},
+                {"name": "vesper_recurring_job", "description": "Schedule Vesper to auto-run any tool on a recurring schedule. Actions: add | list | remove | run_now. Presets: morning_brief | email_check | weekly_income | task_check.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "preset": {"type": "string"}, "job_id": {"type": "string"}, "tool_name": {"type": "string"}, "tool_params": {"type": "object"}, "cron_hour": {"type": "number"}, "cron_minute": {"type": "number"}, "cron_day_of_week": {"type": "string"}, "interval_minutes": {"type": "number"}}, "required": ["action"]}},
                 {"name": "read_analytics", "description": "Read Gumroad sales and revenue analytics — revenue, top products, trends. Also reads income ledger. With AI insights.", "input_schema": {"type": "object", "properties": {"platform": {"type": "string"}, "period": {"type": "string"}, "include_insights": {"type": "boolean"}}, "required": []}},
                 {"name": "publish_to_beehiiv", "description": "Publish newsletter to Beehiiv. Actions: publish | draft | list_posts | stats. Requires BEEHIIV_API_KEY + BEEHIIV_PUBLICATION_ID.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "title": {"type": "string"}, "subtitle": {"type": "string"}, "content": {"type": "string"}, "audience": {"type": "string"}, "status": {"type": "string"}, "preview_text": {"type": "string"}}, "required": ["action"]}},
                 {"name": "google_calendar", "description": "View and manage Google Calendar — list events, create meetings. Actions: list | today | week | create | delete.", "input_schema": {"type": "object", "properties": {"action": {"type": "string"}, "summary": {"type": "string"}, "start": {"type": "string"}, "end": {"type": "string"}, "duration_minutes": {"type": "number"}, "location": {"type": "string"}, "description": {"type": "string"}, "event_id": {"type": "string"}, "days_ahead": {"type": "number"}, "all_day": {"type": "boolean"}}, "required": ["action"]}},
@@ -11448,6 +11413,7 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "generate_image": "🎨 Generating image with DALL-E 3",
                     "generate_audio": "🎧 Generating audio with ElevenLabs",
                     "browse_web": "🌍 Browsing the web",
+                    "browser_auto": "🤖 Controlling browser",
                     "analyze_niche": "🔬 Analyzing niche",
                     "create_landing_page": "📰 Building landing page",
                     "create_app_concept": "🚀 Designing app concept",
@@ -11478,7 +11444,9 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     "crm_contact": "👥 Updating CRM",
                     "create_contract": "📜 Drafting contract",
                     "read_email_inbox": "📬 Reading inbox",
+                    "send_email": "📤 Sending email",
                     "schedule_task": "⏰ Scheduling task",
+                    "vesper_recurring_job": "🔁 Managing scheduled jobs",
                     "read_analytics": "📈 Reading analytics",
                     "publish_to_beehiiv": "📧 Publishing to Beehiiv",
                     "google_calendar": "📅 Checking calendar",
@@ -11553,14 +11521,6 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                     elif tool_name == "deep_research":
                         _dr_num = min(int(tool_input.get("num_sources", 3)), 4)
                         tool_result = deep_research_content(tool_input.get("query", ""), num_sources=_dr_num)
-                    elif tool_name == "save_product":
-                        tool_result = save_product_file(
-                            filename=tool_input.get("filename", "product.txt"),
-                            content=tool_input.get("content", ""),
-                            product_type=tool_input.get("product_type", "template"),
-                            title=tool_input.get("title", ""),
-                            description=tool_input.get("description", ""),
-                        )
                     elif tool_name == "get_weather":
                         tool_result = get_weather_data(tool_input.get("location", ""))
                     elif tool_name == "search_memories":
@@ -11885,6 +11845,8 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                             yield f"data: {json.dumps({'type':'vesper_decorate','action':'creative_suite_update','data':{'creation_type':'audio','title':tool_result.get('title','Audio')}})}\n\n"
                     elif tool_name == "browse_web":
                         tool_result = await browse_web(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "browser_auto":
+                        tool_result = await browser_auto(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "analyze_niche":
                         tool_result = await analyze_niche(tool_input, ai_router=ai_router, TaskType=TaskType)
                         if tool_result.get("success"): _push_creation_to_suite("niche_analysis", tool_result)
@@ -11983,8 +11945,12 @@ CRITICAL TOOL USE: When a task requires calling a tool (web search, create doc, 
                         tool_result = await create_contract(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "read_email_inbox":
                         tool_result = await read_email_inbox(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "send_email":
+                        tool_result = await send_email(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "schedule_task":
                         tool_result = await schedule_task(tool_input, ai_router=ai_router, TaskType=TaskType)
+                    elif tool_name == "vesper_recurring_job":
+                        tool_result = await vesper_recurring_job(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "read_analytics":
                         tool_result = await read_analytics(tool_input, ai_router=ai_router, TaskType=TaskType)
                     elif tool_name == "publish_to_beehiiv":

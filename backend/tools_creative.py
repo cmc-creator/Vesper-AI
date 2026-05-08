@@ -3718,6 +3718,171 @@ async def browse_web(params: dict, ai_router=None, TaskType=None) -> dict:
         return {"error": f"browse_web failed: {str(e)}", "url": url}
 
 
+# ── BROWSER AUTOMATION ────────────────────────────────────────────────────────
+async def browser_auto(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Real browser automation via Playwright — interact with JS-rendered sites, fill forms,
+    click buttons, take screenshots, scrape dynamic content, log into sites.
+    Unlike browse_web (static HTML only), this controls a real Chromium browser.
+
+    Actions:
+      screenshot  — navigate to URL and take a screenshot (returns base64 PNG)
+      scrape      — load page fully (JS executed), extract text/links/data
+      click       — navigate, wait for selector, click it
+      fill_form   — fill inputs and optionally submit
+      get_text    — wait for selector to appear, return its text
+      run_script  — execute arbitrary JS on the page and return result
+    """
+    import os, base64, asyncio
+
+    action = params.get("action", "scrape")
+    url = params.get("url", "")
+    selector = params.get("selector", "")            # CSS selector to wait for / interact with
+    fill_data = params.get("fill_data", {})          # {selector: value} pairs to fill
+    submit_selector = params.get("submit_selector", "")
+    js_script = params.get("js_script", "")         # for run_script action
+    wait_for = params.get("wait_for", "networkidle") # load | domcontentloaded | networkidle
+    timeout_ms = params.get("timeout_ms", 30000)
+    headless = params.get("headless", True)
+    max_chars = params.get("max_chars", 8000)
+
+    if not url:
+        return {"error": "url is required"}
+
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError:
+        return {
+            "error": "Playwright not installed",
+            "fix": "Add 'playwright>=1.44.0' to requirements.txt and run 'playwright install chromium' on the server. Already added to requirements.txt — redeploy Railway to install.",
+        }
+
+    try:
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(
+                headless=headless,
+                args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+            )
+            page = await browser.new_page(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+            )
+
+            await page.goto(url, wait_until=wait_for, timeout=timeout_ms)
+            title = await page.title()
+
+            if action == "screenshot":
+                screenshot_bytes = await page.screenshot(full_page=True, type="png")
+                b64 = base64.b64encode(screenshot_bytes).decode()
+                await browser.close()
+                return {
+                    "success": True,
+                    "action": "screenshot",
+                    "url": url,
+                    "title": title,
+                    "screenshot_b64": b64,
+                    "size_kb": len(screenshot_bytes) // 1024,
+                    "preview": f"[Screenshot of {url} captured — {len(screenshot_bytes)//1024}KB PNG]",
+                }
+
+            elif action == "scrape":
+                if selector:
+                    await page.wait_for_selector(selector, timeout=timeout_ms)
+                    element = await page.query_selector(selector)
+                    text = (await element.inner_text()) if element else ""
+                else:
+                    text = await page.inner_text("body")
+                lines = [l.strip() for l in text.splitlines() if l.strip()]
+                clean = "\n".join(lines)[:max_chars]
+                await browser.close()
+                return {
+                    "success": True,
+                    "action": "scrape",
+                    "url": url,
+                    "title": title,
+                    "content": clean,
+                    "char_count": len(clean),
+                    "preview": f"[Scraped {url} — {len(clean)} chars]",
+                }
+
+            elif action == "click":
+                if not selector:
+                    await browser.close()
+                    return {"error": "selector is required for click action"}
+                await page.wait_for_selector(selector, timeout=timeout_ms)
+                await page.click(selector)
+                await page.wait_for_load_state(wait_for, timeout=timeout_ms)
+                new_url = page.url
+                text = await page.inner_text("body")
+                lines = [l.strip() for l in text.splitlines() if l.strip()]
+                await browser.close()
+                return {
+                    "success": True,
+                    "action": "click",
+                    "clicked": selector,
+                    "new_url": new_url,
+                    "page_text_preview": "\n".join(lines[:30]),
+                    "preview": f"[Clicked '{selector}' on {url} — now at {new_url}]",
+                }
+
+            elif action == "fill_form":
+                if not fill_data:
+                    await browser.close()
+                    return {"error": "fill_data is required — dict of {selector: value}"}
+                for sel, val in fill_data.items():
+                    await page.wait_for_selector(sel, timeout=timeout_ms)
+                    await page.fill(sel, str(val))
+                result_text = ""
+                if submit_selector:
+                    await page.click(submit_selector)
+                    await page.wait_for_load_state(wait_for, timeout=timeout_ms)
+                    result_text = await page.inner_text("body")
+                await browser.close()
+                return {
+                    "success": True,
+                    "action": "fill_form",
+                    "filled_fields": list(fill_data.keys()),
+                    "submitted": bool(submit_selector),
+                    "result_preview": result_text[:500] if result_text else "",
+                    "preview": f"[Filled {len(fill_data)} fields on {url}{' and submitted' if submit_selector else ''}]",
+                }
+
+            elif action == "get_text":
+                if not selector:
+                    await browser.close()
+                    return {"error": "selector is required for get_text action"}
+                await page.wait_for_selector(selector, timeout=timeout_ms)
+                element = await page.query_selector(selector)
+                text = (await element.inner_text()) if element else ""
+                await browser.close()
+                return {
+                    "success": True,
+                    "action": "get_text",
+                    "selector": selector,
+                    "text": text[:max_chars],
+                    "preview": f"[Got text from '{selector}' on {url}]",
+                }
+
+            elif action == "run_script":
+                if not js_script:
+                    await browser.close()
+                    return {"error": "js_script is required for run_script action"}
+                result = await page.evaluate(js_script)
+                await browser.close()
+                return {
+                    "success": True,
+                    "action": "run_script",
+                    "result": str(result)[:max_chars],
+                    "preview": f"[JS executed on {url}]",
+                }
+
+            else:
+                await browser.close()
+                return {"error": f"Unknown action '{action}'. Use: screenshot | scrape | click | fill_form | get_text | run_script"}
+
+    except Exception as e:
+        return {"error": f"browser_auto failed: {str(e)}", "url": url, "action": action}
+
+
 # ── ANALYZE NICHE ──────────────────────────────────────────────────────────────
 async def analyze_niche(params: dict, ai_router=None, TaskType=None) -> dict:
     """Deep market research on any niche — monetization angles, competition, audience, entry points."""
@@ -6938,6 +7103,88 @@ async def read_email_inbox(params: dict, ai_router=None, TaskType=None) -> dict:
         return {"error": f"read_email_inbox failed: {str(e)}"}
 
 
+# ── SEND EMAIL ────────────────────────────────────────────────────────────────
+async def send_email(params: dict, ai_router=None, TaskType=None) -> dict:
+    """Send an email via SMTP — compose and send from CC's Gmail (or any SMTP server)."""
+    import os, smtplib, ssl as _ssl
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    to = params.get("to", "")
+    subject = params.get("subject", "")
+    body = params.get("body", "")
+    cc = params.get("cc", "")
+    reply_to = params.get("reply_to", "")
+    html = params.get("html", False)          # True = send as HTML email
+    signature = params.get("signature", True) # auto-append Vesper's signature
+
+    if not to:
+        return {"error": "to is required (recipient email address)"}
+    if not subject:
+        return {"error": "subject is required"}
+    if not body:
+        return {"error": "body is required"}
+
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_user = os.environ.get("SMTP_USER", os.environ.get("IMAP_USER", ""))
+    smtp_pass = os.environ.get("SMTP_PASS", os.environ.get("IMAP_PASS", ""))
+    from_name = os.environ.get("SMTP_FROM_NAME", "CC")
+
+    if not (smtp_user and smtp_pass):
+        return {
+            "error": "SMTP not configured",
+            "setup_required": [
+                "For Gmail: go to myaccount.google.com/apppasswords",
+                "Enable 2FA → create an App Password for 'Mail'",
+                "Add to Railway: SMTP_USER=your@gmail.com, SMTP_PASS=your-app-password",
+                "Optional: SMTP_FROM_NAME=CC (display name), SMTP_HOST=smtp.gmail.com, SMTP_PORT=587",
+                "Note: these are the same credentials as IMAP_USER/IMAP_PASS if you already set those",
+            ],
+        }
+
+    if signature:
+        body = body + "\n\n--\nSent via Vesper"
+
+    try:
+        msg = MIMEMultipart("alternative") if html else MIMEMultipart()
+        msg["From"] = f"{from_name} <{smtp_user}>"
+        msg["To"] = to
+        msg["Subject"] = subject
+        if cc:
+            msg["Cc"] = cc
+        if reply_to:
+            msg["Reply-To"] = reply_to
+
+        if html:
+            msg.attach(MIMEText(body, "plain"))
+            msg.attach(MIMEText(body, "html"))
+        else:
+            msg.attach(MIMEText(body, "plain"))
+
+        recipients = [to] + ([cc] if cc else [])
+
+        ctx = _ssl.create_default_context()
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.ehlo()
+            server.starttls(context=ctx)
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, recipients, msg.as_string())
+
+        return {
+            "success": True,
+            "to": to,
+            "subject": subject,
+            "preview": f"[Email sent to {to} — Subject: {subject}]",
+            "note": "Email delivered via SMTP",
+        }
+
+    except smtplib.SMTPAuthenticationError:
+        return {"error": "SMTP authentication failed. For Gmail, make sure you're using an App Password (not your regular password) from myaccount.google.com/apppasswords."}
+    except Exception as e:
+        return {"error": f"send_email failed: {str(e)}"}
+
+
 # ── SCHEDULE TASK ─────────────────────────────────────────────────────────────
 async def schedule_task(params: dict, ai_router=None, TaskType=None) -> dict:
     """Schedule future tasks, reminders, and follow-ups — Vesper's autonomous to-do with due dates."""
@@ -7081,6 +7328,169 @@ async def schedule_task(params: dict, ai_router=None, TaskType=None) -> dict:
         "high_priority": [t for t in pending if t.get("priority") == "high"],
         "preview": f"[Tasks: {len(pending)} pending | {len(overdue)} overdue | {len(due_today)} today]",
     }
+
+
+# ── VESPER RECURRING JOBS (APScheduler) ───────────────────────────────────────
+async def vesper_recurring_job(params: dict, ai_router=None, TaskType=None) -> dict:
+    """
+    Schedule Vesper to run a tool automatically on a recurring schedule — or manage existing jobs.
+    Powered by APScheduler. Jobs survive as long as the server is running.
+
+    Actions:
+      add     — schedule a new recurring job
+      list    — show all active scheduled jobs
+      remove  — cancel a job by job_id
+      run_now — immediately trigger a job by job_id (also keeps its schedule)
+
+    Built-in job presets (use preset param to skip manual cron config):
+      morning_brief  — run vesper_morning_brief every day at 8am
+      email_check    — run read_email_inbox (list + triage) every hour
+      weekly_income  — run financial_report every Monday at 9am
+      task_check     — run schedule_task(check_due) every morning at 7:30am
+    """
+    import os, json as _json
+    from datetime import datetime
+
+    action = params.get("action", "list")
+    job_id = params.get("job_id", "")
+    preset = params.get("preset", "")          # morning_brief | email_check | weekly_income | task_check
+    tool_name = params.get("tool_name", "")    # any Vesper tool name
+    tool_params = params.get("tool_params", {})
+    cron_hour = params.get("cron_hour")         # 0-23 (or None)
+    cron_minute = params.get("cron_minute", 0)
+    cron_day_of_week = params.get("cron_day_of_week")  # mon-sun or 0-6
+    interval_minutes = params.get("interval_minutes")   # run every N minutes instead of cron
+
+    # Import scheduler from main app context (singleton stored in module-level var)
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        from apscheduler.triggers.interval import IntervalTrigger
+    except ImportError:
+        return {
+            "error": "APScheduler not installed",
+            "fix": "Already added to requirements.txt. Redeploy Railway to install.",
+        }
+
+    # Use a module-level scheduler singleton shared with main.py
+    import importlib, sys
+    _main = sys.modules.get("main") or sys.modules.get("backend.main")
+    scheduler = getattr(_main, "_vesper_scheduler", None) if _main else None
+
+    if scheduler is None:
+        return {
+            "error": "Scheduler not yet running",
+            "fix": "The APScheduler is started in main.py on app startup. If this error appears, the server may still be initializing. Try again in a moment.",
+            "note": "After redeployment, the scheduler will auto-start and this tool will work.",
+        }
+
+    if action == "list":
+        jobs = scheduler.get_jobs()
+        job_list = []
+        for j in jobs:
+            next_run = j.next_run_time.isoformat() if j.next_run_time else "paused"
+            job_list.append({"id": j.id, "name": j.name, "next_run": next_run, "trigger": str(j.trigger)})
+        return {
+            "success": True,
+            "active_jobs": job_list,
+            "count": len(job_list),
+            "preview": f"[{len(job_list)} scheduled jobs active]",
+        }
+
+    if action == "remove":
+        if not job_id:
+            return {"error": "job_id required to remove a job"}
+        try:
+            scheduler.remove_job(job_id)
+            return {"success": True, "removed": job_id, "preview": f"[Job '{job_id}' cancelled]"}
+        except Exception as e:
+            return {"error": f"Could not remove job: {e}"}
+
+    if action == "run_now":
+        if not job_id:
+            return {"error": "job_id required"}
+        job = scheduler.get_job(job_id)
+        if not job:
+            return {"error": f"Job '{job_id}' not found"}
+        job.func()  # fire immediately (sync wrapper - async jobs use asyncio)
+        return {"success": True, "triggered": job_id, "preview": f"[Job '{job_id}' triggered manually]"}
+
+    if action == "add":
+        # Handle presets
+        if preset == "morning_brief":
+            tool_name = tool_name or "vesper_morning_brief"
+            tool_params = tool_params or {}
+            cron_hour = cron_hour if cron_hour is not None else 8
+            cron_minute = cron_minute or 0
+            job_id = job_id or "morning_brief"
+        elif preset == "email_check":
+            tool_name = tool_name or "read_email_inbox"
+            tool_params = tool_params or {"action": "triage", "limit": 10}
+            interval_minutes = interval_minutes or 60
+            job_id = job_id or "email_check_hourly"
+        elif preset == "weekly_income":
+            tool_name = tool_name or "financial_report"
+            tool_params = tool_params or {}
+            cron_hour = cron_hour if cron_hour is not None else 9
+            cron_minute = cron_minute or 0
+            cron_day_of_week = cron_day_of_week or "mon"
+            job_id = job_id or "weekly_income_report"
+        elif preset == "task_check":
+            tool_name = tool_name or "schedule_task"
+            tool_params = tool_params or {"action": "check_due"}
+            cron_hour = cron_hour if cron_hour is not None else 7
+            cron_minute = cron_minute or 30
+            job_id = job_id or "daily_task_check"
+
+        if not tool_name:
+            return {"error": "tool_name required (or use a preset: morning_brief | email_check | weekly_income | task_check)"}
+
+        # Build a simple async wrapper that calls the tool
+        async def _run_job(tn=tool_name, tp=tool_params, ar=ai_router):
+            try:
+                # Dynamically look up the function from tools_creative
+                import importlib as _imp
+                import backend.tools_creative as _tc
+                fn = getattr(_tc, tn, None)
+                if fn:
+                    await fn(tp, ai_router=ar)
+            except Exception as exc:
+                pass  # Scheduled jobs fail silently to not crash the server
+
+        # Pick trigger
+        if interval_minutes:
+            trigger = IntervalTrigger(minutes=int(interval_minutes))
+            trigger_desc = f"every {interval_minutes} minutes"
+        else:
+            cron_kwargs = {}
+            if cron_hour is not None:
+                cron_kwargs["hour"] = int(cron_hour)
+            if cron_minute is not None:
+                cron_kwargs["minute"] = int(cron_minute)
+            if cron_day_of_week:
+                cron_kwargs["day_of_week"] = cron_day_of_week
+            trigger = CronTrigger(**cron_kwargs)
+            trigger_desc = f"cron {cron_kwargs}"
+
+        # Remove existing job with same ID if present
+        try:
+            scheduler.remove_job(job_id or tool_name)
+        except Exception:
+            pass
+
+        final_id = job_id or f"{tool_name}_{datetime.now().strftime('%H%M%S')}"
+        scheduler.add_job(_run_job, trigger, id=final_id, name=f"Vesper: {tool_name}", replace_existing=True)
+
+        return {
+            "success": True,
+            "action": "add",
+            "job_id": final_id,
+            "tool": tool_name,
+            "schedule": trigger_desc,
+            "preview": f"[Scheduled '{tool_name}' as job '{final_id}' — {trigger_desc}]",
+        }
+
+    return {"error": f"Unknown action '{action}'. Use: add | list | remove | run_now"}
 
 
 # ── READ ANALYTICS ─────────────────────────────────────────────────────────────
