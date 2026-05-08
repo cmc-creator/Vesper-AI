@@ -4171,21 +4171,24 @@ export default function App() {
     const file = files[0];
     const isImage = file.type.startsWith('image/');
     const fileName = file.name;
+    const ext = fileName.split('.').pop().toLowerCase();
+    const richTypes = ['pdf', 'doc', 'docx', 'xlsx', 'xls'];
+    const isRich = richTypes.includes(ext);
 
     if (isImage) {
-      // Modern: Attach image for true multimodal chat
+      // Attach image for multimodal chat
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = (ev) => {
         setUploadedImages(prev => [...prev, {
           name: fileName,
-          dataUrl: e.target.result,
+          dataUrl: ev.target.result,
           type: 'image'
         }]);
         setToast('Image attached');
       };
       reader.readAsDataURL(file);
-    } else if (fileName.endsWith('.txt') || fileName.endsWith('.md') || fileName.endsWith('.json') || fileName.endsWith('.csv') || fileName.endsWith('.log') || fileName.endsWith('.xml') || fileName.endsWith('.yaml') || fileName.endsWith('.yml') || file.type === 'text/plain') {
-      // Read text-based files and paste content into chat
+    } else if (!isRich && (fileName.endsWith('.txt') || fileName.endsWith('.md') || fileName.endsWith('.json') || fileName.endsWith('.csv') || fileName.endsWith('.log') || fileName.endsWith('.xml') || fileName.endsWith('.yaml') || fileName.endsWith('.yml') || file.type === 'text/plain')) {
+      // Read plain-text files directly
       const reader = new FileReader();
       reader.onload = (ev) => {
         const content = ev.target.result;
@@ -4193,10 +4196,29 @@ export default function App() {
         setToast(`📎 ${fileName} added to message`);
       };
       reader.readAsText(file);
+    } else if (isRich) {
+      // Send to backend for text extraction (PDF, DOCX, XLSX, XLS)
+      setAnalyzingImage(true);
+      setToast(`⏳ Reading ${fileName}...`);
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch(`${apiBase}/api/upload`, { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.success && data.vesper_context) {
+          setInput(prev => prev + (prev ? '\n\n' : '') + data.vesper_context);
+          setToast(`✅ ${fileName} read — ${data.char_count?.toLocaleString() || '?'} chars extracted`);
+        } else {
+          setToast(`⚠️ Could not extract text from ${fileName}`);
+        }
+      } catch (err) {
+        setToast(`❌ Upload failed: ${err.message}`);
+      } finally {
+        setAnalyzingImage(false);
+      }
     } else {
-      // Other file types - add reference
-      const fileRef = `📎 [File: ${fileName}]`;
-      setInput((prev) => (prev ? prev + ' ' + fileRef : fileRef));
+      // Unknown type - add a reference tag
+      setInput((prev) => (prev ? prev + ' ' : '') + `📎 [File: ${fileName}]`);
     }
 
     // Reset file input
@@ -8899,9 +8921,9 @@ export default function App() {
                 type="file"
                 onChange={handleFileShare}
                 style={{ display: 'none' }}
-                accept="image/*,.pdf,.doc,.docx,.txt,.json,.csv"
+                accept="image/*,.pdf,.doc,.docx,.xlsx,.xls,.txt,.md,.json,.csv,.log,.yaml,.yml"
               />
-              <Tooltip title="Share file or image" placement="top">
+              <Tooltip title="Attach file — images, PDF, Word, Excel, CSV, text" placement="top">
                 <IconButton
                   onClick={() => fileInputRef.current?.click()}
                   className="ghost-button"
