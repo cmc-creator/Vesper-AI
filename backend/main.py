@@ -28,7 +28,7 @@ if os.path.exists(backend_env):
 
 import json
 import uuid
-from fastapi import FastAPI, Request, File, UploadFile
+from fastapi import FastAPI, Request, File, UploadFile, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -17033,6 +17033,537 @@ async def take_screenshot_of_url(req: Request):
         }
     except Exception as e:
         return {"error": f"Screenshot failed: {str(e)[:300]}"}
+
+
+# =============================================================================
+# AUTOPILOT ENGINE — Scheduled background jobs with APScheduler
+# 4 built-in jobs: weekly_pipeline, daily_article, weekly_keywords, social_drip
+# Jobs persist in vesper-ai/autopilot_jobs.json
+# Activity log persists in vesper-ai/autopilot_log.json
+# =============================================================================
+
+_AP_JOBS_FILE = os.path.join(DATA_DIR, "autopilot_jobs.json")
+_AP_LOG_FILE  = os.path.join(DATA_DIR, "autopilot_log.json")
+
+_AP_DEFAULT_JOBS = [
+    {
+        "id": "weekly_pipeline",
+        "type": "weekly_pipeline",
+        "name": "Weekly Content Pipeline",
+        "description": "Generates a full week of content ideas, titles, and social posts for your niche every Monday",
+        "schedule_label": "Mondays at 7 AM",
+        "cron": {"day_of_week": "mon", "hour": 7, "minute": 0},
+        "tool": "write_affiliate_content",
+        "niche": "",
+        "enabled": False,
+        "last_run": None,
+        "last_status": None,
+        "last_output": None,
+    },
+    {
+        "id": "daily_article",
+        "type": "daily_article",
+        "name": "Daily SEO Article",
+        "description": "Auto-writes one SEO-optimized affiliate article for your niche and saves it to the knowledge base",
+        "schedule_label": "Daily at 6 AM",
+        "cron": {"hour": 6, "minute": 0},
+        "tool": "write_affiliate_content",
+        "niche": "",
+        "enabled": False,
+        "last_run": None,
+        "last_status": None,
+        "last_output": None,
+    },
+    {
+        "id": "weekly_keywords",
+        "type": "weekly_keywords",
+        "name": "Keyword Research",
+        "description": "Finds 20 low-competition, high-traffic keywords in your niche every Sunday",
+        "schedule_label": "Sundays at 8 AM",
+        "cron": {"day_of_week": "sun", "hour": 8, "minute": 0},
+        "tool": "analyze_niche",
+        "niche": "",
+        "enabled": False,
+        "last_run": None,
+        "last_status": None,
+        "last_output": None,
+    },
+    {
+        "id": "social_drip",
+        "type": "social_drip",
+        "name": "Social Media Drip",
+        "description": "Creates 5 Instagram captions and 1 Reel script with hooks and hashtags for your niche daily",
+        "schedule_label": "Daily at 8 AM",
+        "cron": {"hour": 8, "minute": 0},
+        "tool": "instagram_content_pack",
+        "niche": "",
+        "enabled": False,
+        "last_run": None,
+        "last_status": None,
+        "last_output": None,
+    },
+]
+
+
+def _ap_load_jobs():
+    """Load jobs from disk, merging saved config with current defaults."""
+    if os.path.exists(_AP_JOBS_FILE):
+        try:
+            with open(_AP_JOBS_FILE) as _f:
+                saved = json.load(_f)
+            saved_map = {j["id"]: j for j in saved}
+            result = []
+            for default in _AP_DEFAULT_JOBS:
+                merged = dict(default)
+                if default["id"] in saved_map:
+                    s = saved_map[default["id"]]
+                    for field in ("niche", "enabled", "last_run", "last_status", "last_output"):
+                        merged[field] = s.get(field, default.get(field))
+                result.append(merged)
+            return result
+        except Exception:
+            pass
+    return [dict(j) for j in _AP_DEFAULT_JOBS]
+
+
+def _ap_save_jobs(jobs):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(_AP_JOBS_FILE, "w") as _f:
+        json.dump(jobs, _f, indent=2)
+
+
+def _ap_load_log():
+    if os.path.exists(_AP_LOG_FILE):
+        try:
+            with open(_AP_LOG_FILE) as _f:
+                return json.load(_f)
+        except Exception:
+            pass
+    return []
+
+
+def _ap_append_log(entry: dict):
+    log = _ap_load_log()
+    log.insert(0, entry)
+    del log[100:]
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(_AP_LOG_FILE, "w") as _f:
+        json.dump(log, _f, indent=2)
+
+
+async def _ap_execute_job(job_id: str):
+    """Run a scheduled job's tool with its configured niche. Returns (success, output)."""
+    jobs = _ap_load_jobs()
+    job = next((j for j in jobs if j["id"] == job_id), None)
+    if not job:
+        return False, f"Job '{job_id}' not found"
+
+    niche = (job.get("niche") or "").strip() or "online business / passive income"
+    started = datetime.datetime.now().isoformat()
+
+    _ap_tool_map = {
+        "weekly_pipeline": (
+            write_affiliate_content,
+            {"product_or_niche": niche, "content_type": "best-of", "audience": "general"},
+        ),
+        "daily_article": (
+            write_affiliate_content,
+            {"product_or_niche": niche, "content_type": "review"},
+        ),
+        "weekly_keywords": (
+            analyze_niche,
+            {"niche": niche},
+        ),
+        "social_drip": (
+            instagram_content_pack,
+            {"niche": niche, "post_count": 5, "reel_count": 1, "theme": "educational"},
+        ),
+    }
+
+    job_type = job.get("type", job_id)
+    entry = _ap_tool_map.get(job_type)
+    if not entry:
+        return False, f"Unknown job type: {job_type}"
+
+    tool_fn, params = entry
+
+    try:
+        result = await tool_fn(params, ai_router=ai_router, TaskType=TaskType)
+        if isinstance(result, dict):
+            success = not result.get("error")
+            output = ""
+            for k, v in result.items():
+                if isinstance(v, str) and len(v) > 10 and k != "error":
+                    output = v[:200]
+                    break
+            if not output:
+                output = result.get("error") or "Completed"
+        else:
+            success = bool(result)
+            output = str(result)[:200]
+    except Exception as _ap_e:
+        success = False
+        output = str(_ap_e)[:200]
+
+    ended = datetime.datetime.now().isoformat()
+    for j in jobs:
+        if j["id"] == job_id:
+            j["last_run"] = ended
+            j["last_status"] = "ok" if success else "error"
+            j["last_output"] = output
+            break
+    _ap_save_jobs(jobs)
+
+    _ap_append_log({
+        "job_id": job_id,
+        "job_name": job["name"],
+        "started": started,
+        "ended": ended,
+        "success": success,
+        "output": output,
+    })
+    print(f"[AUTOPILOT] Job '{job_id}' finished — success={success}, output={output[:80]}")
+    return success, output
+
+
+# ── APScheduler setup ─────────────────────────────────────────────────────────
+_ap_scheduler = None
+_ap_sync_schedule = lambda: None  # no-op if APScheduler unavailable
+
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler as _APSched
+    from apscheduler.triggers.cron import CronTrigger as _APCron
+
+    _ap_scheduler = _APSched(timezone="America/Phoenix")
+
+    def _ap_sync_schedule():  # noqa: F811  redefinition is intentional
+        """Re-add all enabled jobs to APScheduler (called on startup and after PATCH)."""
+        if _ap_scheduler is None:
+            return
+        jobs = _ap_load_jobs()
+        _ap_scheduler.remove_all_jobs()
+        active = 0
+        for job in jobs:
+            if job.get("enabled") and job.get("cron"):
+                c = job["cron"]
+                _ap_scheduler.add_job(
+                    lambda jid=job["id"]: __import__("asyncio").get_event_loop().run_until_complete(_ap_execute_job(jid))
+                    if False else _ap_sync_dispatch(jid),
+                    trigger=_APCron(
+                        day_of_week=c.get("day_of_week", "*"),
+                        hour=c.get("hour", 0),
+                        minute=c.get("minute", 0),
+                    ),
+                    id=f"ap_{job['id']}",
+                    replace_existing=True,
+                )
+                active += 1
+        print(f"[AUTOPILOT] Scheduler updated — {active} active job(s)")
+
+    def _ap_sync_dispatch(job_id: str):
+        """Run an async job from APScheduler's sync background thread."""
+        import asyncio as _aps_aio
+        loop = _aps_aio.new_event_loop()
+        try:
+            loop.run_until_complete(_ap_execute_job(job_id))
+        finally:
+            loop.close()
+
+    # Fix the lambda to use the actual dispatch function
+    def _ap_sync_schedule():  # noqa: F811
+        if _ap_scheduler is None:
+            return
+        jobs = _ap_load_jobs()
+        _ap_scheduler.remove_all_jobs()
+        active = 0
+        for job in jobs:
+            if job.get("enabled") and job.get("cron"):
+                c = job["cron"]
+                _ap_scheduler.add_job(
+                    _ap_sync_dispatch,
+                    args=[job["id"]],
+                    trigger=_APCron(
+                        day_of_week=c.get("day_of_week", "*"),
+                        hour=c.get("hour", 0),
+                        minute=c.get("minute", 0),
+                    ),
+                    id=f"ap_{job['id']}",
+                    replace_existing=True,
+                )
+                active += 1
+        print(f"[AUTOPILOT] Scheduler updated — {active} active job(s)")
+
+    _ap_scheduler.start()
+    _ap_sync_schedule()  # Load any already-enabled jobs
+    print("[AUTOPILOT] APScheduler running")
+
+except ImportError:
+    print("[AUTOPILOT] APScheduler not installed — run-now still works, scheduled runs disabled")
+except Exception as _ap_sched_err:
+    print(f"[AUTOPILOT] Scheduler init error: {_ap_sched_err}")
+
+
+# ── API Routes ────────────────────────────────────────────────────────────────
+
+@app.get("/api/autopilot/jobs")
+async def ap_get_jobs():
+    """List all autopilot jobs with their current config."""
+    return {
+        "jobs": _ap_load_jobs(),
+        "scheduler_available": _ap_scheduler is not None,
+    }
+
+
+@app.patch("/api/autopilot/jobs/{job_id}")
+async def ap_update_job(job_id: str, req: Request):
+    """Update a job's niche or enabled state. Body: {niche?: str, enabled?: bool}"""
+    body = await req.json()
+    jobs = _ap_load_jobs()
+    job = next((j for j in jobs if j["id"] == job_id), None)
+    if not job:
+        return JSONResponse({"error": f"Job '{job_id}' not found"}, status_code=404)
+    if "niche" in body:
+        job["niche"] = str(body["niche"])[:300]
+    if "enabled" in body:
+        job["enabled"] = bool(body["enabled"])
+    _ap_save_jobs(jobs)
+    try:
+        _ap_sync_schedule()
+    except Exception:
+        pass
+    return {"ok": True, "job": job}
+
+
+@app.get("/api/autopilot/log")
+async def ap_get_log(limit: int = 50):
+    """Get activity log (most recent first)."""
+    return {"log": _ap_load_log()[:limit]}
+
+
+@app.post("/api/autopilot/run-now/{job_id}")
+async def ap_run_now(job_id: str, background_tasks: BackgroundTasks):
+    """Trigger a job to run immediately in the background. Returns 200 immediately."""
+    jobs = _ap_load_jobs()
+    job = next((j for j in jobs if j["id"] == job_id), None)
+    if not job:
+        return JSONResponse({"error": f"Job '{job_id}' not found"}, status_code=404)
+    background_tasks.add_task(_ap_execute_job, job_id)
+    return {"ok": True, "message": f"'{job['name']}' started in background — check Activity Log for results"}
+
+
+# =============================================================================
+# EMAIL AUTOMATION — Direct compose/send via Brevo API
+# Requires: BREVO_API_KEY + BREVO_FROM_EMAIL in .env or Railway environment vars
+# Get a free Brevo key at: https://brevo.com (300 emails/day free)
+# =============================================================================
+
+@app.get("/api/email/config")
+async def email_config():
+    """Return which email provider is configured (no key values exposed)."""
+    brevo_key = os.getenv("BREVO_API_KEY", "")
+    brevo_from = os.getenv("BREVO_FROM_EMAIL") or os.getenv("EMAIL_FROM", "")
+    smtp_user = os.getenv("SMTP_USER") or os.getenv("IMAP_USER", "")
+    resend_key = os.getenv("RESEND_API_KEY", "")
+    return {
+        "brevo": bool(brevo_key and brevo_from),
+        "brevo_from": brevo_from if brevo_from else None,
+        "smtp": bool(smtp_user),
+        "smtp_user": smtp_user if smtp_user else None,
+        "resend": bool(resend_key),
+        "any_configured": bool(brevo_key or smtp_user or resend_key),
+        "setup_tip": (
+            "Add BREVO_API_KEY and BREVO_FROM_EMAIL to your .env (free at brevo.com, 300/day)"
+            if not brevo_key
+            else None
+        ),
+    }
+
+
+@app.post("/api/email/send")
+async def email_send(req: Request):
+    """
+    Send an email via Brevo (preferred) or SMTP fallback.
+    Body: {to: str, subject: str, body: str, html?: bool, from_name?: str, cc?: str}
+    """
+    body = await req.json()
+    to_addr = (body.get("to") or "").strip()
+    subject = (body.get("subject") or "").strip()
+    text_body = (body.get("body") or "").strip()
+    is_html = bool(body.get("html", False))
+    from_name = body.get("from_name", "Vesper AI")
+    cc_addr = (body.get("cc") or "").strip()
+
+    if not to_addr:
+        return JSONResponse({"error": "Recipient 'to' is required"}, status_code=400)
+    if not subject:
+        return JSONResponse({"error": "'subject' is required"}, status_code=400)
+    if not text_body:
+        return JSONResponse({"error": "'body' is required"}, status_code=400)
+
+    # ── Try Brevo first ───────────────────────────────────────────────────────
+    brevo_key = os.getenv("BREVO_API_KEY", "")
+    brevo_from = os.getenv("BREVO_FROM_EMAIL") or os.getenv("EMAIL_FROM", "")
+    if brevo_key and brevo_from:
+        try:
+            import urllib.request as _ev_req
+            payload = {
+                "sender": {"name": from_name, "email": brevo_from},
+                "to": [{"email": a.strip()} for a in to_addr.split(",") if a.strip()],
+                "subject": subject,
+            }
+            if is_html:
+                payload["htmlContent"] = text_body
+            else:
+                payload["textContent"] = text_body
+            if cc_addr:
+                payload["cc"] = [{"email": a.strip()} for a in cc_addr.split(",") if a.strip()]
+            _req_obj = _ev_req.Request(
+                "https://api.brevo.com/v3/smtp/email",
+                data=json.dumps(payload).encode(),
+                headers={"api-key": brevo_key, "Content-Type": "application/json"},
+                method="POST",
+            )
+            with _ev_req.urlopen(_req_obj, timeout=15) as _resp:
+                result = json.loads(_resp.read())
+            return {"success": True, "message_id": result.get("messageId"), "provider": "brevo", "to": to_addr, "subject": subject}
+        except Exception as _brv_e:
+            return JSONResponse({"error": f"Brevo send failed: {str(_brv_e)[:300]}"}, status_code=500)
+
+    # ── Try SMTP (Gmail App Password) ─────────────────────────────────────────
+    smtp_user = os.getenv("SMTP_USER") or os.getenv("IMAP_USER", "")
+    smtp_pass = os.getenv("SMTP_PASS") or os.getenv("IMAP_PASS", "")
+    if smtp_user and smtp_pass:
+        try:
+            import smtplib
+            from email.mime.text import MIMEText as _MimeText
+            msg = _MimeText(text_body, "html" if is_html else "plain")
+            msg["Subject"] = subject
+            msg["From"] = smtp_user
+            msg["To"] = to_addr
+            if cc_addr:
+                msg["Cc"] = cc_addr
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, [to_addr] + ([cc_addr] if cc_addr else []), msg.as_string())
+            return {"success": True, "provider": "smtp", "to": to_addr, "subject": subject}
+        except Exception as _smtp_e:
+            return JSONResponse({"error": f"SMTP send failed: {str(_smtp_e)[:300]}"}, status_code=500)
+
+    return JSONResponse({
+        "error": "No email provider configured. Add BREVO_API_KEY + BREVO_FROM_EMAIL to .env (free at brevo.com, 300/day)."
+    }, status_code=503)
+
+
+# =============================================================================
+# GLOBAL MEMORY SEARCH — Search across all memory categories + research
+# =============================================================================
+
+@app.get("/api/search/all")
+async def search_all_memory(q: str):
+    """
+    Search across all memory categories and the research library.
+    Returns results ranked by match density, tagged with their source.
+    """
+    if not q or len(q.strip()) < 2:
+        return {"results": [], "query": q}
+
+    query = q.strip().lower()
+    terms = [t for t in query.split() if len(t) >= 2]
+    results = []
+
+    def _score(text: str) -> int:
+        t = text.lower()
+        return sum(t.count(term) for term in terms)
+
+    def _snippet(text: str, max_len: int = 200) -> str:
+        """Return the most relevant snippet of text."""
+        t = text.lower()
+        best_pos = 0
+        for term in terms:
+            pos = t.find(term)
+            if pos > -1:
+                best_pos = max(0, pos - 40)
+                break
+        return text[best_pos:best_pos + max_len].strip()
+
+    # ── Search memory categories ──────────────────────────────────────────────
+    # Scan all .json files in memory dir (not just CATEGORIES list)
+    if os.path.isdir(MEMORY_DIR):
+        for fname in os.listdir(MEMORY_DIR):
+            if not fname.endswith(".json"):
+                continue
+            cat = fname[:-5]
+            try:
+                with open(os.path.join(MEMORY_DIR, fname), encoding="utf-8") as _f:
+                    entries = json.load(_f)
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    raw = json.dumps(entry, ensure_ascii=False)
+                    score = _score(raw)
+                    if score > 0:
+                        text = entry.get("content") or entry.get("text") or entry.get("entry") or raw[:300]
+                        results.append({
+                            "source": "memory",
+                            "category": cat,
+                            "text": _snippet(text),
+                            "timestamp": entry.get("timestamp") or entry.get("created"),
+                            "score": score,
+                        })
+            except Exception:
+                pass
+
+    # ── Search research library (knowledge/research.json) ────────────────────
+    research_path = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "knowledge", "research.json")
+    if os.path.exists(research_path):
+        try:
+            with open(research_path, encoding="utf-8") as _f:
+                research = json.load(_f)
+            items = research if isinstance(research, list) else research.get("items", [])
+            for item in items:
+                raw = json.dumps(item, ensure_ascii=False)
+                score = _score(raw)
+                if score > 0:
+                    text = item.get("summary") or item.get("content") or item.get("text") or raw[:300]
+                    results.append({
+                        "source": "research",
+                        "category": item.get("type") or "research",
+                        "title": item.get("title") or item.get("query") or "",
+                        "text": _snippet(text),
+                        "timestamp": item.get("timestamp") or item.get("date"),
+                        "score": score,
+                    })
+        except Exception:
+            pass
+
+    # ── Search knowledge/ *.json files ───────────────────────────────────────
+    knowledge_dir = os.path.join(os.path.dirname(__file__), "..", "vesper-ai", "knowledge")
+    if os.path.isdir(knowledge_dir):
+        for fname in os.listdir(knowledge_dir):
+            if fname == "research.json" or not fname.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(knowledge_dir, fname), encoding="utf-8") as _f:
+                    data = json.load(_f)
+                items = data if isinstance(data, list) else [data]
+                for item in items:
+                    raw = json.dumps(item, ensure_ascii=False)
+                    score = _score(raw)
+                    if score > 0:
+                        text = item.get("content") or item.get("text") or raw[:300]
+                        results.append({
+                            "source": "knowledge",
+                            "category": fname[:-5],
+                            "text": _snippet(text),
+                            "timestamp": item.get("timestamp"),
+                            "score": score,
+                        })
+            except Exception:
+                pass
+
+    # Sort by score descending, cap at 50 results
+    results.sort(key=lambda r: r["score"], reverse=True)
+    return {"results": results[:50], "query": q, "total": len(results)}
 
 
 # =============================================================================

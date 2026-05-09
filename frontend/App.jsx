@@ -83,6 +83,8 @@ import {
   CheckCircle as CheckCircleIcon,
   ErrorOutline as ErrorOutlineIcon,
   Schedule as ScheduleIcon,
+  ForwardToInbox as ForwardToInboxIcon,
+  SearchRounded as SearchRoundedIcon,
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -394,6 +396,163 @@ function AutopilotPanel({ apiBase, onBack, jobs, setJobs, log, setLog, loading, 
 }
 
 
+function EmailPanel({ apiBase, onBack, to, setTo, subject, setSubject, body, setBody, sending, setSending, config, setConfig, accentColor, setToast }) {
+  const accent = accentColor || '#00ffff';
+
+  React.useEffect(() => {
+    fetch(`${apiBase}/api/email/config`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setConfig(d); })
+      .catch(() => {});
+  }, [apiBase, setConfig]);
+
+  const sendEmail = async () => {
+    if (!to.trim() || !subject.trim() || !body.trim()) {
+      setToast({ open: true, message: 'Please fill in To, Subject, and Body', severity: 'warning' });
+      return;
+    }
+    setSending(true);
+    try {
+      const r = await fetch(`${apiBase}/api/email/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: to.trim(), subject: subject.trim(), body: body.trim() }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setToast({ open: true, message: d.message || 'Email sent!', severity: 'success' });
+        setTo(''); setSubject(''); setBody('');
+      } else {
+        setToast({ open: true, message: d.detail || 'Failed to send email', severity: 'error' });
+      }
+    } catch (e) {
+      setToast({ open: true, message: 'Network error — could not reach backend', severity: 'error' });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const providerActive = config && (config.brevo || config.smtp || config.resend);
+
+  return (
+    <Box sx={{ height: '100%', overflowY: 'auto', p: { xs: 2, md: 3 }, maxWidth: 700, mx: 'auto' }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+        <IconButton onClick={onBack} size="small" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+          <ArrowBackIcon fontSize="small" />
+        </IconButton>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            Email
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+            Send emails from Vesper
+          </Typography>
+        </Box>
+        <Box sx={{ ml: 'auto' }}>
+          {config !== null && (
+            <Chip
+              label={providerActive ? 'Provider ready' : 'No provider'}
+              size="small"
+              sx={{
+                bgcolor: providerActive ? 'rgba(107,203,119,0.15)' : 'rgba(255,107,107,0.1)',
+                color: providerActive ? '#6bcb77' : '#ff6b6b',
+                fontWeight: 700,
+                fontSize: '0.65rem',
+              }}
+            />
+          )}
+        </Box>
+      </Box>
+
+      {/* Provider status */}
+      {config && !providerActive && (
+        <Paper elevation={0} sx={{ p: 2, mb: 2.5, bgcolor: 'rgba(255,107,107,0.05)', border: '1px solid rgba(255,107,107,0.2)', borderRadius: 2 }}>
+          <Typography variant="body2" sx={{ color: '#ff6b6b', fontWeight: 700, mb: 0.5 }}>
+            ⚠ No email provider configured
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block' }}>
+            Add one of these to your backend <code style={{ color: accent }}>.env</code>:
+          </Typography>
+          <Box component="pre" sx={{ mt: 1, p: 1.5, bgcolor: 'rgba(0,0,0,0.3)', borderRadius: 1, fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', overflowX: 'auto' }}>
+{`BREVO_API_KEY=your_key_here       # brevo.com (free 300/day)
+RESEND_API_KEY=your_key_here      # resend.com (free 3k/mo)
+SMTP_HOST=smtp.gmail.com          # or custom SMTP
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASS=your_app_password`}
+          </Box>
+        </Paper>
+      )}
+
+      {/* Compose form */}
+      <Stack spacing={2}>
+        <TextField
+          label="To"
+          placeholder="recipient@example.com"
+          value={to}
+          onChange={e => setTo(e.target.value)}
+          fullWidth
+          size="small"
+          sx={{
+            '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,0.04)' },
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.12)' },
+            '& input': { color: '#fff' },
+            '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)' },
+          }}
+        />
+        <TextField
+          label="Subject"
+          placeholder="Message subject"
+          value={subject}
+          onChange={e => setSubject(e.target.value)}
+          fullWidth
+          size="small"
+          sx={{
+            '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,0.04)' },
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.12)' },
+            '& input': { color: '#fff' },
+            '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)' },
+          }}
+        />
+        <TextField
+          label="Body"
+          placeholder="Write your message here…"
+          value={body}
+          onChange={e => setBody(e.target.value)}
+          fullWidth
+          multiline
+          rows={8}
+          sx={{
+            '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,0.04)' },
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.12)' },
+            '& textarea': { color: '#fff' },
+            '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)' },
+          }}
+        />
+        <Button
+          variant="contained"
+          disabled={sending || !providerActive}
+          onClick={sendEmail}
+          startIcon={sending ? <CircularProgress size={16} sx={{ color: '#000' }} /> : null}
+          sx={{
+            bgcolor: accent,
+            color: '#000',
+            fontWeight: 700,
+            textTransform: 'none',
+            alignSelf: 'flex-start',
+            px: 3,
+            '&:hover': { bgcolor: accent, opacity: 0.85 },
+            '&:disabled': { bgcolor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' },
+          }}
+        >
+          {sending ? 'Sending…' : 'Send Email'}
+        </Button>
+      </Stack>
+    </Box>
+  );
+}
+
 const baseTheme = createTheme({
   palette: {
     mode: 'dark',
@@ -585,6 +744,7 @@ const NAV = [
   { id: 'research',     label: 'Research Tools', icon: ScienceRounded  },
   { id: 'morning-brief',label: 'Morning Brief',  icon: WbSunnyIcon     },
   { id: 'gaps',         label: 'Memory',         icon: NightsStayIcon  },
+  { id: 'email',         label: 'Email',          icon: ForwardToInboxIcon },
   { id: 'settings',     label: 'Settings',       icon: SettingsRounded },
 ];
 
@@ -1048,7 +1208,16 @@ function App() {
   const [memoryCategory, setMemoryCategory] = useState(() => safeStorageGet('vesper_memory_category', 'notes'));
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [memoryText, setMemoryText] = useState('');
-  const [memoryView, setMemoryView] = useState('history'); // 'history' or 'notes'
+  const [memoryView, setMemoryView] = useState('history'); // 'history', 'notes', or 'search'
+  const [memorySearchQuery, setMemorySearchQuery] = useState('');
+  const [memorySearchResults, setMemorySearchResults] = useState([]);
+  const [memorySearchLoading, setMemorySearchLoading] = useState(false);
+  // Email panel state
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailConfig, setEmailConfig] = useState(null);
   const [threads, setThreads] = useState([]);
   const [selectedThreadIds, setSelectedThreadIds] = useState([]); // Array of IDs for bulk operations
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Controls the confirmation dialog
@@ -5630,6 +5799,7 @@ export default function App() {
             >
               <Tab label="Threads" value="history" />
               <Tab label="Notes" value="notes" />
+              <Tab label="Search All" value="search" icon={<SearchRoundedIcon sx={{ fontSize: '0.9rem !important' }} />} iconPosition="start" sx={{ minHeight: 40 }} />
             </Tabs>
             {memoryView === 'notes' && (
               <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
@@ -5664,7 +5834,85 @@ export default function App() {
                 }}
               />
             )}
-            {memoryView === 'history' ? (
+            {/* ── Search All view ── */}
+            {memoryView === 'search' && (
+              <Box>
+                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                  <TextField
+                    placeholder="Search across memory, notes, and research…"
+                    value={memorySearchQuery}
+                    onChange={(e) => setMemorySearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && memorySearchQuery.trim().length >= 2) {
+                        setMemorySearchLoading(true);
+                        setMemorySearchResults([]);
+                        fetch(`${apiBase}/api/search/all?q=${encodeURIComponent(memorySearchQuery.trim())}`)
+                          .then(r => r.json())
+                          .then(d => setMemorySearchResults(d.results || []))
+                          .catch(() => {})
+                          .finally(() => setMemorySearchLoading(false));
+                      }
+                    }}
+                    size="small"
+                    fullWidth
+                    variant="filled"
+                    InputProps={{
+                      sx: { color: '#fff' },
+                      endAdornment: memorySearchQuery && (
+                        <IconButton size="small" onClick={() => { setMemorySearchQuery(''); setMemorySearchResults([]); }} sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      )
+                    }}
+                  />
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    disabled={memorySearchLoading || memorySearchQuery.trim().length < 2}
+                    onClick={() => {
+                      setMemorySearchLoading(true);
+                      setMemorySearchResults([]);
+                      fetch(`${apiBase}/api/search/all?q=${encodeURIComponent(memorySearchQuery.trim())}`)
+                        .then(r => r.json())
+                        .then(d => setMemorySearchResults(d.results || []))
+                        .catch(() => {})
+                        .finally(() => setMemorySearchLoading(false));
+                    }}
+                    sx={{ color: 'var(--accent)', borderColor: 'rgba(0,255,255,0.3)', whiteSpace: 'nowrap', textTransform: 'none', fontSize: '0.75rem' }}
+                  >
+                    {memorySearchLoading ? <CircularProgress size={14} sx={{ color: 'var(--accent)' }} /> : 'Search'}
+                  </Button>
+                </Box>
+                {memorySearchResults.length > 0 && (
+                  <Stack spacing={1}>
+                    {memorySearchResults.map((r, i) => (
+                      <Paper key={i} elevation={0} sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 0.5 }}>
+                          <Chip label={r.source} size="small" sx={{ height: 16, fontSize: '0.55rem', bgcolor: r.source === 'memory' ? 'rgba(0,255,255,0.15)' : r.source === 'research' ? 'rgba(107,203,119,0.15)' : 'rgba(255,255,255,0.08)', color: r.source === 'memory' ? 'var(--accent)' : r.source === 'research' ? '#6bcb77' : 'rgba(255,255,255,0.5)', fontWeight: 700 }} />
+                          <Chip label={(r.category || '').replace(/_/g, ' ')} size="small" sx={{ height: 16, fontSize: '0.55rem', bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }} />
+                          {r.timestamp && <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.6rem', ml: 'auto' }}>{new Date(r.timestamp).toLocaleDateString()}</Typography>}
+                        </Box>
+                        {r.title && <Typography variant="caption" sx={{ fontWeight: 700, color: 'rgba(255,255,255,0.8)', display: 'block', mb: 0.3, fontSize: '0.72rem' }}>{r.title}</Typography>}
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.7rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {r.text}
+                        </Typography>
+                      </Paper>
+                    ))}
+                  </Stack>
+                )}
+                {!memorySearchLoading && memorySearchResults.length === 0 && memorySearchQuery.trim().length >= 2 && (
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>
+                    No results found for "{memorySearchQuery}". Try a different term.
+                  </Typography>
+                )}
+                {!memorySearchQuery && (
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>
+                    Type a term and press Enter or click Search to search all memory categories + research.
+                  </Typography>
+                )}
+              </Box>
+            )}
+            {memoryView !== 'search' && (memoryView === 'history' ? (
               <Box className="thread-list">
                 {selectedThreadIds.length > 0 && (
                   <Box sx={{ p: 1, mb: 1, bgcolor: 'rgba(255, 68, 68, 0.1)', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -6001,7 +6249,7 @@ export default function App() {
                   </Box>
                 </Box>
               </Stack>
-            )}
+            ))}
           </Paper>
           </DraggableBoard>
         );
@@ -6240,6 +6488,20 @@ export default function App() {
       case 'gaps':
         return (
           <GapsJournal apiBase={apiBase} onBack={() => setActiveSection('chat')} />
+        );
+      case 'email':
+        return (
+          <EmailPanel
+            apiBase={apiBase}
+            onBack={() => setActiveSection('chat')}
+            to={emailTo} setTo={setEmailTo}
+            subject={emailSubject} setSubject={setEmailSubject}
+            body={emailBody} setBody={setEmailBody}
+            sending={emailSending} setSending={setEmailSending}
+            config={emailConfig} setConfig={setEmailConfig}
+            accentColor={activeThemeColors.accent}
+            setToast={(msg) => { setToast(msg); setToastVariant('success'); }}
+          />
         );
       case 'integrations':
         return (
