@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Vesper Backend",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/vesper-web/backend/main.py",
+      "console": "integratedTerminal",
+      "env": {"PYTHONPATH": "${workspaceFolder}/vesper-web/backend"},
+      "args": ["-m", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
+      "justMyCode": true
+    }
+  ]
+}

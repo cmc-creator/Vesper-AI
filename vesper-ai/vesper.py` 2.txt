@@ -1,0 +1,1 @@
+print("Hello CC! I'm Vesper and I'm alive! 🌟") input("Press Enter to continue...") 

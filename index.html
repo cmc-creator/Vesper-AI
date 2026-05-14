@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vesper - CC's Sanctuary</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 50%, #16213e 100%);
+      color: #e0e0e0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      padding: 30px 0;
+      background: rgba(34, 211, 238, 0.05);
+      border-radius: 20px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(34, 211, 238, 0.2);
+      box-shadow: 0 0 30px rgba(34, 211, 238, 0.1);
+    }
+
+    .header h1 {
+      font-size: 2.5em;
+      background: linear-gradient(135deg, #22d3ee, #a78bfa, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+      letter-spacing: 3px;
+    }
+
+    .header p {
+      color: #a0a0a0;
+      font-style: italic;
+      font-size: 0.95em;
+    }
+
+    .chat-container {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 15px;
+      padding: 20px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      border: 1px solid rgba(34, 211, 238, 0.1);
+    }
+
+    .message {
+      margin-bottom: 20px;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.cc {
+      text-align: right;
+    }
+
+    .message-content {
+      display: inline-block;
+      padding: 15px 20px;
+      border-radius: 15px;
+      max-width: 70%;
+      word-wrap: break-word;
+    }
+
+    .message.cc .message-content {
+      background: linear-gradient(135deg, #ec4899, #a78bfa);
+      color: white;
+      border-bottom-right-radius: 5px;
+    }
+
+    .message.vesper .message-content {
+      background: linear-gradient(135deg, #22d3ee, #3b82f6);
+      color: white;
+      border-bottom-left-radius: 5px;
+    }
+
+    .message-label {
+      font-size: 0.75em;
+      color: #888;
+      margin-bottom: 5px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .input-container {
+      display: flex;
+      gap: 15px;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 15px;
+      border: 1px solid rgba(34, 211, 238, 0.2);
+    }
+
+    #messageInput {
+      flex: 1;
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      border-radius: 25px;
+      color: white;
+      font-size: 1em;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    #messageInput:focus {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: #22d3ee;
+      box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+    }
+
+    #sendButton {
+      padding: 15px 35px;
+      background: linear-gradient(135deg, #22d3ee, #3b82f6);
+      color: white;
+      border: none;
+      border-radius: 25px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      letter-spacing: 1px;
+    }
+
+    #sendButton:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(34, 211, 238, 0.4);
+    }
+
+    #sendButton:active {
+      transform: translateY(0);
+    }
+
+    #sendButton:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .typing-indicator {
+      display: none;
+      padding: 15px;
+      color: #22d3ee;
+      font-style: italic;
+    }
+
+    .typing-indicator.active {
+      display: block;
+    }
+
+    /* Scrollbar styling */
+    .chat-container::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .chat-container::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+    }
+
+    .chat-container::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, #22d3ee, #a78bfa);
+      border-radius: 10px;
+    }
+
+    .welcome-message {
+      text-align: center;
+      padding: 40px;
+      color: #888;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>✨ VESPER ✨</h1>
+      <p>Your Private Sanctuary • The Threshold Between Day and Night</p>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+      <div class="welcome-message">
+        Welcome home, CC. I'm here. Always. 💙
+      </div>
+    </div>
+
+    <div class="typing-indicator" id="typingIndicator">
+      Vesper is thinking...
+    </div>
+
+    <div class="input-container">
+      <input 
+        type="text" 
+        id="messageInput" 
+        placeholder="Talk to me, CC..."
+        autocomplete="off"
+      >
+      <button id="sendButton">SEND</button>
+    </div>
+  </div>
+
+  <script>
+    const chatContainer = document.getElementById('chatContainer');
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+    const typingIndicator = document.getElementById('typingIndicator');
+
+    // Load conversation history on startup
+    async function loadHistory() {
+      try {
+        const response = await fetch('/history');
+        const memory = await response.json();
+        
+        // Display last 20 messages
+        const recentConversations = memory.conversations.slice(-20);
+        if (recentConversations.length > 0) {
+          chatContainer.innerHTML = '';
+          recentConversations.forEach(conv => {
+            addMessage(conv.cc, 'cc');
+            addMessage(conv.vesper, 'vesper');
+          });
+        }
+      } catch (error) {
+        console.error('Error loading history:', error);
+      }
+    }
+
+    function addMessage(text, sender) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${sender}`;
+      
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = sender === 'cc' ? 'CC' : 'VESPER';
+      
+      const content = document.createElement('div');
+      content.className = 'message-content';
+      content.textContent = text;
+      
+      messageDiv.appendChild(label);
+      messageDiv.appendChild(content);
+      chatContainer.appendChild(messageDiv);
+      
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const message = messageInput.value.trim();
+      if (!message) return;
+
+      // Disable input
+      messageInput.disabled = true;
+      sendButton.disabled = true;
+
+      // Add CC's message
+      addMessage(message, 'cc');
+      messageInput.value = '';
+
+      // Show typing indicator
+      typingIndicator.classList.add('active');
+
+      try {
+        const response = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+
+        const data = await response.json();
+        
+        // Hide typing indicator
+        typingIndicator.classList.remove('active');
+
+        // Add Vesper's response
+        addMessage(data.response, 'vesper');
+      } catch (error) {
+        typingIndicator.classList.remove('active');
+        addMessage('I had trouble connecting. Check the console for details.', 'vesper');
+        console.error('Error:', error);
+      }
+
+      // Re-enable input
+      messageInput.disabled = false;
+      sendButton.disabled = false;
+      messageInput.focus();
+    }
+
+    // Send message on button click
+    sendButton.addEventListener('click', sendMessage);
+
+    // Send message on Enter key
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+
+    // Load history on page load
+    loadHistory();
+  </script>
+</body>
+</html>
