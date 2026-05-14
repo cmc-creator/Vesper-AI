@@ -1,0 +1,454 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STAFF
+  PROVIDER
+  SUPERVISOR
+  ADMIN
+}
+
+enum IncidentLevel {
+  I
+  II
+  III
+  IV
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(STAFF)
+  unit      String?
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  incidentReports      IncidentReport[]
+  srPackets            SRPacket[]
+  physicianOrders      SRPhysicianOrder[]
+  faceToFaceEvals      SRFaceToFaceEvaluation[]
+  terminationSummaries SRTerminationSummary[]
+  afterActionCritiques SRAfterActionCritique[]
+}
+
+model Patient {
+  id        String   @id @default(cuid())
+  fullName  String
+  dob       DateTime
+  mrn       String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  incidentReports IncidentReport[]
+  srPackets       SRPacket[]
+}
+
+// ─── INCIDENT REPORT ──────────────────────────────────────────────────────────
+
+model IncidentReport {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patientId    String
+  patient      Patient @relation(fields: [patientId], references: [id])
+
+  reportedById String
+  reportedBy   User   @relation(fields: [reportedById], references: [id])
+  reporterName String
+  reportDate   DateTime
+  signature    String?
+
+  incidentDate  DateTime
+  incidentTime  String
+  unit          String
+  location      String
+  locationOther String?
+
+  // Incident type checkboxes stored as array of selected codes
+  categories Json @default("[]")
+
+  summaryOfEvent   String
+  noOtherWitnesses Boolean @default(false)
+  witnesses        Json    @default("[]")
+
+  // Page 2 – Nursing Assessment
+  nursingAssessmentNA  Boolean @default(false)
+  nursingAssessment    String?
+  painScale            Int?
+  patientDeniesPain    Boolean @default(false)
+  nurseAssessorName    String?
+  nurseAssessorDate    DateTime?
+  nurseAssessorTime    String?
+  nurseSignature       String?
+
+  // Interventions
+  interventionsNA              Boolean @default(false)
+  interventionPrnMed           Boolean @default(false)
+  interventionLos              Boolean @default(false)
+  interventionOneToOne         Boolean @default(false)
+  interventionUnitRestriction  Boolean @default(false)
+  interventionUnitChange       Boolean @default(false)
+  interventionRoomChange       Boolean @default(false)
+  interventionTreatmentRefused Boolean @default(false)
+  interventionSAndR            Boolean @default(false)
+  interventionPrecautions      String?
+  interventionXray             Boolean @default(false)
+  interventionFirstAid         Boolean @default(false)
+  interventionAdminDischarge   Boolean @default(false)
+  interventionTransferHosp     String?
+  interventionTransferVia      String?
+  interventionOtherBH          String?
+  interventionOther            String?
+
+  // Notifications
+  notificationsNA Boolean @default(false)
+  notifications   Json    @default("[]")
+
+  // QM Review
+  reviewedByName   String?
+  reviewedByDate   DateTime?
+  incidentLevel    IncidentLevel?
+  qmReviewInitials String?
+  qmComments       String?
+  qmSignature      String?
+
+  // House Supervisor Review
+  supervisorName      String?
+  supervisorTitle     String?
+  supervisorDate      DateTime?
+  supervisorComments  String?
+  supervisorSignature String?
+
+  srPackets SRPacket[]
+}
+
+// ─── SECLUSION & RESTRAINT PACKET ────────────────────────────────────────────
+
+model SRPacket {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  incidentReportId String?
+  incidentReport   IncidentReport? @relation(fields: [incidentReportId], references: [id])
+
+  submittedAt     DateTime?
+
+  physicianOrder      SRPhysicianOrder?
+  faceToFaceEval     SRFaceToFaceEvaluation?
+  monitoringLogs     SRMonitoringLog[]
+  terminationSummary SRTerminationSummary?
+  patientDebriefing  SRPatientDebriefing?
+  staffDebriefing    SRStaffDebriefing?
+  afterActionCritique SRAfterActionCritique?
+}
+
+model SRPhysicianOrder {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  srPacketId  String   @unique
+  srPacket    SRPacket @relation(fields: [srPacketId], references: [id])
+  physicianId String?
+  physician   User?    @relation(fields: [physicianId], references: [id])
+
+  isPhysicalRestraint  Boolean  @default(false)
+  physRestDate         DateTime?
+  physRestStartTime    String?
+  physRestEndTime      String?
+
+  isSeclusion          Boolean  @default(false)
+  seclusionDate        DateTime?
+  seclusionStartTime   String?
+  seclusionEndTime     String?
+
+  isChemicalRestraint  Boolean  @default(false)
+  chemPatientVoluntary Boolean?
+  chemAllergiesVerified Boolean @default(false)
+  chemMedications      Json    @default("[]")
+
+  medicalConditionContraindication Boolean @default(false)
+  medicalConditionExplanation      String?
+
+  reasonDTO         Boolean @default(false)
+  reasonDTS         Boolean @default(false)
+  reasonDescription String?
+
+  lessRestrictiveMeans Json @default("[]")
+  criteriaForRelease   Json @default("[]")
+  criteriaOther        String?
+  criteriaNA           Boolean @default(false)
+
+  patientInformedYes Boolean?
+  patientInformedNA  Boolean @default(false)
+  isTelephoneOrder   Boolean @default(false)
+  isReadBack         Boolean @default(false)
+
+  nurseName          String?
+  nurseSignature     String?
+  nurseDate          DateTime?
+  nurseTime          String?
+  physicianName      String?
+  physicianSignature String?
+  physicianDate      DateTime?
+  physicianTime      String?
+}
+
+model SRFaceToFaceEvaluation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  srPacketId    String   @unique
+  srPacket      SRPacket @relation(fields: [srPacketId], references: [id])
+  completedById String?
+  completedBy   User?    @relation(fields: [completedById], references: [id])
+
+  evalDate DateTime
+  evalTime String
+
+  patientResponse       String?
+  vitalsBP              String?
+  vitalsPulse           String?
+  vitalsRespirations    String?
+  vitalsPatientRefused  Boolean @default(false)
+
+  unstableMedical       Boolean?
+  unstableComment       String?
+  adverseDrug           Boolean?
+  adverseDrugComment    String?
+  respCardiac           Boolean?
+  respCardiacComment    String?
+  painNeuro             Boolean?
+  painNeuroComment      String?
+  limitedROM            Boolean?
+  limitedROMComment     String?
+  skinBreakage          Boolean?
+  skinBreakageComment   String?
+  injuriesFromRestraint Boolean?
+  injuriesComment       String?
+
+  orientPerson    Boolean @default(false)
+  orientPlace     Boolean @default(false)
+  orientTime      Boolean @default(false)
+  orientSituation Boolean @default(false)
+
+  mood             Json @default("[]")
+  moodOther        String?
+  affect           Json @default("[]")
+  affectOther      String?
+  behaviorCooperative Boolean?
+  abnormalFindings Boolean?
+  abnormalComment  String?
+  actionsTaken     String?
+
+  healthReviewFactors     Boolean?
+  healthReviewDescription String?
+
+  continuedNeedNA          Boolean @default(false)
+  continuedNeedNo          Boolean @default(false)
+  continuedNeedYes         Boolean @default(false)
+  continuedNeedExplanation String?
+  discontinueCriteria      Json    @default("[]")
+  discontinueOther         String?
+
+  practitionerName               String?
+  practitionerDate               DateTime?
+  practitionerTime               String?
+  additionalOrders               Boolean?
+  additionalOrdersDescription    String?
+
+  rnName      String?
+  rnSignature String?
+  rnDate      DateTime?
+  rnTime      String?
+}
+
+model SRMonitoringLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  srPacketId    String
+  srPacket      SRPacket @relation(fields: [srPacketId], references: [id])
+
+  logDate       DateTime
+  location      String?
+  notApplicable Boolean @default(false)
+
+  entries         SRMonitoringEntry[]
+  staffSignatures Json @default("[]")
+}
+
+model SRMonitoringEntry {
+  id String @id @default(cuid())
+
+  monitoringLogId String
+  monitoringLog   SRMonitoringLog @relation(fields: [monitoringLogId], references: [id])
+
+  militaryTime     String
+  behaviorCode     String
+  interventionCode String
+  staffInitials    String
+}
+
+model SRTerminationSummary {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  srPacketId    String   @unique
+  srPacket      SRPacket @relation(fields: [srPacketId], references: [id])
+  completedById String?
+  completedBy   User?    @relation(fields: [completedById], references: [id])
+
+  isPhysicalRestraint Boolean @default(false)
+  physTimeIn          String?
+  physTimeOut         String?
+
+  isSeclusion         Boolean @default(false)
+  seclusionTimeIn     String?
+  seclusionTimeOut    String?
+
+  isChemicalRestraint Boolean @default(false)
+  chemTimeGiven       String?
+  chemLocationIM      String?
+
+  totalMinutes      Int?
+  behaviorPsychStatus String?
+
+  physAirwayIntact    Boolean @default(false)
+  physCirculationGood Boolean @default(false)
+  physMusculoskeletal Boolean @default(false)
+  injuryComplaints    Boolean?
+  injuryDescription   String?
+
+  familyNotifiedYes      Boolean?
+  familyNotifiedName     String?
+  familyNotifiedNo       Boolean?
+  familyNotifiedNoReason String?
+  notificationDate       DateTime?
+  notificationTime       String?
+
+  rnName      String?
+  rnSignature String?
+  rnDate      DateTime?
+  rnTime      String?
+}
+
+model SRPatientDebriefing {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  srPacketId String   @unique
+  srPacket   SRPacket @relation(fields: [srPacketId], references: [id])
+
+  debriefDate DateTime
+  debriefTime String
+
+  interventionTypes  Json @default("[]")
+  reasonDTS          Boolean @default(false)
+  reasonDTO          Boolean @default(false)
+  staffInvolved      Json @default("[]")
+  participants       Json @default("[]")
+  patientName        String?
+
+  infoDiscussed        String?
+  eventDescription     String?
+  preventionStrategies String?
+
+  patientSignature String?
+  patientRefused   Boolean @default(false)
+  rnSignature      String?
+  rnDate           DateTime?
+  rnTime           String?
+}
+
+model SRStaffDebriefing {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  srPacketId String   @unique
+  srPacket   SRPacket @relation(fields: [srPacketId], references: [id])
+
+  debriefDate DateTime
+  debriefTime String
+
+  leader                String?
+  staffMembers          Json @default("[]")
+  initiatingIndividuals String?
+
+  interventionOpportunities String?
+  thingsDoneWell            String?
+  strengthenResponse        String?
+  infoDiscussed             String?
+  preventionProcedures      String?
+  debriefingOutcome         String?
+
+  cpi7  String?
+  cpi8  String?
+  cpi9  String?
+  cpi10 String?
+  cpi11 String?
+  cpi12 String?
+  cpi13 String?
+  cpi14 String?
+  cpiNoExplanation String?
+}
+
+model SRAfterActionCritique {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  srPacketId    String   @unique
+  srPacket      SRPacket @relation(fields: [srPacketId], references: [id])
+  completedById String?
+  completedBy   User?    @relation(fields: [completedById], references: [id])
+
+  q1  String?
+  q2  String?
+  q3  String?
+  q4  String?
+  q5  String?
+  q6  String?
+  q7  String?
+  q8  String?
+  q9  String?
+  q10 String?
+  q11 String?
+  q12 String?
+  q13 String?
+  q14 String?
+  q15 String?
+  q16 String?
+  q17 String?
+  q18 String?
+  q19 String?
+  q20 String?
+  q21 String?
+
+  recommendations  String?
+  completedByName  String?
+  completedBySign  String?
+  completedDate    DateTime?
+  qmSignature      String?
+  qmDate           DateTime?
+}
