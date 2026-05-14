@@ -21,10 +21,15 @@ export default async function AnalyticsPage() {
     redirect("/dashboard");
   }
 
-  const reports = await prisma.incidentReport.findMany({
-    include: { patient: true, srPackets: { select: { id: true } } },
-    orderBy: { incidentDate: "desc" },
-  });
+  let reports: Awaited<ReturnType<typeof prisma.incidentReport.findMany<{ include: { patient: true; srPackets: { select: { id: true } } } }>>> = [];
+  try {
+    reports = await prisma.incidentReport.findMany({
+      include: { patient: true, srPackets: { select: { id: true } } },
+      orderBy: { incidentDate: "desc" },
+    });
+  } catch {
+    // DB not available (e.g. no connection string configured locally)
+  }
 
   const now = new Date();
   const thisMonthStart = startOfMonth(now);

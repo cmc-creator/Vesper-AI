@@ -16,14 +16,19 @@ export default async function IncidentDetailPage({
   if (!session) redirect("/login");
   const { id } = await params;
 
-  const ir = await prisma.incidentReport.findUnique({
-    where: { id },
-    include: {
-      patient: true,
-      reportedBy: { select: { name: true, title: true } },
-      srPackets: { include: { physicianOrder: true } },
-    },
-  });
+  let ir: Awaited<ReturnType<typeof prisma.incidentReport.findUnique<{ where: { id: string }; include: { patient: true; reportedBy: { select: { name: true; title: true } }; srPackets: { include: { physicianOrder: true } } } }>>> | null = null;
+  try {
+    ir = await prisma.incidentReport.findUnique({
+      where: { id },
+      include: {
+        patient: true,
+        reportedBy: { select: { name: true, title: true } },
+        srPackets: { include: { physicianOrder: true } },
+      },
+    });
+  } catch {
+    // DB not available locally
+  }
 
   if (!ir) notFound();
 

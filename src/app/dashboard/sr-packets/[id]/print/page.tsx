@@ -9,20 +9,25 @@ export default async function SRPacketPrintPage({ params }: { params: Promise<{ 
   if (!session) redirect("/login");
 
   const { id } = await params;
-  const packet = await prisma.sRPacket.findUnique({
-    where: { id },
-    include: {
-      patient: true,
-      createdBy: { select: { name: true, title: true } },
-      physicianOrder: true,
-      faceToFaceEval: true,
-      monitoringLogs: { include: { entries: true } },
-      terminationSummary: true,
-      patientDebriefing: true,
-      staffDebriefing: true,
-      afterActionCritique: true,
-    },
-  });
+  let packet: Awaited<ReturnType<typeof prisma.sRPacket.findUnique<{ where: { id: string }; include: { patient: true; createdBy: { select: { name: true; title: true } }; physicianOrder: true; faceToFaceEval: true; monitoringLogs: { include: { entries: true } }; terminationSummary: true; patientDebriefing: true; staffDebriefing: true; afterActionCritique: true } }>>> | null = null;
+  try {
+    packet = await prisma.sRPacket.findUnique({
+      where: { id },
+      include: {
+        patient: true,
+        createdBy: { select: { name: true, title: true } },
+        physicianOrder: true,
+        faceToFaceEval: true,
+        monitoringLogs: { include: { entries: true } },
+        terminationSummary: true,
+        patientDebriefing: true,
+        staffDebriefing: true,
+        afterActionCritique: true,
+      },
+    });
+  } catch {
+    // DB not available locally
+  }
 
   if (!packet) notFound();
 

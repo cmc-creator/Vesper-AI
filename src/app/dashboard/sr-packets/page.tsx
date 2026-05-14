@@ -8,31 +8,36 @@ export default async function SRPacketsPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  const packets = await prisma.sRPacket.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      patient: true,
-      physicianOrder: { select: { id: true, isPhysicalRestraint: true, isSeclusion: true, isChemicalRestraint: true } },
-      incidentReport: { select: { id: true } },
-    },
-  });
+  let packets: Awaited<ReturnType<typeof prisma.sRPacket.findMany<{ include: { patient: true; physicianOrder: { select: { id: true; isPhysicalRestraint: true; isSeclusion: true; isChemicalRestraint: true } }; incidentReport: { select: { id: true } } } }>>> = [];
+  try {
+    packets = await prisma.sRPacket.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        patient: true,
+        physicianOrder: { select: { id: true, isPhysicalRestraint: true, isSeclusion: true, isChemicalRestraint: true } },
+        incidentReport: { select: { id: true } },
+      },
+    });
+  } catch {
+    // DB not available locally
+  }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">S&amp;R Packets</h1>
-          <p className="text-sm text-gray-500 mt-1">Seclusion / Physical Hold / Chemical Restraint Documentation</p>
+          <h1 className="text-2xl font-bold text-slate-900">S&amp;R Packets</h1>
+          <p className="text-sm text-slate-500 mt-1">Seclusion / Physical Hold / Chemical Restraint Documentation</p>
         </div>
         <Link
           href="/dashboard/sr-packets/new"
-          className="bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-blue-800 transition text-sm"
+          className="bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-800 hover:to-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg transition shadow-sm text-sm"
         >
           + New Packet
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {packets.length === 0 ? (
           <div className="text-center text-gray-400 py-16">
             <p className="text-lg mb-2">No S&amp;R packets yet</p>

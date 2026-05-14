@@ -54,12 +54,12 @@ function NewSRPacketContent() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">S&amp;R Packet</h1>
-        <p className="text-sm text-gray-500">Seclusion / Physical Hold / Chemical Restraint Documentation</p>
+        <h1 className="text-2xl font-bold text-slate-900">S&amp;R Packet</h1>
+        <p className="text-sm text-slate-500">Seclusion / Physical Hold / Chemical Restraint Documentation</p>
       </div>
 
       {/* Stepper */}
-      <div className="flex overflow-x-auto gap-1 mb-8 pb-2">
+      <div className="flex overflow-x-auto gap-1.5 mb-8 pb-2">
         {STEPS.map((s, i) => (
           <button
             key={s}
@@ -68,10 +68,10 @@ function NewSRPacketContent() {
             onClick={() => packetId && setStep(i)}
             className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition ${
               i === step
-                ? "bg-blue-700 text-white"
+                ? "bg-gradient-to-r from-blue-700 to-blue-600 text-white shadow-sm"
                 : i < step
-                ? "bg-green-100 text-green-700 hover:bg-green-200"
-                : "bg-gray-100 text-gray-500"
+                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                : "bg-slate-100 text-slate-500"
             }`}
           >
             {i + 1}. {s}
@@ -81,21 +81,21 @@ function NewSRPacketContent() {
 
       {/* Step content */}
       {step === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
           <div>
-            <h2 className="font-bold text-lg text-gray-900 mb-1">Cover Sheet</h2>
-            <p className="text-sm text-gray-500">
+            <h2 className="font-bold text-lg text-slate-900 mb-1">Cover Sheet</h2>
+            <p className="text-sm text-slate-500">
               The following forms must be completed for ANY seclusion/personal or chemical restraint.
               Ensure to include the incident report associated with the S&amp;R.
             </p>
           </div>
           {incidentId && (
-            <div className="bg-blue-50 border border-blue-100 text-blue-800 text-sm rounded-lg px-4 py-2">
+            <div className="bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-lg px-4 py-3">
               Linked to Incident Report: <strong>{incidentId}</strong>
             </div>
           )}
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Patient</p>
+            <p className="text-sm font-semibold text-slate-700 mb-2">Patient</p>
             <PatientSelector value={patientId} onChange={setPatientId} />
           </div>
           {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -104,7 +104,7 @@ function NewSRPacketContent() {
               type="button"
               onClick={createPacket}
               disabled={creating}
-              className="bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-blue-800 transition disabled:opacity-60"
+              className="bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-800 hover:to-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg transition shadow-sm disabled:opacity-60"
             >
               {creating ? "Creating…" : "Start Packet →"}
             </button>

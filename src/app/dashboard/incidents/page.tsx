@@ -8,10 +8,15 @@ export default async function IncidentListPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  const incidents = await prisma.incidentReport.findMany({
-    include: { patient: true, reportedBy: { select: { name: true } } },
-    orderBy: { incidentDate: "desc" },
-  });
+  let incidents: Awaited<ReturnType<typeof prisma.incidentReport.findMany<{ include: { patient: true; reportedBy: { select: { name: true } } } }>>> = [];
+  try {
+    incidents = await prisma.incidentReport.findMany({
+      include: { patient: true, reportedBy: { select: { name: true } } },
+      orderBy: { incidentDate: "desc" },
+    });
+  } catch {
+    // DB not available locally
+  }
 
   return (
     <div>

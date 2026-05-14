@@ -324,9 +324,9 @@ export default function PhysicianOrderForm({ srPacketId, onNext, onBack }: Props
 
 export function SRSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="bg-gray-50 border-b border-gray-200 px-5 py-3">
-        <h3 className="font-bold text-gray-900 text-sm uppercase tracking-widest">{title}</h3>
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-slate-50 border-b border-slate-200 px-5 py-3">
+        <h3 className="font-bold text-slate-600 text-xs uppercase tracking-widest">{title}</h3>
       </div>
       <div className="px-5 py-5 space-y-5">{children}</div>
     </div>
@@ -336,12 +336,12 @@ export function SRSection({ title, children }: { title: string; children: React.
 export function SRField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-gray-800 mb-1">{label}</label>
+      <label className="block text-sm font-semibold text-slate-700 mb-1.5">{label}</label>
       {children}
     </div>
   );
 }
 
-export const inp = "w-full border border-gray-400 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500";
-export const btnPrimary = "bg-blue-700 hover:bg-blue-800 text-white font-semibold px-6 py-2.5 rounded-lg transition disabled:opacity-60";
-export const btnSecondary = "border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium px-6 py-2.5 rounded-lg transition";
+export const inp = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition placeholder:text-slate-400";
+export const btnPrimary = "bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-800 hover:to-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed";
+export const btnSecondary = "border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium px-6 py-2.5 rounded-lg transition";

@@ -7,11 +7,26 @@ import SubmitPacketButton from "@/components/sr/SubmitPacketButton";
 
 function SectionStatus({ label, complete }: { label: string; complete: boolean }) {
   return (
-    <div className={`flex items-center justify-between px-4 py-3 border rounded-lg text-sm ${
-      complete ? "bg-green-50 border-green-200 text-green-800" : "bg-gray-50 border-gray-200 text-gray-500"
+    <div className={`flex items-center justify-between px-4 py-3 rounded-lg text-sm border ${
+      complete
+        ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+        : "bg-slate-50 border-slate-200 text-slate-500"
     }`}>
-      <span className="font-medium">{label}</span>
-      <span>{complete ? "✓ Complete" : "Incomplete"}</span>
+      <div className="flex items-center gap-2.5">
+        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+          complete ? "bg-emerald-500" : "border-2 border-slate-300"
+        }`}>
+          {complete && (
+            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </div>
+        <span className="font-medium">{label}</span>
+      </div>
+      <span className={`text-xs font-semibold ${complete ? "text-emerald-600" : "text-slate-400"}`}>
+        {complete ? "Complete" : "Incomplete"}
+      </span>
     </div>
   );
 }
@@ -20,21 +35,26 @@ export default async function SRPacketDetailPage({ params }: { params: Promise<{
   const session = await auth();
   if (!session) redirect("/login");
   const { id } = await params;
-  const packet = await prisma.sRPacket.findUnique({
-    where: { id },
-    include: {
-      patient: true,
-      incidentReport: { select: { id: true, incidentDate: true } },
-      createdBy: { select: { name: true, title: true } },
-      physicianOrder: true,
-      faceToFaceEval: true,
-      monitoringLogs: { include: { entries: true } },
-      terminationSummary: true,
-      patientDebriefing: true,
-      staffDebriefing: true,
-      afterActionCritique: true,
-    },
-  });
+  let packet: Awaited<ReturnType<typeof prisma.sRPacket.findUnique<{ where: { id: string }; include: { patient: true; incidentReport: { select: { id: true; incidentDate: true } }; createdBy: { select: { name: true; title: true } }; physicianOrder: true; faceToFaceEval: true; monitoringLogs: { include: { entries: true } }; terminationSummary: true; patientDebriefing: true; staffDebriefing: true; afterActionCritique: true } }>>> | null = null;
+  try {
+    packet = await prisma.sRPacket.findUnique({
+      where: { id },
+      include: {
+        patient: true,
+        incidentReport: { select: { id: true, incidentDate: true } },
+        createdBy: { select: { name: true, title: true } },
+        physicianOrder: true,
+        faceToFaceEval: true,
+        monitoringLogs: { include: { entries: true } },
+        terminationSummary: true,
+        patientDebriefing: true,
+        staffDebriefing: true,
+        afterActionCritique: true,
+      },
+    });
+  } catch {
+    // DB not available locally
+  }
 
   if (!packet) notFound();
 
@@ -110,7 +130,7 @@ export default async function SRPacketDetailPage({ params }: { params: Promise<{
           </Link>
         </div>
       ) : (
-        <div className={`rounded-xl border p-4 ${isFullyComplete ? "bg-green-50 border-green-200" : "bg-yellow-50 border-yellow-200"}`}>
+          <div className={`rounded-xl border p-4 ${isFullyComplete ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
           <div className="flex items-center justify-between">
             <p className={`font-semibold ${isFullyComplete ? "text-green-800" : "text-yellow-800"}`}>
               {isFullyComplete ? "✓ All sections complete — ready to submit" : `${totalComplete} / ${sections.length} sections complete`}
@@ -126,8 +146,8 @@ export default async function SRPacketDetailPage({ params }: { params: Promise<{
       )}
 
       {/* Patient */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h2 className="font-bold text-gray-700 mb-3 text-xs uppercase tracking-wide">Patient</h2>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <h2 className="font-bold text-slate-500 mb-3 text-xs uppercase tracking-wider">Patient</h2>
         <div className="grid md:grid-cols-4 gap-4 text-sm">
           <div><span className="text-gray-500">Name</span><p className="font-medium">{packet.patient.fullName}</p></div>
           <div><span className="text-gray-500">MRN</span><p className="font-mono font-medium">{packet.patient.mrn}</p></div>
@@ -147,8 +167,8 @@ export default async function SRPacketDetailPage({ params }: { params: Promise<{
       </div>
 
       {/* Section statuses */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h2 className="font-bold text-gray-700 mb-3 text-xs uppercase tracking-wide">Documentation Sections</h2>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <h2 className="font-bold text-slate-500 mb-3 text-xs uppercase tracking-wider">Documentation Sections</h2>
         <div className="space-y-2">
           {sections.map((s) => (
             <SectionStatus key={s.label} label={s.label} complete={s.complete} />
